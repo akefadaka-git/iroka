@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
+use crate::security_store::RevocationTarget;
 
 const MAX_APPROVAL_TTL_SECS: u64 = 900;
 const CLOCK_SKEW_SECS: u64 = 30;
@@ -114,6 +115,45 @@ struct OwnerKeyRecord {
     not_after: u64,
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
+pub enum OwnerSecurityAction {
+    RevokeCredential { issuer: String, credential_id: String, reason: String },
+    RevokeSigningKey { issuer: String, key_id: String, reason: String },
+    RevokeApproval { approval_id: String, reason: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct OwnerSecurityCommandPayload {
+    pub command_id: String,
+    pub owner_subject: String,
+    pub key_id: String,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub action: OwnerSecurityAction,
+}
+
+impl OwnerSecurityCommandPayload {
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, OwnerApprovalError> {
+        serde_json::to_vec(self).map_err(|_| OwnerApprovalError::Malformed)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedOwnerSecurityCommand {
+    pub payload: OwnerSecurityCommandPayload,
+    pub signature: Vec<u8>,
+}
+
+impl SignedOwnerSecurityCommand {
+    pub fn from_signature(payload: OwnerSecurityCommandPayload, signature: Vec<u8>) -> Self {
+        Self { payload, signature }
+    }
+}
+
 /// Owner authority is established only by explicitly provisioned public keys.
 /// There is no default Owner, self-registration, model-issued authority or
 /// automatic privilege inheritance. Private keys remain in an offline signer/HSM.
@@ -201,6 +241,69 @@ impl OwnerApprovalVerifier {
         if !consumed { return Err(OwnerApprovalError::Replay); }
         Ok(())
     }
+
+    /// Apply an Owner-signed, replay-protected revocation command. The command
+    /// record and revocation effect commit in one SQLite transaction.
+    pub fn apply_security_command(
+        &self,
+        command: &SignedOwnerSecurityCommand,
+        now: u64,
+    ) -> Result<(), OwnerApprovalError> {
+        let p = &command.payload;
+        if p.command_id.trim().is_empty() || p.owner_subject.trim().is_empty()
+            || p.key_id.trim().is_empty() || p.issued_at >= p.expires_at {
+            return Err(OwnerApprovalError::Malformed);
+        }
+        if p.issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
+            return Err(OwnerApprovalError::NotYetValid);
+        }
+        if p.expires_at <= now.saturating_sub(CLOCK_SKEW_SECS) {
+            return Err(OwnerApprovalError::Expired);
+        }
+        if p.expires_at - p.issued_at > MAX_APPROVAL_TTL_SECS {
+            return Err(OwnerApprovalError::Malformed);
+        }
+        let owner_key = self.keys.get(&p.key_id).ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if p.owner_subject != owner_key.owner_subject {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        if now < owner_key.not_before || now >= owner_key.not_after {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
+        if self.store.key_revoked(OWNER_ISSUER, &p.key_id)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)? {
+            return Err(OwnerApprovalError::Revoked);
+        }
+        let signing_bytes = p.signing_bytes()?;
+        let signature = Signature::from_slice(&command.signature)
+            .map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key.verifying_key.verify(&signing_bytes, &signature)
+            .map_err(|_| OwnerApprovalError::InvalidSignature)?;
+        let digest = Sha256::digest(&signing_bytes);
+        let target = match &p.action {
+            OwnerSecurityAction::RevokeCredential { issuer, credential_id, reason } => {
+                if issuer.trim().is_empty() || credential_id.trim().is_empty() || reason.trim().is_empty() {
+                    return Err(OwnerApprovalError::Malformed);
+                }
+                RevocationTarget::Credential { issuer: issuer.clone(), credential_id: credential_id.clone(), reason: reason.clone() }
+            }
+            OwnerSecurityAction::RevokeSigningKey { issuer, key_id, reason } => {
+                if issuer.trim().is_empty() || key_id.trim().is_empty() || reason.trim().is_empty() {
+                    return Err(OwnerApprovalError::Malformed);
+                }
+                RevocationTarget::Key { issuer: issuer.clone(), key_id: key_id.clone(), reason: reason.clone() }
+            }
+            OwnerSecurityAction::RevokeApproval { approval_id, reason } => {
+                if approval_id.trim().is_empty() || reason.trim().is_empty() {
+                    return Err(OwnerApprovalError::Malformed);
+                }
+                RevocationTarget::Approval { approval_id: approval_id.clone(), reason: reason.clone() }
+            }
+        };
+        let applied = self.store.apply_signed_revocation(&p.command_id, digest.as_slice(), now, target)?;
+        if applied { Ok(()) } else { Err(OwnerApprovalError::Replay) }
+    }
+
 }
 
 #[cfg(test)]
