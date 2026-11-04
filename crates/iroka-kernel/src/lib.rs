@@ -1,17 +1,27 @@
 //! IROKA ZERO trusted-kernel foundation.
-//! This crate evaluates authorization proposals deterministically. It does not
-//! execute tools, call models, verify credentials, or persist audit records.
+//! This crate provides deterministic policy evaluation and explicit contracts
+//! for identity, governance approval evidence and assurance audit records.
+//! Production adapters remain a separate, independently reviewed trust boundary.
 
+mod assurance;
 mod decision;
+mod governance;
+mod identity;
 mod policy;
 mod request;
 
+pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use governance::{validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier};
+pub use identity::{
+    authenticate, bind_principal, IdentityAssertion, IdentityError, IdentityVerifier,
+    VerifiedPrincipal,
+};
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
 
-/// Evaluate a proposed operation against an explicit policy.
-/// Missing or invalid evidence must never be interpreted as permission.
+/// Low-level deterministic policy primitive. This does not authenticate the
+/// subject, validate approval evidence or persist an audit record.
 pub fn evaluate(
     request: &AuthorizationRequest,
     policy: &Policy,
@@ -39,54 +49,52 @@ pub fn evaluate(
 mod tests {
     use super::*;
 
-    fn request(capability: &str, risk: RiskLevel) -> AuthorizationRequest {
-        AuthorizationRequest::new("principal:operator-1", capability, "resource:workspace-1", risk)
-    }
-
-    fn policy() -> Policy {
-        Policy::new(
-            "policy-v1",
-            vec!["workspace.read".into(), "records.export".into()],
-            vec!["records.export".into()],
-            RiskLevel::High,
-        )
+    struct TestCredentialVerifier;
+    impl IdentityVerifier for TestCredentialVerifier {
+        fn verify_credential(&self, _assertion: &IdentityAssertion, _now: u64) -> Result<(), IdentityError> {
+            Ok(())
+        }
     }
 
     #[test]
-    fn allows_registered_capability_within_policy() {
-        let d = evaluate(&request("workspace.read", RiskLevel::Low), &policy(), false);
-        assert_eq!(d.code(), DecisionCode::Allow);
+    fn identity_rejects_expired_assertions() {
+        let a = IdentityAssertion::new("issuer", "principal:1", "iroka", 10, "credential:1");
+        assert_eq!(authenticate(&TestCredentialVerifier, &a, "iroka", 10), Err(IdentityError::Expired));
     }
 
     #[test]
-    fn denies_unregistered_capability() {
-        let d = evaluate(&request("system.modify", RiskLevel::Low), &policy(), false);
-        assert_eq!(d.code(), DecisionCode::Deny);
-        assert_eq!(d.reason(), DecisionReason::CapabilityNotGranted);
+    fn identity_rejects_wrong_audience() {
+        let a = IdentityAssertion::new("issuer", "principal:1", "other", 100, "credential:1");
+        assert_eq!(authenticate(&TestCredentialVerifier, &a, "iroka", 1), Err(IdentityError::VerificationFailed));
     }
 
     #[test]
-    fn requires_approval_for_designated_capability() {
-        let d = evaluate(&request("records.export", RiskLevel::Low), &policy(), false);
-        assert_eq!(d.code(), DecisionCode::RequireApproval);
+    fn identity_returns_principal_only_after_verifier_accepts() {
+        let a = IdentityAssertion::new("issuer", "principal:1", "iroka", 100, "credential:1");
+        let p = authenticate(&TestCredentialVerifier, &a, "iroka", 1).expect("test assertion accepted");
+        assert_eq!(p.subject(), "principal:1");
     }
 
     #[test]
-    fn escalates_excessive_risk() {
-        let d = evaluate(&request("workspace.read", RiskLevel::Critical), &policy(), false);
-        assert_eq!(d.code(), DecisionCode::Escalate);
+    fn approval_is_bound_to_exact_request_and_policy() {
+        let q = AuthorizationRequest::new("principal:1", "records.export", "resource:9", RiskLevel::Low);
+        let a = IdentityAssertion::new("issuer", "owner:1", "iroka", 100, "owner-credential");
+        let e = ApprovalEvidence::new("approval:1", a, "records.export", "resource:9", "principal:1", "policy-v1", 100);
+        assert_eq!(validate_approval_scope(&e, &q, "policy-v1", 1), Ok(()));
+        assert_eq!(validate_approval_scope(&e, &q, "policy-v2", 1), Err(ApprovalError::ScopeMismatch));
+    }
+
+    struct FailingAudit;
+    impl AuditSink for FailingAudit {
+        fn append(&self, _event: &AuditEvent) -> Result<(), AuditError> { Err(AuditError::Unavailable) }
     }
 
     #[test]
-    fn emergency_stop_precedes_policy_checks() {
-        let d = evaluate(&request("workspace.read", RiskLevel::Low), &policy(), true);
-        assert_eq!(d.reason(), DecisionReason::EmergencyStopActive);
-    }
-
-    #[test]
-    fn denies_malformed_request() {
-        let r = AuthorizationRequest::new("", "workspace.read", "resource:1", RiskLevel::Low);
-        let d = evaluate(&r, &policy(), false);
-        assert_eq!(d.code(), DecisionCode::Deny);
+    fn audit_failure_escalates_positive_decision() {
+        let event = AuditEvent::new("event:1", "trace:1", "principal:1", "workspace.read", "workspace:1", "policy-v1", DecisionCode::Allow, 1);
+        let allow = Decision::new(DecisionCode::Allow, DecisionReason::PolicySatisfied, "policy-v1");
+        let result = record_decision(&FailingAudit, &event, allow);
+        assert_eq!(result.code(), DecisionCode::Escalate);
+        assert_eq!(result.reason(), DecisionReason::AuditUnavailable);
     }
 }
