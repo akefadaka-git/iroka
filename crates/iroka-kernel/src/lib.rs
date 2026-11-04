@@ -109,6 +109,17 @@ mod tests {
     }
 
     #[test]
+    fn authenticated_principal_flows_into_governed_authorization() {
+        let q = AuthorizationRequest::new("principal:1", "workspace.read", "workspace:1", RiskLevel::Low);
+        let principal = VerifiedPrincipal::from_verified_credential(
+            "principal:1".into(), "issuer:test".into(), "credential:1".into(),
+        );
+        let d = authorize_authenticated(&q, &principal, None, &TestIdentity, &TestApproval,
+            &TestAudit, &policy(), "iroka", 1, false, "event:authenticated", "trace:authenticated");
+        assert_eq!(d.code(), DecisionCode::Allow);
+    }
+
+    #[test]
     fn missing_approval_remains_require_approval() {
         let q = AuthorizationRequest::new("principal:1", "records.export", "records:1", RiskLevel::Low);
         let d = authorize(&q, &assertion("principal:1"), None, &TestIdentity, &TestApproval,
