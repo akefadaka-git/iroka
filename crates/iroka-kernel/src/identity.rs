@@ -3,6 +3,7 @@
 //! Cryptographic token verification is supplied by a trusted verifier adapter.
 //! This module binds the resulting verified principal to authorization input.
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct IdentityAssertion {
     issuer: String,
@@ -12,6 +13,7 @@ pub(crate) struct IdentityAssertion {
     credential_id: String,
 }
 
+#[cfg(test)]
 impl IdentityAssertion {
     pub fn new(
         issuer: impl Into<String>,
@@ -49,6 +51,7 @@ impl IdentityAssertion {
 /// Trusted adapter contract. Implementations must verify credential integrity,
 /// issuer trust, audience, subject binding, revocation and required assurance.
 /// The adapter itself is part of the trusted computing base.
+#[cfg(test)]
 pub(crate) trait IdentityVerifier {
     fn verify_credential(
         &self,
@@ -57,6 +60,7 @@ pub(crate) trait IdentityVerifier {
     ) -> Result<(), IdentityError>;
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum IdentityError {
     Malformed,
@@ -96,6 +100,7 @@ impl VerifiedPrincipal {
 }
 
 /// Verify an assertion before producing the opaque principal used by the service.
+#[cfg(test)]
 pub(crate) fn authenticate<V: IdentityVerifier>(
     verifier: &V,
     assertion: &IdentityAssertion,
