@@ -25,7 +25,7 @@ pub use identity::{
 };
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
-pub use service::authorize;
+pub use service::{authorize, authorize_authenticated};
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
 /// validate approval evidence or persist audit events. Prefer authorize().
