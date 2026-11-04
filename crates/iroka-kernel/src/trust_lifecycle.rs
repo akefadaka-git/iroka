@@ -194,7 +194,7 @@ pub fn verify_and_install_trust_bundle(
 
     let trust = TrustStore::new(p.trusted_issuers.clone(), p.keys.clone())?;
     let digest = Sha256::digest(&signing_bytes);
-    store.install_trust_bundle(p.version, digest.as_slice(), p.issued_at, p.expires_at)?;
+    store.install_trust_bundle(p.version, digest.as_slice(), p.issued_at, p.expires_at, now)?;
     Ok(trust)
 }
 
