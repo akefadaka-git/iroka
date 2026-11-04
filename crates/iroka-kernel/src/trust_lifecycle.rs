@@ -1,5 +1,7 @@
 //! Root-signed trust-bundle lifecycle: verification, expiry and rollback protection.
 
+use std::sync::{Arc, RwLock};
+
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -133,6 +135,38 @@ pub fn verify_and_install_trust_bundle(
     let digest = Sha256::digest(&signing_bytes);
     store.install_trust_bundle(p.version, digest.as_slice(), p.issued_at, p.expires_at)?;
     Ok(trust)
+}
+
+
+/// Thread-safe in-process trust snapshot publisher. Validation and durable
+/// anti-rollback persistence complete before the active snapshot is replaced.
+pub struct TrustSnapshotManager {
+    current: RwLock<Arc<TrustStore>>,
+}
+
+impl TrustSnapshotManager {
+    pub fn new(initial: TrustStore) -> Self {
+        Self { current: RwLock::new(Arc::new(initial)) }
+    }
+
+    pub fn snapshot(&self) -> Result<Arc<TrustStore>, TrustBundleError> {
+        self.current.read().map(|snapshot| Arc::clone(&snapshot))
+            .map_err(|_| TrustBundleError::StoreUnavailable)
+    }
+
+    pub fn install(
+        &self,
+        bundle: &SignedTrustBundle,
+        root: &TrustRoot,
+        store: &SqliteSecurityStore,
+        now: u64,
+    ) -> Result<u64, TrustBundleError> {
+        let next = verify_and_install_trust_bundle(bundle, root, store, now)?;
+        let version = bundle.payload.version;
+        let mut current = self.current.write().map_err(|_| TrustBundleError::StoreUnavailable)?;
+        *current = Arc::new(next);
+        Ok(version)
+    }
 }
 
 #[cfg(test)]
