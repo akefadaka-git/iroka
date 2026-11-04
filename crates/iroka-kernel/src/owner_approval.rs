@@ -391,7 +391,9 @@ impl OwnerApprovalVerifier {
         };
         let applied =
             self.store
-                .apply_signed_revocation(&p.command_id, digest.as_slice(), now, target)?;
+                .apply_signed_revocation(
+                &p.command_id, &p.owner_subject, &p.key_id, digest.as_slice(), now, target,
+            )?;
         if applied {
             Ok(())
         } else {
