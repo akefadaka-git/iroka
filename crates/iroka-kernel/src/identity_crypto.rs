@@ -13,7 +13,8 @@ const MAX_TOKEN_BYTES: usize = 16 * 1024;
 const MAX_CLOCK_SKEW_SECS: u64 = 30;
 const MAX_CREDENTIAL_TTL_SECS: u64 = 3_600;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct TrustedKey {
     pub issuer: String,
     pub key_id: String,
