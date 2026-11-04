@@ -293,7 +293,7 @@ impl OwnerApprovalVerifier {
             issued_at: p.issued_at,
             expires_at: p.expires_at,
             consumed_at: now,
-        })
+        });
         if !consumed {
             return Err(OwnerApprovalError::Replay);
         }
