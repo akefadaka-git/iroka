@@ -571,4 +571,24 @@ mod tests {
             Err(CredentialError::KeyOutsideValidity)
         );
     }
+    #[test]
+    fn sqlite_revocation_adapter_blocks_credentials_and_signing_keys() {
+        let (signing, trust) = fixture();
+        let store = crate::SqliteSecurityStore::open_in_memory().unwrap();
+        store.revoke_credential("issuer:iroka-test", "cred-001", 1_200, "credential compromise").unwrap();
+        let verifier = Ed25519CredentialVerifier::new(trust.clone(), store);
+        assert_eq!(
+            verifier.authenticate(&token(&signing, "key-2026-a", 4_700), "iroka-kernel", 1_200),
+            Err(CredentialError::RevokedCredential)
+        );
+
+        let key_store = crate::SqliteSecurityStore::open_in_memory().unwrap();
+        key_store.revoke_key("issuer:iroka-test", "key-2026-a", 1_200, "key compromise").unwrap();
+        let key_verifier = Ed25519CredentialVerifier::new(trust, key_store);
+        assert_eq!(
+            key_verifier.authenticate(&token(&signing, "key-2026-a", 4_700), "iroka-kernel", 1_200),
+            Err(CredentialError::RevokedKey)
+        );
+    }
+
 }
