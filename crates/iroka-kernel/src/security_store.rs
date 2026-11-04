@@ -86,7 +86,7 @@ impl SqliteSecurityStore {
             [], |row| Ok((row.get(0)?, row.get(1)?))
         ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
         match current {
-            Some((current_version, current_digest)) if version_i < current_version =>
+            Some((current_version, _current_digest)) if version_i < current_version =>
                 return Err(SecurityStoreError::Rollback),
             Some((current_version, current_digest)) if version_i == current_version => {
                 if current_digest != digest { return Err(SecurityStoreError::ConflictingVersion); }
