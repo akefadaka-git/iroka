@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+dev-no-revocations = []
+
 [dependencies]
 base64 = "=0.22.1"
 ed25519-dalek = { version = "=2.1.1", default-features = false, features = ["std"] }
