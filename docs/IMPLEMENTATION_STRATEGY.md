@@ -371,3 +371,14 @@ This strategy does not authorize:
 The normative regional and language requirements are defined in [A1 — Amharic-First Ethiopian and African Architecture Contract](architecture/A1-AMHARIC-FIRST-REGIONAL-ARCHITECTURE-CONTRACT.md).
 
 That contract governs language and script, localization, calendar and time, identity, documents, knowledge, regional deployment profiles, and cross-cutting Kernel controls. It is mandatory for new design and implementation. Its existence establishes requirements only; runtime support remains subject to the contract's acceptance evidence and the A1/A2 gate process.
+
+
+## 15. Native computing and VYRAQON core integration
+
+IROKA's long-term target is a proprietary intelligent computing ecosystem with its own operating-system architecture, Kernel, native programming language/toolchain, cognitive fabric and assurance plane. VYRAQON is a first-class core writing and computational representation capability, maintained independently in its own repository and integrated through pinned, versioned, verifiable interfaces.
+
+The binding A2 direction, repository boundary, logical contracts and acceptance gates are specified in [IROKA Native Computing Architecture and VYRAQON Core Integration](architecture/IROKA-NATIVE-COMPUTING-AND-VYRAQON-INTEGRATION.md).
+
+This is a target architecture, not a claim that a native OS or INL language already exists. The existing Rust Kernel remains the current implementation foundation pending A2 architecture and migration review. A1 Amharic-first Ethiopian/African requirements remain unchanged and apply to every native layer and user-facing surface.
+
+The VYRAQON repository was not present under the connected `akefadaka-git` account at the time of this update. Create that repository separately and grant access before cross-repository implementation. No VYRAQON source is copied into IROKA.
