@@ -11,6 +11,7 @@ use crate::identity::{IdentityError, VerifiedPrincipal};
 
 const MAX_TOKEN_BYTES: usize = 16 * 1024;
 const MAX_CLOCK_SKEW_SECS: u64 = 30;
+const MAX_CREDENTIAL_TTL_SECS: u64 = 3_600;
 
 #[derive(Debug, Clone)]
 pub struct TrustedKey {
@@ -192,8 +193,13 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         if claims.nbf.is_some_and(|v| v > now.saturating_add(skew)) {
             return Err(CredentialError::NotYetValid);
         }
-        if claims.iat.is_some_and(|v| v > now.saturating_add(skew)) {
+        let issued_at = claims.iat.ok_or(CredentialError::Malformed)?;
+        if issued_at > now.saturating_add(skew) {
             return Err(CredentialError::IssuedInFuture);
+        }
+        if claims.exp <= issued_at || claims.exp - issued_at > MAX_CREDENTIAL_TTL_SECS
+            || claims.nbf.is_some_and(|v| v > claims.exp) {
+            return Err(CredentialError::Malformed);
         }
         let key = self.trust.key(&claims.iss, &header.kid, now)
             .map_err(|e| e)?;
@@ -262,7 +268,7 @@ mod tests {
     fn verifies_a_trusted_ed25519_credential() {
         let (signing, trust) = fixture();
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
-        let principal = verifier.authenticate(&token(&signing, "key-2026-a"), "iroka-kernel", 1200)
+        let principal = verifier.authenticate(&token(&signing, "key-2026-a", 4700), "iroka-kernel", 1200)
             .expect("credential should verify");
         assert_eq!(principal.subject(), "principal:42");
         assert_eq!(principal.issuer(), "issuer:iroka-test");
