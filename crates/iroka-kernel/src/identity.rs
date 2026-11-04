@@ -60,6 +60,14 @@ pub struct VerifiedPrincipal {
 }
 
 impl VerifiedPrincipal {
+    pub(crate) fn from_verified_credential(
+        subject: String,
+        issuer: String,
+        credential_id: String,
+    ) -> Self {
+        Self { subject, issuer, credential_id }
+    }
+
     pub fn subject(&self) -> &str { &self.subject }
     pub fn issuer(&self) -> &str { &self.issuer }
     pub fn credential_id(&self) -> &str { &self.credential_id }
