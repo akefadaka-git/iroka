@@ -40,7 +40,7 @@ pub use service::authorize_authenticated_with_owner_approval;
 pub(crate) use service::{authorize, authorize_authenticated};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, SignedTrustBundle, TrustBundleError, TrustBundlePayload,
-    TrustRoot,
+    TrustRoot, TrustSnapshotManager,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
