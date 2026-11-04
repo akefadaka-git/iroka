@@ -113,16 +113,21 @@ pub enum CredentialError {
 
 /// Implementations must read authoritative, current revocation state.
 /// A cache must have an explicit maximum staleness and fail closed when exceeded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RevocationError {
+    Unavailable,
+}
+
 pub trait RevocationChecker: Send + Sync {
-    fn credential_revoked(&self, issuer: &str, credential_id: &str) -> Result<bool, ()>;
-    fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, ()>;
+    fn credential_revoked(&self, issuer: &str, credential_id: &str) -> Result<bool, RevocationError>;
+    fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError>;
 }
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoRevocations;
 impl RevocationChecker for NoRevocations {
-    fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, ()> { Ok(false) }
-    fn key_revoked(&self, _: &str, _: &str) -> Result<bool, ()> { Ok(false) }
+    fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> { Ok(false) }
+    fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> { Ok(false) }
 }
 
 #[derive(Debug, Deserialize)]
@@ -202,7 +207,7 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
             return Err(CredentialError::Malformed);
         }
         let key = self.trust.key(&claims.iss, &header.kid, now)
-            .map_err(|e| e)?;
+            ?;
         if key.issuer != claims.iss { return Err(CredentialError::UntrustedIssuer); }
         let signature = Signature::from_slice(&signature_bytes).map_err(|_| CredentialError::Malformed)?;
         let signing_input = format!("{header_part}.{claims_part}");
@@ -232,8 +237,8 @@ mod tests {
     #[derive(Clone, Copy)]
     struct Revoked;
     impl RevocationChecker for Revoked {
-        fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, ()> { Ok(true) }
-        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, ()> { Ok(false) }
+        fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> { Ok(true) }
+        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> { Ok(false) }
     }
 
     fn fixture() -> (SigningKey, TrustStore) {
