@@ -114,7 +114,7 @@ impl SqliteSecurityStore {
         version.map(|v| u64::try_from(v).map_err(|_| SecurityStoreError::Unavailable)).transpose()
     }
 
-    pub fn revoke_credential(&self, issuer: &str, credential_id: &str, at: u64, reason: &str)
+    pub(crate) fn revoke_credential(&self, issuer: &str, credential_id: &str, at: u64, reason: &str)
         -> Result<(), SecurityStoreError> {
         if issuer.trim().is_empty() || credential_id.trim().is_empty() || reason.trim().is_empty() {
             return Err(SecurityStoreError::InvalidVersion);
@@ -125,7 +125,7 @@ impl SqliteSecurityStore {
             .map(|_| ()).map_err(|_| SecurityStoreError::Unavailable)
     }
 
-    pub fn revoke_key(&self, issuer: &str, key_id: &str, at: u64, reason: &str)
+    pub(crate) fn revoke_key(&self, issuer: &str, key_id: &str, at: u64, reason: &str)
         -> Result<(), SecurityStoreError> {
         if issuer.trim().is_empty() || key_id.trim().is_empty() || reason.trim().is_empty() {
             return Err(SecurityStoreError::InvalidVersion);
@@ -136,7 +136,7 @@ impl SqliteSecurityStore {
             .map(|_| ()).map_err(|_| SecurityStoreError::Unavailable)
     }
 
-    pub fn revoke_approval(&self, approval_id: &str, at: u64, reason: &str)
+    pub(crate) fn revoke_approval(&self, approval_id: &str, at: u64, reason: &str)
         -> Result<(), SecurityStoreError> {
         if approval_id.trim().is_empty() || reason.trim().is_empty() {
             return Err(SecurityStoreError::InvalidVersion);
