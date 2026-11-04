@@ -182,7 +182,7 @@ struct Claims {
 
 /// Concrete verifier for compact JWS credentials signed by trusted Ed25519 keys.
 pub struct Ed25519CredentialVerifier<R> {
-    trust: TrustStore,
+    trust: std::sync::Arc<TrustStore>,
     revocations: R,
     max_clock_skew_secs: u64,
 }
@@ -190,7 +190,7 @@ pub struct Ed25519CredentialVerifier<R> {
 impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
     pub(crate) fn new(trust: TrustStore, revocations: R) -> Self {
         Self {
-            trust,
+            trust: std::sync::Arc::new(trust),
             revocations,
             max_clock_skew_secs: MAX_CLOCK_SKEW_SECS,
         }
@@ -205,6 +205,28 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         now: u64,
     ) -> Result<Self, crate::TrustBundleError> {
         let trust = crate::verify_and_install_trust_bundle(bundle, root, store, now)?;
+        Ok(Self::new(trust, revocations))
+    }
+
+    /// Construct from a trust snapshot produced by successful signed-bundle
+    /// verification. This supports atomic snapshot rotation without exposing
+    /// an unchecked public TrustStore constructor.
+    pub fn from_verified_trust_snapshot(trust: &TrustStore, revocations: R) -> Self {
+        Self {
+            trust: std::sync::Arc::new(trust.clone()),
+            revocations,
+            max_clock_skew_secs: MAX_CLOCK_SKEW_SECS,
+        }
+    }
+
+    pub fn from_signed_bundle_with_roots(
+        bundle: &crate::SignedTrustBundle,
+        roots: &crate::TrustRootSet,
+        store: &crate::SqliteSecurityStore,
+        revocations: R,
+        now: u64,
+    ) -> Result<Self, crate::TrustBundleError> {
+        let trust = crate::verify_and_install_trust_bundle_with_roots(bundle, roots, store, now)?;
         Ok(Self::new(trust, revocations))
     }
 
