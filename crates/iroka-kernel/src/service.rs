@@ -1,14 +1,14 @@
 //! Governed authorization pipeline. This module decides; it never executes.
 
-use crate::{
-    evaluate, record_decision, AuditEvent, AuditSink, AuthorizationRequest, Decision,
-    DecisionCode, DecisionReason, OwnerApprovalError, OwnerApprovalVerifier, Policy,
-    SignedOwnerApproval, VerifiedPrincipal,
-};
 #[cfg(test)]
 use crate::{
     authenticate, validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
     IdentityAssertion, IdentityError, IdentityVerifier,
+};
+use crate::{
+    evaluate, record_decision, AuditEvent, AuditSink, AuthorizationRequest, Decision, DecisionCode,
+    DecisionReason, OwnerApprovalError, OwnerApprovalVerifier, Policy, SignedOwnerApproval,
+    VerifiedPrincipal,
 };
 
 #[cfg(test)]
