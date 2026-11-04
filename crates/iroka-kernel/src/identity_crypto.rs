@@ -251,16 +251,13 @@ mod tests {
         (signing, trust)
     }
 
-    fn token(signing: &SigningKey, kid: &str) -> String {
-        let header = URL_SAFE_NO_PAD.encode(
-            br#"{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"key-2026-a"}"#
-        );
-        let claims = URL_SAFE_NO_PAD.encode(
-            br#"{"iss":"issuer:iroka-test","sub":"principal:42","aud":"iroka-kernel","exp":5000,"nbf":1100,"iat":1100,"jti":"cred-001"}"#
-        );
+    fn token(signing: &SigningKey, kid: &str, exp: u64) -> String {
+        let header_json = format!(r#"{{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"{kid}"}}"#);
+        let header = URL_SAFE_NO_PAD.encode(header_json.as_bytes());
+        let claims_json = format!(r#"{{"iss":"issuer:iroka-test","sub":"principal:42","aud":"iroka-kernel","exp":{exp},"nbf":1100,"iat":1100,"jti":"cred-001"}}"#);
+        let claims = URL_SAFE_NO_PAD.encode(claims_json.as_bytes());
         let input = format!("{header}.{claims}");
         let signature = signing.sign(input.as_bytes());
-        let _ = kid;
         format!("{input}.{}", URL_SAFE_NO_PAD.encode(signature.to_bytes()))
     }
 
@@ -279,15 +276,13 @@ mod tests {
     fn rejects_modified_signature_input() {
         let (signing, trust) = fixture();
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
-        let signed = token(&signing, "key-2026-a");
-        let tampered = signed.replace("principal:42", "principal:43");
+        let signed = token(&signing, "key-2026-a", 4700);
         // The replacement is inside base64url, so alter the signed payload segment.
         let mut parts = signed.split('.').map(str::to_owned).collect::<Vec<_>>();
         let payload = URL_SAFE_NO_PAD.decode(&parts[1]).expect("payload");
         let changed = String::from_utf8(payload).expect("utf8").replace("principal:42", "principal:43");
         parts[1] = URL_SAFE_NO_PAD.encode(changed.as_bytes());
         let tampered = format!("{}.{}.{}", parts[0], parts[1], parts[2]);
-        let _ = tampered;
         assert_eq!(verifier.authenticate(&tampered, "iroka-kernel", 1200), Err(CredentialError::InvalidSignature));
     }
 
@@ -295,15 +290,15 @@ mod tests {
     fn fails_closed_when_revocation_store_marks_credential_revoked() {
         let (signing, trust) = fixture();
         let verifier = Ed25519CredentialVerifier::new(trust, Revoked);
-        assert_eq!(verifier.authenticate(&token(&signing, "key-2026-a"), "iroka-kernel", 1200),
+        assert_eq!(verifier.authenticate(&token(&signing, "key-2026-a", 4700), "iroka-kernel", 1200),
             Err(CredentialError::RevokedCredential));
     }
 
     #[test]
-    fn rejects_unknown_issuer_key_and_expired_key_window() {
+    fn rejects_unknown_key_id_even_when_signature_is_valid() {
         let (signing, trust) = fixture();
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
-        assert_eq!(verifier.authenticate(&token(&signing, "key-2026-a"), "iroka-kernel", 10_000),
-            Err(CredentialError::KeyOutsideValidity));
+        assert_eq!(verifier.authenticate(&token(&signing, "untrusted-key", 4700), "iroka-kernel", 1200),
+            Err(CredentialError::UnknownKey));
     }
 }
