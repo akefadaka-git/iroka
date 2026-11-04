@@ -43,7 +43,7 @@ pub struct TrustStore {
 }
 
 impl TrustStore {
-    pub fn new<I, S>(trusted_issuers: I, keys: Vec<TrustedKey>) -> Result<Self, TrustConfigError>
+    pub(crate) fn new<I, S>(trusted_issuers: I, keys: Vec<TrustedKey>) -> Result<Self, TrustConfigError>
     where
         I: IntoIterator<Item = S>,
         S: Into<String>,
@@ -144,8 +144,10 @@ pub trait RevocationChecker: Send + Sync {
     fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError>;
 }
 
+#[cfg(any(test, feature = "dev-no-revocations"))]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoRevocations;
+#[cfg(any(test, feature = "dev-no-revocations"))]
 impl RevocationChecker for NoRevocations {
     fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
         Ok(false)
@@ -183,12 +185,24 @@ pub struct Ed25519CredentialVerifier<R> {
 }
 
 impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
-    pub fn new(trust: TrustStore, revocations: R) -> Self {
+    pub(crate) fn new(trust: TrustStore, revocations: R) -> Self {
         Self {
             trust,
             revocations,
             max_clock_skew_secs: MAX_CLOCK_SKEW_SECS,
         }
+    }
+
+    /// Construct only from a root-signed, anti-rollback-checked trust bundle.
+    pub fn from_signed_bundle(
+        bundle: &crate::SignedTrustBundle,
+        root: &crate::TrustRoot,
+        store: &crate::SqliteSecurityStore,
+        revocations: R,
+        now: u64,
+    ) -> Result<Self, crate::TrustBundleError> {
+        let trust = crate::verify_and_install_trust_bundle(bundle, root, store, now)?;
+        Ok(Self::new(trust, revocations))
     }
 
     /// Verifies signature, issuer/key trust, time claims, exact audience and
