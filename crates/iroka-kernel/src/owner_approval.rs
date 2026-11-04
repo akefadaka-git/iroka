@@ -475,6 +475,7 @@ mod tests {
             verifier.verify_and_consume(&approval, &request, "policy-v1", 1_201),
             Err(OwnerApprovalError::Replay)
         );
+        assert_eq!(verifier.store.approval_receipt_count(), Ok(1));
     }
 
     #[test]
@@ -558,5 +559,6 @@ mod tests {
             verifier.apply_security_command(&command, 1_201),
             Err(OwnerApprovalError::Replay)
         );
+        assert_eq!(verifier.store.security_command_count(), Ok(1));
     }
 }
