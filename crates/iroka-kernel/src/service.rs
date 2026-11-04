@@ -1,12 +1,17 @@
 //! Governed authorization pipeline. This module decides; it never executes.
 
 use crate::{
-    authenticate, evaluate, record_decision, validate_approval_scope, ApprovalError,
-    ApprovalEvidence, ApprovalVerifier, AuditEvent, AuditSink, AuthorizationRequest, Decision,
-    DecisionCode, DecisionReason, IdentityAssertion, IdentityError, IdentityVerifier,
-    OwnerApprovalError, OwnerApprovalVerifier, Policy, SignedOwnerApproval, VerifiedPrincipal,
+    evaluate, record_decision, AuditEvent, AuditSink, AuthorizationRequest, Decision,
+    DecisionCode, DecisionReason, OwnerApprovalError, OwnerApprovalVerifier, Policy,
+    SignedOwnerApproval, VerifiedPrincipal,
+};
+#[cfg(test)]
+use crate::{
+    authenticate, validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
+    IdentityAssertion, IdentityError, IdentityVerifier,
 };
 
+#[cfg(test)]
 fn identity_failure(error: IdentityError, policy: &Policy) -> Decision {
     let reason = match error {
         IdentityError::Malformed => DecisionReason::MalformedRequest,
@@ -16,6 +21,7 @@ fn identity_failure(error: IdentityError, policy: &Policy) -> Decision {
     Decision::new(DecisionCode::Deny, reason, policy.version())
 }
 
+#[cfg(test)]
 fn approval_failure(error: ApprovalError, policy: &Policy) -> Decision {
     let reason = match error {
         ApprovalError::Malformed => DecisionReason::ApprovalMalformed,
@@ -34,6 +40,7 @@ fn approval_failure(error: ApprovalError, policy: &Policy) -> Decision {
 /// not be used to perform a protected side effect. G09 must later exchange
 /// independently verified decision evidence for a short-lived execution grant.
 #[allow(clippy::too_many_arguments)] // Keeps the authorization trust dependencies explicit.
+#[cfg(test)]
 pub(crate) fn authorize<I, A, S>(
     request: &AuthorizationRequest,
     subject_assertion: &IdentityAssertion,
@@ -114,6 +121,7 @@ where
 /// verifier. This is the production integration point for G01 compact credentials.
 /// The principal cannot be constructed by downstream callers.
 #[allow(clippy::too_many_arguments)] // Keeps the authorization trust dependencies explicit.
+#[cfg(test)]
 pub(crate) fn authorize_authenticated<I, A, S>(
     request: &AuthorizationRequest,
     principal: &VerifiedPrincipal,
