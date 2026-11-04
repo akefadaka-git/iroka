@@ -7,6 +7,7 @@ mod assurance;
 mod decision;
 mod governance;
 mod identity;
+mod identity_crypto;
 mod policy;
 mod request;
 mod service;
@@ -14,6 +15,10 @@ mod service;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use governance::{validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier};
+pub use identity_crypto::{
+    CredentialError, Ed25519CredentialVerifier, NoRevocations, RevocationChecker,
+    TrustConfigError, TrustStore, TrustedKey,
+};
 pub use identity::{
     authenticate, bind_principal, IdentityAssertion, IdentityError, IdentityVerifier,
     VerifiedPrincipal,
