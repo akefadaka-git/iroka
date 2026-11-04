@@ -37,6 +37,20 @@ pub(crate) enum RevocationTarget {
     },
 }
 
+pub(crate) struct ApprovalReceipt<'a> {
+    pub approval_id: &'a str,
+    pub payload_digest: &'a [u8],
+    pub owner_subject: &'a str,
+    pub signer_key_id: &'a str,
+    pub request_subject: &'a str,
+    pub capability: &'a str,
+    pub resource: &'a str,
+    pub policy_version: &'a str,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub consumed_at: u64,
+}
+
 pub struct SqliteSecurityStore {
     connection: Mutex<Connection>,
 }
@@ -450,40 +464,31 @@ impl SqliteSecurityStore {
     }
 
     /// Atomically consume an approval identifier exactly once.
-    pub fn consume_approval(
+    pub(crate) fn consume_approval(
         &self,
-        approval_id: &str,
-        scope_digest: &[u8],
-        owner_subject: &str,
-        signer_key_id: &str,
-        request_subject: &str,
-        capability: &str,
-        resource: &str,
-        policy_version: &str,
-        issued_at: u64,
-        expires_at: u64,
-        at: u64,
+        receipt: ApprovalReceipt<'_>,
     ) -> Result<bool, SecurityStoreError> {
-        if approval_id.trim().is_empty() || scope_digest.len() != 32 {
+        if receipt.approval_id.trim().is_empty() || receipt.payload_digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
         }
-        let mut c = self
-            .connection
-            .lock()
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let tx = c
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let consumed_at = i64::try_from(receipt.consumed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let changed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
-            params![approval_id, scope_digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
+            params![receipt.approval_id, receipt.payload_digest, consumed_at]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
-        if changed == 0 {
-            return Ok(false);
-        }
+        if changed == 0 { return Ok(false); }
         tx.execute(
             "INSERT INTO approval_receipts(approval_id, payload_digest, owner_subject, signer_key_id, request_subject, capability, resource, policy_version, issued_at, expires_at, consumed_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![approval_id, scope_digest, owner_subject, signer_key_id, request_subject, capability, resource, policy_version, i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?, i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
+            params![
+                receipt.approval_id, receipt.payload_digest, receipt.owner_subject, receipt.signer_key_id,
+                receipt.request_subject, receipt.capability, receipt.resource, receipt.policy_version,
+                i64::try_from(receipt.issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?,
+                i64::try_from(receipt.expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?,
+                consumed_at
+            ]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(true)
