@@ -342,10 +342,14 @@ mod tests {
     }
 
     fn token(signing: &SigningKey, kid: &str, exp: u64) -> String {
+        token_at(signing, kid, 1_100, exp)
+    }
+
+    fn token_at(signing: &SigningKey, kid: &str, issued_at: u64, exp: u64) -> String {
         let header_json = format!(r#"{{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"{kid}"}}"#);
         let header = URL_SAFE_NO_PAD.encode(header_json.as_bytes());
         let claims_json = format!(
-            r#"{{"iss":"issuer:iroka-test","sub":"principal:42","aud":"iroka-kernel","exp":{exp},"nbf":1100,"iat":1100,"jti":"cred-001"}}"#
+            r#"{{"iss":"issuer:iroka-test","sub":"principal:42","aud":"iroka-kernel","exp":{exp},"nbf":{issued_at},"iat":{issued_at},"jti":"cred-001"}}"#
         );
         let claims = URL_SAFE_NO_PAD.encode(claims_json.as_bytes());
         let input = format!("{header}.{claims}");
@@ -519,7 +523,7 @@ mod tests {
         let (signing, trust) = fixture();
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
         assert_eq!(
-            verifier.authenticate(&token(&signing, "key-2026-a", 4700), "iroka-kernel", 10_000),
+            verifier.authenticate(&token_at(&signing, "key-2026-a", 9_000, 12_000), "iroka-kernel", 10_000),
             Err(CredentialError::KeyOutsideValidity)
         );
     }
