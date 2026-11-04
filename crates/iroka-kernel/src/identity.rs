@@ -31,21 +31,7 @@ impl IdentityAssertion {
         }
     }
 
-    pub fn issuer(&self) -> &str {
-        &self.issuer
-    }
-    pub fn subject(&self) -> &str {
-        &self.subject
-    }
-    pub fn audience(&self) -> &str {
-        &self.audience
-    }
-    pub fn expires_at(&self) -> u64 {
-        self.expires_at
-    }
-    pub fn credential_id(&self) -> &str {
-        &self.credential_id
-    }
+
 }
 
 /// Trusted adapter contract. Implementations must verify credential integrity,
