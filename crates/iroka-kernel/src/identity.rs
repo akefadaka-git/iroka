@@ -126,18 +126,3 @@ pub(crate) fn authenticate<V: IdentityVerifier>(
     })
 }
 
-/// Ensure the request subject is the exact verified principal.
-pub(crate) fn bind_principal(
-    principal: &VerifiedPrincipal,
-    request: &AuthorizationRequest,
-    policy: &Policy,
-) -> Decision {
-    if principal.subject != request.subject() {
-        return Decision::new(
-            DecisionCode::Deny,
-            DecisionReason::IdentitySubjectMismatch,
-            policy.version(),
-        );
-    }
-    crate::evaluate(request, policy, false)
-}
