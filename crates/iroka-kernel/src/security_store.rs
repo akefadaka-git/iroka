@@ -471,15 +471,22 @@ impl SqliteSecurityStore {
         if receipt.approval_id.trim().is_empty() || receipt.payload_digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
         }
-        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let mut connection = self
+            .connection
+            .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let consumed_at = i64::try_from(receipt.consumed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let consumed_at =
+            i64::try_from(receipt.consumed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let changed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
             params![receipt.approval_id, receipt.payload_digest, consumed_at]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
-        if changed == 0 { return Ok(false); }
+        if changed == 0 {
+            return Ok(false);
+        }
         tx.execute(
             "INSERT INTO approval_receipts(approval_id, payload_digest, owner_subject, signer_key_id, request_subject, capability, resource, policy_version, issued_at, expires_at, consumed_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
