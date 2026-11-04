@@ -4,6 +4,7 @@
 //! reviewed trust-boundary components.
 
 mod assurance;
+mod audit_store;
 mod decision;
 #[cfg(test)]
 mod governance;
@@ -17,6 +18,7 @@ mod service;
 mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
+pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
 pub(crate) use governance::{
