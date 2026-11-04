@@ -3,7 +3,7 @@
 use crate::{AuthorizationRequest, IdentityAssertion, VerifiedPrincipal};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ApprovalEvidence {
+pub(crate) struct ApprovalEvidence {
     approval_id: String,
     approver: IdentityAssertion,
     capability: String,
@@ -48,7 +48,7 @@ impl ApprovalEvidence {
 /// Verifies Owner/delegate authority, approval authenticity, separation of duties,
 /// approval status and revocation against the authoritative governance store.
 /// A positive result is meaningful only when the implementation is trusted.
-pub trait ApprovalVerifier {
+pub(crate) trait ApprovalVerifier {
     fn verify_approval(
         &self,
         evidence: &ApprovalEvidence,
@@ -60,7 +60,7 @@ pub trait ApprovalVerifier {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ApprovalError {
+pub(crate) enum ApprovalError {
     Malformed,
     Expired,
     ScopeMismatch,
@@ -69,7 +69,7 @@ pub enum ApprovalError {
     VerificationFailed,
 }
 
-pub fn validate_approval_scope(
+pub(crate) fn validate_approval_scope(
     evidence: &ApprovalEvidence,
     request: &AuthorizationRequest,
     policy_version: &str,
