@@ -246,6 +246,20 @@ impl TrustSnapshotManager {
         *current = Arc::new(next);
         Ok(version)
     }
+    pub fn install_with_roots(
+        &self,
+        bundle: &SignedTrustBundle,
+        roots: &TrustRootSet,
+        store: &SqliteSecurityStore,
+        now: u64,
+    ) -> Result<u64, TrustBundleError> {
+        let next = verify_and_install_trust_bundle_with_roots(bundle, roots, store, now)?;
+        let version = bundle.payload.version;
+        let mut current = self.current.write().map_err(|_| TrustBundleError::StoreUnavailable)?;
+        *current = Arc::new(next);
+        Ok(version)
+    }
+
 }
 
 #[cfg(test)]
@@ -360,4 +374,37 @@ fn snapshot_manager_publishes_only_verified_monotonic_bundles() {
         manager.install(&first, &root, &store, 1_200),
         Err(TrustBundleError::Rollback)
     );
+    #[test]
+    fn accepts_trust_root_rotation_during_explicit_overlap() {
+        let (_, old_root, _) = fixture(1);
+        let new_signer = SigningKey::from_bytes(&[88u8; 32]);
+        let new_root = TrustRoot {
+            key_id: "offline-root-2027".into(),
+            public_key: new_signer.verifying_key().to_bytes(),
+            not_before: 1_200,
+            not_after: 10_000,
+        };
+        let issuer = SigningKey::from_bytes(&[41u8; 32]);
+        let payload = TrustBundlePayload {
+            version: 2,
+            issued_at: 1_300,
+            expires_at: 5_000,
+            trusted_issuers: vec!["issuer:iroka-test".into()],
+            keys: vec![TrustedKey {
+                issuer: "issuer:iroka-test".into(),
+                key_id: "issuer-key-rotated".into(),
+                public_key: issuer.verifying_key().to_bytes(),
+                not_before: 1_300,
+                not_after: 5_000,
+            }],
+        };
+        let bytes = SignedTrustBundle::signing_bytes_for(&new_root.key_id, &payload).unwrap();
+        let signature = new_signer.sign(&bytes).to_bytes().to_vec();
+        let bundle = SignedTrustBundle::from_signature(new_root.key_id.clone(), payload, signature);
+        let roots = TrustRootSet::new(vec![old_root, new_root]).unwrap();
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert!(verify_and_install_trust_bundle_with_roots(&bundle, &roots, &store, 1_400).is_ok());
+        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
+    }
+
 }
