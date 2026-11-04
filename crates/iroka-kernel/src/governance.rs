@@ -33,6 +33,9 @@ impl ApprovalEvidence {
             expires_at,
         }
     }
+    pub fn approver_assertion(&self) -> &IdentityAssertion {
+        &self.approver
+    }
 }
 
 /// Verifies Owner/delegate authority, approval authenticity, separation of duties,
