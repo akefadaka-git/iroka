@@ -37,14 +37,32 @@ pub struct SignedTrustBundle {
 }
 
 impl SignedTrustBundle {
-    pub fn from_signature(root_key_id: impl Into<String>, payload: TrustBundlePayload, signature: Vec<u8>) -> Self {
-        Self { root_key_id: root_key_id.into(), payload, signature }
+    pub fn from_signature(
+        root_key_id: impl Into<String>,
+        payload: TrustBundlePayload,
+        signature: Vec<u8>,
+    ) -> Self {
+        Self {
+            root_key_id: root_key_id.into(),
+            payload,
+            signature,
+        }
     }
 
-    pub fn signing_bytes_for(root_key_id: &str, payload: &TrustBundlePayload) -> Result<Vec<u8>, TrustBundleError> {
+    pub fn signing_bytes_for(
+        root_key_id: &str,
+        payload: &TrustBundlePayload,
+    ) -> Result<Vec<u8>, TrustBundleError> {
         #[derive(Serialize)]
-        struct Envelope<'a> { root_key_id: &'a str, payload: &'a TrustBundlePayload }
-        serde_json::to_vec(&Envelope { root_key_id, payload }).map_err(|_| TrustBundleError::Malformed)
+        struct Envelope<'a> {
+            root_key_id: &'a str,
+            payload: &'a TrustBundlePayload,
+        }
+        serde_json::to_vec(&Envelope {
+            root_key_id,
+            payload,
+        })
+        .map_err(|_| TrustBundleError::Malformed)
     }
 
     pub fn signing_bytes(&self) -> Result<Vec<u8>, TrustBundleError> {
@@ -90,7 +108,6 @@ impl From<SecurityStoreError> for TrustBundleError {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct TrustRootSet {
     roots: HashMap<String, TrustRoot>,
@@ -98,12 +115,16 @@ pub struct TrustRootSet {
 
 impl TrustRootSet {
     pub fn new(roots: Vec<TrustRoot>) -> Result<Self, TrustBundleError> {
-        if roots.is_empty() { return Err(TrustBundleError::InvalidRoot); }
+        if roots.is_empty() {
+            return Err(TrustBundleError::InvalidRoot);
+        }
         let mut indexed = HashMap::new();
         for root in roots {
-            if root.key_id.trim().is_empty() || root.not_before >= root.not_after
+            if root.key_id.trim().is_empty()
+                || root.not_before >= root.not_after
                 || VerifyingKey::from_bytes(&root.public_key).is_err()
-                || indexed.insert(root.key_id.clone(), root).is_some() {
+                || indexed.insert(root.key_id.clone(), root).is_some()
+            {
                 return Err(TrustBundleError::InvalidRoot);
             }
         }
@@ -124,7 +145,10 @@ pub fn verify_and_install_trust_bundle(
     store: &SqliteSecurityStore,
     now: u64,
 ) -> Result<TrustStore, TrustBundleError> {
-    if root.key_id.trim().is_empty() || root.key_id != bundle.root_key_id || root.not_before >= root.not_after {
+    if root.key_id.trim().is_empty()
+        || root.key_id != bundle.root_key_id
+        || root.not_before >= root.not_after
+    {
         return Err(TrustBundleError::InvalidRoot);
     }
     if now < root.not_before || now >= root.not_after {
@@ -173,7 +197,6 @@ pub fn verify_and_install_trust_bundle(
     store.install_trust_bundle(p.version, digest.as_slice(), p.issued_at, p.expires_at)?;
     Ok(trust)
 }
-
 
 /// Select the signing root by key ID from an explicitly provisioned overlapping
 /// root set. Root-set updates themselves remain an out-of-band Owner ceremony.
@@ -253,10 +276,7 @@ mod tests {
             }],
         };
         let signing_bytes = SignedTrustBundle::signing_bytes_for(&root.key_id, &payload).unwrap();
-        let signature = root_signer
-            .sign(&signing_bytes)
-            .to_bytes()
-            .to_vec();
+        let signature = root_signer.sign(&signing_bytes).to_bytes().to_vec();
         (
             root_signer,
             root,
