@@ -3,8 +3,6 @@
 //! Cryptographic token verification is supplied by a trusted verifier adapter.
 //! This module binds the resulting verified principal to authorization input.
 
-use crate::{AuthorizationRequest, Decision, DecisionCode, DecisionReason, Policy};
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct IdentityAssertion {
     issuer: String,
