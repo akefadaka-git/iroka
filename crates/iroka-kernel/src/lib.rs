@@ -17,21 +17,24 @@ mod service;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
-pub use governance::{validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier};
-pub use identity::{
+pub(crate) use governance::{validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier};
+pub(crate) use identity::{
     authenticate, bind_principal, IdentityAssertion, IdentityError, IdentityVerifier,
-    VerifiedPrincipal,
 };
+pub use identity::VerifiedPrincipal;
 pub use identity_crypto::{
-    CredentialError, Ed25519CredentialVerifier, NoRevocations, RevocationChecker, TrustConfigError,
+    CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError,
     TrustStore, TrustedKey,
 };
+#[cfg(any(test, feature = "dev-no-revocations"))]
+pub use identity_crypto::NoRevocations;
 pub use owner_approval::{OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, SignedOwnerApproval, TrustedOwnerKey};
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use trust_lifecycle::{verify_and_install_trust_bundle, SignedTrustBundle, TrustBundleError, TrustBundlePayload, TrustRoot};
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
-pub use service::{authorize, authorize_authenticated, authorize_authenticated_with_owner_approval};
+pub(crate) use service::{authorize, authorize_authenticated};
+pub use service::authorize_authenticated_with_owner_approval;
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
 /// validate approval evidence or persist audit events. Prefer authorize().
