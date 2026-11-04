@@ -22,7 +22,6 @@ pub struct TrustBundlePayload {
     pub keys: Vec<TrustedKey>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct SignedTrustBundle {
