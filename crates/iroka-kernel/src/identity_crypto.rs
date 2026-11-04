@@ -523,7 +523,11 @@ mod tests {
         let (signing, trust) = fixture();
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
         assert_eq!(
-            verifier.authenticate(&token_at(&signing, "key-2026-a", 9_000, 12_000), "iroka-kernel", 10_000),
+            verifier.authenticate(
+                &token_at(&signing, "key-2026-a", 9_000, 12_000),
+                "iroka-kernel",
+                10_000
+            ),
             Err(CredentialError::KeyOutsideValidity)
         );
     }
