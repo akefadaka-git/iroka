@@ -13,10 +13,10 @@ Repository state inspected on 2026-11-04 through the connected GitHub repository
 | Ref | SHA / comparison | Evidence | Disposition |
 |---|---|---|---|
 | `main` | `143311a655be68acea2700650b7f88c9fb085526` | Repository baseline; unchanged during A2 | Preserve as protected baseline |
-| `foundation/kernel-v0.1` | 55 commits ahead, 0 behind main | Rust workspace/kernel foundation, initial identity, policy, governance, audit and workflow files | Historical implementation source; retain for provenance and comparison |
+| `foundation/kernel-v0.1` | `8f848a59a354334a26a2af508ba5e482b347d811`; 55 commits ahead, 0 behind main | Rust workspace/kernel foundation, initial identity, policy, governance, audit and workflow files | Historical implementation source; retain for provenance and comparison |
 | `security/g01-trust-lifecycle-g02-owner-approval` | `710b36a506d3277c7b307a01522629db43b4698f`; 153 commits ahead, 0 behind main | Expanded G01/G02 trust lifecycle and Owner approval, security store, audit sink, A1 docs; PR #2 draft | Working security/A1 source baseline; preserve; not merged |
-| `architecture/a1-amharic-first-african-contracts` | 4 commits ahead, 0 behind main | A1 parent contract, regional profile contract, traceability register and README edits | Preserve as duplicate/overlap source; do not merge until path/ID/content reconciliation |
-| `architecture/a2-reconciliation-contracts` | Created from security SHA above | A2 contracts and test-plan workstream | Dedicated A2 working branch; no merge/deploy |
+| `architecture/a1-amharic-first-african-contracts` | `72be8040283acd31ce90050a5b03d59c55b38b89`; 4 commits ahead, 0 behind main | A1 parent contract, regional profile contract, traceability register and README edits | Preserve as duplicate/overlap source; do not merge until path/ID/content reconciliation |
+| `architecture/a2-reconciliation-contracts` | Created from `710b36a506d3277c7b307a01522629db43b4698f`; current A2 head is the final reconciliation-register commit in this workstream | A2 contracts and test-plan workstream | Dedicated A2 working branch; no merge/deploy |
 
 ## 2. Implementation history reconciliation
 
