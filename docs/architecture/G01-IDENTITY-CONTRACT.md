@@ -25,4 +25,4 @@ The public keys and issuer allowlist must be established through a protected pro
 The legacy `IdentityVerifier` trait remains an adapter boundary and must only be implemented by reviewed trusted code. Production paths must use the concrete `Ed25519CredentialVerifier`; test mocks must never be wired into production.
 
 ## Verification
-Cryptographic positive and negative contract tests are authored. They remain NOT RUN until a Rust toolchain and dependency resolution are available. This is not a production identity service.
+Cryptographic positive and negative contract tests have been executed successfully in GitHub Actions run [41788340345](https://github.com/akefadaka-git/iroka/actions/runs/41788340345) on commit `4353742e14143cc1cbca4c86aa6e8813a09ab95a`. Rust 1.99.1: formatting, workspace compilation, 19 unit tests, 2 integration tests and Clippy all PASS. This remains a verified implementation contract, not a production identity service; production trust-root provisioning and authoritative revocation infrastructure remain outstanding.
