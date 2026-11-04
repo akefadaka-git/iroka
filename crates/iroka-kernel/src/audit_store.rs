@@ -325,4 +325,34 @@ mod tests {
         }
         assert_eq!(s.verify_integrity(), Err(AuditStoreError::IntegrityFailure));
     }
+    #[test]
+    fn persists_and_verifies_after_reopen() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-audit-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+
+        {
+            let sink = SqliteAuditSink::open(&path).unwrap();
+            sink.append_event(&event("event:durable")).unwrap();
+            assert_eq!(sink.head().unwrap().0, 1);
+        }
+
+        {
+            let sink = SqliteAuditSink::open(&path).unwrap();
+            assert_eq!(sink.head().unwrap().0, 1);
+            assert_eq!(sink.verify_integrity(), Ok(()));
+        }
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
 }
