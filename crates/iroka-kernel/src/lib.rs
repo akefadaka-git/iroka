@@ -5,6 +5,7 @@
 
 mod assurance;
 mod decision;
+#[cfg(test)]
 mod governance;
 mod identity;
 mod identity_crypto;
@@ -17,10 +18,12 @@ mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+#[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
+#[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
 pub use identity_crypto::NoRevocations;
