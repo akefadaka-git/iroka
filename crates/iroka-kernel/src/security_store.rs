@@ -85,6 +85,21 @@ impl SqliteSecurityStore {
             "PRAGMA foreign_keys = ON;
              PRAGMA journal_mode = WAL;
              PRAGMA synchronous = FULL;
+             CREATE TABLE IF NOT EXISTS trust_bundle_history (
+               version INTEGER PRIMARY KEY, digest BLOB NOT NULL, issued_at INTEGER NOT NULL,
+               expires_at INTEGER NOT NULL, installed_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS security_command_log (
+               command_id TEXT PRIMARY KEY, digest BLOB NOT NULL, owner_subject TEXT NOT NULL,
+               signer_key_id TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL,
+               reason TEXT NOT NULL, occurred_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS approval_receipts (
+               approval_id TEXT PRIMARY KEY, payload_digest BLOB NOT NULL, owner_subject TEXT NOT NULL,
+               signer_key_id TEXT NOT NULL, request_subject TEXT NOT NULL, capability TEXT NOT NULL,
+               resource TEXT NOT NULL, policy_version TEXT NOT NULL, issued_at INTEGER NOT NULL,
+               expires_at INTEGER NOT NULL, consumed_at INTEGER NOT NULL
+             );
              CREATE TABLE IF NOT EXISTS trust_bundle_state (
                singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
                version INTEGER NOT NULL,
@@ -165,7 +180,17 @@ impl SqliteSecurityStore {
                digest=excluded.digest, issued_at=excluded.issued_at, expires_at=excluded.expires_at",
             params![version_i, digest, issued_i, expires_i]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "INSERT INTO trust_bundle_history(version, digest, issued_at, expires_at, installed_at) VALUES(?1, ?2, ?3, ?4, ?5)",
+            params![version_i, digest, issued_i, expires_i, installed_i]
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub fn trust_bundle_history_count(&self) -> Result<u64, SecurityStoreError> {
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = c.query_row("SELECT COUNT(*) FROM trust_bundle_history", [], |row| row.get(0)).map_err(|_| SecurityStoreError::Unavailable)?;
+        u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }
 
     pub fn highest_trust_bundle_version(&self) -> Result<Option<u64>, SecurityStoreError> {
@@ -272,6 +297,8 @@ impl SqliteSecurityStore {
     pub(crate) fn apply_signed_revocation(
         &self,
         command_id: &str,
+        owner_subject: &str,
+        signer_key_id: &str,
         digest: &[u8],
         at: u64,
         target: RevocationTarget,
@@ -293,6 +320,11 @@ impl SqliteSecurityStore {
         if changed == 0 {
             return Ok(false);
         }
+        let (action_name, target_name, reason_text) = match &target {
+            RevocationTarget::Credential { issuer, credential_id, reason } => ("revoke_credential", format!("{issuer}:{credential_id}"), reason.clone()),
+            RevocationTarget::Key { issuer, key_id, reason } => ("revoke_signing_key", format!("{issuer}:{key_id}"), reason.clone()),
+            RevocationTarget::Approval { approval_id, reason } => ("revoke_approval", approval_id.clone(), reason.clone()),
+        };
         match target {
             RevocationTarget::Credential {
                 issuer,
@@ -341,8 +373,24 @@ impl SqliteSecurityStore {
                 .map_err(|_| SecurityStoreError::Unavailable)?;
             }
         }
+        tx.execute(
+            "INSERT INTO security_command_log(command_id, digest, owner_subject, signer_key_id, action, target, reason, occurred_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![command_id, digest, owner_subject, signer_key_id, action_name, target_name, reason_text, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(true)
+    }
+
+    pub fn security_command_count(&self) -> Result<u64, SecurityStoreError> {
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = c.query_row("SELECT COUNT(*) FROM security_command_log", [], |row| row.get(0)).map_err(|_| SecurityStoreError::Unavailable)?;
+        u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub fn approval_receipt_count(&self) -> Result<u64, SecurityStoreError> {
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = c.query_row("SELECT COUNT(*) FROM approval_receipts", [], |row| row.get(0)).map_err(|_| SecurityStoreError::Unavailable)?;
+        u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }
 
     pub fn approval_is_revoked(&self, approval_id: &str) -> Result<bool, SecurityStoreError> {
@@ -363,20 +411,32 @@ impl SqliteSecurityStore {
         &self,
         approval_id: &str,
         scope_digest: &[u8],
+        owner_subject: &str,
+        signer_key_id: &str,
+        request_subject: &str,
+        capability: &str,
+        resource: &str,
+        policy_version: &str,
+        issued_at: u64,
+        expires_at: u64,
         at: u64,
     ) -> Result<bool, SecurityStoreError> {
         if approval_id.trim().is_empty() || scope_digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
         }
-        let c = self
-            .connection
-            .lock()
-            .map_err(|_| SecurityStoreError::Unavailable)?;
-        let changed = c.execute(
+        let mut c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_| SecurityStoreError::Unavailable)?;
+        let changed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
             params![approval_id, scope_digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
-        Ok(changed == 1)
+        if changed == 0 { return Ok(false); }
+        tx.execute(
+            "INSERT INTO approval_receipts(approval_id, payload_digest, owner_subject, signer_key_id, request_subject, capability, resource, policy_version, issued_at, expires_at, consumed_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![approval_id, scope_digest, owner_subject, signer_key_id, request_subject, capability, resource, policy_version, i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?, i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+        Ok(true)
     }
 }
 
@@ -419,7 +479,7 @@ mod tests {
     #[test]
     fn trust_versions_are_monotonic_and_idempotent() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100), Ok(()));
+        assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100, 11), Ok(()));
         assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100), Ok(()));
         assert_eq!(store.highest_trust_bundle_version(), Ok(Some(1)));
         assert_eq!(
@@ -430,7 +490,7 @@ mod tests {
             store.install_trust_bundle(0, &[2; 32], 10, 100),
             Err(SecurityStoreError::InvalidVersion)
         );
-        assert_eq!(store.install_trust_bundle(2, &[2; 32], 20, 200), Ok(()));
+        assert_eq!(store.install_trust_bundle(2, &[2; 32], 20, 200, 21), Ok(()));
         assert_eq!(
             store.install_trust_bundle(1, &[1; 32], 10, 100),
             Err(SecurityStoreError::Rollback)
@@ -454,9 +514,9 @@ mod tests {
     #[test]
     fn approvals_are_single_use_and_revocable() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        assert_eq!(store.consume_approval("approval:1", &[3; 32], 20), Ok(true));
+        assert_eq!(store.consume_approval("approval:1", &[3; 32], "owner:test", "owner-key", "principal:test", "records.read", "records:1", "policy:v1", 10, 100, 20), Ok(true));
         assert_eq!(
-            store.consume_approval("approval:1", &[3; 32], 21),
+            store.consume_approval("approval:1", &[3; 32], "owner:test", "owner-key", "principal:test", "records.read", "records:1", "policy:v1", 10, 100, 21),
             Ok(false)
         );
         store
