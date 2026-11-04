@@ -6,7 +6,7 @@
 **Snapshot date:** 2026-11-04  
 **Repository:** `akefadaka-git/iroka`  
 **A1 baseline:** `IROKA-A1-REGIONAL-001 v1.0.0`  
-**A2 working branch:** `architecture/a2-reconciliation-contracts`
+**A2 working branch:** `architecture/a2-reconciliation-contracts` (initial inspected head `49cf214323f6faed913a50707cc656fbeca69a91`; two audit documents were then added in this workstream)
 
 ## 1. Evidence method and boundary
 
@@ -127,14 +127,16 @@ Disposition:
 - `REVIEW`: README and strategy changes independently.
 - `RETAIN` source branch unchanged until explicit branch disposition approval. Do not delete or force-push.
 
-### 3.5 A2 branch — 34 files
+### 3.5 A2 branch — 36 files at the post-audit tree
 
-The A2 branch contains the same 31-file security/A1 tree plus:
+The A2 branch contains the same 31-file security/A1 tree plus five A2 documents:
 - `docs/architecture/A2-ACCEPTANCE-TEST-PLAN.md`
+- `docs/architecture/A2-API-DATA-AND-EVENT-CONTRACTS.md` (blob `189c1c1663a66ec459437088b6a9b476d4558bd3`)
+- `docs/architecture/A2-EXACT-SHA-RECONCILIATION-EVIDENCE.md`
 - `docs/architecture/A2-IMPLEMENTATION-CONTRACTS.md`
 - `docs/architecture/A2-RECONCILIATION-AND-DISPOSITION-REGISTER.md`
 
-A2 delta versus security is documentation-only (three added files, five commits). The additional API/data/event interface supplement is authored as part of this A2 workstream and must be recorded at its resulting commit.
+A2 delta versus security is documentation-only (five added files, seven commits at post-audit verification). The A2 working branch head after the two audit-document additions is recorded in the final progress report for this run.
 
 ## 4. Per-domain code disposition against A1
 
