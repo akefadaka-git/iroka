@@ -188,8 +188,15 @@ impl SqliteSecurityStore {
     }
 
     pub fn trust_bundle_history_count(&self) -> Result<u64, SecurityStoreError> {
-        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let count: i64 = c.query_row("SELECT COUNT(*) FROM trust_bundle_history", [], |row| row.get(0)).map_err(|_| SecurityStoreError::Unavailable)?;
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = c
+            .query_row("SELECT COUNT(*) FROM trust_bundle_history", [], |row| {
+                row.get(0)
+            })
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }
 
@@ -321,9 +328,28 @@ impl SqliteSecurityStore {
             return Ok(false);
         }
         let (action_name, target_name, reason_text) = match &target {
-            RevocationTarget::Credential { issuer, credential_id, reason } => ("revoke_credential", format!("{issuer}:{credential_id}"), reason.clone()),
-            RevocationTarget::Key { issuer, key_id, reason } => ("revoke_signing_key", format!("{issuer}:{key_id}"), reason.clone()),
-            RevocationTarget::Approval { approval_id, reason } => ("revoke_approval", approval_id.clone(), reason.clone()),
+            RevocationTarget::Credential {
+                issuer,
+                credential_id,
+                reason,
+            } => (
+                "revoke_credential",
+                format!("{issuer}:{credential_id}"),
+                reason.clone(),
+            ),
+            RevocationTarget::Key {
+                issuer,
+                key_id,
+                reason,
+            } => (
+                "revoke_signing_key",
+                format!("{issuer}:{key_id}"),
+                reason.clone(),
+            ),
+            RevocationTarget::Approval {
+                approval_id,
+                reason,
+            } => ("revoke_approval", approval_id.clone(), reason.clone()),
         };
         match target {
             RevocationTarget::Credential {
@@ -382,14 +408,28 @@ impl SqliteSecurityStore {
     }
 
     pub fn security_command_count(&self) -> Result<u64, SecurityStoreError> {
-        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let count: i64 = c.query_row("SELECT COUNT(*) FROM security_command_log", [], |row| row.get(0)).map_err(|_| SecurityStoreError::Unavailable)?;
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = c
+            .query_row("SELECT COUNT(*) FROM security_command_log", [], |row| {
+                row.get(0)
+            })
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }
 
     pub fn approval_receipt_count(&self) -> Result<u64, SecurityStoreError> {
-        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let count: i64 = c.query_row("SELECT COUNT(*) FROM approval_receipts", [], |row| row.get(0)).map_err(|_| SecurityStoreError::Unavailable)?;
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = c
+            .query_row("SELECT COUNT(*) FROM approval_receipts", [], |row| {
+                row.get(0)
+            })
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }
 
@@ -424,13 +464,20 @@ impl SqliteSecurityStore {
         if approval_id.trim().is_empty() || scope_digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
         }
-        let mut c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let tx = c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_| SecurityStoreError::Unavailable)?;
+        let mut c = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = c
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         let changed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
             params![approval_id, scope_digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
-        if changed == 0 { return Ok(false); }
+        if changed == 0 {
+            return Ok(false);
+        }
         tx.execute(
             "INSERT INTO approval_receipts(approval_id, payload_digest, owner_subject, signer_key_id, request_subject, capability, resource, policy_version, issued_at, expires_at, consumed_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![approval_id, scope_digest, owner_subject, signer_key_id, request_subject, capability, resource, policy_version, i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?, i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
@@ -514,9 +561,36 @@ mod tests {
     #[test]
     fn approvals_are_single_use_and_revocable() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        assert_eq!(store.consume_approval("approval:1", &[3; 32], "owner:test", "owner-key", "principal:test", "records.read", "records:1", "policy:v1", 10, 100, 20), Ok(true));
         assert_eq!(
-            store.consume_approval("approval:1", &[3; 32], "owner:test", "owner-key", "principal:test", "records.read", "records:1", "policy:v1", 10, 100, 21),
+            store.consume_approval(
+                "approval:1",
+                &[3; 32],
+                "owner:test",
+                "owner-key",
+                "principal:test",
+                "records.read",
+                "records:1",
+                "policy:v1",
+                10,
+                100,
+                20
+            ),
+            Ok(true)
+        );
+        assert_eq!(
+            store.consume_approval(
+                "approval:1",
+                &[3; 32],
+                "owner:test",
+                "owner-key",
+                "principal:test",
+                "records.read",
+                "records:1",
+                "policy:v1",
+                10,
+                100,
+                21
+            ),
             Ok(false)
         );
         store
