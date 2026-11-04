@@ -171,7 +171,7 @@ struct Claims {
     aud: String,
     exp: u64,
     nbf: Option<u64>,
-    iat: Option<u64>,
+    iat: u64,
     jti: String,
 }
 
@@ -247,7 +247,7 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         if claims.nbf.is_some_and(|v| v > now.saturating_add(skew)) {
             return Err(CredentialError::NotYetValid);
         }
-        let issued_at = claims.iat.ok_or(CredentialError::Malformed)?;
+        let issued_at = claims.iat;
         if issued_at > now.saturating_add(skew) {
             return Err(CredentialError::IssuedInFuture);
         }
