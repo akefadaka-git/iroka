@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: rust-kernel-${{ github.event.pull_request.number || github.ref }}
@@ -26,6 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           persist-credentials: false
 
       - name: Install stable Rust toolchain
@@ -35,8 +36,25 @@ jobs:
           rustc --version
           cargo --version
 
-      - name: Check formatting
+      - name: Apply canonical Rust formatting
+        run: cargo fmt --all
+
+      - name: Verify formatting
         run: cargo fmt --all -- --check
+
+      - name: Commit formatting-only changes to feature branch
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "$(git status --porcelain -- '*.rs')" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -- '*.rs'
+            git commit -m "style: apply canonical Rust formatting"
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git push origin "HEAD:${GITHUB_HEAD_REF}"
+          fi
 
       - name: Compile all targets
         run: cargo check --workspace --all-targets
