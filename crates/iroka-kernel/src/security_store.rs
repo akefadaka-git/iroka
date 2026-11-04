@@ -186,6 +186,7 @@ impl SqliteSecurityStore {
             .transpose()
     }
 
+    #[cfg(test)]
     pub(crate) fn revoke_credential(
         &self,
         issuer: &str,
@@ -213,6 +214,7 @@ impl SqliteSecurityStore {
         .map_err(|_| SecurityStoreError::Unavailable)
     }
 
+    #[cfg(test)]
     pub(crate) fn revoke_key(
         &self,
         issuer: &str,
@@ -240,6 +242,7 @@ impl SqliteSecurityStore {
         .map_err(|_| SecurityStoreError::Unavailable)
     }
 
+    #[cfg(test)]
     pub(crate) fn revoke_approval(
         &self,
         approval_id: &str,
