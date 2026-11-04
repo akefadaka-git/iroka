@@ -283,7 +283,19 @@ impl OwnerApprovalVerifier {
         let digest = Sha256::digest(&signing_bytes);
         let consumed = self
             .store
-            .consume_approval(&p.approval_id, digest.as_slice(), now)?;
+            .consume_approval(
+                &p.approval_id,
+                digest.as_slice(),
+                &p.owner_subject,
+                &p.key_id,
+                &p.request_subject,
+                &p.capability,
+                &p.resource,
+                &p.policy_version,
+                p.issued_at,
+                p.expires_at,
+                now,
+            )?;
         if !consumed {
             return Err(OwnerApprovalError::Replay);
         }
