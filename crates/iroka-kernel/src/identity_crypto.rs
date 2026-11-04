@@ -468,8 +468,8 @@ mod tests {
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
         let signed = token(&signing, "key-2026-a", 4700);
         let parts = signed.split('.').collect::<Vec<_>>();
-        let header =
-            URL_SAFE_NO_PAD.encode(br#"{"alg":"HS256","typ":"IROKA-CREDENTIAL","kid":"key-2026-a"}"#);
+        let header = URL_SAFE_NO_PAD
+            .encode(br#"{"alg":"HS256","typ":"IROKA-CREDENTIAL","kid":"key-2026-a"}"#);
         let input = format!("{header}.{}", parts[1]);
         let signature = signing.sign(input.as_bytes());
         let substituted = format!("{input}.{}", URL_SAFE_NO_PAD.encode(signature.to_bytes()));
@@ -478,7 +478,7 @@ mod tests {
             Err(CredentialError::UnsupportedAlgorithm)
         );
     }
-    
+
     #[test]
     fn rejects_revoked_signing_key() {
         let (signing, trust) = fixture();
@@ -488,7 +488,7 @@ mod tests {
             Err(CredentialError::RevokedKey)
         );
     }
-    
+
     #[test]
     fn fails_closed_when_revocation_service_is_unavailable() {
         let (signing, trust) = fixture();
@@ -498,7 +498,7 @@ mod tests {
             Err(CredentialError::RevocationUnavailable)
         );
     }
-    
+
     #[test]
     fn rejects_malformed_and_oversized_tokens() {
         let (signing, trust) = fixture();
@@ -513,7 +513,7 @@ mod tests {
             Err(CredentialError::Malformed)
         );
     }
-    
+
     #[test]
     fn rejects_credentials_outside_key_validity_window() {
         let (signing, trust) = fixture();
@@ -523,5 +523,4 @@ mod tests {
             Err(CredentialError::KeyOutsideValidity)
         );
     }
-    
 }
