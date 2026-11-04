@@ -30,8 +30,6 @@ impl IdentityAssertion {
             credential_id: credential_id.into(),
         }
     }
-
-
 }
 
 /// Trusted adapter contract. Implementations must verify credential integrity,

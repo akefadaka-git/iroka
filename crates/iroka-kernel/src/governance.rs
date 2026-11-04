@@ -33,8 +33,6 @@ impl ApprovalEvidence {
             expires_at,
         }
     }
-
-
 }
 
 /// Verifies Owner/delegate authority, approval authenticity, separation of duties,
