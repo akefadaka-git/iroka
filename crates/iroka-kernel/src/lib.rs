@@ -8,6 +8,9 @@ mod decision;
 mod governance;
 mod identity;
 mod identity_crypto;
+mod owner_approval;
+mod security_store;
+mod trust_lifecycle;
 mod policy;
 mod request;
 mod service;
@@ -23,9 +26,12 @@ pub use identity_crypto::{
     CredentialError, Ed25519CredentialVerifier, NoRevocations, RevocationChecker, TrustConfigError,
     TrustStore, TrustedKey,
 };
+pub use owner_approval::{OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, SignedOwnerApproval, TrustedOwnerKey};
+pub use security_store::{SecurityStoreError, SqliteSecurityStore};
+pub use trust_lifecycle::{verify_and_install_trust_bundle, SignedTrustBundle, TrustBundleError, TrustBundlePayload, TrustRoot};
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
-pub use service::{authorize, authorize_authenticated};
+pub use service::{authorize, authorize_authenticated, authorize_authenticated_with_owner_approval};
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
 /// validate approval evidence or persist audit events. Prefer authorize().
