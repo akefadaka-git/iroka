@@ -281,21 +281,19 @@ impl OwnerApprovalVerifier {
             .map_err(|_| OwnerApprovalError::InvalidSignature)?;
 
         let digest = Sha256::digest(&signing_bytes);
-        let consumed = self
-            .store
-            .consume_approval(
-                &p.approval_id,
-                digest.as_slice(),
-                &p.owner_subject,
-                &p.key_id,
-                &p.request_subject,
-                &p.capability,
-                &p.resource,
-                &p.policy_version,
-                p.issued_at,
-                p.expires_at,
-                now,
-            )?;
+        let consumed = self.store.consume_approval(
+            &p.approval_id,
+            digest.as_slice(),
+            &p.owner_subject,
+            &p.key_id,
+            &p.request_subject,
+            &p.capability,
+            &p.resource,
+            &p.policy_version,
+            p.issued_at,
+            p.expires_at,
+            now,
+        )?;
         if !consumed {
             return Err(OwnerApprovalError::Replay);
         }
@@ -401,11 +399,14 @@ impl OwnerApprovalVerifier {
                 }
             }
         };
-        let applied =
-            self.store
-                .apply_signed_revocation(
-                &p.command_id, &p.owner_subject, &p.key_id, digest.as_slice(), now, target,
-            )?;
+        let applied = self.store.apply_signed_revocation(
+            &p.command_id,
+            &p.owner_subject,
+            &p.key_id,
+            digest.as_slice(),
+            now,
+            target,
+        )?;
         if applied {
             Ok(())
         } else {
