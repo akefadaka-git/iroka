@@ -60,3 +60,7 @@ The Owner signs a bounded-lifetime command binding command ID, Owner subject, Ow
 ## Verification
 
 Verification status is recorded on [PR #2](https://github.com/akefadaka-git/iroka/pull/2) and its linked GitHub Actions run. Production activation remains blocked until real public trust roots/Owner public keys are provisioned and a production revocation backend is selected and exercised.
+
+## Latest executed verification
+
+GitHub Actions run [41792095566](https://github.com/akefadaka-git/iroka/actions/runs/41792095566) completed successfully using Rust/Cargo 1.99.1. It passed formatting, workspace compilation, the production `--no-default-features` check, all 36 unit tests and 2 integration tests, and Clippy with warnings denied. The workflow's formatting step committed only canonical Rust formatting; the subsequent verification run on the updated documentation commit is tracked separately in PR #2.
