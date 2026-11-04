@@ -353,3 +353,10 @@ This strategy does not authorize:
 ---
 
 **Constitutional operating rule:** Intelligence may propose. Governance decides. Authorization permits. Execution acts. Assurance verifies.
+
+
+## 14. Amharic-first Ethiopian and African architecture contract
+
+The normative regional and language requirements are defined in [A1 — Amharic-First Ethiopian and African Architecture Contract](architecture/A1-AMHARIC-FIRST-REGIONAL-ARCHITECTURE-CONTRACT.md).
+
+That contract governs language and script, localization, calendar and time, identity, documents, knowledge, regional deployment profiles, and cross-cutting Kernel controls. It is mandatory for new design and implementation. Its existence establishes requirements only; runtime support remains subject to the contract's acceptance evidence and the A1/A2 gate process.
