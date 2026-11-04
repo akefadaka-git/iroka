@@ -105,7 +105,7 @@ impl SqliteAuditSink {
             let stored: Vec<u8> = r.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
             if prev != previous || prev.len() != 32 { return Err(AuditStoreError::IntegrityFailure); }
             let expected = hash_event(&prev,&id,&trace,&subject,&capability,&resource,&policy,&decision,at);
-            if stored.as_slice() != expected { return Err(AuditStoreError::IntegrityFailure); }
+            if stored.as_slice() != expected.as_slice() { return Err(AuditStoreError::IntegrityFailure); }
             previous = stored;
         }
         Ok(())
