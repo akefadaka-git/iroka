@@ -19,7 +19,7 @@ pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub(crate) use governance::{validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier};
 pub(crate) use identity::{
-    authenticate, bind_principal, IdentityAssertion, IdentityError, IdentityVerifier,
+    authenticate, IdentityAssertion, IdentityError, IdentityVerifier,
 };
 pub use identity::VerifiedPrincipal;
 pub use identity_crypto::{
