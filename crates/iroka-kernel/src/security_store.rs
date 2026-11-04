@@ -43,6 +43,24 @@ pub struct SqliteSecurityStore {
 
 impl SqliteSecurityStore {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, SecurityStoreError> {
+        let path = path.as_ref();
+        #[cfg(unix)]
+        {
+            use std::fs::{symlink_metadata, OpenOptions};
+            use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+            match symlink_metadata(path) {
+                Ok(metadata) => {
+                    if metadata.file_type().is_symlink() || metadata.permissions().mode() & 0o077 != 0 {
+                        return Err(SecurityStoreError::Unavailable);
+                    }
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    OpenOptions::new().write(true).create_new(true).mode(0o600)
+                        .open(path).map_err(|_| SecurityStoreError::Unavailable)?;
+                }
+                Err(_) => return Err(SecurityStoreError::Unavailable),
+            }
+        }
         let connection = Connection::open(path).map_err(|_| SecurityStoreError::Unavailable)?;
         Self::from_connection(connection)
     }
