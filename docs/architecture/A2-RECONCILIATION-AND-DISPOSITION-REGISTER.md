@@ -114,3 +114,13 @@ A2 may close only when:
 - unresolved legal, data-governance, dialect and library decisions remain explicit and are not misrepresented as complete.
 
 A2 closure authorizes a separately scoped implementation phase; it does not itself authorize production deployment or imply Amharic-first readiness.
+
+
+## 7. Post-register exact-SHA addendum
+
+The initial snapshot above has been superseded by the exact-SHA evidence report:
+[`A2-EXACT-SHA-RECONCILIATION-EVIDENCE.md`](A2-EXACT-SHA-RECONCILIATION-EVIDENCE.md).
+
+The later read-only inspection established five active branches, not four pre-existing branches; PR #3 for the independent A1 architecture branch is open, draft and unmerged. The A2 branch is a direct five-commit documentation continuation of the security branch at the initial A2 snapshot. Following the interface and exact-SHA supplements, the A2 branch is seven commits ahead of security and contains five A2 documents.
+
+Use the exact-SHA evidence report as the authoritative current branch/tree/PR inventory. This original register remains the semantic reconciliation record and its historical observations are not retroactively rewritten.
