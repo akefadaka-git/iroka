@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::identity::VerifiedPrincipal;
 
