@@ -10,6 +10,15 @@ pub enum DecisionReason {
     HumanApprovalRequired,
     EmergencyStopActive,
     IdentitySubjectMismatch,
+    IdentityExpired,
+    IdentityVerificationFailed,
+    ApprovalVerified,
+    ApprovalMalformed,
+    ApprovalExpired,
+    ApprovalScopeMismatch,
+    ApprovalUnauthorized,
+    ApprovalRevokedOrUnknown,
+    ApprovalVerificationFailed,
     AuditUnavailable,
 }
 
