@@ -333,10 +333,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "iroka-audit-{}-{nonce}.sqlite",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("iroka-audit-{}-{nonce}.sqlite", std::process::id()));
 
         {
             let sink = SqliteAuditSink::open(&path).unwrap();
@@ -354,5 +352,4 @@ mod tests {
         let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
     }
-
 }
