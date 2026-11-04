@@ -293,10 +293,11 @@ mod tests {
         };
         let signing_bytes = SignedTrustBundle::signing_bytes_for(&root.key_id, &payload).unwrap();
         let signature = root_signer.sign(&signing_bytes).to_bytes().to_vec();
+        let root_key_id = root.key_id.clone();
         (
             root_signer,
             root,
-            SignedTrustBundle::from_signature(root.key_id.clone(), payload, signature),
+            SignedTrustBundle::from_signature(root_key_id, payload, signature),
         )
     }
 
@@ -362,20 +363,19 @@ mod tests {
             TrustBundleError::NonCanonicalOrdering
         );
     }
-}
-#[test]
-fn snapshot_manager_publishes_only_verified_monotonic_bundles() {
-    let (_, root, first) = fixture(1);
-    let (_, _, second) = fixture(2);
-    let store = SqliteSecurityStore::open_in_memory().unwrap();
-    let initial = verify_and_install_trust_bundle(&first, &root, &store, 1_100).unwrap();
-    let manager = TrustSnapshotManager::new(initial);
-    assert_eq!(manager.install(&second, &root, &store, 1_200), Ok(2));
-    assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
-    assert_eq!(
-        manager.install(&first, &root, &store, 1_200),
-        Err(TrustBundleError::Rollback)
-    );
+
+    #[test]
+    fn snapshot_manager_publishes_only_verified_monotonic_bundles() {
+        let (_, root, first) = fixture(1);
+        let (_, _, second) = fixture(2);
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let initial = verify_and_install_trust_bundle(&first, &root, &store, 1_100).unwrap();
+        let manager = TrustSnapshotManager::new(initial);
+        assert_eq!(manager.install(&second, &root, &store, 1_200), Ok(2));
+        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
+        assert_eq!(manager.install(&first, &root, &store, 1_200), Err(TrustBundleError::Rollback));
+    }
+
     #[test]
     fn accepts_trust_root_rotation_during_explicit_overlap() {
         let (_, old_root, _) = fixture(1);
