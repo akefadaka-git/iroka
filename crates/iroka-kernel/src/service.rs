@@ -4,7 +4,7 @@ use crate::{
     authenticate, evaluate, record_decision, validate_approval_scope, ApprovalError,
     ApprovalEvidence, ApprovalVerifier, AuditEvent, AuditSink, AuthorizationRequest, Decision,
     DecisionCode, DecisionReason, IdentityAssertion, IdentityError, IdentityVerifier, Policy,
-    VerifiedPrincipal,
+    VerifiedPrincipal, OwnerApprovalError, OwnerApprovalVerifier, SignedOwnerApproval,
 };
 
 fn identity_failure(error: IdentityError, policy: &Policy) -> Decision {
@@ -168,6 +168,71 @@ where
                         Err(error) => approval_failure(error, policy),
                     },
                 },
+            }
+        } else {
+            initial
+        }
+    };
+
+    let event = AuditEvent::new(
+        event_id,
+        correlation_id,
+        request.subject(),
+        request.capability(),
+        request.resource(),
+        policy.version(),
+        decision.code(),
+        now,
+    );
+    record_decision(audit_sink, &event, decision)
+}
+
+
+/// Production Owner-approval path. Unlike the legacy assertion-based adapter,
+/// this verifies a cryptographic Owner signature against explicitly provisioned
+/// Owner public keys and atomically consumes the approval ID before returning ALLOW.
+#[allow(clippy::too_many_arguments)]
+pub fn authorize_authenticated_with_owner_approval<S: AuditSink>(
+    request: &AuthorizationRequest,
+    principal: &VerifiedPrincipal,
+    approval: Option<&SignedOwnerApproval>,
+    owner_approval_verifier: &OwnerApprovalVerifier,
+    audit_sink: &S,
+    policy: &Policy,
+    now: u64,
+    emergency_stop_active: bool,
+    event_id: &str,
+    correlation_id: &str,
+) -> Decision {
+    let decision = if principal.subject() != request.subject() {
+        Decision::new(
+            DecisionCode::Deny,
+            DecisionReason::IdentitySubjectMismatch,
+            policy.version(),
+        )
+    } else {
+        let initial = evaluate(request, policy, emergency_stop_active);
+        if initial.code() != DecisionCode::RequireApproval {
+            initial
+        } else if let Some(evidence) = approval {
+            match owner_approval_verifier.verify_and_consume(evidence, request, policy.version(), now) {
+                Ok(()) => Decision::new(
+                    DecisionCode::Allow,
+                    DecisionReason::ApprovalVerified,
+                    policy.version(),
+                ),
+                Err(error) => {
+                    let reason = match error {
+                        OwnerApprovalError::Malformed => DecisionReason::ApprovalMalformed,
+                        OwnerApprovalError::Expired | OwnerApprovalError::NotYetValid
+                        | OwnerApprovalError::OwnerKeyOutsideValidity => DecisionReason::ApprovalExpired,
+                        OwnerApprovalError::ScopeMismatch => DecisionReason::ApprovalScopeMismatch,
+                        OwnerApprovalError::UnknownOwnerKey => DecisionReason::ApprovalUnauthorized,
+                        OwnerApprovalError::Revoked | OwnerApprovalError::Replay => DecisionReason::ApprovalRevokedOrUnknown,
+                        OwnerApprovalError::InvalidSignature | OwnerApprovalError::StoreUnavailable => DecisionReason::ApprovalVerificationFailed,
+                    };
+                    Decision::new(DecisionCode::Escalate, reason, policy.version())
+                }
             }
         } else {
             initial
