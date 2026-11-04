@@ -255,8 +255,11 @@ impl OwnerApprovalVerifier {
         if p.owner_subject != owner_key.owner_subject {
             return Err(OwnerApprovalError::ScopeMismatch);
         }
-        if now < owner_key.not_before || now >= owner_key.not_after
-            || p.issued_at < owner_key.not_before || p.issued_at >= owner_key.not_after {
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || p.issued_at < owner_key.not_before
+            || p.issued_at >= owner_key.not_after
+        {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
         if self

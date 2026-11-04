@@ -137,7 +137,6 @@ pub fn verify_and_install_trust_bundle(
     Ok(trust)
 }
 
-
 /// Thread-safe in-process trust snapshot publisher. Validation and durable
 /// anti-rollback persistence complete before the active snapshot is replaced.
 pub struct TrustSnapshotManager {
@@ -146,11 +145,15 @@ pub struct TrustSnapshotManager {
 
 impl TrustSnapshotManager {
     pub fn new(initial: TrustStore) -> Self {
-        Self { current: RwLock::new(Arc::new(initial)) }
+        Self {
+            current: RwLock::new(Arc::new(initial)),
+        }
     }
 
     pub fn snapshot(&self) -> Result<Arc<TrustStore>, TrustBundleError> {
-        self.current.read().map(|snapshot| Arc::clone(&snapshot))
+        self.current
+            .read()
+            .map(|snapshot| Arc::clone(&snapshot))
             .map_err(|_| TrustBundleError::StoreUnavailable)
     }
 
@@ -163,7 +166,10 @@ impl TrustSnapshotManager {
     ) -> Result<u64, TrustBundleError> {
         let next = verify_and_install_trust_bundle(bundle, root, store, now)?;
         let version = bundle.payload.version;
-        let mut current = self.current.write().map_err(|_| TrustBundleError::StoreUnavailable)?;
+        let mut current = self
+            .current
+            .write()
+            .map_err(|_| TrustBundleError::StoreUnavailable)?;
         *current = Arc::new(next);
         Ok(version)
     }
@@ -270,15 +276,17 @@ mod tests {
         );
     }
 }
-    #[test]
-    fn snapshot_manager_publishes_only_verified_monotonic_bundles() {
-        let (_, root, first) = fixture(1);
-        let (_, _, second) = fixture(2);
-        let store = SqliteSecurityStore::open_in_memory().unwrap();
-        let initial = verify_and_install_trust_bundle(&first, &root, &store, 1_100).unwrap();
-        let manager = TrustSnapshotManager::new(initial);
-        assert_eq!(manager.install(&second, &root, &store, 1_200), Ok(2));
-        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
-        assert_eq!(manager.install(&first, &root, &store, 1_200), Err(TrustBundleError::Rollback));
-    }
-
+#[test]
+fn snapshot_manager_publishes_only_verified_monotonic_bundles() {
+    let (_, root, first) = fixture(1);
+    let (_, _, second) = fixture(2);
+    let store = SqliteSecurityStore::open_in_memory().unwrap();
+    let initial = verify_and_install_trust_bundle(&first, &root, &store, 1_100).unwrap();
+    let manager = TrustSnapshotManager::new(initial);
+    assert_eq!(manager.install(&second, &root, &store, 1_200), Ok(2));
+    assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
+    assert_eq!(
+        manager.install(&first, &root, &store, 1_200),
+        Err(TrustBundleError::Rollback)
+    );
+}
