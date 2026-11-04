@@ -7,7 +7,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::security_store::RevocationTarget;
+use crate::security_store::{ApprovalReceipt, RevocationTarget};
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 
@@ -281,19 +281,19 @@ impl OwnerApprovalVerifier {
             .map_err(|_| OwnerApprovalError::InvalidSignature)?;
 
         let digest = Sha256::digest(&signing_bytes);
-        let consumed = self.store.consume_approval(
-            &p.approval_id,
-            digest.as_slice(),
-            &p.owner_subject,
-            &p.key_id,
-            &p.request_subject,
-            &p.capability,
-            &p.resource,
-            &p.policy_version,
-            p.issued_at,
-            p.expires_at,
-            now,
-        )?;
+        let consumed = self.store.consume_approval(ApprovalReceipt {
+            approval_id: &p.approval_id,
+            payload_digest: digest.as_slice(),
+            owner_subject: &p.owner_subject,
+            signer_key_id: &p.key_id,
+            request_subject: &p.request_subject,
+            capability: &p.capability,
+            resource: &p.resource,
+            policy_version: &p.policy_version,
+            issued_at: p.issued_at,
+            expires_at: p.expires_at,
+            consumed_at: now,
+        })
         if !consumed {
             return Err(OwnerApprovalError::Replay);
         }
