@@ -532,6 +532,7 @@ mod tests {
         assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100, 11), Ok(()));
         assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100, 11), Ok(()));
         assert_eq!(store.highest_trust_bundle_version(), Ok(Some(1)));
+        assert_eq!(store.trust_bundle_history_count(), Ok(1));
         assert_eq!(
             store.install_trust_bundle(1, &[2; 32], 10, 100, 11),
             Err(SecurityStoreError::ConflictingVersion)
@@ -596,6 +597,7 @@ mod tests {
             ),
             Ok(false)
         );
+        assert_eq!(store.approval_receipt_count(), Ok(1));
         store
             .revoke_approval("approval:2", 22, "withdrawn")
             .unwrap();
