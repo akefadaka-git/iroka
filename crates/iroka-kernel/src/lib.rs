@@ -29,8 +29,8 @@ pub use identity_crypto::{
     TrustedKey,
 };
 pub use owner_approval::{
-    OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, SignedOwnerApproval,
-    TrustedOwnerKey,
+    OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
+    OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
