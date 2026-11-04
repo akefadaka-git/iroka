@@ -137,6 +137,7 @@ impl SqliteSecurityStore {
         digest: &[u8],
         issued_at: u64,
         expires_at: u64,
+        installed_at: u64,
     ) -> Result<(), SecurityStoreError> {
         if version == 0 || issued_at >= expires_at || digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
@@ -145,6 +146,8 @@ impl SqliteSecurityStore {
         let issued_i = i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let expires_i =
             i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let installed_i =
+            i64::try_from(installed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let mut connection = self
             .connection
             .lock()
@@ -527,19 +530,19 @@ mod tests {
     fn trust_versions_are_monotonic_and_idempotent() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100, 11), Ok(()));
-        assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100), Ok(()));
+        assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100, 11), Ok(()));
         assert_eq!(store.highest_trust_bundle_version(), Ok(Some(1)));
         assert_eq!(
-            store.install_trust_bundle(1, &[2; 32], 10, 100),
+            store.install_trust_bundle(1, &[2; 32], 10, 100, 11),
             Err(SecurityStoreError::ConflictingVersion)
         );
         assert_eq!(
-            store.install_trust_bundle(0, &[2; 32], 10, 100),
+            store.install_trust_bundle(0, &[2; 32], 10, 100, 11),
             Err(SecurityStoreError::InvalidVersion)
         );
         assert_eq!(store.install_trust_bundle(2, &[2; 32], 20, 200, 21), Ok(()));
         assert_eq!(
-            store.install_trust_bundle(1, &[1; 32], 10, 100),
+            store.install_trust_bundle(1, &[1; 32], 10, 100, 11),
             Err(SecurityStoreError::Rollback)
         );
     }
