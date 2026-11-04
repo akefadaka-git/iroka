@@ -578,35 +578,21 @@ mod tests {
     fn approvals_are_single_use_and_revocable() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         assert_eq!(
-            store.consume_approval(
-                "approval:1",
-                &[3; 32],
-                "owner:test",
-                "owner-key",
-                "principal:test",
-                "records.read",
-                "records:1",
-                "policy:v1",
-                10,
-                100,
-                20
-            ),
+            store.consume_approval(ApprovalReceipt {
+                approval_id: "approval:1", payload_digest: &[3; 32], owner_subject: "owner:test",
+                signer_key_id: "owner-key", request_subject: "principal:test", capability: "records.read",
+                resource: "records:1", policy_version: "policy:v1", issued_at: 10, expires_at: 100,
+                consumed_at: 20,
+            }),
             Ok(true)
         );
         assert_eq!(
-            store.consume_approval(
-                "approval:1",
-                &[3; 32],
-                "owner:test",
-                "owner-key",
-                "principal:test",
-                "records.read",
-                "records:1",
-                "policy:v1",
-                10,
-                100,
-                21
-            ),
+            store.consume_approval(ApprovalReceipt {
+                approval_id: "approval:1", payload_digest: &[3; 32], owner_subject: "owner:test",
+                signer_key_id: "owner-key", request_subject: "principal:test", capability: "records.read",
+                resource: "records:1", policy_version: "policy:v1", issued_at: 10, expires_at: 100,
+                consumed_at: 21,
+            }),
             Ok(false)
         );
         assert_eq!(store.approval_receipt_count(), Ok(1));
