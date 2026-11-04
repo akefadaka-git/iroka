@@ -322,4 +322,44 @@ mod tests {
         assert_eq!(d.code(), DecisionCode::Escalate);
         assert_eq!(d.reason(), DecisionReason::AuditUnavailable);
     }
+    #[test]
+    fn production_pipeline_requires_and_consumes_signed_owner_approval() {
+        use std::sync::Arc;
+        use ed25519_dalek::{Signer, SigningKey};
+
+        let signer = SigningKey::from_bytes(&[71u8; 32]);
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let owner = OwnerApprovalVerifier::new(vec![TrustedOwnerKey {
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-test".into(),
+            public_key: signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 5_000,
+        }], store).unwrap();
+        let request = AuthorizationRequest::new(
+            "principal:requester", "records.export", "records:2026-01", RiskLevel::Low
+        );
+        let principal = VerifiedPrincipal::from_verified_credential(
+            "principal:requester".into(), "issuer:test".into(), "credential:requester".into()
+        );
+        let payload = OwnerApprovalPayload::new(
+            "approval:service-test", "owner:akefa", "owner-key-test",
+            "principal:requester", "records.export", "records:2026-01",
+            "policy-v1", 1_100, 1_500
+        );
+        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signed = SignedOwnerApproval::from_signature(payload, signature);
+        let first = authorize_authenticated_with_owner_approval(
+            &request, &principal, Some(&signed), &owner, &TestAudit, &policy(),
+            1_200, false, "event:owner-approval", "trace:owner-approval"
+        );
+        assert_eq!(first.code(), DecisionCode::Allow);
+        let replay = authorize_authenticated_with_owner_approval(
+            &request, &principal, Some(&signed), &owner, &TestAudit, &policy(),
+            1_201, false, "event:owner-approval-replay", "trace:owner-approval-replay"
+        );
+        assert_eq!(replay.code(), DecisionCode::Escalate);
+        assert_eq!(replay.reason(), DecisionReason::ApprovalRevokedOrUnknown);
+    }
+
 }
