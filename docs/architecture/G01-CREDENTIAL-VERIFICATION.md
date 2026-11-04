@@ -1,40 +1,62 @@
-# G01 — Concrete Credential Verification v0.2
+# G01 — Operational Credential Trust Lifecycle
 
-## Credential profile
+## Credential verification
 
-IROKA Kernel accepts compact JWS credentials with exactly three base64url segments:
-- protected header: `alg=EdDSA`, `typ=IROKA-CREDENTIAL`, non-empty `kid`;
-- claims: `iss`, `sub`, exact string `aud`, `exp`, `iat`, optional `nbf`, and unique `jti`;
-- signature: Ed25519 over the exact ASCII `header.payload` signing input.
+The kernel accepts compact JWS credentials with exactly three base64url segments. The protected header is fixed to `alg=EdDSA`, `typ=IROKA-CREDENTIAL`, and a non-empty `kid`. Claims require `iss`, `sub`, exact string `aud`, `exp`, `iat`, and `jti`; `nbf` is optional. Unknown fields, malformed segments, algorithm substitution, unsupported types, invalid signatures, incorrect audiences, future/expired time claims and overlong credentials are rejected.
 
-Unknown header/claim fields are rejected. Algorithm negotiation, `none`, algorithm fallback, key URL headers, embedded JWKs, and implicit issuer discovery are not supported. Tokens are size-limited to 16 KiB. Maximum credential lifetime is one hour; clock skew is bounded to 30 seconds.
+Limits: 16 KiB token size, 3,600-second maximum credential lifetime, 30-second credential clock skew. Approval expiry is strict and does not receive an expiry grace period.
 
-## Trust roots and issuer binding
+## Trust roots and signed trust bundles
 
-Trust is direct public-key pinning, not ambient WebPKI discovery. Provision an explicit issuer allowlist and a set of Ed25519 public keys keyed by the exact pair `(issuer, kid)`. Invalid keys, duplicate key IDs for an issuer, empty trust sets, malformed validity windows, and keys for untrusted issuers fail configuration.
+Trust is explicit Ed25519 public-key pinning. A trust bundle contains a monotonically increasing version, issuance/expiry, sorted issuer allowlist and sorted issuer/key-ID public-key records with validity windows. The bundle signature covers both the selected trust-root key ID and the serialized payload. Unknown fields and non-canonical ordering are rejected.
 
-The caller must provision trust material through a separate secure channel. Private signing keys must never be placed in this repository, application configuration committed to source control, logs, or model context.
+The deployment pins one or more trust-root public keys out-of-band. A root-key overlap set allows a new root to sign a later bundle while the old and new root anchors overlap. Root-set changes themselves remain a separately controlled Owner provisioning ceremony; a root key must never be rotated by an untrusted bundle.
 
-## Rotation
+`verify_and_install_trust_bundle` / `verify_and_install_trust_bundle_with_roots` verify the root signature and bundle validity, validate the issuer/key records, and persist the version/digest before returning the new trust snapshot. The SQLite registry rejects version rollback and same-version digest conflicts. Identical same-version installation is idempotent. `TrustSnapshotManager` publishes a verified snapshot atomically in-process.
 
-Publish a new immutable TrustStore snapshot containing both old and new public keys with deliberate overlapping validity windows. Issue credentials with the new `kid`; retain the old key only for the bounded migration interval. After the overlap, publish a snapshot without the old key. Emergency compromise response removes the compromised key immediately and also revokes its key ID in the authoritative revocation service.
+## Issuer signing-key rotation
 
-TrustStore replacement and key distribution are operational responsibilities not implemented by this crate. A deployment must make snapshot rollout atomic and observable.
+1. Prepare a new Ed25519 key pair outside the application and protect the private key in an offline signer/HSM/KMS.
+2. Publish a higher-version root-signed bundle containing both old and new public keys with explicit overlapping validity windows.
+3. Begin issuing credentials with the new `kid`; monitor adoption and verifier errors.
+4. Publish a later signed bundle removing the old key after the bounded overlap.
+5. For compromise, issue an Owner-signed revocation command immediately and publish a replacement bundle without the key. Do not wait for normal overlap expiry.
 
-## Revocation
+The verifier checks the exact `(issuer, kid)` pair, key validity window, signature, and issuer-scoped credential/key revocation before creating a `VerifiedPrincipal`.
 
-The `RevocationChecker` is a required runtime adapter. It checks both issuer-scoped credential IDs (`jti`) and issuer-scoped key IDs. Backend errors return `RevocationUnavailable` and fail closed. Production implementations must use authoritative state or a cache with a documented maximum staleness; stale/unavailable state must never silently become "not revoked".
+## Revocation and durable registry
 
-The included `NoRevocations` implementation is for local tests and development only. It must not be wired into a production service.
+`SqliteSecurityStore` provides a single-node durable reference adapter:
+- WAL journaling and FULL synchronous commits;
+- private file creation mode 0600 on Unix; symlink and group/world-readable files are rejected;
+- issuer-scoped credential and signing-key revocations;
+- approval revocations and single-use approval consumption;
+- atomic signed-command replay record plus revocation effect;
+- append-only trust-bundle history, approval receipts and security-command log.
 
-## Security boundaries and limitations
+Database errors fail closed. Back up and protect the database and its directory as security-critical state. On non-Unix platforms, enforce equivalent restrictive filesystem ACLs and encrypted-volume controls operationally.
 
-- Signature verification proves possession of the key corresponding to a configured public key; it does not itself prove that the issuer's identity-proofing process is adequate.
-- The issuer allowlist and public keys must be established by a protected provisioning ceremony.
-- This implementation does not yet provide OIDC discovery, certificate-chain validation, hardware-backed key storage, signing-key issuance, automated rotation, a production revocation database, tenant-specific trust administration, or service-to-service mTLS.
-- A verified principal is passed to `authorize_authenticated`, which binds the exact subject and continues through G02 policy/approval and G11 audit checks. Credential verification alone never grants a capability or authorizes execution.
-- The legacy `IdentityVerifier` trait remains a test/adapter boundary. Production callers should use the concrete verifier to create a `VerifiedPrincipal`; arbitrary caller-created assertions must not be trusted.
+SQLite is not a multi-node consensus store. A multi-node deployment must replace it with a shared transactional adapter preserving atomic anti-rollback, unique consumption, revocation consistency and fail-closed behavior. Do not run independent SQLite copies behind a load balancer.
 
-## Verification status
+## Runtime integration
 
-## Executed verification\n\nGitHub Actions run [41788244260](https://github.com/akefadaka-git/iroka/actions/runs/41788244260) passed on commit `583befbab5af2ed299054db0cf30ab4a8ff625c0` using Rust/Cargo 1.99.1. Results: `cargo fmt --all -- --check` PASS; `cargo check --workspace --all-targets` PASS; `cargo test --workspace --all-targets` PASS (19 unit tests and 2 integration/contract tests; 21 total); `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic` PASS.\n\nSecurity negative tests exercised algorithm substitution, signature tampering, unknown key ID, revoked credential, revoked signing key, revocation-service unavailability, malformed and oversized tokens, wrong audience, expired credentials, and key validity-window rejection. Rotation-overlap acceptance was also tested.\n\nNo production deployment, production trust-root provisioning, or production revocation-store provisioning has occurred.
+Production verifier construction requires a successfully verified signed trust bundle and an authoritative `RevocationChecker`. `NoRevocations` is compiled only for tests or when the explicit `dev-no-revocations` feature is enabled; it is not part of the default production feature set.
+
+The public assertion-to-principal forgery route is closed: legacy unsigned assertion adapters are test-only. Production callers use `Ed25519CredentialVerifier::from_signed_bundle` or `from_signed_bundle_with_roots` and pass the resulting opaque principal into governed authorization.
+
+## Owner-signed revocation commands
+
+The Owner signs a bounded-lifetime command binding command ID, Owner subject, Owner key ID, issue/expiry and one exact action: revoke credential, signing key or approval. The kernel verifies the signature and Owner key status, then atomically records the command and revocation effect. Replays are rejected. Emergency removal of a compromised trust-root private key requires the out-of-band root ceremony because a compromised root cannot be trusted to authorize its own replacement.
+
+## Boundaries
+
+- No private key is stored in this repository or in the kernel.
+- Issuer identity proofing and credential issuance are upstream responsibilities.
+- Trust-root public keys and Owner public keys require secure out-of-band provisioning.
+- Service clock synchronization, encrypted disks, backups, access controls and alerting are deployment responsibilities.
+- G11's general-purpose tamper-evident audit sink remains a separate interface; the SQLite trust history and command/approval receipts are operational records, not a claim that G11 is fully closed.
+- Credential authentication and an ALLOW decision do not execute protected side effects. G09 execution grants remain separate.
+
+## Verification
+
+Verification status is recorded on [PR #2](https://github.com/akefadaka-git/iroka/pull/2) and its linked GitHub Actions run. Production activation remains blocked until real public trust roots/Owner public keys are provisioned and a production revocation backend is selected and exercised.
