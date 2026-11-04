@@ -1,5 +1,6 @@
 //! Root-signed trust-bundle lifecycle: verification, expiry and rollback protection.
 
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -30,13 +31,24 @@ impl TrustBundlePayload {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct SignedTrustBundle {
+    pub root_key_id: String,
     pub payload: TrustBundlePayload,
     pub signature: Vec<u8>,
 }
 
 impl SignedTrustBundle {
-    pub fn from_signature(payload: TrustBundlePayload, signature: Vec<u8>) -> Self {
-        Self { payload, signature }
+    pub fn from_signature(root_key_id: impl Into<String>, payload: TrustBundlePayload, signature: Vec<u8>) -> Self {
+        Self { root_key_id: root_key_id.into(), payload, signature }
+    }
+
+    pub fn signing_bytes_for(root_key_id: &str, payload: &TrustBundlePayload) -> Result<Vec<u8>, TrustBundleError> {
+        #[derive(Serialize)]
+        struct Envelope<'a> { root_key_id: &'a str, payload: &'a TrustBundlePayload }
+        serde_json::to_vec(&Envelope { root_key_id, payload }).map_err(|_| TrustBundleError::Malformed)
+    }
+
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, TrustBundleError> {
+        Self::signing_bytes_for(&self.root_key_id, &self.payload)
     }
 }
 
@@ -78,6 +90,31 @@ impl From<SecurityStoreError> for TrustBundleError {
     }
 }
 
+
+#[derive(Debug, Clone)]
+pub struct TrustRootSet {
+    roots: HashMap<String, TrustRoot>,
+}
+
+impl TrustRootSet {
+    pub fn new(roots: Vec<TrustRoot>) -> Result<Self, TrustBundleError> {
+        if roots.is_empty() { return Err(TrustBundleError::InvalidRoot); }
+        let mut indexed = HashMap::new();
+        for root in roots {
+            if root.key_id.trim().is_empty() || root.not_before >= root.not_after
+                || VerifyingKey::from_bytes(&root.public_key).is_err()
+                || indexed.insert(root.key_id.clone(), root).is_some() {
+                return Err(TrustBundleError::InvalidRoot);
+            }
+        }
+        Ok(Self { roots: indexed })
+    }
+
+    fn get(&self, key_id: &str) -> Result<&TrustRoot, TrustBundleError> {
+        self.roots.get(key_id).ok_or(TrustBundleError::InvalidRoot)
+    }
+}
+
 /// Verify a bundle signed by the out-of-band trust root, persist anti-rollback
 /// state, and return a validated immutable trust snapshot for atomic publication.
 /// The caller must only swap the active snapshot after this function succeeds.
@@ -87,7 +124,7 @@ pub fn verify_and_install_trust_bundle(
     store: &SqliteSecurityStore,
     now: u64,
 ) -> Result<TrustStore, TrustBundleError> {
-    if root.key_id.trim().is_empty() || root.not_before >= root.not_after {
+    if root.key_id.trim().is_empty() || root.key_id != bundle.root_key_id || root.not_before >= root.not_after {
         return Err(TrustBundleError::InvalidRoot);
     }
     if now < root.not_before || now >= root.not_after {
@@ -126,7 +163,7 @@ pub fn verify_and_install_trust_bundle(
         VerifyingKey::from_bytes(&root.public_key).map_err(|_| TrustBundleError::InvalidRoot)?;
     let signature =
         Signature::from_slice(&bundle.signature).map_err(|_| TrustBundleError::Malformed)?;
-    let signing_bytes = p.signing_bytes()?;
+    let signing_bytes = bundle.signing_bytes()?;
     root_key
         .verify(&signing_bytes, &signature)
         .map_err(|_| TrustBundleError::InvalidSignature)?;
@@ -135,6 +172,19 @@ pub fn verify_and_install_trust_bundle(
     let digest = Sha256::digest(&signing_bytes);
     store.install_trust_bundle(p.version, digest.as_slice(), p.issued_at, p.expires_at)?;
     Ok(trust)
+}
+
+
+/// Select the signing root by key ID from an explicitly provisioned overlapping
+/// root set. Root-set updates themselves remain an out-of-band Owner ceremony.
+pub fn verify_and_install_trust_bundle_with_roots(
+    bundle: &SignedTrustBundle,
+    roots: &TrustRootSet,
+    store: &SqliteSecurityStore,
+    now: u64,
+) -> Result<TrustStore, TrustBundleError> {
+    let root = roots.get(&bundle.root_key_id)?;
+    verify_and_install_trust_bundle(bundle, root, store, now)
 }
 
 /// Thread-safe in-process trust snapshot publisher. Validation and durable
@@ -202,14 +252,15 @@ mod tests {
                 not_after: 5_000,
             }],
         };
+        let signing_bytes = SignedTrustBundle::signing_bytes_for(&root.key_id, &payload).unwrap();
         let signature = root_signer
-            .sign(&payload.signing_bytes().unwrap())
+            .sign(&signing_bytes)
             .to_bytes()
             .to_vec();
         (
             root_signer,
             root,
-            SignedTrustBundle::from_signature(payload, signature),
+            SignedTrustBundle::from_signature(root.key_id.clone(), payload, signature),
         )
     }
 
@@ -266,7 +317,7 @@ mod tests {
         let (signer, root, mut bundle) = fixture(1);
         bundle.payload.trusted_issuers = vec!["issuer:z".into(), "issuer:a".into()];
         bundle.signature = signer
-            .sign(&bundle.payload.signing_bytes().unwrap())
+            .sign(&bundle.signing_bytes().unwrap())
             .to_bytes()
             .to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
