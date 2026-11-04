@@ -50,13 +50,19 @@ impl SqliteSecurityStore {
             use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
             match symlink_metadata(path) {
                 Ok(metadata) => {
-                    if metadata.file_type().is_symlink() || metadata.permissions().mode() & 0o077 != 0 {
+                    if metadata.file_type().is_symlink()
+                        || metadata.permissions().mode() & 0o077 != 0
+                    {
                         return Err(SecurityStoreError::Unavailable);
                     }
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    OpenOptions::new().write(true).create_new(true).mode(0o600)
-                        .open(path).map_err(|_| SecurityStoreError::Unavailable)?;
+                    OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .mode(0o600)
+                        .open(path)
+                        .map_err(|_| SecurityStoreError::Unavailable)?;
                 }
                 Err(_) => return Err(SecurityStoreError::Unavailable),
             }
