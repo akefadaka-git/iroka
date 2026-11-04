@@ -235,7 +235,7 @@ impl OwnerApprovalVerifier {
         if p.issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
             return Err(OwnerApprovalError::NotYetValid);
         }
-        if p.expires_at <= now.saturating_sub(CLOCK_SKEW_SECS) {
+        if p.expires_at <= now {
             return Err(OwnerApprovalError::Expired);
         }
         if p.expires_at - p.issued_at > MAX_APPROVAL_TTL_SECS {
@@ -255,7 +255,8 @@ impl OwnerApprovalVerifier {
         if p.owner_subject != owner_key.owner_subject {
             return Err(OwnerApprovalError::ScopeMismatch);
         }
-        if now < owner_key.not_before || now >= owner_key.not_after {
+        if now < owner_key.not_before || now >= owner_key.not_after
+            || p.issued_at < owner_key.not_before || p.issued_at >= owner_key.not_after {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
         if self
