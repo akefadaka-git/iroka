@@ -32,9 +32,9 @@ The included `NoRevocations` implementation is for local tests and development o
 - Signature verification proves possession of the key corresponding to a configured public key; it does not itself prove that the issuer's identity-proofing process is adequate.
 - The issuer allowlist and public keys must be established by a protected provisioning ceremony.
 - This implementation does not yet provide OIDC discovery, certificate-chain validation, hardware-backed key storage, signing-key issuance, automated rotation, a production revocation database, tenant-specific trust administration, or service-to-service mTLS.
-- A verified principal still needs G02 policy/authority checks and G11 audit. Credential verification alone never grants a capability or authorizes execution.
+- A verified principal is passed to `authorize_authenticated`, which binds the exact subject and continues through G02 policy/approval and G11 audit checks. Credential verification alone never grants a capability or authorizes execution.
 - The legacy `IdentityVerifier` trait remains a test/adapter boundary. Production callers should use the concrete verifier to create a `VerifiedPrincipal`; arbitrary caller-created assertions must not be trusted.
 
 ## Verification status
 
-Contract tests cover successful Ed25519 verification, signature tampering, unknown key IDs, and revoked credentials. Tests are authored but remain NOT RUN until a Rust toolchain and dependency resolution are available. No production deployment or key provisioning has occurred.
+Contract tests cover successful Ed25519 verification, signature tampering, unknown key IDs, revoked credentials, overlapping key rotation, wrong audience, expiry and the authenticated-principal authorization handoff. Tests are authored but remain NOT RUN until a Rust toolchain and dependency resolution are available. No production deployment or key provisioning has occurred.
