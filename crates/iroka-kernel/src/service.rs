@@ -33,6 +33,7 @@ fn approval_failure(error: ApprovalError, policy: &Policy) -> Decision {
 /// The returned ALLOW is a decision only. It is not an execution grant and must
 /// not be used to perform a protected side effect. G09 must later exchange
 /// independently verified decision evidence for a short-lived execution grant.
+#[allow(clippy::too_many_arguments)] // Keeps the authorization trust dependencies explicit.
 pub fn authorize<I, A, S>(
     request: &AuthorizationRequest,
     subject_assertion: &IdentityAssertion,
@@ -112,6 +113,7 @@ where
 /// Continue authorization using a principal produced by a concrete credential
 /// verifier. This is the production integration point for G01 compact credentials.
 /// The principal cannot be constructed by downstream callers.
+#[allow(clippy::too_many_arguments)] // Keeps the authorization trust dependencies explicit.
 pub fn authorize_authenticated<I, A, S>(
     request: &AuthorizationRequest,
     principal: &VerifiedPrincipal,
