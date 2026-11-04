@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
-use crate::{RevocationChecker, RevocationError};
+use crate::identity_crypto::{RevocationChecker, RevocationError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecurityStoreError {
