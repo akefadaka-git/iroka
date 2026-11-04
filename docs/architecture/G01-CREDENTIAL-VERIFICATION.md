@@ -63,4 +63,4 @@ Verification status is recorded on [PR #2](https://github.com/akefadaka-git/irok
 
 ## Latest executed verification
 
-GitHub Actions run [41792095566](https://github.com/akefadaka-git/iroka/actions/runs/41792095566) completed successfully using Rust/Cargo 1.99.1. It passed formatting, workspace compilation, the production `--no-default-features` check, all 36 unit tests and 2 integration tests, and Clippy with warnings denied. The workflow's formatting step committed only canonical Rust formatting; the subsequent verification run on the updated documentation commit is tracked separately in PR #2.
+GitHub Actions run [41792293428](https://github.com/akefadaka-git/iroka/actions/runs/41792293428) completed successfully on commit `596b9cf0a22f3fe21c183f061e455d79dafc93d8` using Rust/Cargo 1.99.1. It passed formatting, workspace compilation, the production `--no-default-features` check, all 36 unit tests and 2 integration tests, and Clippy with warnings denied. The exact run and command results are recorded in PR #2.
