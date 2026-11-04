@@ -373,7 +373,10 @@ mod tests {
         let manager = TrustSnapshotManager::new(initial);
         assert_eq!(manager.install(&second, &root, &store, 1_200), Ok(2));
         assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
-        assert_eq!(manager.install(&first, &root, &store, 1_200), Err(TrustBundleError::Rollback));
+        assert_eq!(
+            manager.install(&first, &root, &store, 1_200),
+            Err(TrustBundleError::Rollback)
+        );
     }
 
     #[test]
