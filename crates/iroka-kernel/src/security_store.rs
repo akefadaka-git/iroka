@@ -19,6 +19,13 @@ pub enum SecurityStoreError {
     InvalidVersion,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) enum RevocationTarget {
+    Credential { issuer: String, credential_id: String, reason: String },
+    Key { issuer: String, key_id: String, reason: String },
+    Approval { approval_id: String, reason: String },
+}
+
 pub struct SqliteSecurityStore {
     connection: Mutex<Connection>,
 }
@@ -145,6 +152,48 @@ impl SqliteSecurityStore {
         c.execute("INSERT OR IGNORE INTO revoked_approvals VALUES(?1, ?2, ?3)",
             params![approval_id, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?, reason])
             .map(|_| ()).map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Atomically records a signed control command and its revocation effect.
+    pub(crate) fn apply_signed_revocation(
+        &self,
+        command_id: &str,
+        digest: &[u8],
+        at: u64,
+        target: RevocationTarget,
+    ) -> Result<bool, SecurityStoreError> {
+        if command_id.trim().is_empty() || digest.len() != 32 {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let changed = tx.execute(
+            "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
+            params![format!("security-command:{command_id}"), digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if changed == 0 {
+            return Ok(false);
+        }
+        match target {
+            RevocationTarget::Credential { issuer, credential_id, reason } => {
+                tx.execute("INSERT OR IGNORE INTO revoked_credentials VALUES(?1, ?2, ?3, ?4)",
+                    params![issuer, credential_id, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?, reason])
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
+            }
+            RevocationTarget::Key { issuer, key_id, reason } => {
+                tx.execute("INSERT OR IGNORE INTO revoked_keys VALUES(?1, ?2, ?3, ?4)",
+                    params![issuer, key_id, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?, reason])
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
+            }
+            RevocationTarget::Approval { approval_id, reason } => {
+                tx.execute("INSERT OR IGNORE INTO revoked_approvals VALUES(?1, ?2, ?3)",
+                    params![approval_id, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?, reason])
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
+            }
+        }
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+        Ok(true)
     }
 
     pub fn approval_is_revoked(&self, approval_id: &str) -> Result<bool, SecurityStoreError> {
