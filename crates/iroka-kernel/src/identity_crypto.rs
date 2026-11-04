@@ -204,6 +204,10 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         let key = self.trust.key(&claims.iss, &header.kid, now)
             .map_err(|e| e)?;
         if key.issuer != claims.iss { return Err(CredentialError::UntrustedIssuer); }
+        let signature = Signature::from_slice(&signature_bytes).map_err(|_| CredentialError::Malformed)?;
+        let signing_input = format!("{header_part}.{claims_part}");
+        key.key.verify(signing_input.as_bytes(), &signature)
+            .map_err(|_| CredentialError::InvalidSignature)?;
         if self.revocations.key_revoked(&claims.iss, &header.kid)
             .map_err(|_| CredentialError::RevocationUnavailable)? {
             return Err(CredentialError::RevokedKey);
@@ -212,10 +216,6 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
             .map_err(|_| CredentialError::RevocationUnavailable)? {
             return Err(CredentialError::RevokedCredential);
         }
-        let signature = Signature::from_slice(&signature_bytes).map_err(|_| CredentialError::Malformed)?;
-        let signing_input = format!("{header_part}.{claims_part}");
-        key.key.verify(signing_input.as_bytes(), &signature)
-            .map_err(|_| CredentialError::InvalidSignature)?;
 
         Ok(VerifiedPrincipal::from_verified_credential(
             claims.sub, claims.iss, claims.jti,
