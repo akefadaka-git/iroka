@@ -7,7 +7,7 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::Deserialize;
 
-use crate::identity::{IdentityError, VerifiedPrincipal};
+use crate::identity::VerifiedPrincipal;
 
 const MAX_TOKEN_BYTES: usize = 16 * 1024;
 const MAX_CLOCK_SKEW_SECS: u64 = 30;
