@@ -270,3 +270,15 @@ mod tests {
         );
     }
 }
+    #[test]
+    fn snapshot_manager_publishes_only_verified_monotonic_bundles() {
+        let (_, root, first) = fixture(1);
+        let (_, _, second) = fixture(2);
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let initial = verify_and_install_trust_bundle(&first, &root, &store, 1_100).unwrap();
+        let manager = TrustSnapshotManager::new(initial);
+        assert_eq!(manager.install(&second, &root, &store, 1_200), Ok(2));
+        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
+        assert_eq!(manager.install(&first, &root, &store, 1_200), Err(TrustBundleError::Rollback));
+    }
+
