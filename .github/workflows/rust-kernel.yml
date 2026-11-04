@@ -8,6 +8,7 @@ on:
       - "Cargo.lock"
       - "crates/**"
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
+      - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - ".github/workflows/rust-kernel.yml"
   workflow_dispatch:
 
