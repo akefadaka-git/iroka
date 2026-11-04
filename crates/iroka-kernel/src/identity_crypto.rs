@@ -295,6 +295,36 @@ mod tests {
     }
 
     #[test]
+    fn accepts_both_keys_during_an_explicit_rotation_overlap() {
+        let old = SigningKey::from_bytes(&[7u8; 32]);
+        let new = SigningKey::from_bytes(&[9u8; 32]);
+        let trust = TrustStore::new(
+            ["issuer:iroka-test"],
+            vec![
+                TrustedKey { issuer: "issuer:iroka-test".into(), key_id: "key-old".into(),
+                    public_key: old.verifying_key().to_bytes(), not_before: 1_000, not_after: 2_000 },
+                TrustedKey { issuer: "issuer:iroka-test".into(), key_id: "key-new".into(),
+                    public_key: new.verifying_key().to_bytes(), not_before: 1_500, not_after: 3_000 },
+            ],
+        ).expect("overlapping rotation keys are valid");
+        let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
+        assert_eq!(verifier.authenticate(&token(&old, "key-old", 4700), "iroka-kernel", 1600)
+            .expect("old key remains trusted during overlap").subject(), "principal:42");
+        assert_eq!(verifier.authenticate(&token(&new, "key-new", 4700), "iroka-kernel", 1600)
+            .expect("new key is trusted during overlap").subject(), "principal:42");
+    }
+
+    #[test]
+    fn rejects_wrong_audience_and_expired_credentials() {
+        let (signing, trust) = fixture();
+        let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
+        assert_eq!(verifier.authenticate(&token(&signing, "key-2026-a", 4700), "other-service", 1200),
+            Err(CredentialError::AudienceMismatch));
+        assert_eq!(verifier.authenticate(&token(&signing, "key-2026-a", 1150), "iroka-kernel", 1200),
+            Err(CredentialError::Expired));
+    }
+
+    #[test]
     fn rejects_unknown_key_id_even_when_signature_is_valid() {
         let (signing, trust) = fixture();
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
