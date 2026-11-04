@@ -241,6 +241,24 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> { Ok(false) }
     }
 
+    #[derive(Clone, Copy)]
+    struct KeyRevoked;
+    impl RevocationChecker for KeyRevoked {
+        fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> { Ok(false) }
+        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> { Ok(true) }
+    }
+
+    #[derive(Clone, Copy)]
+    struct RevocationUnavailable;
+    impl RevocationChecker for RevocationUnavailable {
+        fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            Err(RevocationError::Unavailable)
+        }
+        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            Err(RevocationError::Unavailable)
+        }
+    }
+
     fn fixture() -> (SigningKey, TrustStore) {
         let signing = SigningKey::from_bytes(&[7u8; 32]);
         let trust = TrustStore::new(
@@ -337,3 +355,55 @@ mod tests {
             Err(CredentialError::UnknownKey));
     }
 }
+    #[test]
+    fn rejects_algorithm_substitution_even_with_a_valid_signature() {
+        let (signing, trust) = fixture();
+        let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
+        let signed = token(&signing, "key-2026-a", 4700);
+        let parts = signed.split('.').collect::<Vec<_>>();
+        let header = URL_SAFE_NO_PAD.encode(
+            br#"{"alg":"HS256","typ":"IROKA-CREDENTIAL","kid":"key-2026-a"}"#
+        );
+        let input = format!("{header}.{}", parts[1]);
+        let signature = signing.sign(input.as_bytes());
+        let substituted = format!("{input}.{}", URL_SAFE_NO_PAD.encode(signature.to_bytes()));
+        assert_eq!(verifier.authenticate(&substituted, "iroka-kernel", 1200),
+            Err(CredentialError::UnsupportedAlgorithm));
+    }
+
+    #[test]
+    fn rejects_revoked_signing_key() {
+        let (signing, trust) = fixture();
+        let verifier = Ed25519CredentialVerifier::new(trust, KeyRevoked);
+        assert_eq!(verifier.authenticate(&token(&signing, "key-2026-a", 4700), "iroka-kernel", 1200),
+            Err(CredentialError::RevokedKey));
+    }
+
+    #[test]
+    fn fails_closed_when_revocation_service_is_unavailable() {
+        let (signing, trust) = fixture();
+        let verifier = Ed25519CredentialVerifier::new(trust, RevocationUnavailable);
+        assert_eq!(verifier.authenticate(&token(&signing, "key-2026-a", 4700), "iroka-kernel", 1200),
+            Err(CredentialError::RevocationUnavailable));
+    }
+
+    #[test]
+    fn rejects_malformed_and_oversized_tokens() {
+        let (signing, trust) = fixture();
+        let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
+        assert_eq!(verifier.authenticate("not-a-jws", "iroka-kernel", 1200),
+            Err(CredentialError::Malformed));
+        let oversized = "a".repeat(MAX_TOKEN_BYTES + 1);
+        assert_eq!(verifier.authenticate(&oversized, "iroka-kernel", 1200),
+            Err(CredentialError::Malformed));
+    }
+
+    #[test]
+    fn rejects_credentials_outside_key_validity_window() {
+        let (signing, trust) = fixture();
+        let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
+        assert_eq!(verifier.authenticate(&token(&signing, "key-2026-a", 4700), "iroka-kernel", 10_000),
+            Err(CredentialError::KeyOutsideValidity));
+    }
+
+
