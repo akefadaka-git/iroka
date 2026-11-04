@@ -6,7 +6,7 @@
 use crate::{AuthorizationRequest, Decision, DecisionCode, DecisionReason, Policy};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IdentityAssertion {
+pub(crate) struct IdentityAssertion {
     issuer: String,
     subject: String,
     audience: String,
@@ -51,7 +51,7 @@ impl IdentityAssertion {
 /// Trusted adapter contract. Implementations must verify credential integrity,
 /// issuer trust, audience, subject binding, revocation and required assurance.
 /// The adapter itself is part of the trusted computing base.
-pub trait IdentityVerifier {
+pub(crate) trait IdentityVerifier {
     fn verify_credential(
         &self,
         assertion: &IdentityAssertion,
@@ -60,7 +60,7 @@ pub trait IdentityVerifier {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IdentityError {
+pub(crate) enum IdentityError {
     Malformed,
     Expired,
     VerificationFailed,
@@ -98,7 +98,7 @@ impl VerifiedPrincipal {
 }
 
 /// Verify an assertion before producing the opaque principal used by the service.
-pub fn authenticate<V: IdentityVerifier>(
+pub(crate) fn authenticate<V: IdentityVerifier>(
     verifier: &V,
     assertion: &IdentityAssertion,
     expected_audience: &str,
@@ -127,7 +127,7 @@ pub fn authenticate<V: IdentityVerifier>(
 }
 
 /// Ensure the request subject is the exact verified principal.
-pub fn bind_principal(
+pub(crate) fn bind_principal(
     principal: &VerifiedPrincipal,
     request: &AuthorizationRequest,
     policy: &Policy,
