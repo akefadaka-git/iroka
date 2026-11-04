@@ -255,11 +255,13 @@ impl TrustSnapshotManager {
     ) -> Result<u64, TrustBundleError> {
         let next = verify_and_install_trust_bundle_with_roots(bundle, roots, store, now)?;
         let version = bundle.payload.version;
-        let mut current = self.current.write().map_err(|_| TrustBundleError::StoreUnavailable)?;
+        let mut current = self
+            .current
+            .write()
+            .map_err(|_| TrustBundleError::StoreUnavailable)?;
         *current = Arc::new(next);
         Ok(version)
     }
-
 }
 
 #[cfg(test)]
@@ -406,5 +408,4 @@ fn snapshot_manager_publishes_only_verified_monotonic_bundles() {
         assert!(verify_and_install_trust_bundle_with_roots(&bundle, &roots, &store, 1_400).is_ok());
         assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
     }
-
 }

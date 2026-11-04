@@ -464,25 +464,38 @@ mod tests {
     #[test]
     fn file_store_reopens_with_revocations_and_private_permissions() {
         use std::fs;
-        let path = std::env::temp_dir().join(format!("iroka-security-store-{}.sqlite", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "iroka-security-store-{}.sqlite",
+            std::process::id()
+        ));
         let _ = fs::remove_file(&path);
         {
             let store = SqliteSecurityStore::open(&path).unwrap();
-            store.revoke_credential("issuer:persist", "cred:persist", 50, "persisted").unwrap();
-            assert_eq!(store.credential_revoked("issuer:persist", "cred:persist"), Ok(true));
+            store
+                .revoke_credential("issuer:persist", "cred:persist", 50, "persisted")
+                .unwrap();
+            assert_eq!(
+                store.credential_revoked("issuer:persist", "cred:persist"),
+                Ok(true)
+            );
         }
         {
             let store = SqliteSecurityStore::open(&path).unwrap();
-            assert_eq!(store.credential_revoked("issuer:persist", "cred:persist"), Ok(true));
+            assert_eq!(
+                store.credential_revoked("issuer:persist", "cred:persist"),
+                Ok(true)
+            );
         }
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+            assert_eq!(
+                fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
         }
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = fs::remove_file(path.with_extension("sqlite-shm"));
     }
-
 }
