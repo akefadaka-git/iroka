@@ -46,7 +46,7 @@ All three were open, draft and unmerged at snapshot time. PR #3 exists; any olde
 
 Disposition: preserve baseline. No runtime implementation is present on main at this SHA.
 
-### 3.2 Foundation — 19 files
+### 3.2 Foundation — 21 files
 
 - `.github/workflows/rust-kernel.yml`
 - `Cargo.toml`
@@ -72,7 +72,7 @@ Disposition: preserve baseline. No runtime implementation is present on main at 
 
 Disposition: `RETAIN` as historical kernel foundation and provenance. Rust source is not to be copied as a second kernel; security branch descends from this history. Review each source module in the security continuation before any implementation changes.
 
-### 3.3 Security/A1 — 31 files
+### 3.3 Security/A1 — 32 files
 
 - `.github/workflows/rust-kernel.yml`
 - `Cargo.lock`, `Cargo.toml`
@@ -127,9 +127,9 @@ Disposition:
 - `REVIEW`: README and strategy changes independently.
 - `RETAIN` source branch unchanged until explicit branch disposition approval. Do not delete or force-push.
 
-### 3.5 A2 branch — 36 files at the post-audit tree
+### 3.5 A2 branch — 37 files at the post-audit tree
 
-The A2 branch contains the same 31-file security/A1 tree plus five A2 documents:
+The A2 branch contains the same 32-file security/A1 tree plus five A2 documents:
 - `docs/architecture/A2-ACCEPTANCE-TEST-PLAN.md`
 - `docs/architecture/A2-API-DATA-AND-EVENT-CONTRACTS.md` (blob `189c1c1663a66ec459437088b6a9b476d4558bd3`)
 - `docs/architecture/A2-EXACT-SHA-RECONCILIATION-EVIDENCE.md`
