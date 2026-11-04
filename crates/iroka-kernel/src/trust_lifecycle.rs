@@ -22,11 +22,6 @@ pub struct TrustBundlePayload {
     pub keys: Vec<TrustedKey>,
 }
 
-impl TrustBundlePayload {
-    pub fn signing_bytes(&self) -> Result<Vec<u8>, TrustBundleError> {
-        serde_json::to_vec(self).map_err(|_| TrustBundleError::Malformed)
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
