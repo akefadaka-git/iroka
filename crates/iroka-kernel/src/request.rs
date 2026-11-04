@@ -16,13 +16,26 @@ impl AuthorizationRequest {
         resource: impl Into<String>,
         risk: RiskLevel,
     ) -> Self {
-        Self { subject: subject.into(), capability: capability.into(), resource: resource.into(), risk }
+        Self {
+            subject: subject.into(),
+            capability: capability.into(),
+            resource: resource.into(),
+            risk,
+        }
     }
 
-    pub fn subject(&self) -> &str { &self.subject }
-    pub fn capability(&self) -> &str { &self.capability }
-    pub fn resource(&self) -> &str { &self.resource }
-    pub fn risk(&self) -> RiskLevel { self.risk }
+    pub fn subject(&self) -> &str {
+        &self.subject
+    }
+    pub fn capability(&self) -> &str {
+        &self.capability
+    }
+    pub fn resource(&self) -> &str {
+        &self.resource
+    }
+    pub fn risk(&self) -> RiskLevel {
+        self.risk
+    }
 
     pub(crate) fn is_well_formed(&self) -> bool {
         !self.subject.trim().is_empty()

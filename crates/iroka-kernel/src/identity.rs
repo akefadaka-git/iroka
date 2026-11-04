@@ -31,18 +31,32 @@ impl IdentityAssertion {
         }
     }
 
-    pub fn issuer(&self) -> &str { &self.issuer }
-    pub fn subject(&self) -> &str { &self.subject }
-    pub fn audience(&self) -> &str { &self.audience }
-    pub fn expires_at(&self) -> u64 { self.expires_at }
-    pub fn credential_id(&self) -> &str { &self.credential_id }
+    pub fn issuer(&self) -> &str {
+        &self.issuer
+    }
+    pub fn subject(&self) -> &str {
+        &self.subject
+    }
+    pub fn audience(&self) -> &str {
+        &self.audience
+    }
+    pub fn expires_at(&self) -> u64 {
+        self.expires_at
+    }
+    pub fn credential_id(&self) -> &str {
+        &self.credential_id
+    }
 }
 
 /// Trusted adapter contract. Implementations must verify credential integrity,
 /// issuer trust, audience, subject binding, revocation and required assurance.
 /// The adapter itself is part of the trusted computing base.
 pub trait IdentityVerifier {
-    fn verify_credential(&self, assertion: &IdentityAssertion, now: u64) -> Result<(), IdentityError>;
+    fn verify_credential(
+        &self,
+        assertion: &IdentityAssertion,
+        now: u64,
+    ) -> Result<(), IdentityError>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,12 +79,22 @@ impl VerifiedPrincipal {
         issuer: String,
         credential_id: String,
     ) -> Self {
-        Self { subject, issuer, credential_id }
+        Self {
+            subject,
+            issuer,
+            credential_id,
+        }
     }
 
-    pub fn subject(&self) -> &str { &self.subject }
-    pub fn issuer(&self) -> &str { &self.issuer }
-    pub fn credential_id(&self) -> &str { &self.credential_id }
+    pub fn subject(&self) -> &str {
+        &self.subject
+    }
+    pub fn issuer(&self) -> &str {
+        &self.issuer
+    }
+    pub fn credential_id(&self) -> &str {
+        &self.credential_id
+    }
 }
 
 /// Verify an assertion before producing the opaque principal used by the service.

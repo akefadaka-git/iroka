@@ -34,9 +34,15 @@ impl ApprovalEvidence {
         }
     }
 
-    pub fn approval_id(&self) -> &str { &self.approval_id }
-    pub fn approver_assertion(&self) -> &IdentityAssertion { &self.approver }
-    pub fn expires_at(&self) -> u64 { self.expires_at }
+    pub fn approval_id(&self) -> &str {
+        &self.approval_id
+    }
+    pub fn approver_assertion(&self) -> &IdentityAssertion {
+        &self.approver
+    }
+    pub fn expires_at(&self) -> u64 {
+        self.expires_at
+    }
 }
 
 /// Verifies Owner/delegate authority, approval authenticity, separation of duties,

@@ -37,14 +37,30 @@ impl AuditEvent {
         }
     }
 
-    pub fn event_id(&self) -> &str { &self.event_id }
-    pub fn correlation_id(&self) -> &str { &self.correlation_id }
-    pub fn subject(&self) -> &str { &self.subject }
-    pub fn capability(&self) -> &str { &self.capability }
-    pub fn resource(&self) -> &str { &self.resource }
-    pub fn policy_version(&self) -> &str { &self.policy_version }
-    pub fn decision(&self) -> DecisionCode { self.decision }
-    pub fn occurred_at(&self) -> u64 { self.occurred_at }
+    pub fn event_id(&self) -> &str {
+        &self.event_id
+    }
+    pub fn correlation_id(&self) -> &str {
+        &self.correlation_id
+    }
+    pub fn subject(&self) -> &str {
+        &self.subject
+    }
+    pub fn capability(&self) -> &str {
+        &self.capability
+    }
+    pub fn resource(&self) -> &str {
+        &self.resource
+    }
+    pub fn policy_version(&self) -> &str {
+        &self.policy_version
+    }
+    pub fn decision(&self) -> DecisionCode {
+        self.decision
+    }
+    pub fn occurred_at(&self) -> u64 {
+        self.occurred_at
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,11 +78,7 @@ pub trait AuditSink {
 
 /// Record a decision. An audit failure converts an otherwise positive decision
 /// into ESCALATE; callers must not execute the protected operation.
-pub fn record_decision<S: AuditSink>(
-    sink: &S,
-    event: &AuditEvent,
-    decision: Decision,
-) -> Decision {
+pub fn record_decision<S: AuditSink>(sink: &S, event: &AuditEvent, decision: Decision) -> Decision {
     match sink.append(event) {
         Ok(()) => decision,
         Err(_) => Decision::new(

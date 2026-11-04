@@ -2,9 +2,9 @@
 
 use crate::{
     authenticate, evaluate, record_decision, validate_approval_scope, ApprovalError,
-    ApprovalEvidence, ApprovalVerifier, AuditEvent, AuditSink, AuthorizationRequest,
-    Decision, DecisionCode, DecisionReason, IdentityAssertion, IdentityError,
-    IdentityVerifier, Policy, VerifiedPrincipal,
+    ApprovalEvidence, ApprovalVerifier, AuditEvent, AuditSink, AuthorizationRequest, Decision,
+    DecisionCode, DecisionReason, IdentityAssertion, IdentityError, IdentityVerifier, Policy,
+    VerifiedPrincipal,
 };
 
 fn identity_failure(error: IdentityError, policy: &Policy) -> Decision {
@@ -52,11 +52,14 @@ where
     A: ApprovalVerifier,
     S: AuditSink,
 {
-    let decision = match authenticate(identity_verifier, subject_assertion, expected_audience, now) {
+    let decision = match authenticate(identity_verifier, subject_assertion, expected_audience, now)
+    {
         Err(error) => identity_failure(error, policy),
-        Ok(principal) if principal.subject() != request.subject() => {
-            Decision::new(DecisionCode::Deny, DecisionReason::IdentitySubjectMismatch, policy.version())
-        }
+        Ok(principal) if principal.subject() != request.subject() => Decision::new(
+            DecisionCode::Deny,
+            DecisionReason::IdentitySubjectMismatch,
+            policy.version(),
+        ),
         Ok(_principal) => {
             let initial = evaluate(request, policy, emergency_stop_active);
             if initial.code() != DecisionCode::RequireApproval {
@@ -72,7 +75,11 @@ where
                     ) {
                         Err(error) => identity_failure(error, policy),
                         Ok(approver) => match approval_verifier.verify_approval(
-                            evidence, &approver, request, policy.version(), now,
+                            evidence,
+                            &approver,
+                            request,
+                            policy.version(),
+                            now,
                         ) {
                             Ok(()) => Decision::new(
                                 DecisionCode::Allow,
@@ -102,7 +109,6 @@ where
     record_decision(audit_sink, &event, decision)
 }
 
-
 /// Continue authorization using a principal produced by a concrete credential
 /// verifier. This is the production integration point for G01 compact credentials.
 /// The principal cannot be constructed by downstream callers.
@@ -126,7 +132,11 @@ where
     S: AuditSink,
 {
     let decision = if principal.subject() != request.subject() {
-        Decision::new(DecisionCode::Deny, DecisionReason::IdentitySubjectMismatch, policy.version())
+        Decision::new(
+            DecisionCode::Deny,
+            DecisionReason::IdentitySubjectMismatch,
+            policy.version(),
+        )
     } else {
         let initial = evaluate(request, policy, emergency_stop_active);
         if initial.code() != DecisionCode::RequireApproval {
@@ -142,7 +152,11 @@ where
                 ) {
                     Err(error) => identity_failure(error, policy),
                     Ok(approver) => match approval_verifier.verify_approval(
-                        evidence, &approver, request, policy.version(), now,
+                        evidence,
+                        &approver,
+                        request,
+                        policy.version(),
+                        now,
                     ) {
                         Ok(()) => Decision::new(
                             DecisionCode::Allow,

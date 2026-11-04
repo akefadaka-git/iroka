@@ -22,14 +22,25 @@ impl Policy {
         approval_required: Vec<String>,
         maximum_risk: RiskLevel,
     ) -> Self {
-        Self { version: version.into(), allowed_capabilities, approval_required, maximum_risk }
+        Self {
+            version: version.into(),
+            allowed_capabilities,
+            approval_required,
+            maximum_risk,
+        }
     }
 
-    pub fn version(&self) -> &str { &self.version }
-    pub fn maximum_risk(&self) -> RiskLevel { self.maximum_risk }
+    pub fn version(&self) -> &str {
+        &self.version
+    }
+    pub fn maximum_risk(&self) -> RiskLevel {
+        self.maximum_risk
+    }
 
     pub(crate) fn allows_capability(&self, capability: &str) -> bool {
-        self.allowed_capabilities.iter().any(|item| item == capability)
+        self.allowed_capabilities
+            .iter()
+            .any(|item| item == capability)
     }
 
     pub(crate) fn requires_approval(&self, capability: &str) -> bool {
