@@ -43,7 +43,10 @@ pub struct TrustStore {
 }
 
 impl TrustStore {
-    pub(crate) fn new<I, S>(trusted_issuers: I, keys: Vec<TrustedKey>) -> Result<Self, TrustConfigError>
+    pub(crate) fn new<I, S>(
+        trusted_issuers: I,
+        keys: Vec<TrustedKey>,
+    ) -> Result<Self, TrustConfigError>
     where
         I: IntoIterator<Item = S>,
         S: Into<String>,

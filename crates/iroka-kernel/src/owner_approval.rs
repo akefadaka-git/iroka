@@ -7,8 +7,8 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 use crate::security_store::RevocationTarget;
+use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 
 const MAX_APPROVAL_TTL_SECS: u64 = 900;
 const CLOCK_SKEW_SECS: u64 = 30;
@@ -115,13 +115,23 @@ struct OwnerKeyRecord {
     not_after: u64,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum OwnerSecurityAction {
-    RevokeCredential { issuer: String, credential_id: String, reason: String },
-    RevokeSigningKey { issuer: String, key_id: String, reason: String },
-    RevokeApproval { approval_id: String, reason: String },
+    RevokeCredential {
+        issuer: String,
+        credential_id: String,
+        reason: String,
+    },
+    RevokeSigningKey {
+        issuer: String,
+        key_id: String,
+        reason: String,
+    },
+    RevokeApproval {
+        approval_id: String,
+        reason: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -167,26 +177,39 @@ impl OwnerApprovalVerifier {
         keys: Vec<TrustedOwnerKey>,
         store: Arc<SqliteSecurityStore>,
     ) -> Result<Self, OwnerApprovalError> {
-        if keys.is_empty() { return Err(OwnerApprovalError::UnknownOwnerKey); }
+        if keys.is_empty() {
+            return Err(OwnerApprovalError::UnknownOwnerKey);
+        }
         let mut records = HashMap::new();
         for key in keys {
-            if key.owner_subject.trim().is_empty() || key.key_id.trim().is_empty()
-                || key.not_before >= key.not_after {
+            if key.owner_subject.trim().is_empty()
+                || key.key_id.trim().is_empty()
+                || key.not_before >= key.not_after
+            {
                 return Err(OwnerApprovalError::Malformed);
             }
             let verifying_key = VerifyingKey::from_bytes(&key.public_key)
                 .map_err(|_| OwnerApprovalError::Malformed)?;
             let id = key.key_id.clone();
-            if records.insert(id, OwnerKeyRecord {
-                owner_subject: key.owner_subject,
-                verifying_key,
-                not_before: key.not_before,
-                not_after: key.not_after,
-            }).is_some() {
+            if records
+                .insert(
+                    id,
+                    OwnerKeyRecord {
+                        owner_subject: key.owner_subject,
+                        verifying_key,
+                        not_before: key.not_before,
+                        not_after: key.not_after,
+                    },
+                )
+                .is_some()
+            {
                 return Err(OwnerApprovalError::Malformed);
             }
         }
-        Ok(Self { keys: records, store })
+        Ok(Self {
+            keys: records,
+            store,
+        })
     }
 
     pub fn verify_and_consume(
@@ -197,10 +220,15 @@ impl OwnerApprovalVerifier {
         now: u64,
     ) -> Result<(), OwnerApprovalError> {
         let p = &approval.payload;
-        if p.approval_id.trim().is_empty() || p.owner_subject.trim().is_empty()
-            || p.key_id.trim().is_empty() || p.request_subject.trim().is_empty()
-            || p.capability.trim().is_empty() || p.resource.trim().is_empty()
-            || p.policy_version.trim().is_empty() || p.issued_at >= p.expires_at {
+        if p.approval_id.trim().is_empty()
+            || p.owner_subject.trim().is_empty()
+            || p.key_id.trim().is_empty()
+            || p.request_subject.trim().is_empty()
+            || p.capability.trim().is_empty()
+            || p.resource.trim().is_empty()
+            || p.policy_version.trim().is_empty()
+            || p.issued_at >= p.expires_at
+        {
             return Err(OwnerApprovalError::Malformed);
         }
         if p.issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
@@ -212,19 +240,28 @@ impl OwnerApprovalVerifier {
         if p.expires_at - p.issued_at > MAX_APPROVAL_TTL_SECS {
             return Err(OwnerApprovalError::Malformed);
         }
-        if p.request_subject != request.subject() || p.capability != request.capability()
-            || p.resource != request.resource() || p.policy_version != policy_version {
+        if p.request_subject != request.subject()
+            || p.capability != request.capability()
+            || p.resource != request.resource()
+            || p.policy_version != policy_version
+        {
             return Err(OwnerApprovalError::ScopeMismatch);
         }
-        let owner_key = self.keys.get(&p.key_id).ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        let owner_key = self
+            .keys
+            .get(&p.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
         if p.owner_subject != owner_key.owner_subject {
             return Err(OwnerApprovalError::ScopeMismatch);
         }
         if now < owner_key.not_before || now >= owner_key.not_after {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
-        if self.store.key_revoked(OWNER_ISSUER, &p.key_id)
-            .map_err(|_| OwnerApprovalError::StoreUnavailable)? {
+        if self
+            .store
+            .key_revoked(OWNER_ISSUER, &p.key_id)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?
+        {
             return Err(OwnerApprovalError::Revoked);
         }
         if self.store.approval_is_revoked(&p.approval_id)? {
@@ -233,12 +270,18 @@ impl OwnerApprovalVerifier {
         let signing_bytes = p.signing_bytes()?;
         let signature = Signature::from_slice(&approval.signature)
             .map_err(|_| OwnerApprovalError::Malformed)?;
-        owner_key.verifying_key.verify(&signing_bytes, &signature)
+        owner_key
+            .verifying_key
+            .verify(&signing_bytes, &signature)
             .map_err(|_| OwnerApprovalError::InvalidSignature)?;
 
         let digest = Sha256::digest(&signing_bytes);
-        let consumed = self.store.consume_approval(&p.approval_id, digest.as_slice(), now)?;
-        if !consumed { return Err(OwnerApprovalError::Replay); }
+        let consumed = self
+            .store
+            .consume_approval(&p.approval_id, digest.as_slice(), now)?;
+        if !consumed {
+            return Err(OwnerApprovalError::Replay);
+        }
         Ok(())
     }
 
@@ -250,8 +293,11 @@ impl OwnerApprovalVerifier {
         now: u64,
     ) -> Result<(), OwnerApprovalError> {
         let p = &command.payload;
-        if p.command_id.trim().is_empty() || p.owner_subject.trim().is_empty()
-            || p.key_id.trim().is_empty() || p.issued_at >= p.expires_at {
+        if p.command_id.trim().is_empty()
+            || p.owner_subject.trim().is_empty()
+            || p.key_id.trim().is_empty()
+            || p.issued_at >= p.expires_at
+        {
             return Err(OwnerApprovalError::Malformed);
         }
         if p.issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
@@ -263,78 +309,133 @@ impl OwnerApprovalVerifier {
         if p.expires_at - p.issued_at > MAX_APPROVAL_TTL_SECS {
             return Err(OwnerApprovalError::Malformed);
         }
-        let owner_key = self.keys.get(&p.key_id).ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        let owner_key = self
+            .keys
+            .get(&p.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
         if p.owner_subject != owner_key.owner_subject {
             return Err(OwnerApprovalError::ScopeMismatch);
         }
         if now < owner_key.not_before || now >= owner_key.not_after {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
-        if self.store.key_revoked(OWNER_ISSUER, &p.key_id)
-            .map_err(|_| OwnerApprovalError::StoreUnavailable)? {
+        if self
+            .store
+            .key_revoked(OWNER_ISSUER, &p.key_id)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?
+        {
             return Err(OwnerApprovalError::Revoked);
         }
         let signing_bytes = p.signing_bytes()?;
-        let signature = Signature::from_slice(&command.signature)
-            .map_err(|_| OwnerApprovalError::Malformed)?;
-        owner_key.verifying_key.verify(&signing_bytes, &signature)
+        let signature =
+            Signature::from_slice(&command.signature).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(&signing_bytes, &signature)
             .map_err(|_| OwnerApprovalError::InvalidSignature)?;
         let digest = Sha256::digest(&signing_bytes);
         let target = match &p.action {
-            OwnerSecurityAction::RevokeCredential { issuer, credential_id, reason } => {
-                if issuer.trim().is_empty() || credential_id.trim().is_empty() || reason.trim().is_empty() {
+            OwnerSecurityAction::RevokeCredential {
+                issuer,
+                credential_id,
+                reason,
+            } => {
+                if issuer.trim().is_empty()
+                    || credential_id.trim().is_empty()
+                    || reason.trim().is_empty()
+                {
                     return Err(OwnerApprovalError::Malformed);
                 }
-                RevocationTarget::Credential { issuer: issuer.clone(), credential_id: credential_id.clone(), reason: reason.clone() }
+                RevocationTarget::Credential {
+                    issuer: issuer.clone(),
+                    credential_id: credential_id.clone(),
+                    reason: reason.clone(),
+                }
             }
-            OwnerSecurityAction::RevokeSigningKey { issuer, key_id, reason } => {
-                if issuer.trim().is_empty() || key_id.trim().is_empty() || reason.trim().is_empty() {
+            OwnerSecurityAction::RevokeSigningKey {
+                issuer,
+                key_id,
+                reason,
+            } => {
+                if issuer.trim().is_empty() || key_id.trim().is_empty() || reason.trim().is_empty()
+                {
                     return Err(OwnerApprovalError::Malformed);
                 }
-                RevocationTarget::Key { issuer: issuer.clone(), key_id: key_id.clone(), reason: reason.clone() }
+                RevocationTarget::Key {
+                    issuer: issuer.clone(),
+                    key_id: key_id.clone(),
+                    reason: reason.clone(),
+                }
             }
-            OwnerSecurityAction::RevokeApproval { approval_id, reason } => {
+            OwnerSecurityAction::RevokeApproval {
+                approval_id,
+                reason,
+            } => {
                 if approval_id.trim().is_empty() || reason.trim().is_empty() {
                     return Err(OwnerApprovalError::Malformed);
                 }
-                RevocationTarget::Approval { approval_id: approval_id.clone(), reason: reason.clone() }
+                RevocationTarget::Approval {
+                    approval_id: approval_id.clone(),
+                    reason: reason.clone(),
+                }
             }
         };
-        let applied = self.store.apply_signed_revocation(&p.command_id, digest.as_slice(), now, target)?;
-        if applied { Ok(()) } else { Err(OwnerApprovalError::Replay) }
+        let applied =
+            self.store
+                .apply_signed_revocation(&p.command_id, digest.as_slice(), now, target)?;
+        if applied {
+            Ok(())
+        } else {
+            Err(OwnerApprovalError::Replay)
+        }
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ed25519_dalek::{Signer, SigningKey};
     use crate::RiskLevel;
+    use ed25519_dalek::{Signer, SigningKey};
 
     fn fixture() -> (SigningKey, OwnerApprovalVerifier, AuthorizationRequest) {
         let signer = SigningKey::from_bytes(&[51u8; 32]);
         let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
-        let verifier = OwnerApprovalVerifier::new(vec![TrustedOwnerKey {
-            owner_subject: "owner:akefa".into(),
-            key_id: "owner-key-01".into(),
-            public_key: signer.verifying_key().to_bytes(),
-            not_before: 900,
-            not_after: 5_000,
-        }], store).unwrap();
+        let verifier = OwnerApprovalVerifier::new(
+            vec![TrustedOwnerKey {
+                owner_subject: "owner:akefa".into(),
+                key_id: "owner-key-01".into(),
+                public_key: signer.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 5_000,
+            }],
+            store,
+        )
+        .unwrap();
         let request = AuthorizationRequest::new(
-            "principal:requester", "finance.approve", "ledger:2026-001", RiskLevel::High
+            "principal:requester",
+            "finance.approve",
+            "ledger:2026-001",
+            RiskLevel::High,
         );
         (signer, verifier, request)
     }
 
     fn signed(signer: &SigningKey, expires_at: u64) -> SignedOwnerApproval {
         let payload = OwnerApprovalPayload::new(
-            "approval:one-use", "owner:akefa", "owner-key-01",
-            "principal:requester", "finance.approve", "ledger:2026-001",
-            "policy-v1", 1_100, expires_at
+            "approval:one-use",
+            "owner:akefa",
+            "owner-key-01",
+            "principal:requester",
+            "finance.approve",
+            "ledger:2026-001",
+            "policy-v1",
+            1_100,
+            expires_at,
         );
-        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         SignedOwnerApproval::from_signature(payload, signature)
     }
 
@@ -342,8 +443,14 @@ mod tests {
     fn verifies_owner_signature_and_consumes_approval_once() {
         let (signer, verifier, request) = fixture();
         let approval = signed(&signer, 1_500);
-        assert_eq!(verifier.verify_and_consume(&approval, &request, "policy-v1", 1_200), Ok(()));
-        assert_eq!(verifier.verify_and_consume(&approval, &request, "policy-v1", 1_201), Err(OwnerApprovalError::Replay));
+        assert_eq!(
+            verifier.verify_and_consume(&approval, &request, "policy-v1", 1_200),
+            Ok(())
+        );
+        assert_eq!(
+            verifier.verify_and_consume(&approval, &request, "policy-v1", 1_201),
+            Err(OwnerApprovalError::Replay)
+        );
     }
 
     #[test]
@@ -351,29 +458,50 @@ mod tests {
         let (signer, verifier, request) = fixture();
         let mut tampered = signed(&signer, 1_500);
         tampered.payload.resource = "ledger:other".into();
-        assert_eq!(verifier.verify_and_consume(&tampered, &request, "policy-v1", 1_200), Err(OwnerApprovalError::ScopeMismatch));
+        assert_eq!(
+            verifier.verify_and_consume(&tampered, &request, "policy-v1", 1_200),
+            Err(OwnerApprovalError::ScopeMismatch)
+        );
 
         let mut wrong_signature = signed(&signer, 1_500);
         wrong_signature.signature[0] ^= 0x80;
-        assert_eq!(verifier.verify_and_consume(&wrong_signature, &request, "policy-v1", 1_200), Err(OwnerApprovalError::InvalidSignature));
+        assert_eq!(
+            verifier.verify_and_consume(&wrong_signature, &request, "policy-v1", 1_200),
+            Err(OwnerApprovalError::InvalidSignature)
+        );
 
         let mut unknown = signed(&signer, 1_500);
         unknown.payload.key_id = "unknown".into();
-        assert_eq!(verifier.verify_and_consume(&unknown, &request, "policy-v1", 1_200), Err(OwnerApprovalError::UnknownOwnerKey));
+        assert_eq!(
+            verifier.verify_and_consume(&unknown, &request, "policy-v1", 1_200),
+            Err(OwnerApprovalError::UnknownOwnerKey)
+        );
     }
 
     #[test]
     fn rejects_expired_and_overlong_approvals() {
         let (signer, verifier, request) = fixture();
-        assert_eq!(verifier.verify_and_consume(&signed(&signer, 1_150), &request, "policy-v1", 1_200), Err(OwnerApprovalError::Expired));
-        assert_eq!(verifier.verify_and_consume(&signed(&signer, 3_000), &request, "policy-v1", 1_200), Err(OwnerApprovalError::Malformed));
+        assert_eq!(
+            verifier.verify_and_consume(&signed(&signer, 1_150), &request, "policy-v1", 1_200),
+            Err(OwnerApprovalError::Expired)
+        );
+        assert_eq!(
+            verifier.verify_and_consume(&signed(&signer, 3_000), &request, "policy-v1", 1_200),
+            Err(OwnerApprovalError::Malformed)
+        );
     }
 
     #[test]
     fn rejects_revoked_owner_key_and_approval() {
         let (signer, verifier, request) = fixture();
-        verifier.store.revoke_key(OWNER_ISSUER, "owner-key-01", 1_150, "key compromise").unwrap();
-        assert_eq!(verifier.verify_and_consume(&signed(&signer, 1_500), &request, "policy-v1", 1_200), Err(OwnerApprovalError::Revoked));
+        verifier
+            .store
+            .revoke_key(OWNER_ISSUER, "owner-key-01", 1_150, "key compromise")
+            .unwrap();
+        assert_eq!(
+            verifier.verify_and_consume(&signed(&signer, 1_500), &request, "policy-v1", 1_200),
+            Err(OwnerApprovalError::Revoked)
+        );
     }
     #[test]
     fn owner_signed_revocation_is_atomic_and_replay_protected() {
@@ -390,11 +518,21 @@ mod tests {
                 reason: "credential compromise".into(),
             },
         };
-        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let command = SignedOwnerSecurityCommand::from_signature(payload, signature);
         assert_eq!(verifier.apply_security_command(&command, 1_200), Ok(()));
-        assert_eq!(verifier.store.credential_revoked("issuer:service", "credential:compromised"), Ok(true));
-        assert_eq!(verifier.apply_security_command(&command, 1_201), Err(OwnerApprovalError::Replay));
+        assert_eq!(
+            verifier
+                .store
+                .credential_revoked("issuer:service", "credential:compromised"),
+            Ok(true)
+        );
+        assert_eq!(
+            verifier.apply_security_command(&command, 1_201),
+            Err(OwnerApprovalError::Replay)
+        );
     }
-
 }

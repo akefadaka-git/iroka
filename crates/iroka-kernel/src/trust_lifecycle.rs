@@ -62,7 +62,9 @@ pub enum TrustBundleError {
 }
 
 impl From<TrustConfigError> for TrustBundleError {
-    fn from(_: TrustConfigError) -> Self { Self::InvalidTrustConfiguration }
+    fn from(_: TrustConfigError) -> Self {
+        Self::InvalidTrustConfiguration
+    }
 }
 
 impl From<SecurityStoreError> for TrustBundleError {
@@ -90,7 +92,11 @@ pub fn verify_and_install_trust_bundle(
         return Err(TrustBundleError::RootOutsideValidity);
     }
     let p = &bundle.payload;
-    if p.version == 0 || p.issued_at >= p.expires_at || p.trusted_issuers.is_empty() || p.keys.is_empty() {
+    if p.version == 0
+        || p.issued_at >= p.expires_at
+        || p.trusted_issuers.is_empty()
+        || p.keys.is_empty()
+    {
         return Err(TrustBundleError::Malformed);
     }
     if p.issued_at > now.saturating_add(MAX_CLOCK_SKEW_SECS) {
@@ -103,17 +109,25 @@ pub fn verify_and_install_trust_bundle(
         return Err(TrustBundleError::ExcessiveLifetime);
     }
     if p.trusted_issuers.windows(2).any(|w| w[0] >= w[1])
-        || p.keys.windows(2).any(|w| (w[0].issuer.as_str(), w[0].key_id.as_str()) >= (w[1].issuer.as_str(), w[1].key_id.as_str())) {
+        || p.keys.windows(2).any(|w| {
+            (w[0].issuer.as_str(), w[0].key_id.as_str())
+                >= (w[1].issuer.as_str(), w[1].key_id.as_str())
+        })
+    {
         return Err(TrustBundleError::NonCanonicalOrdering);
     }
     if p.keys.iter().any(|key| key.not_after > p.expires_at) {
         return Err(TrustBundleError::Malformed);
     }
 
-    let root_key = VerifyingKey::from_bytes(&root.public_key).map_err(|_| TrustBundleError::InvalidRoot)?;
-    let signature = Signature::from_slice(&bundle.signature).map_err(|_| TrustBundleError::Malformed)?;
+    let root_key =
+        VerifyingKey::from_bytes(&root.public_key).map_err(|_| TrustBundleError::InvalidRoot)?;
+    let signature =
+        Signature::from_slice(&bundle.signature).map_err(|_| TrustBundleError::Malformed)?;
     let signing_bytes = p.signing_bytes()?;
-    root_key.verify(&signing_bytes, &signature).map_err(|_| TrustBundleError::InvalidSignature)?;
+    root_key
+        .verify(&signing_bytes, &signature)
+        .map_err(|_| TrustBundleError::InvalidSignature)?;
 
     let trust = TrustStore::new(p.trusted_issuers.clone(), p.keys.clone())?;
     let digest = Sha256::digest(&signing_bytes);
@@ -148,8 +162,15 @@ mod tests {
                 not_after: 5_000,
             }],
         };
-        let signature = root_signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
-        (root_signer, root, SignedTrustBundle::from_signature(payload, signature))
+        let signature = root_signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        (
+            root_signer,
+            root,
+            SignedTrustBundle::from_signature(payload, signature),
+        )
     }
 
     #[test]
@@ -165,12 +186,26 @@ mod tests {
         let (signer, root, mut bundle) = fixture(1);
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         bundle.payload.version = 2;
-        assert_eq!(verify_and_install_trust_bundle(&bundle, &root, &store, 1_100).unwrap_err(), TrustBundleError::InvalidSignature);
+        assert_eq!(
+            verify_and_install_trust_bundle(&bundle, &root, &store, 1_100).unwrap_err(),
+            TrustBundleError::InvalidSignature
+        );
 
         let (_, _, expired) = fixture(2);
-        let wrong_root = TrustRoot { public_key: SigningKey::from_bytes(&[99u8; 32]).verifying_key().to_bytes(), ..root.clone() };
-        assert_eq!(verify_and_install_trust_bundle(&expired, &wrong_root, &store, 1_100).unwrap_err(), TrustBundleError::InvalidSignature);
-        assert_eq!(verify_and_install_trust_bundle(&expired, &root, &store, 5_100).unwrap_err(), TrustBundleError::Expired);
+        let wrong_root = TrustRoot {
+            public_key: SigningKey::from_bytes(&[99u8; 32])
+                .verifying_key()
+                .to_bytes(),
+            ..root.clone()
+        };
+        assert_eq!(
+            verify_and_install_trust_bundle(&expired, &wrong_root, &store, 1_100).unwrap_err(),
+            TrustBundleError::InvalidSignature
+        );
+        assert_eq!(
+            verify_and_install_trust_bundle(&expired, &root, &store, 5_100).unwrap_err(),
+            TrustBundleError::Expired
+        );
         let _ = signer;
     }
 
@@ -180,15 +215,24 @@ mod tests {
         let (_, _, older) = fixture(1);
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         verify_and_install_trust_bundle(&first, &root, &store, 1_100).unwrap();
-        assert_eq!(verify_and_install_trust_bundle(&older, &root, &store, 1_100).unwrap_err(), TrustBundleError::Rollback);
+        assert_eq!(
+            verify_and_install_trust_bundle(&older, &root, &store, 1_100).unwrap_err(),
+            TrustBundleError::Rollback
+        );
     }
 
     #[test]
     fn rejects_noncanonical_bundle_order() {
         let (signer, root, mut bundle) = fixture(1);
         bundle.payload.trusted_issuers = vec!["issuer:z".into(), "issuer:a".into()];
-        bundle.signature = signer.sign(&bundle.payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        bundle.signature = signer
+            .sign(&bundle.payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        assert_eq!(verify_and_install_trust_bundle(&bundle, &root, &store, 1_100).unwrap_err(), TrustBundleError::NonCanonicalOrdering);
+        assert_eq!(
+            verify_and_install_trust_bundle(&bundle, &root, &store, 1_100).unwrap_err(),
+            TrustBundleError::NonCanonicalOrdering
+        );
     }
 }

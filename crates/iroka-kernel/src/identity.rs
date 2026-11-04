@@ -125,4 +125,3 @@ pub(crate) fn authenticate<V: IdentityVerifier>(
         credential_id: assertion.credential_id.clone(),
     })
 }
-

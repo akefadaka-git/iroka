@@ -9,32 +9,38 @@ mod governance;
 mod identity;
 mod identity_crypto;
 mod owner_approval;
-mod security_store;
-mod trust_lifecycle;
 mod policy;
 mod request;
+mod security_store;
 mod service;
+mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
-pub(crate) use governance::{validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier};
-pub(crate) use identity::{
-    authenticate, IdentityAssertion, IdentityError, IdentityVerifier,
+pub(crate) use governance::{
+    validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use identity_crypto::{
-    CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError,
-    TrustStore, TrustedKey,
-};
+pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
 pub use identity_crypto::NoRevocations;
-pub use owner_approval::{OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, SignedOwnerApproval, TrustedOwnerKey};
-pub use security_store::{SecurityStoreError, SqliteSecurityStore};
-pub use trust_lifecycle::{verify_and_install_trust_bundle, SignedTrustBundle, TrustBundleError, TrustBundlePayload, TrustRoot};
+pub use identity_crypto::{
+    CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError, TrustStore,
+    TrustedKey,
+};
+pub use owner_approval::{
+    OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, SignedOwnerApproval,
+    TrustedOwnerKey,
+};
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
-pub(crate) use service::{authorize, authorize_authenticated};
+pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
+pub(crate) use service::{authorize, authorize_authenticated};
+pub use trust_lifecycle::{
+    verify_and_install_trust_bundle, SignedTrustBundle, TrustBundleError, TrustBundlePayload,
+    TrustRoot,
+};
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
 /// validate approval evidence or persist audit events. Prefer authorize().
@@ -324,42 +330,75 @@ mod tests {
     }
     #[test]
     fn production_pipeline_requires_and_consumes_signed_owner_approval() {
-        use std::sync::Arc;
         use ed25519_dalek::{Signer, SigningKey};
+        use std::sync::Arc;
 
         let signer = SigningKey::from_bytes(&[71u8; 32]);
         let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
-        let owner = OwnerApprovalVerifier::new(vec![TrustedOwnerKey {
-            owner_subject: "owner:akefa".into(),
-            key_id: "owner-key-test".into(),
-            public_key: signer.verifying_key().to_bytes(),
-            not_before: 900,
-            not_after: 5_000,
-        }], store).unwrap();
+        let owner = OwnerApprovalVerifier::new(
+            vec![TrustedOwnerKey {
+                owner_subject: "owner:akefa".into(),
+                key_id: "owner-key-test".into(),
+                public_key: signer.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 5_000,
+            }],
+            store,
+        )
+        .unwrap();
         let request = AuthorizationRequest::new(
-            "principal:requester", "records.export", "records:2026-01", RiskLevel::Low
+            "principal:requester",
+            "records.export",
+            "records:2026-01",
+            RiskLevel::Low,
         );
         let principal = VerifiedPrincipal::from_verified_credential(
-            "principal:requester".into(), "issuer:test".into(), "credential:requester".into()
+            "principal:requester".into(),
+            "issuer:test".into(),
+            "credential:requester".into(),
         );
         let payload = OwnerApprovalPayload::new(
-            "approval:service-test", "owner:akefa", "owner-key-test",
-            "principal:requester", "records.export", "records:2026-01",
-            "policy-v1", 1_100, 1_500
+            "approval:service-test",
+            "owner:akefa",
+            "owner-key-test",
+            "principal:requester",
+            "records.export",
+            "records:2026-01",
+            "policy-v1",
+            1_100,
+            1_500,
         );
-        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let signed = SignedOwnerApproval::from_signature(payload, signature);
         let first = authorize_authenticated_with_owner_approval(
-            &request, &principal, Some(&signed), &owner, &TestAudit, &policy(),
-            1_200, false, "event:owner-approval", "trace:owner-approval"
+            &request,
+            &principal,
+            Some(&signed),
+            &owner,
+            &TestAudit,
+            &policy(),
+            1_200,
+            false,
+            "event:owner-approval",
+            "trace:owner-approval",
         );
         assert_eq!(first.code(), DecisionCode::Allow);
         let replay = authorize_authenticated_with_owner_approval(
-            &request, &principal, Some(&signed), &owner, &TestAudit, &policy(),
-            1_201, false, "event:owner-approval-replay", "trace:owner-approval-replay"
+            &request,
+            &principal,
+            Some(&signed),
+            &owner,
+            &TestAudit,
+            &policy(),
+            1_201,
+            false,
+            "event:owner-approval-replay",
+            "trace:owner-approval-replay",
         );
         assert_eq!(replay.code(), DecisionCode::Escalate);
         assert_eq!(replay.reason(), DecisionReason::ApprovalRevokedOrUnknown);
     }
-
 }
