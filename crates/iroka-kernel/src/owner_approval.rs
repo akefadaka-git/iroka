@@ -375,4 +375,26 @@ mod tests {
         verifier.store.revoke_key(OWNER_ISSUER, "owner-key-01", 1_150, "key compromise").unwrap();
         assert_eq!(verifier.verify_and_consume(&signed(&signer, 1_500), &request, "policy-v1", 1_200), Err(OwnerApprovalError::Revoked));
     }
+    #[test]
+    fn owner_signed_revocation_is_atomic_and_replay_protected() {
+        let (signer, verifier, _request) = fixture();
+        let payload = OwnerSecurityCommandPayload {
+            command_id: "command:revoke-credential-1".into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-01".into(),
+            issued_at: 1_100,
+            expires_at: 1_500,
+            action: OwnerSecurityAction::RevokeCredential {
+                issuer: "issuer:service".into(),
+                credential_id: "credential:compromised".into(),
+                reason: "credential compromise".into(),
+            },
+        };
+        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let command = SignedOwnerSecurityCommand::from_signature(payload, signature);
+        assert_eq!(verifier.apply_security_command(&command, 1_200), Ok(()));
+        assert_eq!(verifier.store.credential_revoked("issuer:service", "credential:compromised"), Ok(true));
+        assert_eq!(verifier.apply_security_command(&command, 1_201), Err(OwnerApprovalError::Replay));
+    }
+
 }
