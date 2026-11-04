@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn rejects_malformed_and_oversized_tokens() {
-        let (signing, trust) = fixture();
+        let (_, trust) = fixture();
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
         assert_eq!(
             verifier.authenticate("not-a-jws", "iroka-kernel", 1200),
