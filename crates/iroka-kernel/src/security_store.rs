@@ -1,0 +1,221 @@
+//! Durable local security registry for trust rollback protection and revocation.
+//! This SQLite adapter is intended for a single-node authority service. Multi-node
+//! deployments must use a shared transactional database adapter with equivalent
+//! uniqueness, durability and fail-closed semantics.
+
+use std::path::Path;
+use std::sync::Mutex;
+use std::time::Duration;
+
+use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+
+use crate::{RevocationChecker, RevocationError};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SecurityStoreError {
+    Unavailable,
+    Rollback,
+    ConflictingVersion,
+    InvalidVersion,
+}
+
+pub struct SqliteSecurityStore {
+    connection: Mutex<Connection>,
+}
+
+impl SqliteSecurityStore {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, SecurityStoreError> {
+        let connection = Connection::open(path).map_err(|_| SecurityStoreError::Unavailable)?;
+        Self::from_connection(connection)
+    }
+
+    pub fn open_in_memory() -> Result<Self, SecurityStoreError> {
+        let connection = Connection::open_in_memory().map_err(|_| SecurityStoreError::Unavailable)?;
+        Self::from_connection(connection)
+    }
+
+    fn from_connection(connection: Connection) -> Result<Self, SecurityStoreError> {
+        connection.busy_timeout(Duration::from_secs(5)).map_err(|_| SecurityStoreError::Unavailable)?;
+        connection.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             PRAGMA journal_mode = WAL;
+             PRAGMA synchronous = FULL;
+             CREATE TABLE IF NOT EXISTS trust_bundle_state (
+               singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+               version INTEGER NOT NULL,
+               digest BLOB NOT NULL,
+               issued_at INTEGER NOT NULL,
+               expires_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS revoked_credentials (
+               issuer TEXT NOT NULL, credential_id TEXT NOT NULL,
+               revoked_at INTEGER NOT NULL, reason TEXT NOT NULL,
+               PRIMARY KEY (issuer, credential_id)
+             );
+             CREATE TABLE IF NOT EXISTS revoked_keys (
+               issuer TEXT NOT NULL, key_id TEXT NOT NULL,
+               revoked_at INTEGER NOT NULL, reason TEXT NOT NULL,
+               PRIMARY KEY (issuer, key_id)
+             );
+             CREATE TABLE IF NOT EXISTS revoked_approvals (
+               approval_id TEXT PRIMARY KEY, revoked_at INTEGER NOT NULL, reason TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS approval_consumptions (
+               approval_id TEXT PRIMARY KEY, scope_digest BLOB NOT NULL, consumed_at INTEGER NOT NULL
+             );"
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        Ok(Self { connection: Mutex::new(connection) })
+    }
+
+    /// Persist the highest accepted, root-signed trust-bundle version.
+    /// Same-version retries are idempotent only when the digest is identical.
+    pub fn install_trust_bundle(
+        &self, version: u64, digest: &[u8], issued_at: u64, expires_at: u64,
+    ) -> Result<(), SecurityStoreError> {
+        if version == 0 || issued_at >= expires_at || digest.len() != 32 {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let issued_i = i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let expires_i = i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, Vec<u8>)> = tx.query_row(
+            "SELECT version, digest FROM trust_bundle_state WHERE singleton = 1",
+            [], |row| Ok((row.get(0)?, row.get(1)?))
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        match current {
+            Some((current_version, current_digest)) if version_i < current_version =>
+                return Err(SecurityStoreError::Rollback),
+            Some((current_version, current_digest)) if version_i == current_version => {
+                if current_digest != digest { return Err(SecurityStoreError::ConflictingVersion); }
+                tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                return Ok(());
+            }
+            _ => {}
+        }
+        tx.execute(
+            "INSERT INTO trust_bundle_state(singleton, version, digest, issued_at, expires_at)
+             VALUES(1, ?1, ?2, ?3, ?4)
+             ON CONFLICT(singleton) DO UPDATE SET version=excluded.version,
+               digest=excluded.digest, issued_at=excluded.issued_at, expires_at=excluded.expires_at",
+            params![version_i, digest, issued_i, expires_i]
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub fn highest_trust_bundle_version(&self) -> Result<Option<u64>, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let version: Option<i64> = connection.query_row(
+            "SELECT version FROM trust_bundle_state WHERE singleton = 1", [],
+            |row| row.get(0)
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        version.map(|v| u64::try_from(v).map_err(|_| SecurityStoreError::Unavailable)).transpose()
+    }
+
+    pub fn revoke_credential(&self, issuer: &str, credential_id: &str, at: u64, reason: &str)
+        -> Result<(), SecurityStoreError> {
+        if issuer.trim().is_empty() || credential_id.trim().is_empty() || reason.trim().is_empty() {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        c.execute("INSERT OR IGNORE INTO revoked_credentials VALUES(?1, ?2, ?3, ?4)",
+            params![issuer, credential_id, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?, reason])
+            .map(|_| ()).map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub fn revoke_key(&self, issuer: &str, key_id: &str, at: u64, reason: &str)
+        -> Result<(), SecurityStoreError> {
+        if issuer.trim().is_empty() || key_id.trim().is_empty() || reason.trim().is_empty() {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        c.execute("INSERT OR IGNORE INTO revoked_keys VALUES(?1, ?2, ?3, ?4)",
+            params![issuer, key_id, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?, reason])
+            .map(|_| ()).map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub fn revoke_approval(&self, approval_id: &str, at: u64, reason: &str)
+        -> Result<(), SecurityStoreError> {
+        if approval_id.trim().is_empty() || reason.trim().is_empty() {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        c.execute("INSERT OR IGNORE INTO revoked_approvals VALUES(?1, ?2, ?3)",
+            params![approval_id, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?, reason])
+            .map(|_| ()).map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub fn approval_is_revoked(&self, approval_id: &str) -> Result<bool, SecurityStoreError> {
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        c.query_row("SELECT EXISTS(SELECT 1 FROM revoked_approvals WHERE approval_id=?1)",
+            [approval_id], |row| row.get(0)).map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Atomically consume an approval identifier exactly once.
+    pub fn consume_approval(&self, approval_id: &str, scope_digest: &[u8], at: u64)
+        -> Result<bool, SecurityStoreError> {
+        if approval_id.trim().is_empty() || scope_digest.len() != 32 {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let changed = c.execute(
+            "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
+            params![approval_id, scope_digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        Ok(changed == 1)
+    }
+}
+
+impl RevocationChecker for SqliteSecurityStore {
+    fn credential_revoked(&self, issuer: &str, credential_id: &str) -> Result<bool, RevocationError> {
+        let c = self.connection.lock().map_err(|_| RevocationError::Unavailable)?;
+        c.query_row("SELECT EXISTS(SELECT 1 FROM revoked_credentials WHERE issuer=?1 AND credential_id=?2)",
+            params![issuer, credential_id], |row| row.get(0))
+            .map_err(|_| RevocationError::Unavailable)
+    }
+
+    fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError> {
+        let c = self.connection.lock().map_err(|_| RevocationError::Unavailable)?;
+        c.query_row("SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+            params![issuer, key_id], |row| row.get(0))
+            .map_err(|_| RevocationError::Unavailable)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trust_versions_are_monotonic_and_idempotent() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100), Ok(()));
+        assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100), Ok(()));
+        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(1)));
+        assert_eq!(store.install_trust_bundle(1, &[2; 32], 10, 100), Err(SecurityStoreError::ConflictingVersion));
+        assert_eq!(store.install_trust_bundle(0, &[2; 32], 10, 100), Err(SecurityStoreError::InvalidVersion));
+        assert_eq!(store.install_trust_bundle(2, &[2; 32], 20, 200), Ok(()));
+        assert_eq!(store.install_trust_bundle(1, &[1; 32], 10, 100), Err(SecurityStoreError::Rollback));
+    }
+
+    #[test]
+    fn revocations_are_durable_and_scoped() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        store.revoke_credential("issuer:a", "cred:1", 10, "compromised").unwrap();
+        store.revoke_key("issuer:a", "key:1", 10, "compromised").unwrap();
+        assert_eq!(store.credential_revoked("issuer:a", "cred:1"), Ok(true));
+        assert_eq!(store.credential_revoked("issuer:b", "cred:1"), Ok(false));
+        assert_eq!(store.key_revoked("issuer:a", "key:1"), Ok(true));
+    }
+
+    #[test]
+    fn approvals_are_single_use_and_revocable() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(store.consume_approval("approval:1", &[3; 32], 20), Ok(true));
+        assert_eq!(store.consume_approval("approval:1", &[3; 32], 21), Ok(false));
+        store.revoke_approval("approval:2", 22, "withdrawn").unwrap();
+        assert_eq!(store.approval_is_revoked("approval:2"), Ok(true));
+    }
+}
