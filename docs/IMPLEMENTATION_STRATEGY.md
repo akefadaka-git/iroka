@@ -102,16 +102,27 @@ Work:
 - Define trust boundaries, threat model and security assumptions.
 - Define principal, capability, policy, approval, grant, audit and evidence concepts.
 - Define data classification, tenant isolation and hybrid placement rules.
+- Establish the binding Amharic-first Ethiopia baseline and African regional-profile architecture across language/script, localization, calendar/time, identity, documents, knowledge and jurisdiction.
+- Define Ethiopia defaults (am-ET, en, Ethiopian calendar, Gregorian interoperability, Africa/Addis_Ababa and ETB) without hardcoding them into shared African core logic.
+- Define original-script identity preservation, Amharic-first document/OCR/knowledge acceptance, provenance and human-review requirements.
 - Define autonomy levels A0–A4 and permitted operation classes.
 - Define service boundaries, interface ownership and dependency graph.
-- Establish acceptance criteria, risk register and unresolved decisions.
+- Establish acceptance criteria, risk register, decision register and unresolved decisions.
+
+A1 regional architecture artifacts:
+- [A1 Amharic-First Ethiopian and African Architecture Contract](architecture/A1-AMHARIC-FIRST-REGIONAL-ARCHITECTURE-CONTRACT.md)
+- [Regional Deployment Profile Contract](architecture/REGIONAL-DEPLOYMENT-PROFILE-CONTRACT.md)
+- [A1 Requirements Traceability and Decision Register](architecture/A1-REQUIREMENTS-TRACEABILITY-AND-DECISIONS.md)
+- [A1 Implementation Inventory](architecture/A1-IMPLEMENTATION-INVENTORY.md)
 
 Exit evidence:
 - Approved architecture baseline and version.
 - Domain ownership and interface register.
 - Threat model and data classification policy.
 - Authorization decision and audit contracts.
-- Acceptance matrix with positive, negative and failure-mode cases.
+- Acceptance matrix with positive, negative and failure-mode cases, including Amharic/Ethiopic and cross-profile conformance.
+- Regional profile schema, precedence, versioning and migration contract.
+- Implementation inventory tied to an exact code SHA, with MISSING/PARTIAL/NOT RUN statuses.
 - Explicit Owner approval of architecture and material risk decisions.
 
 ### A2 — Historical evidence and implementation contracts
@@ -353,3 +364,10 @@ This strategy does not authorize:
 ---
 
 **Constitutional operating rule:** Intelligence may propose. Governance decides. Authorization permits. Execution acts. Assurance verifies.
+
+
+## 14. Amharic-first Ethiopian and African architecture contract
+
+The normative regional and language requirements are defined in [A1 — Amharic-First Ethiopian and African Architecture Contract](architecture/A1-AMHARIC-FIRST-REGIONAL-ARCHITECTURE-CONTRACT.md).
+
+That contract governs language and script, localization, calendar and time, identity, documents, knowledge, regional deployment profiles, and cross-cutting Kernel controls. It is mandatory for new design and implementation. Its existence establishes requirements only; runtime support remains subject to the contract's acceptance evidence and the A1/A2 gate process.

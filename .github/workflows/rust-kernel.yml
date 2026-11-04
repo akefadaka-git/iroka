@@ -1,0 +1,74 @@
+name: Rust kernel verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
+      - "docs/architecture/G01-IDENTITY-CONTRACT.md"
+      - ".github/workflows/rust-kernel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rust-kernel-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Format, compile, test and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Install stable Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+          rustc --version
+          cargo --version
+
+      - name: Resolve and lock Rust dependencies
+        run: cargo generate-lockfile
+
+      - name: Apply canonical formatting
+        run: cargo fmt --all
+
+      - name: Commit formatting-only Rust changes
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "$(git status --porcelain -- '*.rs')" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -- '*.rs' Cargo.lock
+            git commit -m "style: apply canonical Rust formatting"
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git push origin "HEAD:${GITHUB_HEAD_REF}"
+          fi
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Compile all targets
+        run: cargo check --workspace --all-targets
+
+      - name: Verify production feature set excludes development bypasses
+        run: cargo check --workspace --all-targets --no-default-features
+
+      - name: Run complete unit and contract test suite
+        run: cargo test --workspace --all-targets
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
