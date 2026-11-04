@@ -15,6 +15,7 @@ pub struct AuditEvent {
 }
 
 impl AuditEvent {
+    #[allow(clippy::too_many_arguments)] // Explicitly binds every audit field at the trust boundary.
     pub fn new(
         event_id: impl Into<String>,
         correlation_id: impl Into<String>,
