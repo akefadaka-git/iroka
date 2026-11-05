@@ -107,6 +107,16 @@ impl WitnessRosterState {
         Self { verifier: None, stream_id: None, version: None, expires_at: None }
     }
 
+    /// Version of the currently activated Owner-signed roster, if provisioned.
+    pub fn version(&self) -> Option<u64> {
+        self.version
+    }
+
+    /// Stream authorized by the activated roster, if provisioned.
+    pub fn authorized_stream(&self) -> Option<&str> {
+        self.stream_id.as_deref()
+    }
+
     fn verifier_at(&self, now: u64) -> Result<&WitnessReceiptVerifier, VerificationError> {
         if self.expires_at.is_some_and(|expires_at| now >= expires_at) {
             return Err(VerificationError::WitnessRosterExpired);
