@@ -43,7 +43,7 @@ pub struct WitnessReceipt {
 impl WitnessReceipt {
     pub fn digest(&self) -> [u8; 32] {
         let mut h = Sha256::new();
-        h.update(b"IROKA:G11:WITNESS-RECEIPT-DIGEST:V1\\0");
+        h.update(b"IROKA:G11:WITNESS-RECEIPT-DIGEST:V1\0");
         h.update(self.signing_bytes());
         h.update(self.signature);
         h.finalize().into()
