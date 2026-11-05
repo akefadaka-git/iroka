@@ -40,7 +40,7 @@ pub use audit_verifier::{
     VerificationError, WitnessReceiptVerifier,
 };
 pub use audit_witness::{
-    LocalWitnessTestSigner, MemoryWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt,
+    LocalWitnessTestSigner, MemoryWitnessLedger, SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt,
     WitnessReceiptSigner,
 };
 pub use decision::{Decision, DecisionCode, DecisionReason};
