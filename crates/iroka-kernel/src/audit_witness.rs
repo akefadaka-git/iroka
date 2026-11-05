@@ -185,6 +185,9 @@ impl WitnessLedger for MemoryWitnessLedger {
         if payload.last_sequence <= previous_sequence {
             return Err(WitnessError::SequenceConflict);
         }
+        if history.last().map(|last| witnessed_at < last.witnessed_at).unwrap_or(false) {
+            return Err(WitnessError::ClockAnomaly);
+        }
 
         let signer = self
             .signer
