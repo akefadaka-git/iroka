@@ -260,9 +260,11 @@ mod tests {
     fn rejects_a_valid_signature_from_a_key_bound_to_another_witness() {
         use crate::audit_witness::WitnessReceiptSigner;
         let signer = LocalWitnessTestSigner::from_test_seed("shared-key", [9; 32]);
-        let verifier = WitnessReceiptVerifier::new(vec![
-            ("shared-key".into(), "authorized-witness".into(), signer.key_for_test()),
-        ]);
+        let verifier = WitnessReceiptVerifier::new(vec![(
+            "shared-key".into(),
+            "authorized-witness".into(),
+            signer.key_for_test(),
+        )]);
         let mut receipt = WitnessReceipt {
             witness_id: "forged-witness".into(),
             stream_id: "stream:x".into(),
