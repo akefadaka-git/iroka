@@ -512,6 +512,79 @@ mod tests {
     }
 
     #[test]
+    fn rejects_broken_checkpoint_links_and_non_monotonic_receipt_progression() {
+        let cp_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [1; 32]);
+        let cp_verifier =
+            Ed25519CheckpointVerifier::new(vec![("cp-key".into(), cp_signer.verifying_key())]);
+        let builder = CheckpointBuilder::new("stream:chain", "cp-key");
+        let h1 = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [1; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let p1 = builder.initial_v1_anchor(&h1, 10).unwrap();
+        let signed1 = cp_signer.sign_checkpoint(&p1).unwrap();
+        let h2 = AuditHead {
+            first_sequence: 1,
+            last_sequence: 2,
+            event_count: 2,
+            head_event_hash: [2; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let p2 = builder.next(&h2, &p1, 20).unwrap();
+        let signed2 = cp_signer.sign_checkpoint(&p2).unwrap();
+        let ledger = MemoryWitnessLedger::new(
+            "w1",
+            Box::new(LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32])),
+        );
+        let first = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
+        let second = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
+        let roster = roster();
+
+        let tamper_and_resign = |mut receipt: WitnessReceipt, mutate: fn(&mut WitnessReceipt)| {
+            mutate(&mut receipt);
+            receipt.signature = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32])
+                .sign_receipt(&receipt)
+                .unwrap();
+            receipt
+        };
+
+        let broken_checkpoint_number = tamper_and_resign(second.clone(), |r| {
+            r.checkpoint_number = 3;
+        });
+        assert_eq!(
+            verify_receipt_chain(&[first.clone(), broken_checkpoint_number], &roster, 30),
+            Err(VerificationError::ReceiptCheckpointMismatch)
+        );
+
+        let broken_checkpoint_link = tamper_and_resign(second.clone(), |r| {
+            r.previous_checkpoint_digest = [99; 32];
+        });
+        assert_eq!(
+            verify_receipt_chain(&[first.clone(), broken_checkpoint_link], &roster, 30),
+            Err(VerificationError::ReceiptCheckpointMismatch)
+        );
+
+        let regressed_sequence = tamper_and_resign(second.clone(), |r| {
+            r.last_sequence = first.last_sequence;
+        });
+        assert_eq!(
+            verify_receipt_chain(&[first.clone(), regressed_sequence], &roster, 30),
+            Err(VerificationError::ReceiptCheckpointMismatch)
+        );
+
+        let regressed_time = tamper_and_resign(second, |r| {
+            r.witnessed_at = first.witnessed_at - 1;
+        });
+        assert_eq!(
+            verify_receipt_chain(&[first, regressed_time], &roster, 30),
+            Err(VerificationError::ReceiptCheckpointMismatch)
+        );
+    }
+
+    #[test]
     fn detects_local_rollback_below_external_high_water_mark() {
         let builder = CheckpointBuilder::new("stream:q", "cp-key");
         let cp = builder
