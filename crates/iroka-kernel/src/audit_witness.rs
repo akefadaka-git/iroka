@@ -4,8 +4,7 @@
 
 use crate::audit_checkpoint::CheckpointPayload;
 use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint, SignerError};
-use ed25519_dalek::{Signer, SigningKey};
-use sha2::{Digest, Sha256};
+use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use std::{collections::BTreeMap, sync::Mutex};
 
 const RECEIPT_DOMAIN: &[u8] = b"IROKA:G11:AUDIT-WITNESS-RECEIPT:V1\0";
@@ -74,6 +73,8 @@ impl LocalWitnessTestSigner {
     pub fn from_test_seed(key_id: impl Into<String>, seed: [u8; 32]) -> Self {
         Self { key_id: key_id.into(), key: SigningKey::from_bytes(&seed) }
     }
+
+    pub fn key_for_test(&self) -> VerifyingKey { self.key.verifying_key() }
 }
 impl WitnessReceiptSigner for LocalWitnessTestSigner {
     fn key_id(&self) -> &str { &self.key_id }
