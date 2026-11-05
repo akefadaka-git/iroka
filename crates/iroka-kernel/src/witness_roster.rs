@@ -164,7 +164,10 @@ pub fn activate_signed_witness_roster(
     if payload.expires_at - payload.issued_at > MAX_ROSTER_LIFETIME_SECS {
         return Err(WitnessRosterManifestError::ExcessiveLifetime);
     }
-    if payload.issued_at < root.not_before || payload.issued_at >= root.not_after {
+    if payload.issued_at < root.not_before
+        || payload.issued_at >= root.not_after
+        || payload.expires_at > root.not_after
+    {
         return Err(WitnessRosterManifestError::OwnerRootOutsideValidity);
     }
     if payload.witnesses.windows(2).any(|pair| pair[0].witness_id >= pair[1].witness_id)
@@ -197,6 +200,7 @@ pub fn activate_signed_witness_roster(
             || witness.not_before > now
             || witness.not_after <= now
             || witness.not_after > payload.expires_at
+            || witness.public_key == root.public_key
             || revoked.contains(witness.signing_key_id.as_str())
             || !witness_ids.insert(witness.witness_id.as_str())
             || !key_ids.insert(witness.signing_key_id.as_str())
