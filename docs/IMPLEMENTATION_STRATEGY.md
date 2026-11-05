@@ -390,9 +390,9 @@ The A2 native computing design package is indexed here:
 - [IROKA OS System Specification](architecture/IROKA-OS-SYSTEM-SPECIFICATION.md)
 - [IROKA Native Language Design](architecture/IROKA-NATIVE-LANGUAGE-DESIGN.md)
 - [VYRAQON–IROKA Interoperability Specification](architecture/IROKA-VYRAQON-INTEROPERABILITY-SPECIFICATION.md)
-- [Native Platform and VYRAQON Conformance Suite](../tests/conformance/../..//docs/assurance/IROKA-A2-CONFORMANCE-SUITE-SPECIFICATION.md)
-- [Machine-readable conformance catalog](../../tests/conformance/catalog.json)
-- [Conformance fixture provenance](../../tests/conformance/fixtures/README.md)
+- [Native Platform and VYRAQON Conformance Suite](assurance/IROKA-A2-CONFORMANCE-SUITE-SPECIFICATION.md)
+- [Machine-readable conformance catalog](../tests/conformance/catalog.json)
+- [Conformance fixture provenance](../tests/conformance/fixtures/README.md)
 
 The specifications establish system, language, interoperability and measurable acceptance contracts. They do not establish implementation or passing test evidence. The kernel family, hardware target matrix, language syntax/memory model/ABI, VYRAQON normative release and reviewed Amharic/Ethiopic/calendar oracles remain explicit A2 decision/dependency gates. See each specification's unresolved-decision and status sections.
 
