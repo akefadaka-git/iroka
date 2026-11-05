@@ -5,8 +5,9 @@
 use crate::audit_checkpoint::CheckpointPayload;
 use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint, SignerError};
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, sync::Mutex};
+use std::{collections::BTreeMap, path::Path, sync::Mutex, time::Duration};
 
 const RECEIPT_DOMAIN: &[u8] = b"IROKA:G11:AUDIT-WITNESS-RECEIPT:V1\0";
 
@@ -20,6 +21,7 @@ pub enum WitnessError {
     Equivocation,
     StorageUnavailable,
     SigningUnavailable,
+    ClockAnomaly,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -216,6 +218,226 @@ impl WitnessLedger for MemoryWitnessLedger {
             .lock()
             .map_err(|_| WitnessError::StorageUnavailable)?;
         Ok(streams.get(stream_id).and_then(|v| v.last()).cloned())
+    }
+}
+
+
+type ReceiptRow = (
+    String, String, i64, Vec<u8>, i64, Vec<u8>, Vec<u8>, Vec<u8>, i64, i64, String, Vec<u8>,
+);
+
+fn decode_receipt(row: ReceiptRow) -> Result<WitnessReceipt, WitnessError> {
+    let fixed32 = |v: Vec<u8>| -> Result<[u8; 32], WitnessError> {
+        v.try_into().map_err(|_| WitnessError::StorageUnavailable)
+    };
+    let signature: [u8; 64] = row.11.try_into().map_err(|_| WitnessError::StorageUnavailable)?;
+    Ok(WitnessReceipt {
+        witness_id: row.0,
+        stream_id: row.1,
+        checkpoint_number: u64::try_from(row.2).map_err(|_| WitnessError::StorageUnavailable)?,
+        checkpoint_digest: fixed32(row.3)?,
+        last_sequence: u64::try_from(row.4).map_err(|_| WitnessError::StorageUnavailable)?,
+        head_event_hash: fixed32(row.5)?,
+        previous_checkpoint_digest: fixed32(row.6)?,
+        previous_receipt_digest: fixed32(row.7)?,
+        witnessed_at: u64::try_from(row.8).map_err(|_| WitnessError::StorageUnavailable)?,
+        log_index: u64::try_from(row.9).map_err(|_| WitnessError::StorageUnavailable)?,
+        signing_key_id: row.10,
+        signature,
+    })
+}
+
+fn read_receipt(row: &Row<'_>) -> rusqlite::Result<ReceiptRow> {
+    Ok((
+        row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?,
+        row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?,
+        row.get(10)?, row.get(11)?,
+    ))
+}
+
+/// Durable witness ledger adapter. It is independent only when deployed with
+/// separate administration, storage, credentials, backups and receipt-key custody.
+pub struct SqliteWitnessLedger {
+    witness_id: String,
+    signer: Box<dyn WitnessReceiptSigner>,
+    connection: Mutex<Connection>,
+}
+
+impl SqliteWitnessLedger {
+    pub fn open(
+        path: impl AsRef<Path>,
+        witness_id: impl Into<String>,
+        signer: Box<dyn WitnessReceiptSigner>,
+    ) -> Result<Self, WitnessError> {
+        let path = path.as_ref();
+        #[cfg(unix)]
+        {
+            use std::{
+                fs::{symlink_metadata, OpenOptions},
+                os::unix::fs::{OpenOptionsExt, PermissionsExt},
+            };
+            match symlink_metadata(path) {
+                Ok(m) if m.file_type().is_symlink() || m.permissions().mode() & 0o077 != 0 => {
+                    return Err(WitnessError::StorageUnavailable);
+                }
+                Ok(_) => (),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)
+                        .map_err(|_| WitnessError::StorageUnavailable)?;
+                }
+                Err(_) => return Err(WitnessError::StorageUnavailable),
+            }
+        }
+        let connection = Connection::open(path).map_err(|_| WitnessError::StorageUnavailable)?;
+        Self::from_connection(connection, witness_id.into(), signer)
+    }
+
+    #[cfg(test)]
+    fn open_in_memory(
+        witness_id: impl Into<String>,
+        signer: Box<dyn WitnessReceiptSigner>,
+    ) -> Result<Self, WitnessError> {
+        let connection = Connection::open_in_memory().map_err(|_| WitnessError::StorageUnavailable)?;
+        Self::from_connection(connection, witness_id.into(), signer)
+    }
+
+    fn from_connection(
+        connection: Connection,
+        witness_id: String,
+        signer: Box<dyn WitnessReceiptSigner>,
+    ) -> Result<Self, WitnessError> {
+        if witness_id.trim().is_empty() || signer.key_id().trim().is_empty() {
+            return Err(WitnessError::InvalidCheckpoint);
+        }
+        connection.busy_timeout(Duration::from_secs(5))
+            .map_err(|_| WitnessError::StorageUnavailable)?;
+        connection.execute_batch(
+            "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
+             CREATE TABLE IF NOT EXISTS witness_receipts(
+               witness_id TEXT NOT NULL, stream_id TEXT NOT NULL,
+               checkpoint_number INTEGER NOT NULL, checkpoint_digest BLOB NOT NULL CHECK(length(checkpoint_digest)=32),
+               last_sequence INTEGER NOT NULL, head_event_hash BLOB NOT NULL CHECK(length(head_event_hash)=32),
+               previous_checkpoint_digest BLOB NOT NULL CHECK(length(previous_checkpoint_digest)=32),
+               previous_receipt_digest BLOB NOT NULL CHECK(length(previous_receipt_digest)=32),
+               witnessed_at INTEGER NOT NULL, log_index INTEGER NOT NULL,
+               signing_key_id TEXT NOT NULL, signature BLOB NOT NULL CHECK(length(signature)=64),
+               PRIMARY KEY(stream_id, checkpoint_number), UNIQUE(stream_id, log_index));
+             CREATE TRIGGER IF NOT EXISTS witness_no_update BEFORE UPDATE ON witness_receipts
+               BEGIN SELECT RAISE(ABORT,'append-only witness ledger'); END;
+             CREATE TRIGGER IF NOT EXISTS witness_no_delete BEFORE DELETE ON witness_receipts
+               BEGIN SELECT RAISE(ABORT,'append-only witness ledger'); END;"
+        ).map_err(|_| WitnessError::StorageUnavailable)?;
+        Ok(Self { witness_id, signer, connection: Mutex::new(connection) })
+    }
+
+    fn select_receipt(
+        connection: &Connection,
+        sql: &str,
+        stream_id: &str,
+        checkpoint_number: Option<i64>,
+    ) -> Result<Option<WitnessReceipt>, WitnessError> {
+        let mut statement = connection.prepare(sql).map_err(|_| WitnessError::StorageUnavailable)?;
+        let raw = match checkpoint_number {
+            Some(number) => statement.query_row(params![stream_id, number], read_receipt).optional(),
+            None => statement.query_row(params![stream_id], read_receipt).optional(),
+        }.map_err(|_| WitnessError::StorageUnavailable)?;
+        raw.map(decode_receipt).transpose()
+    }
+}
+
+impl WitnessLedger for SqliteWitnessLedger {
+    fn accept(
+        &self,
+        signed: &SignedCheckpoint,
+        verifier: &dyn CheckpointSignatureVerifier,
+        witnessed_at: u64,
+    ) -> Result<WitnessReceipt, WitnessError> {
+        verifier.verify_checkpoint(signed).map_err(|_| WitnessError::InvalidSignature)?;
+        let payload = &signed.payload;
+        payload.validate().map_err(|_| WitnessError::InvalidCheckpoint)?;
+        let digest = payload.digest().map_err(|_| WitnessError::InvalidCheckpoint)?;
+        let mut connection = self.connection.lock().map_err(|_| WitnessError::StorageUnavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| WitnessError::StorageUnavailable)?;
+        let number = i64::try_from(payload.checkpoint_number).map_err(|_| WitnessError::InvalidCheckpoint)?;
+        let existing = Self::select_receipt(
+            &tx,
+            "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
+             head_event_hash,previous_checkpoint_digest,previous_receipt_digest,witnessed_at,
+             log_index,signing_key_id,signature FROM witness_receipts
+             WHERE stream_id=?1 AND checkpoint_number=?2",
+            &payload.stream_id, Some(number),
+        )?;
+        if let Some(receipt) = existing {
+            if receipt.checkpoint_digest == digest {
+                return Ok(receipt);
+            }
+            return Err(WitnessError::Equivocation);
+        }
+        let previous = Self::select_receipt(
+            &tx,
+            "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
+             head_event_hash,previous_checkpoint_digest,previous_receipt_digest,witnessed_at,
+             log_index,signing_key_id,signature FROM witness_receipts
+             WHERE stream_id=?1 ORDER BY log_index DESC LIMIT 1",
+            &payload.stream_id, None,
+        )?;
+        let (expected_number, previous_digest, previous_sequence, previous_receipt_digest, previous_time, next_index) =
+            match previous {
+                None => (1, [0; 32], 0, [0; 32], 0, 1),
+                Some(last) => (
+                    last.checkpoint_number + 1, last.checkpoint_digest, last.last_sequence,
+                    last.digest(), last.witnessed_at, last.log_index + 1,
+                ),
+            };
+        if payload.checkpoint_number != expected_number { return Err(WitnessError::CheckpointGap); }
+        if payload.previous_checkpoint_digest != previous_digest { return Err(WitnessError::PreviousDigestMismatch); }
+        if payload.last_sequence <= previous_sequence { return Err(WitnessError::SequenceConflict); }
+        if witnessed_at < previous_time { return Err(WitnessError::ClockAnomaly); }
+        let mut receipt = WitnessReceipt {
+            witness_id: self.witness_id.clone(),
+            stream_id: payload.stream_id.clone(),
+            checkpoint_number: payload.checkpoint_number,
+            checkpoint_digest: digest,
+            last_sequence: payload.last_sequence,
+            head_event_hash: payload.head_event_hash,
+            previous_checkpoint_digest: payload.previous_checkpoint_digest,
+            previous_receipt_digest,
+            witnessed_at,
+            log_index: next_index,
+            signing_key_id: self.signer.key_id().to_string(),
+            signature: [0; 64],
+        };
+        receipt.signature = self.signer.sign_receipt(&receipt)?;
+        tx.execute(
+            "INSERT INTO witness_receipts(witness_id,stream_id,checkpoint_number,checkpoint_digest,
+             last_sequence,head_event_hash,previous_checkpoint_digest,previous_receipt_digest,
+             witnessed_at,log_index,signing_key_id,signature)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+            params![
+                receipt.witness_id, receipt.stream_id, number, receipt.checkpoint_digest.as_slice(),
+                i64::try_from(receipt.last_sequence).map_err(|_| WitnessError::InvalidCheckpoint)?,
+                receipt.head_event_hash.as_slice(), receipt.previous_checkpoint_digest.as_slice(),
+                receipt.previous_receipt_digest.as_slice(),
+                i64::try_from(receipt.witnessed_at).map_err(|_| WitnessError::InvalidCheckpoint)?,
+                i64::try_from(receipt.log_index).map_err(|_| WitnessError::InvalidCheckpoint)?,
+                receipt.signing_key_id, receipt.signature.as_slice()
+            ],
+        ).map_err(|_| WitnessError::StorageUnavailable)?;
+        tx.commit().map_err(|_| WitnessError::StorageUnavailable)?;
+        Ok(receipt)
+    }
+
+    fn head(&self, stream_id: &str) -> Result<Option<WitnessReceipt>, WitnessError> {
+        let connection = self.connection.lock().map_err(|_| WitnessError::StorageUnavailable)?;
+        Self::select_receipt(
+            &connection,
+            "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
+             head_event_hash,previous_checkpoint_digest,previous_receipt_digest,witnessed_at,
+             log_index,signing_key_id,signature FROM witness_receipts
+             WHERE stream_id=?1 ORDER BY log_index DESC LIMIT 1",
+            stream_id, None,
+        )
     }
 }
 
