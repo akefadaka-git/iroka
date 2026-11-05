@@ -212,13 +212,19 @@ pub fn reconcile_local_head(
 /// Verifies a single witness's exported receipt history from its genesis receipt.
 pub fn verify_receipt_chain(
     receipts: &[WitnessReceipt],
+    expected_head: &WitnessReceipt,
     roster_state: &WitnessRosterState,
     now: u64,
 ) -> Result<(), VerificationError> {
     let verifier = roster_state.verifier_at(now)?;
     let Some(first) = receipts.first() else {
-        return Ok(());
+        return Err(VerificationError::ReceiptCheckpointMismatch);
     };
+    // expected_head must be fetched independently from the witness head endpoint,
+    // not inferred from the exported receipt slice, so truncation is detectable.
+    if receipts.last() != Some(expected_head) {
+        return Err(VerificationError::ReceiptCheckpointMismatch);
+    }
     roster_state.validate_stream(&first.stream_id)?;
     let witness_id = first.witness_id.as_str();
     let stream_id = first.stream_id.as_str();
@@ -508,7 +514,7 @@ mod tests {
                 verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]).key_for_test(),
             },
         ]).unwrap());
-        assert_eq!(verify_receipt_chain(&[r1, r2], &receipt_verifier, 30), Ok(()));
+        assert_eq!(verify_receipt_chain(&[r1.clone(), r2.clone()], &r2, &receipt_verifier, 30), Ok(()));
     }
 
     #[test]
@@ -555,7 +561,7 @@ mod tests {
             r.checkpoint_number = 3;
         });
         assert_eq!(
-            verify_receipt_chain(&[first.clone(), broken_checkpoint_number], &roster, 30),
+            verify_receipt_chain(&[first.clone(), broken_checkpoint_number.clone()], &broken_checkpoint_number, &roster, 30),
             Err(VerificationError::ReceiptCheckpointMismatch)
         );
 
@@ -563,7 +569,7 @@ mod tests {
             r.previous_checkpoint_digest = [99; 32];
         });
         assert_eq!(
-            verify_receipt_chain(&[first.clone(), broken_checkpoint_link], &roster, 30),
+            verify_receipt_chain(&[first.clone(), broken_checkpoint_link.clone()], &broken_checkpoint_link, &roster, 30),
             Err(VerificationError::ReceiptCheckpointMismatch)
         );
 
@@ -571,7 +577,7 @@ mod tests {
             r.last_sequence = first.last_sequence;
         });
         assert_eq!(
-            verify_receipt_chain(&[first.clone(), regressed_sequence], &roster, 30),
+            verify_receipt_chain(&[first.clone(), regressed_sequence.clone()], &regressed_sequence, &roster, 30),
             Err(VerificationError::ReceiptCheckpointMismatch)
         );
 
@@ -579,7 +585,13 @@ mod tests {
             r.witnessed_at = first.witnessed_at - 1;
         });
         assert_eq!(
-            verify_receipt_chain(&[first, regressed_time], &roster, 30),
+            verify_receipt_chain(&[first.clone(), regressed_time.clone()], &regressed_time, &roster, 30),
+            Err(VerificationError::ReceiptCheckpointMismatch)
+        );
+
+        let later_head = ledger.head("stream:chain").unwrap().unwrap();
+        assert_eq!(
+            verify_receipt_chain(&[first.clone()], &later_head, &roster, 30),
             Err(VerificationError::ReceiptCheckpointMismatch)
         );
     }
