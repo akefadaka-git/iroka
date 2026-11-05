@@ -82,15 +82,24 @@ pub struct LocalWitnessTestSigner {
 }
 impl LocalWitnessTestSigner {
     pub fn from_test_seed(key_id: impl Into<String>, seed: [u8; 32]) -> Self {
-        Self { key_id: key_id.into(), key: SigningKey::from_bytes(&seed) }
+        Self {
+            key_id: key_id.into(),
+            key: SigningKey::from_bytes(&seed),
+        }
     }
 
-    pub fn key_for_test(&self) -> VerifyingKey { self.key.verifying_key() }
+    pub fn key_for_test(&self) -> VerifyingKey {
+        self.key.verifying_key()
+    }
 }
 impl WitnessReceiptSigner for LocalWitnessTestSigner {
-    fn key_id(&self) -> &str { &self.key_id }
+    fn key_id(&self) -> &str {
+        &self.key_id
+    }
     fn sign_receipt(&self, receipt: &WitnessReceipt) -> Result<[u8; 64], WitnessError> {
-        if receipt.signing_key_id != self.key_id { return Err(WitnessError::SigningUnavailable); }
+        if receipt.signing_key_id != self.key_id {
+            return Err(WitnessError::SigningUnavailable);
+        }
         Ok(self.key.sign(&receipt.signing_bytes()).to_bytes())
     }
 }
@@ -114,7 +123,11 @@ pub struct MemoryWitnessLedger {
 
 impl MemoryWitnessLedger {
     pub fn new(witness_id: impl Into<String>, signer: Box<dyn WitnessReceiptSigner>) -> Self {
-        Self { witness_id: witness_id.into(), signer: Some(signer), streams: Mutex::new(BTreeMap::new()) }
+        Self {
+            witness_id: witness_id.into(),
+            signer: Some(signer),
+            streams: Mutex::new(BTreeMap::new()),
+        }
     }
 }
 
@@ -126,28 +139,55 @@ impl WitnessLedger for MemoryWitnessLedger {
         witnessed_at: u64,
     ) -> Result<WitnessReceipt, WitnessError> {
         verifier.verify_checkpoint(signed).map_err(|e| match e {
-            SignerError::InvalidSignature | SignerError::UnknownKey => WitnessError::InvalidSignature,
+            SignerError::InvalidSignature | SignerError::UnknownKey => {
+                WitnessError::InvalidSignature
+            }
             _ => WitnessError::InvalidCheckpoint,
         })?;
         let payload: &CheckpointPayload = &signed.payload;
-        payload.validate().map_err(|_| WitnessError::InvalidCheckpoint)?;
-        let digest = payload.digest().map_err(|_| WitnessError::InvalidCheckpoint)?;
-        let mut streams = self.streams.lock().map_err(|_| WitnessError::StorageUnavailable)?;
+        payload
+            .validate()
+            .map_err(|_| WitnessError::InvalidCheckpoint)?;
+        let digest = payload
+            .digest()
+            .map_err(|_| WitnessError::InvalidCheckpoint)?;
+        let mut streams = self
+            .streams
+            .lock()
+            .map_err(|_| WitnessError::StorageUnavailable)?;
         let history = streams.entry(payload.stream_id.clone()).or_default();
 
-        if let Some(existing) = history.iter().find(|r| r.checkpoint_number == payload.checkpoint_number) {
-            if existing.checkpoint_digest == digest { return Ok(existing.clone()); }
+        if let Some(existing) = history
+            .iter()
+            .find(|r| r.checkpoint_number == payload.checkpoint_number)
+        {
+            if existing.checkpoint_digest == digest {
+                return Ok(existing.clone());
+            }
             return Err(WitnessError::Equivocation);
         }
         let (expected_number, expected_previous, previous_sequence) = match history.last() {
             None => (1, [0; 32], 0),
-            Some(last) => (last.checkpoint_number + 1, last.checkpoint_digest, last.last_sequence),
+            Some(last) => (
+                last.checkpoint_number + 1,
+                last.checkpoint_digest,
+                last.last_sequence,
+            ),
         };
-        if payload.checkpoint_number != expected_number { return Err(WitnessError::CheckpointGap); }
-        if payload.previous_checkpoint_digest != expected_previous { return Err(WitnessError::PreviousDigestMismatch); }
-        if payload.last_sequence <= previous_sequence { return Err(WitnessError::SequenceConflict); }
+        if payload.checkpoint_number != expected_number {
+            return Err(WitnessError::CheckpointGap);
+        }
+        if payload.previous_checkpoint_digest != expected_previous {
+            return Err(WitnessError::PreviousDigestMismatch);
+        }
+        if payload.last_sequence <= previous_sequence {
+            return Err(WitnessError::SequenceConflict);
+        }
 
-        let signer = self.signer.as_ref().ok_or(WitnessError::SigningUnavailable)?;
+        let signer = self
+            .signer
+            .as_ref()
+            .ok_or(WitnessError::SigningUnavailable)?;
         let mut receipt = WitnessReceipt {
             witness_id: self.witness_id.clone(),
             stream_id: payload.stream_id.clone(),
@@ -156,7 +196,10 @@ impl WitnessLedger for MemoryWitnessLedger {
             last_sequence: payload.last_sequence,
             head_event_hash: payload.head_event_hash,
             previous_checkpoint_digest: payload.previous_checkpoint_digest,
-            previous_receipt_digest: history.last().map(WitnessReceipt::digest).unwrap_or([0; 32]),
+            previous_receipt_digest: history
+                .last()
+                .map(WitnessReceipt::digest)
+                .unwrap_or([0; 32]),
             witnessed_at,
             log_index: history.len() as u64 + 1,
             signing_key_id: signer.key_id().to_string(),
@@ -168,7 +211,10 @@ impl WitnessLedger for MemoryWitnessLedger {
     }
 
     fn head(&self, stream_id: &str) -> Result<Option<WitnessReceipt>, WitnessError> {
-        let streams = self.streams.lock().map_err(|_| WitnessError::StorageUnavailable)?;
+        let streams = self
+            .streams
+            .lock()
+            .map_err(|_| WitnessError::StorageUnavailable)?;
         Ok(streams.get(stream_id).and_then(|v| v.last()).cloned())
     }
 }
@@ -177,17 +223,30 @@ impl WitnessLedger for MemoryWitnessLedger {
 mod tests {
     use super::*;
     use crate::audit_checkpoint::{AuditHead, CheckpointBuilder, V1_CHAIN_FORMAT};
-    use crate::audit_signer::{CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner};
+    use crate::audit_signer::{
+        CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner,
+    };
 
     #[test]
     fn witness_accepts_once_and_returns_same_receipt_for_retry() {
         let signer = LocalEd25519TestSigner::from_test_seed("cp-key", [1; 32]);
-        let verifier = Ed25519CheckpointVerifier::new(vec![("cp-key".into(), signer.verifying_key())]);
+        let verifier =
+            Ed25519CheckpointVerifier::new(vec![("cp-key".into(), signer.verifying_key())]);
         let builder = CheckpointBuilder::new("stream:one", "cp-key");
-        let head = AuditHead { first_sequence: 1, last_sequence: 2, event_count: 2,
-            head_event_hash: [2; 32], chain_format: V1_CHAIN_FORMAT.into() };
-        let cp = signer.sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap()).unwrap();
-        let ledger = MemoryWitnessLedger::new("witness-a", Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [3; 32])));
+        let head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 2,
+            event_count: 2,
+            head_event_hash: [2; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let cp = signer
+            .sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap())
+            .unwrap();
+        let ledger = MemoryWitnessLedger::new(
+            "witness-a",
+            Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [3; 32])),
+        );
         let first = ledger.accept(&cp, &verifier, 11).unwrap();
         let retry = ledger.accept(&cp, &verifier, 12).unwrap();
         assert_eq!(first, retry);
@@ -197,15 +256,29 @@ mod tests {
     #[test]
     fn witness_rejects_conflicting_checkpoint_at_same_position() {
         let signer = LocalEd25519TestSigner::from_test_seed("cp-key", [1; 32]);
-        let verifier = Ed25519CheckpointVerifier::new(vec![("cp-key".into(), signer.verifying_key())]);
+        let verifier =
+            Ed25519CheckpointVerifier::new(vec![("cp-key".into(), signer.verifying_key())]);
         let builder = CheckpointBuilder::new("stream:one", "cp-key");
         let mk = |hash| {
-            let head = AuditHead { first_sequence: 1, last_sequence: 2, event_count: 2,
-                head_event_hash: [hash; 32], chain_format: V1_CHAIN_FORMAT.into() };
-            signer.sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap()).unwrap()
+            let head = AuditHead {
+                first_sequence: 1,
+                last_sequence: 2,
+                event_count: 2,
+                head_event_hash: [hash; 32],
+                chain_format: V1_CHAIN_FORMAT.into(),
+            };
+            signer
+                .sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap())
+                .unwrap()
         };
-        let ledger = MemoryWitnessLedger::new("witness-a", Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [3; 32])));
+        let ledger = MemoryWitnessLedger::new(
+            "witness-a",
+            Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [3; 32])),
+        );
         ledger.accept(&mk(2), &verifier, 11).unwrap();
-        assert_eq!(ledger.accept(&mk(4), &verifier, 12), Err(WitnessError::Equivocation));
+        assert_eq!(
+            ledger.accept(&mk(4), &verifier, 12),
+            Err(WitnessError::Equivocation)
+        );
     }
 }
