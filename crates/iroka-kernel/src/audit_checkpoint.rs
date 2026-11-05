@@ -236,6 +236,17 @@ mod tests {
     }
 
     #[test]
+    fn rejects_reversed_and_overflowing_sequence_ranges() {
+        let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
+        let reversed = AuditHead { first_sequence: 2, last_sequence: 1, event_count: 1,
+            head_event_hash: [7; 32], chain_format: V1_CHAIN_FORMAT.into() };
+        assert_eq!(b.initial_v1_anchor(&reversed, 1), Err(CheckpointError::InvalidHead));
+        let overflow = AuditHead { first_sequence: 1, last_sequence: u64::MAX, event_count: 1,
+            head_event_hash: [7; 32], chain_format: V1_CHAIN_FORMAT.into() };
+        assert_eq!(b.initial_v1_anchor(&overflow, 1), Err(CheckpointError::InvalidHead));
+    }
+
+    #[test]
     fn initial_anchor_commits_v1_head_without_rewriting_history() {
         let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
         let cp = b.initial_v1_anchor(&head(3, 7), 100).unwrap();
