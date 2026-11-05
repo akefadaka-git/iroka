@@ -227,35 +227,34 @@ impl SqliteAuditSink {
 }
 
 fn verify_connection(c: &Connection) -> Result<(), AuditStoreError> {
-    let mut s = c.prepare("SELECT event_id,correlation_id,subject,capability,resource,
+    let mut s = c.prepare("SELECT sequence,event_id,correlation_id,subject,capability,resource,
       policy_version,decision,occurred_at,previous_hash,event_hash FROM audit_events ORDER BY sequence")
       .map_err(|_| AuditStoreError::Unavailable)?;
     let mut rows = s.query([]).map_err(|_| AuditStoreError::Unavailable)?;
     let mut previous = ZERO.to_vec();
+    let mut expected_sequence = 1i64;
     while let Some(r) = rows.next().map_err(|_| AuditStoreError::Unavailable)? {
-        let id: String = r.get(0).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let trace: String = r.get(1).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let subject: String = r.get(2).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let capability: String = r.get(3).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let resource: String = r.get(4).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let policy: String = r.get(5).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let decision: String = r.get(6).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let at: i64 = r.get(7).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let prev: Vec<u8> = r.get(8).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let stored: Vec<u8> = r.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let sequence: i64 = r.get(0).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        if sequence != expected_sequence {
+            return Err(AuditStoreError::IntegrityFailure);
+        }
+        expected_sequence = expected_sequence.checked_add(1)
+            .ok_or(AuditStoreError::IntegrityFailure)?;
+        let id: String = r.get(1).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let trace: String = r.get(2).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let subject: String = r.get(3).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let capability: String = r.get(4).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let resource: String = r.get(5).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let policy: String = r.get(6).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let decision: String = r.get(7).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let at: i64 = r.get(8).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let prev: Vec<u8> = r.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let stored: Vec<u8> = r.get(10).map_err(|_| AuditStoreError::IntegrityFailure)?;
         if prev != previous || prev.len() != 32 {
             return Err(AuditStoreError::IntegrityFailure);
         }
         let expected = hash_event(
-            &prev,
-            &id,
-            &trace,
-            &subject,
-            &capability,
-            &resource,
-            &policy,
-            &decision,
-            at,
+            &prev, &id, &trace, &subject, &capability, &resource, &policy, &decision, at,
         );
         if stored.as_slice() != expected.as_slice() {
             return Err(AuditStoreError::IntegrityFailure);
