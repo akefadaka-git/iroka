@@ -382,6 +382,20 @@ mod tests {
         assert_eq!(s.verify_integrity(), Err(AuditStoreError::IntegrityFailure));
     }
     #[test]
+    fn detects_sequence_metadata_tampering() {
+        let s = SqliteAuditSink::open_in_memory().unwrap();
+        s.append_event(&event("event:sequence")).unwrap();
+        {
+            let c = s.connection.lock().unwrap();
+            c.execute_batch(
+                "DROP TRIGGER audit_no_update; UPDATE audit_events SET sequence=9 WHERE sequence=1",
+            ).unwrap();
+        }
+        assert_eq!(s.verify_integrity(), Err(AuditStoreError::IntegrityFailure));
+        assert_eq!(s.checkpoint_head(), Err(AuditStoreError::IntegrityFailure));
+    }
+
+    #[test]
     fn persists_and_verifies_after_reopen() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
