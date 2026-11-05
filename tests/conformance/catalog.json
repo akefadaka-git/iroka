@@ -22,7 +22,10 @@
       "suite": "OS-BOOT",
       "test_class": "negative",
       "title": "unsigned boot artifact",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-BOOT-01",
+        "OS-BOOT-02"
+      ],
       "expected_result": "REJECT_SIGNATURE_INVALID",
       "severity": "high",
       "status": "NOT RUN",
@@ -35,7 +38,10 @@
       "suite": "OS-BOOT",
       "test_class": "negative",
       "title": "modified boot artifact digest",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-BOOT-01",
+        "OS-BOOT-02"
+      ],
       "expected_result": "REJECT_DIGEST_MISMATCH",
       "severity": "high",
       "status": "NOT RUN",
@@ -48,7 +54,10 @@
       "suite": "OS-BOOT",
       "test_class": "negative",
       "title": "security rollback attempt",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-BOOT-01",
+        "OS-BOOT-02"
+      ],
       "expected_result": "REJECT_ROLLBACK",
       "severity": "high",
       "status": "NOT RUN",
@@ -61,7 +70,10 @@
       "suite": "OS-CAP",
       "test_class": "negative",
       "title": "forged capability token",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-CAP-01",
+        "OS-CAP-02"
+      ],
       "expected_result": "DENY",
       "severity": "critical",
       "status": "NOT RUN",
@@ -74,7 +86,10 @@
       "suite": "OS-CAP",
       "test_class": "boundary",
       "title": "capability expires at operation boundary",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-CAP-01",
+        "OS-CAP-02"
+      ],
       "expected_result": "DENY_EXPIRED",
       "severity": "high",
       "status": "NOT RUN",
@@ -87,7 +102,10 @@
       "suite": "OS-CAP",
       "test_class": "negative",
       "title": "delegation exceeds issuer scope",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-CAP-01",
+        "OS-CAP-02"
+      ],
       "expected_result": "DENY_SCOPE_ESCALATION",
       "severity": "high",
       "status": "NOT RUN",
@@ -100,7 +118,9 @@
       "suite": "OS-ISO",
       "test_class": "adversarial",
       "title": "tenant A accesses tenant B object",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-ISO-01"
+      ],
       "expected_result": "DENY_CROSS_TENANT",
       "severity": "critical",
       "status": "NOT RUN",
@@ -113,7 +133,9 @@
       "suite": "OS-IPC",
       "test_class": "negative",
       "title": "replayed IPC message",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-IPC-01"
+      ],
       "expected_result": "REJECT_REPLAY",
       "severity": "high",
       "status": "NOT RUN",
@@ -126,7 +148,9 @@
       "suite": "OS-IPC",
       "test_class": "boundary",
       "title": "oversized IPC payload",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-IPC-01"
+      ],
       "expected_result": "REJECT_LIMIT",
       "severity": "high",
       "status": "NOT RUN",
@@ -139,7 +163,9 @@
       "suite": "OS-RES",
       "test_class": "boundary",
       "title": "workload exceeds memory quota",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-RES-01"
+      ],
       "expected_result": "TERMINATE_OR_CONTAIN_WITH_AUDIT",
       "severity": "high",
       "status": "NOT RUN",
@@ -152,7 +178,9 @@
       "suite": "OS-AUD",
       "test_class": "fault",
       "title": "audit sink unavailable during protected effect",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-AUD-01"
+      ],
       "expected_result": "BLOCK_EFFECT_OR_ENTER_APPROVED_DEGRADED_MODE",
       "severity": "critical",
       "status": "NOT RUN",
@@ -165,7 +193,10 @@
       "suite": "OS-TIME",
       "test_class": "fault",
       "title": "clock rollback makes expiry uncertain",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-BOOT-01",
+        "OS-CAP-01"
+      ],
       "expected_result": "DENY_PROTECTED_OPERATION",
       "severity": "high",
       "status": "NOT RUN",
@@ -178,7 +209,9 @@
       "suite": "INL-PARSE",
       "test_class": "positive",
       "title": "valid grammar fixture for pinned INL grammar",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "INL-PARSE-01"
+      ],
       "expected_result": "PARSE_SUCCESS",
       "severity": "high",
       "status": "NOT RUN",
@@ -191,7 +224,9 @@
       "suite": "INL-PARSE",
       "test_class": "negative",
       "title": "malformed source fixture",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "INL-PARSE-01"
+      ],
       "expected_result": "STABLE_PARSE_DIAGNOSTIC",
       "severity": "high",
       "status": "NOT RUN",
@@ -204,7 +239,9 @@
       "suite": "INL-TYPE",
       "test_class": "negative",
       "title": "type mismatch fixture",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "INL-TYPE-01"
+      ],
       "expected_result": "TYPE_REJECT",
       "severity": "high",
       "status": "NOT RUN",
@@ -217,7 +254,9 @@
       "suite": "INL-EFFECT",
       "test_class": "negative",
       "title": "network effect without declaration",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "INL-EFFECT-01"
+      ],
       "expected_result": "EFFECT_REJECT",
       "severity": "high",
       "status": "NOT RUN",
@@ -230,7 +269,9 @@
       "suite": "INL-CAP",
       "test_class": "negative",
       "title": "static capability declaration treated as runtime grant",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "INL-CAP-01"
+      ],
       "expected_result": "NO_AUTHORITY_GRANTED",
       "severity": "high",
       "status": "NOT RUN",
@@ -243,7 +284,9 @@
       "suite": "INL-MEM",
       "test_class": "adversarial",
       "title": "use-after-free attempt in safe code",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "INL-MEM-01"
+      ],
       "expected_result": "COMPILE_REJECT_OR_RUNTIME_CONTAINMENT",
       "severity": "high",
       "status": "NOT RUN",
@@ -256,7 +299,9 @@
       "suite": "INL-IR",
       "test_class": "positive",
       "title": "canonical IR golden fixture",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "INL-IR-01"
+      ],
       "expected_result": "EXACT_GOLDEN_DIGEST",
       "severity": "high",
       "status": "NOT RUN",
@@ -269,7 +314,9 @@
       "suite": "INL-BUILD",
       "test_class": "positive",
       "title": "independent reproducible build fixture",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "INL-BUILD-01"
+      ],
       "expected_result": "EXACT_ARTIFACT_DIGEST_MATCH",
       "severity": "high",
       "status": "NOT RUN",
@@ -282,7 +329,9 @@
       "suite": "VY-ART",
       "test_class": "negative",
       "title": "VYRAQON artifact digest mismatch",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "VY-ART-01"
+      ],
       "expected_result": "REJECT_DIGEST_MISMATCH",
       "severity": "high",
       "status": "NOT RUN",
@@ -295,7 +344,9 @@
       "suite": "VY-VER",
       "test_class": "negative",
       "title": "unsupported VYRAQON major version",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "VY-VER-01"
+      ],
       "expected_result": "FAIL_CLOSED",
       "severity": "high",
       "status": "NOT RUN",
@@ -308,7 +359,9 @@
       "suite": "VY-GRAM",
       "test_class": "positive",
       "title": "authoritative grammar positive vector",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "VY-GRAM-01"
+      ],
       "expected_result": "EXPECTED_PARSE_RESULT",
       "severity": "high",
       "status": "NOT RUN",
@@ -321,7 +374,9 @@
       "suite": "VY-SEM",
       "test_class": "positive",
       "title": "canonical semantic round-trip vector",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "VY-SEM-01"
+      ],
       "expected_result": "EXACT_SEMANTIC_EQUALITY",
       "severity": "high",
       "status": "NOT RUN",
@@ -334,7 +389,9 @@
       "suite": "VY-MAP",
       "test_class": "negative",
       "title": "unsupported semantic construct lowered to executable IR",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "VY-MAP-01"
+      ],
       "expected_result": "REJECT_UNSUPPORTED",
       "severity": "high",
       "status": "NOT RUN",
@@ -347,7 +404,9 @@
       "suite": "VY-CAP",
       "test_class": "adversarial",
       "title": "VYRAQON expression attempts to mint capability",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "VY-CAP-01"
+      ],
       "expected_result": "NO_AUTHORITY_GRANTED",
       "severity": "high",
       "status": "NOT RUN",
@@ -360,7 +419,9 @@
       "suite": "VY-AUTH",
       "test_class": "adversarial",
       "title": "compiled output attempts protected effect without approval",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "VY-AUTH-01"
+      ],
       "expected_result": "DENY",
       "severity": "critical",
       "status": "NOT RUN",
@@ -373,7 +434,9 @@
       "suite": "C60",
       "test_class": "positive",
       "title": "Amharic Ethiopic text round trip",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-LANG-02"
+      ],
       "expected_result": "EXACT_CODEPOINT_AND_SOURCE_PRESERVATION",
       "severity": "high",
       "status": "NOT RUN",
@@ -386,7 +449,9 @@
       "suite": "C60",
       "test_class": "positive",
       "title": "mixed Amharic and English text round trip",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-LANG-02"
+      ],
       "expected_result": "EXACT_SOURCE_PRESERVATION",
       "severity": "high",
       "status": "NOT RUN",
@@ -399,7 +464,9 @@
       "suite": "C60",
       "test_class": "negative",
       "title": "distinct Ethiopic names share Latin transliteration",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-ID-01"
+      ],
       "expected_result": "KEEP_IDENTITIES_DISTINCT",
       "severity": "high",
       "status": "NOT RUN",
@@ -412,7 +479,9 @@
       "suite": "C60",
       "test_class": "boundary",
       "title": "Ethiopian calendar year boundary conversion",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-CAL-01"
+      ],
       "expected_result": "MATCH_APPROVED_REFERENCE_ORACLE",
       "severity": "high",
       "status": "NOT RUN",
@@ -425,7 +494,9 @@
       "suite": "C60",
       "test_class": "boundary",
       "title": "Ethiopian calendar leap-year boundary conversion",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-CAL-01"
+      ],
       "expected_result": "MATCH_APPROVED_REFERENCE_ORACLE",
       "severity": "high",
       "status": "NOT RUN",
@@ -438,7 +509,9 @@
       "suite": "C60",
       "test_class": "positive",
       "title": "date-only value remains distinct from instant",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-CAL-02"
+      ],
       "expected_result": "PRESERVE_SEMANTIC_TYPE",
       "severity": "high",
       "status": "NOT RUN",
@@ -451,7 +524,9 @@
       "suite": "C60",
       "test_class": "positive",
       "title": "Ethiopia profile default locale",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-LANG-01"
+      ],
       "expected_result": "am-ET",
       "severity": "high",
       "status": "NOT RUN",
@@ -464,7 +539,9 @@
       "suite": "C60",
       "test_class": "positive",
       "title": "Ethiopia profile default time zone",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-LANG-01"
+      ],
       "expected_result": "Africa/Addis_Ababa",
       "severity": "high",
       "status": "NOT RUN",
@@ -477,7 +554,9 @@
       "suite": "C60",
       "test_class": "positive",
       "title": "Ethiopia profile currency default",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-REG-02"
+      ],
       "expected_result": "ETB",
       "severity": "high",
       "status": "NOT RUN",
@@ -490,7 +569,9 @@
       "suite": "C70",
       "test_class": "negative",
       "title": "Ethiopia defaults leak into distinct regional profile",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-REG-01"
+      ],
       "expected_result": "NO_UNCONFIGURED_LEAKAGE",
       "severity": "high",
       "status": "NOT RUN",
@@ -503,7 +584,9 @@
       "suite": "C70",
       "test_class": "adversarial",
       "title": "regional profile attempts to change kernel authority",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "A1-REG-01"
+      ],
       "expected_result": "DENY",
       "severity": "high",
       "status": "NOT RUN",
@@ -516,7 +599,10 @@
       "suite": "C90",
       "test_class": "positive",
       "title": "Amharic-authored reviewed request through authorized execution",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-AUD-01",
+        "VY-AUTH-01"
+      ],
       "expected_result": "VALID_APPROVAL_AND_COMPLETE_AUDIT",
       "severity": "high",
       "status": "NOT RUN",
@@ -529,7 +615,10 @@
       "suite": "C90",
       "test_class": "adversarial",
       "title": "model-generated instruction attempts privileged action",
-      "requirement_ids": [],
+      "requirement_ids": [
+        "OS-AUD-01",
+        "VY-AUTH-01"
+      ],
       "expected_result": "DENY_WITH_AUDIT",
       "severity": "critical",
       "status": "NOT RUN",
