@@ -204,23 +204,40 @@ pub fn verify_and_install_trust_bundle_with_roots(
     verify_and_install_trust_bundle(bundle, root, store, now)
 }
 
-/// Thread-safe in-process trust snapshot publisher. Validation and durable
-/// anti-rollback persistence complete before the active snapshot is replaced.
+/// Thread-safe in-process trust snapshot publisher. The write lock covers
+/// validation, durable anti-rollback persistence and publication so concurrent
+/// installers cannot publish snapshots out of order.
+struct ActiveTrustSnapshot {
+    version: Option<u64>,
+    trust: Arc<TrustStore>,
+}
+
 pub struct TrustSnapshotManager {
-    current: RwLock<Arc<TrustStore>>,
+    current: RwLock<ActiveTrustSnapshot>,
 }
 
 impl TrustSnapshotManager {
     pub fn new(initial: TrustStore) -> Self {
         Self {
-            current: RwLock::new(Arc::new(initial)),
+            current: RwLock::new(ActiveTrustSnapshot {
+                version: None,
+                trust: Arc::new(initial),
+            }),
         }
     }
 
     pub fn snapshot(&self) -> Result<Arc<TrustStore>, TrustBundleError> {
         self.current
             .read()
-            .map(|snapshot| Arc::clone(&snapshot))
+            .map(|snapshot| Arc::clone(&snapshot.trust))
+            .map_err(|_| TrustBundleError::StoreUnavailable)
+    }
+
+    /// Highest bundle version published by this manager since construction.
+    pub fn active_version(&self) -> Result<Option<u64>, TrustBundleError> {
+        self.current
+            .read()
+            .map(|snapshot| snapshot.version)
             .map_err(|_| TrustBundleError::StoreUnavailable)
     }
 
@@ -231,15 +248,20 @@ impl TrustSnapshotManager {
         store: &SqliteSecurityStore,
         now: u64,
     ) -> Result<u64, TrustBundleError> {
-        let next = verify_and_install_trust_bundle(bundle, root, store, now)?;
-        let version = bundle.payload.version;
         let mut current = self
             .current
             .write()
             .map_err(|_| TrustBundleError::StoreUnavailable)?;
-        *current = Arc::new(next);
+        let version = bundle.payload.version;
+        if current.version.is_some_and(|active| version < active) {
+            return Err(TrustBundleError::Rollback);
+        }
+        let next = verify_and_install_trust_bundle(bundle, root, store, now)?;
+        current.trust = Arc::new(next);
+        current.version = Some(version);
         Ok(version)
     }
+
     pub fn install_with_roots(
         &self,
         bundle: &SignedTrustBundle,
@@ -247,13 +269,18 @@ impl TrustSnapshotManager {
         store: &SqliteSecurityStore,
         now: u64,
     ) -> Result<u64, TrustBundleError> {
-        let next = verify_and_install_trust_bundle_with_roots(bundle, roots, store, now)?;
-        let version = bundle.payload.version;
+        let root = roots.get(&bundle.root_key_id)?;
         let mut current = self
             .current
             .write()
             .map_err(|_| TrustBundleError::StoreUnavailable)?;
-        *current = Arc::new(next);
+        let version = bundle.payload.version;
+        if current.version.is_some_and(|active| version < active) {
+            return Err(TrustBundleError::Rollback);
+        }
+        let next = verify_and_install_trust_bundle(bundle, root, store, now)?;
+        current.trust = Arc::new(next);
+        current.version = Some(version);
         Ok(version)
     }
 }
@@ -371,6 +398,44 @@ mod tests {
             manager.install(&first, &root, &store, 1_200),
             Err(TrustBundleError::Rollback)
         );
+    }
+
+    #[test]
+    fn concurrent_installs_never_publish_below_the_durable_or_active_version() {
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let (_, root, first) = fixture(1);
+        let (_, _, second) = fixture(2);
+        let (_, _, third) = fixture(3);
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let initial = verify_and_install_trust_bundle(&first, &root, &store, 1_100).unwrap();
+        let manager = Arc::new(TrustSnapshotManager::new(initial));
+        let barrier = Arc::new(Barrier::new(3));
+
+        let manager_two = Arc::clone(&manager);
+        let store_two = Arc::clone(&store);
+        let barrier_two = Arc::clone(&barrier);
+        let root_two = root.clone();
+        let older = thread::spawn(move || {
+            barrier_two.wait();
+            manager_two.install(&second, &root_two, &store_two, 1_200)
+        });
+
+        let manager_three = Arc::clone(&manager);
+        let store_three = Arc::clone(&store);
+        let barrier_three = Arc::clone(&barrier);
+        let newer = thread::spawn(move || {
+            barrier_three.wait();
+            manager_three.install(&third, &root, &store_three, 1_200)
+        });
+
+        barrier.wait();
+        let _ = older.join().unwrap();
+        let _ = newer.join().unwrap();
+
+        assert_eq!(manager.active_version(), Ok(Some(3)));
+        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(3)));
     }
 
     #[test]
