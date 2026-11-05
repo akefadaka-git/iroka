@@ -1,7 +1,7 @@
 //! G11 append-only SQLite audit adapter with a SHA-256 event chain.
 //! Hash chains detect local edits; production must externally anchor signed checkpoints.
 
-use crate::{AuditError, AuditEvent, AuditSink, DecisionCode};
+use crate::{AuditError, AuditEvent, AuditHead, AuditSink, DecisionCode};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::{Digest, Sha256};
 use std::{path::Path, sync::Mutex, time::Duration};
@@ -190,6 +190,37 @@ impl SqliteAuditSink {
             previous = stored;
         }
         Ok(())
+    }
+
+    /// Returns a consistent V1 checkpoint snapshot after local chain verification.
+    /// The caller must pass this snapshot to the checkpoint builder without changing its fields.
+    pub fn checkpoint_head(&self) -> Result<AuditHead, AuditStoreError> {
+        self.verify_integrity()?;
+        let c = self.connection.lock().map_err(|_| AuditStoreError::Unavailable)?;
+        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = c.query_row(
+            "SELECT MIN(sequence), MAX(sequence), COUNT(*),
+             (SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1)
+             FROM audit_events",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        ).map_err(|_| AuditStoreError::Unavailable)?;
+        if row.2 == 0 {
+            return Ok(AuditHead {
+                first_sequence: 0, last_sequence: 0, event_count: 0,
+                head_event_hash: ZERO, chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+            });
+        }
+        let first = u64::try_from(row.0.ok_or(AuditStoreError::IntegrityFailure)?)
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let last = u64::try_from(row.1.ok_or(AuditStoreError::IntegrityFailure)?)
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let count = u64::try_from(row.2).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let hash: [u8; 32] = row.3.ok_or(AuditStoreError::IntegrityFailure)?
+            .try_into().map_err(|_| AuditStoreError::IntegrityFailure)?;
+        Ok(AuditHead {
+            first_sequence: first, last_sequence: last, event_count: count,
+            head_event_hash: hash, chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+        })
     }
 
     pub fn head(&self) -> Result<(u64, [u8; 32]), AuditStoreError> {
