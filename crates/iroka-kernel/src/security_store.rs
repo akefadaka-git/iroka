@@ -644,6 +644,58 @@ mod tests {
         assert_eq!(store.approval_is_revoked("approval:2"), Ok(true));
     }
     #[test]
+    fn owner_revocation_is_rechecked_inside_approval_and_command_transactions() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        store
+            .revoke_key(
+                "iroka:owner-authority",
+                "owner-key",
+                10,
+                "compromised",
+            )
+            .unwrap();
+
+        assert_eq!(
+            store.consume_approval(ApprovalReceipt {
+                approval_id: "approval:revoked-signer",
+                payload_digest: &[7; 32],
+                owner_subject: "owner:test",
+                signer_key_id: "owner-key",
+                request_subject: "principal:test",
+                capability: "records.read",
+                resource: "records:1",
+                policy_version: "policy:v1",
+                issued_at: 10,
+                expires_at: 100,
+                consumed_at: 20,
+            }),
+            Err(SecurityStoreError::Revoked)
+        );
+        assert_eq!(store.approval_receipt_count(), Ok(0));
+
+        assert_eq!(
+            store.apply_signed_revocation(
+                "command:revoked-signer",
+                "owner:test",
+                "owner-key",
+                &[8; 32],
+                21,
+                RevocationTarget::Credential {
+                    issuer: "issuer:test".into(),
+                    credential_id: "credential:1".into(),
+                    reason: "test".into(),
+                },
+            ),
+            Err(SecurityStoreError::Revoked)
+        );
+        assert_eq!(store.security_command_count(), Ok(0));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:1"),
+            Ok(false)
+        );
+    }
+
+    #[test]
     fn file_store_reopens_with_revocations_and_private_permissions() {
         use std::fs;
         let path = std::env::temp_dir().join(format!(
