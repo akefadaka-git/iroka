@@ -647,12 +647,7 @@ mod tests {
     fn owner_revocation_is_rechecked_inside_approval_and_command_transactions() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         store
-            .revoke_key(
-                "iroka:owner-authority",
-                "owner-key",
-                10,
-                "compromised",
-            )
+            .revoke_key("iroka:owner-authority", "owner-key", 10, "compromised")
             .unwrap();
 
         assert_eq!(
