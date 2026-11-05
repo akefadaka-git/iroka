@@ -37,6 +37,10 @@ A new Owner-signed manifest with a strictly higher version replaces the active r
 
 Historical receipt verification across a key-rotation boundary must retain and verify the applicable historical signed roster manifest for the receipt period. The current activation API returns the active roster only; a historical-roster resolver is a separate follow-up requirement before claiming full historical key-lifecycle assurance.
 
+An activated witness key must remain valid for the entire signed roster validity window. Activation rejects a manifest if a witness key becomes valid after manifest issuance or expires before the roster. This prevents a key from remaining accepted after its own declared expiry while the roster is still active.
+
+Receipt-history verification enforces genesis values and contiguous log indices and checkpoint numbers, previous-receipt digest linkage, previous-checkpoint digest linkage, strictly increasing accepted event sequences, and nondecreasing witness acceptance times. The verifier also requires an expected terminal receipt head obtained independently from the witness head endpoint; this detects a truncated exported history when the independent head is available. The expected head must not be inferred from the export being checked.
+
 ## Persistence and deployment limits
 
 The SQLite high-water mark prevents rollback while its durable state is preserved. It is a single-node adapter, not a hardware monotonic counter: restoring an older database snapshot can roll back local state. Production deployment therefore requires protected backups and an independent external high-water/checkpoint anchor, or a shared transactional store with equivalent anti-rollback guarantees.
