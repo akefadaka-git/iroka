@@ -233,7 +233,16 @@ mod tests {
         let r1 = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
         let r2 = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
         let receipt_verifier = WitnessReceiptVerifier::new(vec![("w-key".into(), "witness-1".into(), witness_key)]);
-        assert_eq!(verify_receipt_chain(&[r1, r2], &receipt_verifier), Ok(()));
+        assert_eq!(verify_receipt_chain(&[r1, r2.clone()], &receipt_verifier), Ok(()));
+        use crate::audit_witness::WitnessReceiptSigner;
+        let progression_signer = LocalWitnessTestSigner::from_test_seed("w-key", [8; 32]);
+        let mut skipped = r2;
+        skipped.checkpoint_number = 3;
+        skipped.signature = progression_signer.sign_receipt(&skipped).unwrap();
+        assert_eq!(
+            verify_receipt_chain(&[r1, skipped], &receipt_verifier),
+            Err(VerificationError::ReceiptCheckpointMismatch)
+        );
     }
 
     #[test]
