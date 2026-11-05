@@ -17,6 +17,7 @@ pub enum SecurityStoreError {
     Rollback,
     ConflictingVersion,
     InvalidVersion,
+    Revoked,
 }
 
 #[derive(Debug, Clone)]
@@ -337,6 +338,16 @@ impl SqliteSecurityStore {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
+        let signer_revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params!["iroka:owner-authority", signer_key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if signer_revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
         let changed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
             params![format!("security-command:{command_id}"), digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
@@ -478,6 +489,23 @@ impl SqliteSecurityStore {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
+        let signer_revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params!["iroka:owner-authority", receipt.signer_key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let approval_revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_approvals WHERE approval_id=?1)",
+                [receipt.approval_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if signer_revoked || approval_revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
         let consumed_at =
             i64::try_from(receipt.consumed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let changed = tx.execute(
