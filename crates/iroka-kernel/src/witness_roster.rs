@@ -12,12 +12,20 @@ use crate::audit_verifier::{
     AuthorizedWitness, VerificationError, WitnessReceiptVerifier, WitnessRosterState,
     AUTHORIZED_WITNESS_COUNT,
 };
-use crate::trust_lifecycle::TrustRoot;
 use crate::{SecurityStoreError, SqliteSecurityStore};
 
 const DOMAIN_SEPARATOR: &[u8] = b"IROKA-K04-OWNER-WITNESS-ROSTER-V1\0";
 const MAX_ROSTER_LIFETIME_SECS: u64 = 31_536_000;
 const MAX_CLOCK_SKEW_SECS: u64 = 30;
+
+#[derive(Debug, Clone)]
+pub struct OwnerWitnessRosterRoot {
+    pub owner_subject: String,
+    pub key_id: String,
+    pub public_key: [u8; 32],
+    pub not_before: u64,
+    pub not_after: u64,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -120,12 +128,11 @@ impl From<VerificationError> for WitnessRosterManifestError {
 /// Successful activation durably advances the roster anti-rollback high-water mark.
 pub fn activate_signed_witness_roster(
     manifest: &SignedWitnessRosterManifest,
-    owner_subject: &str,
-    root: &TrustRoot,
+    root: &OwnerWitnessRosterRoot,
     store: &SqliteSecurityStore,
     now: u64,
 ) -> Result<WitnessRosterState, WitnessRosterManifestError> {
-    if owner_subject.trim().is_empty()
+    if root.owner_subject.trim().is_empty()
         || root.key_id.trim().is_empty()
         || root.key_id != manifest.root_key_id
         || root.not_before >= root.not_after
@@ -145,7 +152,7 @@ pub fn activate_signed_witness_roster(
     {
         return Err(WitnessRosterManifestError::Malformed);
     }
-    if payload.owner_subject != owner_subject {
+    if payload.owner_subject != root.owner_subject {
         return Err(WitnessRosterManifestError::OwnerMismatch);
     }
     if payload.issued_at > now.saturating_add(MAX_CLOCK_SKEW_SECS) {
@@ -229,7 +236,8 @@ mod tests {
             SigningKey::from_bytes(&[63u8; 32]),
             SigningKey::from_bytes(&[64u8; 32]),
         ];
-        let root = TrustRoot {
+        let root = OwnerWitnessRosterRoot {
+            owner_subject: "owner:akefa".into(),
             key_id: "owner-witness-root-01".into(),
             public_key: owner.verifying_key().to_bytes(),
             not_before: 900,
@@ -263,7 +271,7 @@ mod tests {
     fn activates_owner_signed_roster_and_persists_version() {
         let (_, root, manifest) = fixture(1);
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        let state = activate_signed_witness_roster(&manifest, "owner:akefa", &root, &store, 1_100).unwrap();
+        let state = activate_signed_witness_roster(&manifest, &root, &store, 1_100).unwrap();
         assert_eq!(state.version(), Some(1));
         assert_eq!(store.highest_witness_roster_version(), Ok(Some(1)));
         assert_eq!(store.witness_roster_history_count(), Ok(1));
@@ -276,11 +284,11 @@ mod tests {
         let mut tampered = manifest.clone();
         tampered.payload.stream_id = "iroka:audit:other".into();
         assert!(matches!(
-            activate_signed_witness_roster(&tampered, "owner:akefa", &root, &store, 1_100),
+            activate_signed_witness_roster(&tampered, &root, &store, 1_100),
             Err(WitnessRosterManifestError::InvalidSignature)
         ));
         assert!(matches!(
-            activate_signed_witness_roster(&manifest, "owner:someone-else", &root, &store, 1_100),
+            activate_signed_witness_roster(&manifest, &OwnerWitnessRosterRoot { owner_subject: String::from("owner:someone-else"), ..root.clone() }, &store, 1_100),
             Err(WitnessRosterManifestError::OwnerMismatch)
         ));
     }
@@ -294,15 +302,15 @@ mod tests {
             ..root.clone()
         };
         assert!(matches!(
-            activate_signed_witness_roster(&manifest, "owner:akefa", &wrong, &store, 1_100),
+            activate_signed_witness_roster(&manifest, &wrong, &store, 1_100),
             Err(WitnessRosterManifestError::InvalidSignature)
         ));
         assert!(matches!(
-            activate_signed_witness_roster(&manifest, "owner:akefa", &root, &store, 4_100),
+            activate_signed_witness_roster(&manifest, &root, &store, 4_100),
             Err(WitnessRosterManifestError::Expired)
         ));
         assert!(matches!(
-            activate_signed_witness_roster(&manifest, "owner:akefa", &root, &store, 950),
+            activate_signed_witness_roster(&manifest, &root, &store, 950),
             Err(WitnessRosterManifestError::NotYetValid)
         ));
     }
@@ -343,8 +351,8 @@ mod tests {
         ];
         rotated.signature = owner.sign(&rotated.signing_bytes().unwrap()).to_bytes().to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        activate_signed_witness_roster(&first, "owner:akefa", &root, &store, 1_100).unwrap();
-        let state = activate_signed_witness_roster(&rotated, "owner:akefa", &root, &store, 1_200).unwrap();
+        activate_signed_witness_roster(&first, &root, &store, 1_100).unwrap();
+        let state = activate_signed_witness_roster(&rotated, &root, &store, 1_200).unwrap();
         assert_eq!(state.version(), Some(2));
         assert_eq!(store.highest_witness_roster_version(), Ok(Some(2)));
         assert_eq!(store.witness_roster_history_count(), Ok(2));
@@ -358,13 +366,13 @@ mod tests {
         conflicting.payload.stream_id = "iroka:audit:conflicting".into();
         conflicting.signature = owner.sign(&conflicting.signing_bytes().unwrap()).to_bytes().to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        activate_signed_witness_roster(&second, "owner:akefa", &root, &store, 1_100).unwrap();
+        activate_signed_witness_roster(&second, &root, &store, 1_100).unwrap();
         assert!(matches!(
             activate_signed_witness_roster(&first, "owner:akefa", &root, &store, 1_100),
             Err(WitnessRosterManifestError::Rollback)
         ));
         assert!(matches!(
-            activate_signed_witness_roster(&conflicting, "owner:akefa", &root, &store, 1_100),
+            activate_signed_witness_roster(&conflicting, &root, &store, 1_100),
             Err(WitnessRosterManifestError::Rollback)
         ));
     }
