@@ -293,7 +293,7 @@ impl SqliteSecurityStore {
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
     }
 
-    pub(crate) fn highest_witness_roster_version(&self) -> Result<Option<u64>, SecurityStoreError> {
+    pub fn highest_witness_roster_version(&self) -> Result<Option<u64>, SecurityStoreError> {
         let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
         let version: Option<i64> = connection.query_row(
             "SELECT version FROM witness_roster_state WHERE singleton=1", [], |row| row.get(0),
