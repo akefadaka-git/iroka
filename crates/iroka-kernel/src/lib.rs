@@ -69,8 +69,8 @@ pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
 pub use witness_roster::{
-    activate_signed_witness_roster, SignedWitnessRosterManifest, WitnessRosterEntry,
-    WitnessRosterManifestError, WitnessRosterManifestPayload,
+    activate_signed_witness_roster, OwnerWitnessRosterRoot, SignedWitnessRosterManifest,
+    WitnessRosterEntry, WitnessRosterManifestError, WitnessRosterManifestPayload,
 };
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
