@@ -48,7 +48,7 @@ impl CheckpointPayload {
         if self.protocol != CHECKPOINT_PROTOCOL_V1 || self.stream_id.trim().is_empty() {
             return Err(CheckpointError::InvalidStream);
         }
-        if self.checkpoint_number == 0 || self.first_sequence == 0
+        if self.checkpoint_number == 0 || self.first_sequence != 1
             || self.last_sequence < self.first_sequence
         {
             return Err(CheckpointError::InvalidSequence);
@@ -56,7 +56,7 @@ impl CheckpointPayload {
         if self.event_count == 0 || self.event_count != self.last_sequence - self.first_sequence + 1 {
             return Err(CheckpointError::InvalidCount);
         }
-        if self.head_event_hash == [0; 32] || self.chain_format.trim().is_empty()
+        if self.head_event_hash == [0; 32] || self.chain_format != V1_CHAIN_FORMAT
             || self.hash_algorithm != HASH_SHA256
         {
             return Err(CheckpointError::InvalidHead);
