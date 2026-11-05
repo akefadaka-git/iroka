@@ -229,7 +229,7 @@ mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
 
-    fn fixture(version: u64) -> (SigningKey, TrustRoot, SignedWitnessRosterManifest) {
+    fn fixture(version: u64) -> (SigningKey, OwnerWitnessRosterRoot, SignedWitnessRosterManifest) {
         let owner = SigningKey::from_bytes(&[61u8; 32]);
         let witness_keys = [
             SigningKey::from_bytes(&[62u8; 32]),
@@ -297,7 +297,7 @@ mod tests {
     fn rejects_wrong_root_expiry_and_not_yet_valid_manifest() {
         let (_, root, manifest) = fixture(1);
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        let wrong = TrustRoot {
+        let wrong = OwnerWitnessRosterRoot {
             public_key: SigningKey::from_bytes(&[99; 32]).verifying_key().to_bytes(),
             ..root.clone()
         };
@@ -323,7 +323,7 @@ mod tests {
         manifest.signature = owner.sign(&bytes).to_bytes().to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         assert!(matches!(
-            activate_signed_witness_roster(&manifest, "owner:akefa", &root, &store, 1_100),
+            activate_signed_witness_roster(&manifest, &root, &store, 1_100),
             Err(WitnessRosterManifestError::InvalidRoster)
         ));
 
@@ -368,7 +368,7 @@ mod tests {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         activate_signed_witness_roster(&second, &root, &store, 1_100).unwrap();
         assert!(matches!(
-            activate_signed_witness_roster(&first, "owner:akefa", &root, &store, 1_100),
+            activate_signed_witness_roster(&first, &root, &store, 1_100),
             Err(WitnessRosterManifestError::Rollback)
         ));
         assert!(matches!(
