@@ -40,8 +40,8 @@ pub use audit_verifier::{
     VerificationError, WitnessReceiptVerifier,
 };
 pub use audit_witness::{
-    LocalWitnessTestSigner, MemoryWitnessLedger, SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt,
-    WitnessReceiptSigner,
+    LocalWitnessTestSigner, MemoryWitnessLedger, SqliteWitnessLedger, WitnessError, WitnessLedger,
+    WitnessReceipt, WitnessReceiptSigner,
 };
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
