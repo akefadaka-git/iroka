@@ -132,11 +132,13 @@ pub fn verify_receipt_chain(
     let mut previous_witnessed_at = 0u64;
     for (offset, receipt) in receipts.iter().enumerate() {
         verifier.verify(receipt)?;
-        let expected_index = u64::try_from(offset + 1)
-            .map_err(|_| VerificationError::ReceiptCheckpointMismatch)?;
-        let expected_checkpoint = previous_checkpoint_number.checked_add(1)
+        let expected_index =
+            u64::try_from(offset + 1).map_err(|_| VerificationError::ReceiptCheckpointMismatch)?;
+        let expected_checkpoint = previous_checkpoint_number
+            .checked_add(1)
             .ok_or(VerificationError::ReceiptCheckpointMismatch)?;
-        if receipt.witness_id != witness_id || receipt.stream_id != stream_id
+        if receipt.witness_id != witness_id
+            || receipt.stream_id != stream_id
             || receipt.log_index != expected_index
             || receipt.checkpoint_number != expected_checkpoint
             || receipt.previous_receipt_digest != previous_receipt_digest
@@ -190,11 +192,13 @@ mod tests {
         let r2 = ledger2.accept(&signed, &cp_verifier, 2).unwrap();
         let receipt_verifier = WitnessReceiptVerifier::new(vec![
             (
-                "w1-key".into(), "w1".into(),
+                "w1-key".into(),
+                "w1".into(),
                 LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]).key_for_test(),
             ),
             (
-                "w2-key".into(), "w2".into(),
+                "w2-key".into(),
+                "w2".into(),
                 LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]).key_for_test(),
             ),
         ]);
@@ -255,16 +259,28 @@ mod tests {
     fn rejects_a_valid_signature_from_a_key_bound_to_another_witness() {
         use crate::audit_witness::WitnessReceiptSigner;
         let signer = LocalWitnessTestSigner::from_test_seed("shared-key", [9; 32]);
-        let verifier = WitnessReceiptVerifier::new(vec![("shared-key".into(), "authorized-witness".into(), signer.key_for_test())]);
+        let verifier = WitnessReceiptVerifier::new(vec![
+            ("shared-key".into(), "authorized-witness".into(), signer.key_for_test()),
+        ]);
         let mut receipt = WitnessReceipt {
-            witness_id: "forged-witness".into(), stream_id: "stream:x".into(),
-            checkpoint_number: 1, checkpoint_digest: [1; 32], last_sequence: 1,
-            head_event_hash: [2; 32], previous_checkpoint_digest: [0; 32],
-            previous_receipt_digest: [0; 32], witnessed_at: 1, log_index: 1,
-            signing_key_id: "shared-key".into(), signature: [0; 64],
+            witness_id: "forged-witness".into(),
+            stream_id: "stream:x".into(),
+            checkpoint_number: 1,
+            checkpoint_digest: [1; 32],
+            last_sequence: 1,
+            head_event_hash: [2; 32],
+            previous_checkpoint_digest: [0; 32],
+            previous_receipt_digest: [0; 32],
+            witnessed_at: 1,
+            log_index: 1,
+            signing_key_id: "shared-key".into(),
+            signature: [0; 64],
         };
         receipt.signature = signer.sign_receipt(&receipt).unwrap();
-        assert_eq!(verifier.verify(&receipt), Err(VerificationError::InvalidReceiptSignature));
+        assert_eq!(
+            verifier.verify(&receipt),
+            Err(VerificationError::InvalidReceiptSignature)
+        );
     }
 
     #[test]
