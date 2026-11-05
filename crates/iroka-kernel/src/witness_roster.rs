@@ -276,6 +276,8 @@ mod tests {
         let (_, root, manifest) = fixture(1);
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         let state = activate_signed_witness_roster(&manifest, &root, &store, 1_100).unwrap();
+        let retry = activate_signed_witness_roster(&manifest, &root, &store, 1_101).unwrap();
+        assert_eq!(retry.version(), Some(1));
         assert_eq!(state.version(), Some(1));
         assert_eq!(store.highest_witness_roster_version(), Ok(Some(1)));
         assert_eq!(store.witness_roster_history_count(), Ok(1));
@@ -338,6 +340,18 @@ mod tests {
         assert!(matches!(
             activate_signed_witness_roster(&manifest, &root, &store, 1_100),
             Err(WitnessRosterManifestError::NonCanonicalOrdering)
+        ));
+    }
+
+    #[test]
+    fn rejects_a_key_listed_as_revoked_from_remaining_active() {
+        let (owner, root, mut manifest) = fixture(1);
+        manifest.payload.revoked_key_ids = vec!["witness-key-2".into()];
+        manifest.signature = owner.sign(&manifest.signing_bytes().unwrap()).to_bytes().to_vec();
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert!(matches!(
+            activate_signed_witness_roster(&manifest, &root, &store, 1_100),
+            Err(WitnessRosterManifestError::InvalidRoster)
         ));
     }
 
