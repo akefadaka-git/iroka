@@ -382,3 +382,19 @@ The binding A2 direction, repository boundary, logical contracts and acceptance 
 This is a target architecture, not a claim that a native OS or INL language already exists. The existing Rust Kernel remains the current implementation foundation pending A2 architecture and migration review. A1 Amharic-first Ethiopian/African requirements remain unchanged and apply to every native layer and user-facing surface.
 
 The VYRAQON repository was not present under the connected `akefadaka-git` account at the time of this update. Create that repository separately and grant access before cross-repository implementation. No VYRAQON source is copied into IROKA.
+
+## 16. Native OS, INL, VYRAQON and conformance contract package
+
+The A2 native computing design package is indexed here:
+
+- [IROKA OS System Specification](architecture/IROKA-OS-SYSTEM-SPECIFICATION.md)
+- [IROKA Native Language Design](architecture/IROKA-NATIVE-LANGUAGE-DESIGN.md)
+- [VYRAQON–IROKA Interoperability Specification](architecture/IROKA-VYRAQON-INTEROPERABILITY-SPECIFICATION.md)
+- [Native Platform and VYRAQON Conformance Suite](../tests/conformance/../..//docs/assurance/IROKA-A2-CONFORMANCE-SUITE-SPECIFICATION.md)
+- [Machine-readable conformance catalog](../../tests/conformance/catalog.json)
+- [Conformance fixture provenance](../../tests/conformance/fixtures/README.md)
+
+The specifications establish system, language, interoperability and measurable acceptance contracts. They do not establish implementation or passing test evidence. The kernel family, hardware target matrix, language syntax/memory model/ABI, VYRAQON normative release and reviewed Amharic/Ethiopic/calendar oracles remain explicit A2 decision/dependency gates. See each specification's unresolved-decision and status sections.
+
+**A3 remains blocked** until those decisions and dependencies are resolved, the conformance harness and reviewed oracles are available, the exact-SHA evidence is produced, and the Owner separately authorizes implementation.
+
