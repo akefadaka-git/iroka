@@ -199,7 +199,8 @@ pub fn activate_signed_witness_roster(
             || witness.not_before >= witness.not_after
             || witness.not_before > now
             || witness.not_after <= now
-            || witness.not_after > payload.expires_at
+            || witness.not_before > payload.issued_at
+            || witness.not_after < payload.expires_at
             || witness.public_key == root.public_key
             || revoked.contains(witness.signing_key_id.as_str())
             || !witness_ids.insert(witness.witness_id.as_str())
@@ -419,6 +420,18 @@ mod tests {
         assert_eq!(state.version(), Some(2));
         assert_eq!(store.highest_witness_roster_version(), Ok(Some(2)));
         assert_eq!(store.witness_roster_history_count(), Ok(2));
+    }
+
+    #[test]
+    fn rejects_witness_key_that_expires_before_its_roster() {
+        let (owner, root, mut manifest) = fixture(1);
+        manifest.payload.witnesses[0].not_after = 3_000;
+        manifest.signature = owner.sign(&manifest.signing_bytes().unwrap()).to_bytes().to_vec();
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert!(matches!(
+            activate_signed_witness_roster(&manifest, &root, &store, 1_100),
+            Err(WitnessRosterManifestError::InvalidRoster)
+        ));
     }
 
     #[test]
