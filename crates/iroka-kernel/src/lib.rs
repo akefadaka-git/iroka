@@ -29,7 +29,7 @@ pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_checkpoint::{AuditHead, CheckpointBuilder, CheckpointError, CheckpointPayload};
 pub use audit_operations::{assess_anchoring, checkpoint_due, AnchoringAssessment, AnchoringState, CheckpointPolicy};
 pub use audit_signer::{CheckpointSignatureVerifier, CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner, SignedCheckpoint, SignerError};
-pub use audit_verifier::{reconcile_local_head, verify_checkpoint_and_quorum, LocalReconciliation, VerificationError, WitnessReceiptVerifier};
+pub use audit_verifier::{reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain, LocalReconciliation, VerificationError, WitnessReceiptVerifier};
 pub use audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
