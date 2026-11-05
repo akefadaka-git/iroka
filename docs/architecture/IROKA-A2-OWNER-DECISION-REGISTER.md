@@ -247,3 +247,17 @@ The Owner may respond using decision IDs and values, for example:
 - `OD-04 APPROVE`
 
 No blank checkbox or proposed default is interpreted as approval. Record the final decision in a separate immutable approval artifact and link it to this register; do not rewrite historical decision records.
+
+
+## 8. Owner disposition — approved
+
+**Current decision status: OD-01 through OD-09 APPROVED.**
+
+The Owner approved all nine recommended defaults exactly as written, with no amendments, deferrals or rejections, on 2026-11-05. The immutable approval record is:
+
+- [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md)
+- Approval record commit: `78a5d2695cb1f2b6295eca83ee2be1be7fd79500`
+
+This section records the disposition without rewriting the original recommendation text. The original decision checkboxes and pending-value fields above are historical proposal-form content; the Owner's authoritative disposition is the separate approval record linked here.
+
+Approval resolves the nine Owner decision questions only. It does not certify dependent evidence, close A2, or authorize A3, implementation, merge, or deployment. All A2 exit criteria and the separate A3 authorization gate remain in force.
