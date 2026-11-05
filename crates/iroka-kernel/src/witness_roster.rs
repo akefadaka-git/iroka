@@ -332,7 +332,7 @@ mod tests {
         let bytes = manifest.signing_bytes().unwrap();
         manifest.signature = owner.sign(&bytes).to_bytes().to_vec();
         assert!(matches!(
-            activate_signed_witness_roster(&manifest, "owner:akefa", &root, &store, 1_100),
+            activate_signed_witness_roster(&manifest, &root, &store, 1_100),
             Err(WitnessRosterManifestError::NonCanonicalOrdering)
         ));
     }
