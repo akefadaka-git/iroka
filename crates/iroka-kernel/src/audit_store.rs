@@ -150,26 +150,37 @@ impl SqliteAuditSink {
     }
 
     pub fn verify_integrity(&self) -> Result<(), AuditStoreError> {
-        let c = self.connection.lock().map_err(|_| AuditStoreError::Unavailable)?;
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
         verify_connection(&c)
     }
 
     /// Returns a consistent V1 checkpoint snapshot after local chain verification.
     /// The caller must pass this snapshot to the checkpoint builder without changing its fields.
     pub fn checkpoint_head(&self) -> Result<AuditHead, AuditStoreError> {
-        let c = self.connection.lock().map_err(|_| AuditStoreError::Unavailable)?;
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
         verify_connection(&c)?;
-        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = c.query_row(
-            "SELECT MIN(sequence), MAX(sequence), COUNT(*),
+        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = c
+            .query_row(
+                "SELECT MIN(sequence), MAX(sequence), COUNT(*),
              (SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1)
              FROM audit_events",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-        ).map_err(|_| AuditStoreError::Unavailable)?;
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .map_err(|_| AuditStoreError::Unavailable)?;
         if row.2 == 0 {
             return Ok(AuditHead {
-                first_sequence: 0, last_sequence: 0, event_count: 0,
-                head_event_hash: ZERO, chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+                first_sequence: 0,
+                last_sequence: 0,
+                event_count: 0,
+                head_event_hash: ZERO,
+                chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
             });
         }
         let first = u64::try_from(row.0.ok_or(AuditStoreError::IntegrityFailure)?)
@@ -177,11 +188,17 @@ impl SqliteAuditSink {
         let last = u64::try_from(row.1.ok_or(AuditStoreError::IntegrityFailure)?)
             .map_err(|_| AuditStoreError::IntegrityFailure)?;
         let count = u64::try_from(row.2).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let hash: [u8; 32] = row.3.ok_or(AuditStoreError::IntegrityFailure)?
-            .try_into().map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let hash: [u8; 32] = row
+            .3
+            .ok_or(AuditStoreError::IntegrityFailure)?
+            .try_into()
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
         Ok(AuditHead {
-            first_sequence: first, last_sequence: last, event_count: count,
-            head_event_hash: hash, chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+            first_sequence: first,
+            last_sequence: last,
+            event_count: count,
+            head_event_hash: hash,
+            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
         })
     }
 
@@ -229,8 +246,17 @@ fn verify_connection(c: &Connection) -> Result<(), AuditStoreError> {
         if prev != previous || prev.len() != 32 {
             return Err(AuditStoreError::IntegrityFailure);
         }
-        let expected = hash_event(&prev, &id, &trace, &subject, &capability,
-            &resource, &policy, &decision, at);
+        let expected = hash_event(
+            &prev,
+            &id,
+            &trace,
+            &subject,
+            &capability,
+            &resource,
+            &policy,
+            &decision,
+            at,
+        );
         if stored.as_slice() != expected.as_slice() {
             return Err(AuditStoreError::IntegrityFailure);
         }
@@ -316,7 +342,10 @@ mod tests {
         assert_eq!(snapshot.first_sequence, 1);
         assert_eq!(snapshot.last_sequence, 2);
         assert_eq!(snapshot.event_count, 2);
-        assert_eq!(snapshot.chain_format, crate::audit_checkpoint::V1_CHAIN_FORMAT);
+        assert_eq!(
+            snapshot.chain_format,
+            crate::audit_checkpoint::V1_CHAIN_FORMAT
+        );
         assert_eq!(s.verify_integrity(), Ok(()));
     }
     #[test]
