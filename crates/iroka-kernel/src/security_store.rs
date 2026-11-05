@@ -122,6 +122,15 @@ impl SqliteSecurityStore {
                issued_at INTEGER NOT NULL,
                expires_at INTEGER NOT NULL
              );
+             CREATE TABLE IF NOT EXISTS witness_roster_history (
+               version INTEGER PRIMARY KEY, digest BLOB NOT NULL, issued_at INTEGER NOT NULL,
+               expires_at INTEGER NOT NULL, installed_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS witness_roster_state (
+               singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+               version INTEGER NOT NULL, digest BLOB NOT NULL,
+               issued_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
+             );
              CREATE TABLE IF NOT EXISTS revoked_credentials (
                issuer TEXT NOT NULL, credential_id TEXT NOT NULL,
                revoked_at INTEGER NOT NULL, reason TEXT NOT NULL,
@@ -234,6 +243,69 @@ impl SqliteSecurityStore {
         version
             .map(|v| u64::try_from(v).map_err(|_| SecurityStoreError::Unavailable))
             .transpose()
+    }
+
+    /// Persist the highest accepted Owner-signed K-04 witness-roster version.
+    /// Same-version retries are idempotent only for the exact same signed payload digest.
+    pub(crate) fn install_witness_roster(
+        &self,
+        version: u64,
+        digest: &[u8],
+        issued_at: u64,
+        expires_at: u64,
+        installed_at: u64,
+    ) -> Result<(), SecurityStoreError> {
+        if version == 0 || issued_at >= expires_at || digest.len() != 32 {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let issued_i = i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let expires_i = i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let installed_i = i64::try_from(installed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, Vec<u8>)> = tx.query_row(
+            "SELECT version, digest FROM witness_roster_state WHERE singleton=1", [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        match current {
+            Some((current_version, _)) if version_i < current_version => return Err(SecurityStoreError::Rollback),
+            Some((current_version, current_digest)) if version_i == current_version => {
+                if current_digest != digest { return Err(SecurityStoreError::ConflictingVersion); }
+                tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                return Ok(());
+            }
+            _ => {}
+        }
+        tx.execute(
+            "INSERT INTO witness_roster_state(singleton,version,digest,issued_at,expires_at)
+             VALUES(1,?1,?2,?3,?4)
+             ON CONFLICT(singleton) DO UPDATE SET version=excluded.version,digest=excluded.digest,
+             issued_at=excluded.issued_at,expires_at=excluded.expires_at",
+            params![version_i,digest,issued_i,expires_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "INSERT INTO witness_roster_history(version,digest,issued_at,expires_at,installed_at)
+             VALUES(?1,?2,?3,?4,?5)",
+            params![version_i,digest,issued_i,expires_i,installed_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub(crate) fn highest_witness_roster_version(&self) -> Result<Option<u64>, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let version: Option<i64> = connection.query_row(
+            "SELECT version FROM witness_roster_state WHERE singleton=1", [], |row| row.get(0),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        version.map(|v| u64::try_from(v).map_err(|_| SecurityStoreError::Unavailable)).transpose()
+    }
+
+    pub fn witness_roster_history_count(&self) -> Result<u64, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = connection.query_row("SELECT COUNT(*) FROM witness_roster_history", [], |row| row.get(0))
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }
 
     #[cfg(test)]
