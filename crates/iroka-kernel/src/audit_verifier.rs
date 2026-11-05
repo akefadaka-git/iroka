@@ -92,6 +92,29 @@ pub fn reconcile_local_head(
     Ok(LocalReconciliation::LocalAheadOfCheckpoint)
 }
 
+/// Verifies a single witness's exported receipt history from its genesis receipt.
+pub fn verify_receipt_chain(
+    receipts: &[WitnessReceipt],
+    verifier: &WitnessReceiptVerifier,
+) -> Result<(), VerificationError> {
+    let Some(first) = receipts.first() else { return Ok(()); };
+    let witness_id = first.witness_id.as_str();
+    let mut previous_digest = [0; 32];
+    let mut expected_index = 1u64;
+    for receipt in receipts {
+        verifier.verify(receipt)?;
+        if receipt.witness_id != witness_id || receipt.log_index != expected_index
+            || receipt.previous_receipt_digest != previous_digest
+        {
+            return Err(VerificationError::ReceiptCheckpointMismatch);
+        }
+        previous_digest = receipt.digest();
+        expected_index = expected_index.checked_add(1)
+            .ok_or(VerificationError::ReceiptCheckpointMismatch)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
