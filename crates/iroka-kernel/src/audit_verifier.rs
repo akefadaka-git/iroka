@@ -18,6 +18,8 @@ pub enum VerificationError {
     InvalidReceiptSignature,
     InvalidWitnessRoster,
     WitnessRosterUnprovisioned,
+    WitnessRosterExpired,
+    WitnessRosterScopeMismatch,
     UnauthorizedWitness,
     WrongStream,
     ReceiptCheckpointMismatch,
@@ -49,7 +51,7 @@ impl WitnessReceiptVerifier {
     ///
     /// Rejects incomplete/oversized rosters, blank identifiers, duplicate witness IDs,
     /// duplicate key IDs, and key reuse under multiple identities or key IDs.
-    fn new(roster: Vec<AuthorizedWitness>) -> Result<Self, VerificationError> {
+    pub(crate) fn new(roster: Vec<AuthorizedWitness>) -> Result<Self, VerificationError> {
         if roster.len() != AUTHORIZED_WITNESS_COUNT {
             return Err(VerificationError::InvalidWitnessRoster);
         }
@@ -95,22 +97,39 @@ impl WitnessReceiptVerifier {
 /// reviewed Owner-authorized roster activation path is implemented.
 pub struct WitnessRosterState {
     verifier: Option<WitnessReceiptVerifier>,
+    stream_id: Option<String>,
+    version: Option<u64>,
+    expires_at: Option<u64>,
 }
 
 impl WitnessRosterState {
     pub fn unprovisioned() -> Self {
-        Self { verifier: None }
+        Self { verifier: None, stream_id: None, version: None, expires_at: None }
     }
 
-    fn verifier(&self) -> Result<&WitnessReceiptVerifier, VerificationError> {
-        self.verifier
-            .as_ref()
-            .ok_or(VerificationError::WitnessRosterUnprovisioned)
+    fn verifier_at(&self, now: u64) -> Result<&WitnessReceiptVerifier, VerificationError> {
+        if self.expires_at.is_some_and(|expires_at| now >= expires_at) {
+            return Err(VerificationError::WitnessRosterExpired);
+        }
+        self.verifier.as_ref().ok_or(VerificationError::WitnessRosterUnprovisioned)
+    }
+
+    fn validate_stream(&self, stream_id: &str) -> Result<(), VerificationError> {
+        if self.stream_id.as_deref().is_some_and(|authorized| authorized != stream_id) {
+            return Err(VerificationError::WitnessRosterScopeMismatch);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn provisioned_from_manifest(
+        verifier: WitnessReceiptVerifier, stream_id: String, version: u64, expires_at: u64,
+    ) -> Self {
+        Self { verifier: Some(verifier), stream_id: Some(stream_id), version: Some(version), expires_at: Some(expires_at) }
     }
 
     #[cfg(test)]
     fn provisioned_for_test(verifier: WitnessReceiptVerifier) -> Self {
-        Self { verifier: Some(verifier) }
+        Self { verifier: Some(verifier), stream_id: None, version: None, expires_at: None }
     }
 }
 
@@ -121,9 +140,11 @@ pub fn verify_checkpoint_and_quorum(
     checkpoint_verifier: &dyn CheckpointSignatureVerifier,
     receipts: &[WitnessReceipt],
     roster_state: &WitnessRosterState,
+    now: u64,
 ) -> Result<(), VerificationError> {
-    let receipt_verifier = roster_state.verifier()?;
     let payload: &CheckpointPayload = &signed.payload;
+    let receipt_verifier = roster_state.verifier_at(now)?;
+    roster_state.validate_stream(&payload.stream_id)?;
     payload
         .validate()
         .map_err(|_| VerificationError::InvalidCheckpoint)?;
@@ -182,17 +203,21 @@ pub fn reconcile_local_head(
 pub fn verify_receipt_chain(
     receipts: &[WitnessReceipt],
     roster_state: &WitnessRosterState,
+    now: u64,
 ) -> Result<(), VerificationError> {
-    let verifier = roster_state.verifier()?;
+    let verifier = roster_state.verifier_at(now)?;
     let Some(first) = receipts.first() else {
         return Ok(());
     };
+    roster_state.validate_stream(&first.stream_id)?;
     let witness_id = first.witness_id.as_str();
+    let stream_id = first.stream_id.as_str();
     let mut previous_digest = [0; 32];
     let mut expected_index = 1u64;
     for receipt in receipts {
         verifier.verify(receipt)?;
         if receipt.witness_id != witness_id
+            || receipt.stream_id != stream_id
             || receipt.log_index != expected_index
             || receipt.previous_receipt_digest != previous_digest
         {
@@ -268,6 +293,7 @@ mod tests {
                 &checkpoint_verifier,
                 &[],
                 &WitnessRosterState::unprovisioned(),
+                1,
             ),
             Err(VerificationError::WitnessRosterUnprovisioned)
         );
@@ -302,7 +328,7 @@ mod tests {
         let r1 = ledger1.accept(&signed, &cp_verifier, 2).unwrap();
         let r2 = ledger2.accept(&signed, &cp_verifier, 2).unwrap();
         assert_eq!(
-            verify_checkpoint_and_quorum(&signed, &cp_verifier, &[r1, r2], &roster()),
+            verify_checkpoint_and_quorum(&signed, &cp_verifier, &[r1, r2], &roster(), 3),
             Ok(())
         );
     }
@@ -331,7 +357,7 @@ mod tests {
         );
         let receipt = ledger.accept(&signed, &cp_verifier, 2).unwrap();
         assert_eq!(
-            verify_checkpoint_and_quorum(&signed, &cp_verifier, &[receipt], &roster()),
+            verify_checkpoint_and_quorum(&signed, &cp_verifier, &[receipt], &roster(), 3),
             Err(VerificationError::InsufficientQuorum)
         );
     }
@@ -440,7 +466,7 @@ mod tests {
                 verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]).key_for_test(),
             },
         ]).unwrap());
-        assert_eq!(verify_receipt_chain(&[r1, r2], &receipt_verifier), Ok(()));
+        assert_eq!(verify_receipt_chain(&[r1, r2], &receipt_verifier, 30), Ok(()));
     }
 
     #[test]
