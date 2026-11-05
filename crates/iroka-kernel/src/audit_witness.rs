@@ -503,4 +503,37 @@ mod tests {
             Err(WitnessError::Equivocation)
         );
     }
+    #[test]
+    fn sqlite_witness_ledger_survives_reopen_and_replays_same_receipt() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("iroka-witness-{}-{nonce}.sqlite", std::process::id()));
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [11; 32]);
+        let verifier = Ed25519CheckpointVerifier::new(vec![("cp-key".into(), checkpoint_signer.verifying_key())]);
+        let builder = CheckpointBuilder::new("stream:durable", "cp-key");
+        let head = AuditHead { first_sequence: 1, last_sequence: 1, event_count: 1,
+            head_event_hash: [6; 32], chain_format: V1_CHAIN_FORMAT.into() };
+        let signed = checkpoint_signer.sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap()).unwrap();
+
+        let first = {
+            let ledger = SqliteWitnessLedger::open(
+                &path, "witness-durable",
+                Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [12; 32])),
+            ).unwrap();
+            ledger.accept(&signed, &verifier, 11).unwrap()
+        };
+        {
+            let ledger = SqliteWitnessLedger::open(
+                &path, "witness-durable",
+                Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [12; 32])),
+            ).unwrap();
+            assert_eq!(ledger.accept(&signed, &verifier, 12), Ok(first.clone()));
+            assert_eq!(ledger.head("stream:durable").unwrap(), Some(first));
+        }
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
 }
