@@ -37,7 +37,9 @@ impl WitnessReceiptVerifier {
         let key = self
             .trusted_keys
             .iter()
-            .find(|(id, witness_id, _)| id == &receipt.signing_key_id && witness_id == &receipt.witness_id)
+            .find(|(id, witness_id, _)| {
+                id == &receipt.signing_key_id && witness_id == &receipt.witness_id
+            })
             .map(|(_, _, key)| key)
             .ok_or(VerificationError::InvalidReceiptSignature)?;
         key.verify(
@@ -232,8 +234,12 @@ mod tests {
         let ledger = MemoryWitnessLedger::new("witness-1", Box::new(witness_signer));
         let r1 = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
         let r2 = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
-        let receipt_verifier = WitnessReceiptVerifier::new(vec![("w-key".into(), "witness-1".into(), witness_key)]);
-        assert_eq!(verify_receipt_chain(&[r1, r2.clone()], &receipt_verifier), Ok(()));
+        let receipt_verifier = WitnessReceiptVerifier::new(vec![(
+            "w-key".into(),
+            "witness-1".into(),
+            witness_key,
+        )]);
+        assert_eq!(verify_receipt_chain(&[r1.clone(), r2.clone()], &receipt_verifier), Ok(()));
         use crate::audit_witness::WitnessReceiptSigner;
         let progression_signer = LocalWitnessTestSigner::from_test_seed("w-key", [8; 32]);
         let mut skipped = r2;
