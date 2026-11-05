@@ -7,9 +7,9 @@ mod assurance;
 mod audit_checkpoint;
 mod audit_operations;
 mod audit_signer;
+mod audit_store;
 mod audit_verifier;
 mod audit_witness;
-mod audit_store;
 mod decision;
 #[cfg(test)]
 mod governance;
@@ -27,11 +27,22 @@ compile_error!("dev-no-revocations is restricted to test builds");
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_checkpoint::{AuditHead, CheckpointBuilder, CheckpointError, CheckpointPayload};
-pub use audit_operations::{assess_anchoring, checkpoint_due, AnchoringAssessment, AnchoringState, CheckpointPolicy};
-pub use audit_signer::{CheckpointSignatureVerifier, CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner, SignedCheckpoint, SignerError};
-pub use audit_verifier::{reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain, LocalReconciliation, VerificationError, WitnessReceiptVerifier};
-pub use audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner};
+pub use audit_operations::{
+    assess_anchoring, checkpoint_due, AnchoringAssessment, AnchoringState, CheckpointPolicy,
+};
+pub use audit_signer::{
+    CheckpointSignatureVerifier, CheckpointSigner, Ed25519CheckpointVerifier,
+    LocalEd25519TestSigner, SignedCheckpoint, SignerError,
+};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
+pub use audit_verifier::{
+    reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain, LocalReconciliation,
+    VerificationError, WitnessReceiptVerifier,
+};
+pub use audit_witness::{
+    LocalWitnessTestSigner, MemoryWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt,
+    WitnessReceiptSigner,
+};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
 pub(crate) use governance::{
