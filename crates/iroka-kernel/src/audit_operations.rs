@@ -41,10 +41,6 @@ pub fn assess_anchoring(
         },
         None => None,
     };
-    if !quorum_available {
-        return AnchoringAssessment { state: AnchoringState::QuorumUnavailable,
-            high_risk_operations_allowed: false, age_seconds: age, unanchored_events };
-    }
     let max_age = match policy.max_staleness_seconds {
         Some(v) => v,
         None => return AnchoringAssessment { state: AnchoringState::Unconfigured,
@@ -60,6 +56,10 @@ pub fn assess_anchoring(
     {
         return AnchoringAssessment { state: AnchoringState::Stale,
             high_risk_operations_allowed: false, age_seconds: age, unanchored_events };
+    }
+    if !quorum_available {
+        return AnchoringAssessment { state: AnchoringState::QuorumUnavailable,
+            high_risk_operations_allowed: true, age_seconds: age, unanchored_events };
     }
     AnchoringAssessment { state: AnchoringState::Healthy,
         high_risk_operations_allowed: true, age_seconds: age, unanchored_events }
