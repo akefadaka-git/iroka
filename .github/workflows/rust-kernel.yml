@@ -11,6 +11,9 @@ on:
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - ".github/workflows/rust-kernel.yml"
+      - "docs/architecture/G11-K04-AUDIT-INTEGRITY-INDEPENDENT-CHECKPOINTS-001.md"
+      - "docs/architecture/G11-K04-OWNER-DECISIONS-001.md"
+      - "docs/operations/G11-K04-OPERATIONAL-ASSURANCE-RUNBOOK-001.md"
   pull_request:
     branches: [main, fix/a2-trust-concurrency-workflow]
     paths:
