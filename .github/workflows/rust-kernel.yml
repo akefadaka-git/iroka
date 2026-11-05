@@ -1,6 +1,16 @@
 name: Rust kernel verification
 
 on:
+  push:
+    branches: [fix/a2-trust-concurrency-workflow]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "crates/**"
+      - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
+      - "docs/architecture/G01-IDENTITY-CONTRACT.md"
+      - ".github/workflows/rust-kernel.yml"
   pull_request:
     branches: [main]
     paths:
