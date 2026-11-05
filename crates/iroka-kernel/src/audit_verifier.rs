@@ -222,19 +222,35 @@ pub fn verify_receipt_chain(
     roster_state.validate_stream(&first.stream_id)?;
     let witness_id = first.witness_id.as_str();
     let stream_id = first.stream_id.as_str();
-    let mut previous_digest = [0; 32];
-    let mut expected_index = 1u64;
+    let mut previous_receipt_digest = [0; 32];
+    let mut previous_checkpoint_digest = [0; 32];
+    let mut previous_sequence = 0u64;
+    let mut previous_witnessed_at = 0u64;
+    let mut expected_log_index = 1u64;
+    let mut expected_checkpoint_number = 1u64;
+
     for receipt in receipts {
         verifier.verify(receipt)?;
         if receipt.witness_id != witness_id
             || receipt.stream_id != stream_id
-            || receipt.log_index != expected_index
-            || receipt.previous_receipt_digest != previous_digest
+            || receipt.log_index != expected_log_index
+            || receipt.checkpoint_number != expected_checkpoint_number
+            || receipt.previous_receipt_digest != previous_receipt_digest
+            || receipt.previous_checkpoint_digest != previous_checkpoint_digest
+            || receipt.last_sequence <= previous_sequence
+            || receipt.witnessed_at < previous_witnessed_at
         {
             return Err(VerificationError::ReceiptCheckpointMismatch);
         }
-        previous_digest = receipt.digest();
-        expected_index = expected_index
+
+        previous_receipt_digest = receipt.digest();
+        previous_checkpoint_digest = receipt.checkpoint_digest;
+        previous_sequence = receipt.last_sequence;
+        previous_witnessed_at = receipt.witnessed_at;
+        expected_log_index = expected_log_index
+            .checked_add(1)
+            .ok_or(VerificationError::ReceiptCheckpointMismatch)?;
+        expected_checkpoint_number = expected_checkpoint_number
             .checked_add(1)
             .ok_or(VerificationError::ReceiptCheckpointMismatch)?;
     }
