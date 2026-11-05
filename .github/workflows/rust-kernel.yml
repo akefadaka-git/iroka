@@ -12,7 +12,7 @@ on:
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main]
+    branches: [main, fix/a2-trust-concurrency-workflow]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
