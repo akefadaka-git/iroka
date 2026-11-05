@@ -238,7 +238,8 @@ fn verify_connection(c: &Connection) -> Result<(), AuditStoreError> {
         if sequence != expected_sequence {
             return Err(AuditStoreError::IntegrityFailure);
         }
-        expected_sequence = expected_sequence.checked_add(1)
+        expected_sequence = expected_sequence
+            .checked_add(1)
             .ok_or(AuditStoreError::IntegrityFailure)?;
         let id: String = r.get(1).map_err(|_| AuditStoreError::IntegrityFailure)?;
         let trace: String = r.get(2).map_err(|_| AuditStoreError::IntegrityFailure)?;
@@ -254,7 +255,15 @@ fn verify_connection(c: &Connection) -> Result<(), AuditStoreError> {
             return Err(AuditStoreError::IntegrityFailure);
         }
         let expected = hash_event(
-            &prev, &id, &trace, &subject, &capability, &resource, &policy, &decision, at,
+            &prev,
+            &id,
+            &trace,
+            &subject,
+            &capability,
+            &resource,
+            &policy,
+            &decision,
+            at,
         );
         if stored.as_slice() != expected.as_slice() {
             return Err(AuditStoreError::IntegrityFailure);
@@ -389,7 +398,8 @@ mod tests {
             let c = s.connection.lock().unwrap();
             c.execute_batch(
                 "DROP TRIGGER audit_no_update; UPDATE audit_events SET sequence=9 WHERE sequence=1",
-            ).unwrap();
+            )
+            .unwrap();
         }
         assert_eq!(s.verify_integrity(), Err(AuditStoreError::IntegrityFailure));
         assert_eq!(s.checkpoint_head(), Err(AuditStoreError::IntegrityFailure));
