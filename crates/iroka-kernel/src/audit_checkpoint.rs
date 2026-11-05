@@ -54,7 +54,7 @@ impl CheckpointPayload {
         {
             return Err(CheckpointError::InvalidSequence);
         }
-        if self.event_count == 0 || self.event_count != self.last_sequence - self.first_sequence + 1
+        if self.event_count == 0 || self.last_sequence.checked_sub(self.first_sequence).and_then(|v| v.checked_add(1)) != Some(self.event_count)
         {
             return Err(CheckpointError::InvalidCount);
         }
@@ -126,7 +126,8 @@ impl CheckpointBuilder {
             || head.last_sequence == 0
             || head.first_sequence == 0
             || head.event_count == 0
-            || head.last_sequence - head.first_sequence + 1 != head.event_count
+            || head.first_sequence > head.last_sequence
+            || head.last_sequence.checked_sub(head.first_sequence).and_then(|v| v.checked_add(1)) != Some(head.event_count)
         {
             return Err(CheckpointError::InvalidHead);
         }
@@ -158,7 +159,8 @@ impl CheckpointBuilder {
         if previous.stream_id != self.stream_id
             || head.last_sequence <= previous.last_sequence
             || head.first_sequence != previous.first_sequence
-            || head.event_count != head.last_sequence - head.first_sequence + 1
+            || head.first_sequence > head.last_sequence
+            || head.last_sequence.checked_sub(head.first_sequence).and_then(|v| v.checked_add(1)) != Some(head.event_count)
             || head.chain_format != previous.chain_format
         {
             return Err(CheckpointError::InvalidSequence);
@@ -166,7 +168,7 @@ impl CheckpointBuilder {
         let payload = CheckpointPayload {
             protocol: CHECKPOINT_PROTOCOL_V1.into(),
             stream_id: self.stream_id.clone(),
-            checkpoint_number: previous.checkpoint_number + 1,
+            checkpoint_number: previous.checkpoint_number.checked_add(1).ok_or(CheckpointError::InvalidSequence)?,
             first_sequence: previous.first_sequence,
             last_sequence: head.last_sequence,
             event_count: head.event_count,
