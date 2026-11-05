@@ -45,12 +45,14 @@ pub fn assess_anchoring(
     };
     let max_age = match (policy.max_staleness_seconds, policy.max_unanchored_events) {
         (Some(v), Some(_)) => v,
-        _ => return AnchoringAssessment {
-            state: AnchoringState::Unconfigured,
-            high_risk_operations_allowed: false,
-            age_seconds: age,
-            unanchored_events,
-        },
+        _ => {
+            return AnchoringAssessment {
+                state: AnchoringState::Unconfigured,
+                high_risk_operations_allowed: false,
+                age_seconds: age,
+                unanchored_events,
+            }
+        }
     };
     let age_value = match age {
         Some(v) => v,
