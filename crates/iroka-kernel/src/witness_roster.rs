@@ -330,10 +330,33 @@ mod tests {
     }
 
     #[test]
+    fn accepts_new_roster_version_with_explicit_key_rotation_and_revocation() {
+        let (_, root, first) = fixture(1);
+        let (owner, _, mut rotated) = fixture(2);
+        for (index, witness) in rotated.payload.witnesses.iter_mut().enumerate() {
+            witness.signing_key_id = format!("witness-key-v2-{}", index + 1);
+            witness.public_key = SigningKey::from_bytes(&[72 + index as u8; 32])
+                .verifying_key().to_bytes();
+        }
+        rotated.payload.revoked_key_ids = vec![
+            "witness-key-1".into(), "witness-key-2".into(), "witness-key-3".into(),
+        ];
+        rotated.signature = owner.sign(&rotated.signing_bytes().unwrap()).to_bytes().to_vec();
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        activate_signed_witness_roster(&first, "owner:akefa", &root, &store, 1_100).unwrap();
+        let state = activate_signed_witness_roster(&rotated, "owner:akefa", &root, &store, 1_200).unwrap();
+        assert_eq!(state.version(), Some(2));
+        assert_eq!(store.highest_witness_roster_version(), Ok(Some(2)));
+        assert_eq!(store.witness_roster_history_count(), Ok(2));
+    }
+
+    #[test]
     fn rejects_roster_rollback_and_conflicting_same_version() {
         let (_, root, second) = fixture(2);
         let (_, _, first) = fixture(1);
-        let (_, _, conflicting) = fixture(2);
+        let (owner, _, mut conflicting) = fixture(2);
+        conflicting.payload.stream_id = "iroka:audit:conflicting".into();
+        conflicting.signature = owner.sign(&conflicting.signing_bytes().unwrap()).to_bytes().to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         activate_signed_witness_roster(&second, "owner:akefa", &root, &store, 1_100).unwrap();
         assert!(matches!(
