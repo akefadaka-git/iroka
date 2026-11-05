@@ -127,7 +127,11 @@ impl CheckpointBuilder {
             || head.first_sequence == 0
             || head.event_count == 0
             || head.first_sequence > head.last_sequence
-            || head.last_sequence.checked_sub(head.first_sequence).and_then(|v| v.checked_add(1)) != Some(head.event_count)
+            || head
+                .last_sequence
+                .checked_sub(head.first_sequence)
+                .and_then(|v| v.checked_add(1))
+                != Some(head.event_count)
         {
             return Err(CheckpointError::InvalidHead);
         }
@@ -168,7 +172,10 @@ impl CheckpointBuilder {
         let payload = CheckpointPayload {
             protocol: CHECKPOINT_PROTOCOL_V1.into(),
             stream_id: self.stream_id.clone(),
-            checkpoint_number: previous.checkpoint_number.checked_add(1).ok_or(CheckpointError::InvalidSequence)?,
+            checkpoint_number: previous
+                .checkpoint_number
+                .checked_add(1)
+                .ok_or(CheckpointError::InvalidSequence)?,
             first_sequence: previous.first_sequence,
             last_sequence: head.last_sequence,
             event_count: head.event_count,
@@ -238,12 +245,28 @@ mod tests {
     #[test]
     fn rejects_reversed_and_overflowing_sequence_ranges() {
         let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
-        let reversed = AuditHead { first_sequence: 2, last_sequence: 1, event_count: 1,
-            head_event_hash: [7; 32], chain_format: V1_CHAIN_FORMAT.into() };
-        assert_eq!(b.initial_v1_anchor(&reversed, 1), Err(CheckpointError::InvalidHead));
-        let overflow = AuditHead { first_sequence: 1, last_sequence: u64::MAX, event_count: 1,
-            head_event_hash: [7; 32], chain_format: V1_CHAIN_FORMAT.into() };
-        assert_eq!(b.initial_v1_anchor(&overflow, 1), Err(CheckpointError::InvalidHead));
+        let reversed = AuditHead {
+            first_sequence: 2,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [7; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        assert_eq!(
+            b.initial_v1_anchor(&reversed, 1),
+            Err(CheckpointError::InvalidHead)
+        );
+        let overflow = AuditHead {
+            first_sequence: 1,
+            last_sequence: u64::MAX,
+            event_count: 1,
+            head_event_hash: [7; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        assert_eq!(
+            b.initial_v1_anchor(&overflow, 1),
+            Err(CheckpointError::InvalidHead)
+        );
     }
 
     #[test]
