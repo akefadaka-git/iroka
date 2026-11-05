@@ -186,16 +186,28 @@ mod tests {
     use crate::audit_signer::{
         CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner,
     };
-    use crate::audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessLedger};
+    use crate::audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessLedger, WitnessReceiptSigner};
 
     fn roster() -> WitnessReceiptVerifier {
         let w1 = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]);
         let w2 = LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]);
         let w3 = LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]);
         WitnessReceiptVerifier::new(vec![
-            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "w1-key".into(), verifying_key: w1.key_for_test() },
-            AuthorizedWitness { witness_id: "w2".into(), signing_key_id: "w2-key".into(), verifying_key: w2.key_for_test() },
-            AuthorizedWitness { witness_id: "w3".into(), signing_key_id: "w3-key".into(), verifying_key: w3.key_for_test() },
+            AuthorizedWitness {
+                witness_id: "w1".into(),
+                signing_key_id: "w1-key".into(),
+                verifying_key: w1.key_for_test(),
+            },
+            AuthorizedWitness {
+                witness_id: "w2".into(),
+                signing_key_id: "w2-key".into(),
+                verifying_key: w2.key_for_test(),
+            },
+            AuthorizedWitness {
+                witness_id: "w3".into(),
+                signing_key_id: "w3-key".into(),
+                verifying_key: w3.key_for_test(),
+            },
         ]).unwrap()
     }
 
@@ -267,16 +279,22 @@ mod tests {
         let signer = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]);
         let key = signer.key_for_test();
         let roster = WitnessReceiptVerifier::new(vec![
-            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "w1-key".into(), verifying_key: key },
+            AuthorizedWitness {
+                witness_id: "w1".into(),
+                signing_key_id: "w1-key".into(),
+                verifying_key: key,
+            },
             AuthorizedWitness {
                 witness_id: "w2".into(),
                 signing_key_id: "w2-key".into(),
-                verifying_key: LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]).key_for_test(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32])
+                    .key_for_test(),
             },
             AuthorizedWitness {
                 witness_id: "w3".into(),
                 signing_key_id: "w3-key".into(),
-                verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]).key_for_test(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32])
+                    .key_for_test(),
             },
         ]).unwrap();
         let mut receipt = WitnessReceipt {
@@ -306,7 +324,8 @@ mod tests {
             AuthorizedWitness {
                 witness_id: "w3".into(),
                 signing_key_id: "k3".into(),
-                verifying_key: LocalWitnessTestSigner::from_test_seed("k3", [4; 32]).key_for_test(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("k3", [4; 32])
+                    .key_for_test(),
             },
         ]);
         assert!(matches!(result, Err(VerificationError::InvalidWitnessRoster)));
@@ -343,7 +362,11 @@ mod tests {
         let r1 = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
         let r2 = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
         let receipt_verifier = WitnessReceiptVerifier::new(vec![
-            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "w1-key".into(), verifying_key: witness_key },
+            AuthorizedWitness {
+                witness_id: "w1".into(),
+                signing_key_id: "w1-key".into(),
+                verifying_key: witness_key,
+            },
             AuthorizedWitness {
                 witness_id: "w2".into(),
                 signing_key_id: "w2-key".into(),
