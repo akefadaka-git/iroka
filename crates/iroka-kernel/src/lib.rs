@@ -1,7 +1,7 @@
-//! IROKA ZERO trusted-kernel foundation.
+//! IROKA ZERO trusted authorization-service foundation.
 //! Deterministic policy evaluation plus explicit identity, governance and
-//! assurance contracts. Concrete production adapters remain independently
-//! reviewed trust-boundary components.
+//! assurance contracts. This crate is not the native microkernel; production
+//! adapters remain independently reviewed trust-boundary components.
 
 mod assurance;
 mod audit_store;
