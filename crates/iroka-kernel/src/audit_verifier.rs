@@ -98,10 +98,14 @@ pub struct WitnessRosterState {
 }
 
 impl WitnessRosterState {
-    pub fn unprovisioned() -> Self { Self { verifier: None } }
+    pub fn unprovisioned() -> Self {
+        Self { verifier: None }
+    }
 
     fn verifier(&self) -> Result<&WitnessReceiptVerifier, VerificationError> {
-        self.verifier.as_ref().ok_or(VerificationError::WitnessRosterUnprovisioned)
+        self.verifier
+            .as_ref()
+            .ok_or(VerificationError::WitnessRosterUnprovisioned)
     }
 
     #[cfg(test)]
@@ -238,6 +242,35 @@ mod tests {
     fn unprovisioned_roster_has_no_verification_authority() {
         let state = WitnessRosterState::unprovisioned();
         assert!(matches!(state.verifier(), Err(VerificationError::WitnessRosterUnprovisioned)));
+    }
+
+    #[test]
+    fn checkpoint_verification_fails_closed_when_roster_is_unprovisioned() {
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [1; 32]);
+        let checkpoint_verifier = Ed25519CheckpointVerifier::new(vec![(
+            "cp-key".into(),
+            checkpoint_signer.verifying_key(),
+        )]);
+        let builder = CheckpointBuilder::new("stream:q", "cp-key");
+        let head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [8; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let signed = checkpoint_signer
+            .sign_checkpoint(&builder.initial_v1_anchor(&head, 1).unwrap())
+            .unwrap();
+        assert_eq!(
+            verify_checkpoint_and_quorum(
+                &signed,
+                &checkpoint_verifier,
+                &[],
+                &WitnessRosterState::unprovisioned(),
+            ),
+            Err(VerificationError::WitnessRosterUnprovisioned)
+        );
     }
 
     #[test]
