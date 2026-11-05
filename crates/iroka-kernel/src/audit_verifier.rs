@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn unprovisioned_roster_has_no_verification_authority() {
         let state = WitnessRosterState::unprovisioned();
-        assert!(matches!(state.verifier(), Err(VerificationError::WitnessRosterUnprovisioned)));
+        assert!(matches!(state.verifier_at(100), Err(VerificationError::WitnessRosterUnprovisioned)));
     }
 
     #[test]
@@ -307,6 +307,22 @@ mod tests {
             ),
             Err(VerificationError::WitnessRosterUnprovisioned)
         );
+    }
+
+    #[test]
+    fn activated_roster_rejects_wrong_stream_and_expired_state() {
+        let verifier = WitnessReceiptVerifier::new(vec![
+            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "k1".into(), verifying_key: LocalWitnessTestSigner::from_test_seed("k1", [2; 32]).key_for_test() },
+            AuthorizedWitness { witness_id: "w2".into(), signing_key_id: "k2".into(), verifying_key: LocalWitnessTestSigner::from_test_seed("k2", [3; 32]).key_for_test() },
+            AuthorizedWitness { witness_id: "w3".into(), signing_key_id: "k3".into(), verifying_key: LocalWitnessTestSigner::from_test_seed("k3", [4; 32]).key_for_test() },
+        ]).unwrap();
+        let state = WitnessRosterState::provisioned_from_manifest(
+            verifier, "stream:authorized".into(), 4, 500,
+        );
+        assert_eq!(state.version(), Some(4));
+        assert_eq!(state.authorized_stream(), Some("stream:authorized"));
+        assert_eq!(state.validate_stream("stream:other"), Err(VerificationError::WitnessRosterScopeMismatch));
+        assert!(matches!(state.verifier_at(500), Err(VerificationError::WitnessRosterExpired)));
     }
 
     #[test]
