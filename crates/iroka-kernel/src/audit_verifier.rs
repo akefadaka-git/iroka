@@ -237,6 +237,22 @@ mod tests {
     }
 
     #[test]
+    fn rejects_a_valid_signature_from_a_key_bound_to_another_witness() {
+        use crate::audit_witness::WitnessReceiptSigner;
+        let signer = LocalWitnessTestSigner::from_test_seed("shared-key", [9; 32]);
+        let verifier = WitnessReceiptVerifier::new(vec![("shared-key".into(), "authorized-witness".into(), signer.key_for_test())]);
+        let mut receipt = WitnessReceipt {
+            witness_id: "forged-witness".into(), stream_id: "stream:x".into(),
+            checkpoint_number: 1, checkpoint_digest: [1; 32], last_sequence: 1,
+            head_event_hash: [2; 32], previous_checkpoint_digest: [0; 32],
+            previous_receipt_digest: [0; 32], witnessed_at: 1, log_index: 1,
+            signing_key_id: "shared-key".into(), signature: [0; 64],
+        };
+        receipt.signature = signer.sign_receipt(&receipt).unwrap();
+        assert_eq!(verifier.verify(&receipt), Err(VerificationError::InvalidReceiptSignature));
+    }
+
+    #[test]
     fn detects_local_rollback_below_external_high_water_mark() {
         let builder = CheckpointBuilder::new("stream:q", "cp-key");
         let cp = builder
