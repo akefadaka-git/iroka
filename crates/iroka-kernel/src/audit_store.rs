@@ -320,6 +320,11 @@ mod tests {
         s.append_event(&event("event:1")).unwrap();
         s.append_event(&event("event:2")).unwrap();
         assert_eq!(s.head().unwrap().0, 2);
+        let snapshot = s.checkpoint_head().unwrap();
+        assert_eq!(snapshot.first_sequence, 1);
+        assert_eq!(snapshot.last_sequence, 2);
+        assert_eq!(snapshot.event_count, 2);
+        assert_eq!(snapshot.chain_format, crate::audit_checkpoint::V1_CHAIN_FORMAT);
         assert_eq!(s.verify_integrity(), Ok(()));
     }
     #[test]
