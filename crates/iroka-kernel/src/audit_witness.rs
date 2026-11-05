@@ -5,6 +5,7 @@
 use crate::audit_checkpoint::CheckpointPayload;
 use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint, SignerError};
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, sync::Mutex};
 
 const RECEIPT_DOMAIN: &[u8] = b"IROKA:G11:AUDIT-WITNESS-RECEIPT:V1\0";
@@ -30,6 +31,7 @@ pub struct WitnessReceipt {
     pub last_sequence: u64,
     pub head_event_hash: [u8; 32],
     pub previous_checkpoint_digest: [u8; 32],
+    pub previous_receipt_digest: [u8; 32],
     pub witnessed_at: u64,
     pub log_index: u64,
     pub signing_key_id: String,
@@ -37,6 +39,14 @@ pub struct WitnessReceipt {
 }
 
 impl WitnessReceipt {
+    pub fn digest(&self) -> [u8; 32] {
+        let mut h = Sha256::new();
+        h.update(b"IROKA:G11:WITNESS-RECEIPT-DIGEST:V1\\0");
+        h.update(self.signing_bytes());
+        h.update(self.signature);
+        h.finalize().into()
+    }
+
     pub fn signing_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(256);
         out.extend_from_slice(RECEIPT_DOMAIN);
@@ -47,6 +57,7 @@ impl WitnessReceipt {
         out.extend_from_slice(&self.last_sequence.to_be_bytes());
         out.extend_from_slice(&self.head_event_hash);
         out.extend_from_slice(&self.previous_checkpoint_digest);
+        out.extend_from_slice(&self.previous_receipt_digest);
         out.extend_from_slice(&self.witnessed_at.to_be_bytes());
         out.extend_from_slice(&self.log_index.to_be_bytes());
         put(&mut out, self.signing_key_id.as_bytes());
@@ -145,6 +156,7 @@ impl WitnessLedger for MemoryWitnessLedger {
             last_sequence: payload.last_sequence,
             head_event_hash: payload.head_event_hash,
             previous_checkpoint_digest: payload.previous_checkpoint_digest,
+            previous_receipt_digest: history.last().map(WitnessReceipt::digest).unwrap_or([0; 32]),
             witnessed_at,
             log_index: history.len() as u64 + 1,
             signing_key_id: signer.key_id().to_string(),
