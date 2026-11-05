@@ -93,8 +93,8 @@ impl WitnessReceiptVerifier {
 }
 
 /// Runtime trust state for the independent witness roster.
-/// Production callers can only construct the unprovisioned state until a separately
-/// reviewed Owner-authorized roster activation path is implemented.
+/// Production callers can construct the unprovisioned state or activate a verified
+/// Owner-signed manifest using a separately provisioned Owner trust anchor.
 pub struct WitnessRosterState {
     verifier: Option<WitnessReceiptVerifier>,
     stream_id: Option<String>,
