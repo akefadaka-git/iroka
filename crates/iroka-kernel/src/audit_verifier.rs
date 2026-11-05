@@ -25,11 +25,11 @@ pub enum LocalReconciliation {
 }
 
 pub struct WitnessReceiptVerifier {
-    trusted_keys: Vec<(String, VerifyingKey)>,
+    trusted_keys: Vec<(String, String, VerifyingKey)>,
 }
 
 impl WitnessReceiptVerifier {
-    pub fn new(trusted_keys: Vec<(String, VerifyingKey)>) -> Self {
+    pub fn new(trusted_keys: Vec<(String, String, VerifyingKey)>) -> Self {
         Self { trusted_keys }
     }
 
@@ -37,8 +37,8 @@ impl WitnessReceiptVerifier {
         let key = self
             .trusted_keys
             .iter()
-            .find(|(id, _)| id == &receipt.signing_key_id)
-            .map(|(_, key)| key)
+            .find(|(id, witness_id, _)| id == &receipt.signing_key_id && witness_id == &receipt.witness_id)
+            .map(|(_, _, key)| key)
             .ok_or(VerificationError::InvalidReceiptSignature)?;
         key.verify(
             &receipt.signing_bytes(),
@@ -122,20 +122,33 @@ pub fn verify_receipt_chain(
         return Ok(());
     };
     let witness_id = first.witness_id.as_str();
-    let mut previous_digest = [0; 32];
-    let mut expected_index = 1u64;
-    for receipt in receipts {
+    let stream_id = first.stream_id.as_str();
+    let mut previous_receipt_digest = [0; 32];
+    let mut previous_checkpoint_digest = [0; 32];
+    let mut previous_sequence = 0u64;
+    let mut previous_checkpoint_number = 0u64;
+    let mut previous_witnessed_at = 0u64;
+    for (offset, receipt) in receipts.iter().enumerate() {
         verifier.verify(receipt)?;
-        if receipt.witness_id != witness_id
+        let expected_index = u64::try_from(offset + 1)
+            .map_err(|_| VerificationError::ReceiptCheckpointMismatch)?;
+        let expected_checkpoint = previous_checkpoint_number.checked_add(1)
+            .ok_or(VerificationError::ReceiptCheckpointMismatch)?;
+        if receipt.witness_id != witness_id || receipt.stream_id != stream_id
             || receipt.log_index != expected_index
-            || receipt.previous_receipt_digest != previous_digest
+            || receipt.checkpoint_number != expected_checkpoint
+            || receipt.previous_receipt_digest != previous_receipt_digest
+            || receipt.previous_checkpoint_digest != previous_checkpoint_digest
+            || receipt.last_sequence <= previous_sequence
+            || receipt.witnessed_at < previous_witnessed_at
         {
             return Err(VerificationError::ReceiptCheckpointMismatch);
         }
-        previous_digest = receipt.digest();
-        expected_index = expected_index
-            .checked_add(1)
-            .ok_or(VerificationError::ReceiptCheckpointMismatch)?;
+        previous_receipt_digest = receipt.digest();
+        previous_checkpoint_digest = receipt.checkpoint_digest;
+        previous_sequence = receipt.last_sequence;
+        previous_checkpoint_number = receipt.checkpoint_number;
+        previous_witnessed_at = receipt.witnessed_at;
     }
     Ok(())
 }
@@ -175,11 +188,11 @@ mod tests {
         let r2 = ledger2.accept(&signed, &cp_verifier, 2).unwrap();
         let receipt_verifier = WitnessReceiptVerifier::new(vec![
             (
-                "w1-key".into(),
+                "w1-key".into(), "w1".into(),
                 LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]).key_for_test(),
             ),
             (
-                "w2-key".into(),
+                "w2-key".into(), "w2".into(),
                 LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]).key_for_test(),
             ),
         ]);
@@ -219,7 +232,7 @@ mod tests {
         let ledger = MemoryWitnessLedger::new("witness-1", Box::new(witness_signer));
         let r1 = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
         let r2 = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
-        let receipt_verifier = WitnessReceiptVerifier::new(vec![("w-key".into(), witness_key)]);
+        let receipt_verifier = WitnessReceiptVerifier::new(vec![("w-key".into(), "witness-1".into(), witness_key)]);
         assert_eq!(verify_receipt_chain(&[r1, r2], &receipt_verifier), Ok(()));
     }
 
