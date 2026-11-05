@@ -1,7 +1,7 @@
 # G11 / K-04 — Audit Integrity and Independent Checkpoint Design
 
 **Document ID:** IROKA-G11-K04-DESIGN-001  
-**Status:** A2 design proposal — Owner decisions required before implementation  
+**Status:** A2 design approved; bounded A3 pilot implementation authorized (production gates remain open)  
 **Date:** 2026-11-05  
 **Repository:** `akefadaka-git/iroka`  
 **Design branch:** `architecture/k04-independent-audit-checkpoints`  
@@ -310,7 +310,7 @@ Recovery must restore event payloads from a separately protected backup and repl
 - Human-facing times should follow the approved Ethiopia profile and Ethiopian-calendar presentation rules; machine timestamps must have an explicit UTC representation and must not collapse date-only values into instants.
 - Witness retention, lawful access, cross-border data handling and evidence export must be assessed independently for each African regional profile. Do not infer that one Africa-wide policy is valid for every jurisdiction.
 
-## 11. Implementation work packages — gated, not yet authorized
+## 11. Implementation work packages — bounded A3 pilot authorized
 
 | Package | Scope | Required output |
 |---|---|---|
@@ -322,7 +322,7 @@ Recovery must restore event payloads from a separately protected backup and repl
 | K04-06 | Operations and assurance | Monitoring, backup/restore exercises, incident runbooks and exact-SHA evidence |
 | K04-07 | Event coverage | Inventory and tests proving audit emission for each protected side effect |
 
-No package is authorized for implementation by this design record. A separate Owner decision must open A3 for a bounded package.
+Bounded A3 implementation is authorized by the Owner decision record `docs/architecture/G11-K04-OWNER-DECISIONS-001.md`. Production integration, external service provisioning and deployment remain separately gated.
 
 ## 12. Required verification and acceptance matrix
 
@@ -357,7 +357,7 @@ The following are explicit decisions; recommendations are not approvals.
 
 | Decision | Recommended default | Owner disposition |
 |---|---|---|
-| K04-OD01 — Witness topology | Three independent witnesses; 2-of-3 receipt quorum | PENDING |
+| K04-OD01 — Witness topology | Three independent witnesses; 2-of-3 receipt quorum | APPROVED — see Owner Decision Record |
 | K04-OD02 — Independence | Separate security administration, cloud/account boundary, credentials, keys and backup operators | PENDING |
 | K04-OD03 — Checkpoint cadence | Configurable time and event-count thresholds; numeric limits set by risk tier | PENDING |
 | K04-OD04 — Freshness enforcement | High-risk protected operations require a current quorum checkpoint within an approved maximum staleness window | PENDING |
@@ -392,7 +392,7 @@ K-04 may be proposed for closure only when:
 - Checkpoint signing custody: **MISSING**.
 - Anti-equivocation and multi-witness quorum: **MISSING**.
 - Rollback/restore reconciliation: **MISSING**.
-- K-04: **OPEN — A2 DESIGN PROPOSAL AWAITING OWNER DISPOSITION**.
+- K-04: **A3 PILOT IMPLEMENTATION IN PROGRESS — PRODUCTION ACCEPTANCE OPEN**.
 - A2 overall: **PARTIAL — NOT CLOSED**.
 - Production readiness: **NOT ESTABLISHED**.
 
@@ -402,4 +402,4 @@ This proposal is committed on `architecture/k04-independent-audit-checkpoints`, 
 
 The branch `fix/a2-trust-concurrency-workflow` is not modified by this work. The verified source commit `d7a7e9d8f9736e6145457103470c0070d2851112` and successful workflow run [#78](https://github.com/akefadaka-git/iroka/actions/runs/41983074683) remain the prior A4 evidence.
 
-This document does not authorize code changes, database migrations, external service procurement, signing-key creation, witness deployment, PR merge, production deployment or K-04/A2 closure.
+The Owner decision record authorizes bounded A3 pilot code changes only. This document does not authorize database migrations, external service procurement, production signing-key creation, live witness deployment, PR merge, production deployment or K-04/A2 closure.
