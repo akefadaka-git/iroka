@@ -164,7 +164,9 @@ impl SqliteAuditSink {
             .connection
             .lock()
             .map_err(|_| AuditStoreError::Unavailable)?;
-        let tx = c.unchecked_transaction().map_err(|_| AuditStoreError::Unavailable)?;
+        let tx = c
+            .unchecked_transaction()
+            .map_err(|_| AuditStoreError::Unavailable)?;
         verify_connection(&tx)?;
         let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = tx
             .query_row(
