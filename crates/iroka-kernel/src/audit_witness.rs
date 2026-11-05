@@ -325,16 +325,6 @@ impl SqliteWitnessLedger {
         Self::from_connection(connection, witness_id.into(), signer)
     }
 
-    #[cfg(test)]
-    fn open_in_memory(
-        witness_id: impl Into<String>,
-        signer: Box<dyn WitnessReceiptSigner>,
-    ) -> Result<Self, WitnessError> {
-        let connection =
-            Connection::open_in_memory().map_err(|_| WitnessError::StorageUnavailable)?;
-        Self::from_connection(connection, witness_id.into(), signer)
-    }
-
     fn from_connection(
         connection: Connection,
         witness_id: String,
