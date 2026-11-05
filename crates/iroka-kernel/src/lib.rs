@@ -37,8 +37,7 @@ pub use audit_signer::{
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use audit_verifier::{
     reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain, LocalReconciliation,
-    AuthorizedWitness, VerificationError, WitnessReceiptVerifier, AUTHORIZED_WITNESS_COUNT,
-    REQUIRED_WITNESS_QUORUM,
+    VerificationError, WitnessRosterState, AUTHORIZED_WITNESS_COUNT, REQUIRED_WITNESS_QUORUM,
 };
 pub use audit_witness::{
     LocalWitnessTestSigner, MemoryWitnessLedger, SqliteWitnessLedger, WitnessError, WitnessLedger,
