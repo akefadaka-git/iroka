@@ -284,6 +284,51 @@ mod tests {
     }
 
     #[test]
+    fn activated_signed_roster_verifies_the_approved_two_of_three_quorum() {
+        use crate::audit_checkpoint::{AuditHead, CheckpointBuilder, V1_CHAIN_FORMAT};
+        use crate::audit_signer::{CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner};
+        use crate::audit_verifier::verify_checkpoint_and_quorum;
+        use crate::audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessLedger};
+
+        let (_, root, manifest) = fixture(1);
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let state = activate_signed_witness_roster(&manifest, &root, &store, 1_100).unwrap();
+
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("checkpoint-key", [65; 32]);
+        let checkpoint_verifier = Ed25519CheckpointVerifier::new(vec![(
+            "checkpoint-key".into(), checkpoint_signer.verifying_key(),
+        )]);
+        let builder = CheckpointBuilder::new("iroka:audit:primary", "checkpoint-key");
+        let head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [7; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let signed = checkpoint_signer.sign_checkpoint(
+            &builder.initial_v1_anchor(&head, 1_100).unwrap(),
+        ).unwrap();
+
+        let witness_one = MemoryWitnessLedger::new(
+            "witness-1",
+            Box::new(LocalWitnessTestSigner::from_test_seed("witness-key-1", [62; 32])),
+        );
+        let witness_two = MemoryWitnessLedger::new(
+            "witness-2",
+            Box::new(LocalWitnessTestSigner::from_test_seed("witness-key-2", [63; 32])),
+        );
+        let receipt_one = witness_one.accept(&signed, &checkpoint_verifier, 1_101).unwrap();
+        let receipt_two = witness_two.accept(&signed, &checkpoint_verifier, 1_101).unwrap();
+        assert_eq!(
+            verify_checkpoint_and_quorum(
+                &signed, &checkpoint_verifier, &[receipt_one, receipt_two], &state, 1_102,
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
     fn rejects_manifest_tampering_and_wrong_owner() {
         let (_, root, manifest) = fixture(1);
         let store = SqliteSecurityStore::open_in_memory().unwrap();
