@@ -1,7 +1,7 @@
 # G11 / K-04 — Audit Integrity and Independent Checkpoint Design
 
 **Document ID:** IROKA-G11-K04-DESIGN-001  
-**Status:** A2 design proposal — Owner decisions required before implementation  
+**Status:** A2 design approved; bounded A3 pilot implementation authorized (production gates remain open)  
 **Date:** 2026-11-05  
 **Repository:** `akefadaka-git/iroka`  
 **Design branch:** `architecture/k04-independent-audit-checkpoints`  
@@ -310,7 +310,7 @@ Recovery must restore event payloads from a separately protected backup and repl
 - Human-facing times should follow the approved Ethiopia profile and Ethiopian-calendar presentation rules; machine timestamps must have an explicit UTC representation and must not collapse date-only values into instants.
 - Witness retention, lawful access, cross-border data handling and evidence export must be assessed independently for each African regional profile. Do not infer that one Africa-wide policy is valid for every jurisdiction.
 
-## 11. Implementation work packages — gated, not yet authorized
+## 11. Implementation work packages — bounded A3 pilot authorized
 
 | Package | Scope | Required output |
 |---|---|---|
@@ -322,7 +322,7 @@ Recovery must restore event payloads from a separately protected backup and repl
 | K04-06 | Operations and assurance | Monitoring, backup/restore exercises, incident runbooks and exact-SHA evidence |
 | K04-07 | Event coverage | Inventory and tests proving audit emission for each protected side effect |
 
-No package is authorized for implementation by this design record. A separate Owner decision must open A3 for a bounded package.
+Bounded A3 implementation is authorized by the Owner decision record `docs/architecture/G11-K04-OWNER-DECISIONS-001.md`. Production integration, external service provisioning and deployment remain separately gated.
 
 ## 12. Required verification and acceptance matrix
 
@@ -351,24 +351,24 @@ No package is authorized for implementation by this design record. A separate Ow
 
 All tests must run against exact source SHAs and named target profiles. Hosted Rust tests do not certify independent witness operations, HSM custody, production deployment or bare-metal behavior.
 
-## 13. Owner decisions required
+## 13. Owner decisions — approved dispositions
 
-The following are explicit decisions; recommendations are not approvals.
+All twelve architecture/policy dispositions below are approved. The binding details and remaining production limitations are recorded in `docs/architecture/G11-K04-OWNER-DECISIONS-001.md`.
 
 | Decision | Recommended default | Owner disposition |
 |---|---|---|
-| K04-OD01 — Witness topology | Three independent witnesses; 2-of-3 receipt quorum | PENDING |
-| K04-OD02 — Independence | Separate security administration, cloud/account boundary, credentials, keys and backup operators | PENDING |
-| K04-OD03 — Checkpoint cadence | Configurable time and event-count thresholds; numeric limits set by risk tier | PENDING |
-| K04-OD04 — Freshness enforcement | High-risk protected operations require a current quorum checkpoint within an approved maximum staleness window | PENDING |
-| K04-OD05 — Outage policy | Local append continues; alert and degrade; block designated high-risk operations after the approved staleness limit | PENDING |
-| K04-OD06 — Signer custody | Separate non-exportable HSM/KMS or offline signing service; no application-host private key | PENDING |
-| K04-OD07 — Witness receipt storage | Append-only transparency log or retention-locked storage with exportable signed receipts | PENDING |
-| K04-OD08 — Stream and tenant model | One provisioned stream for pilot; define authenticated tenant stream partitioning before multi-tenant rollout | PENDING |
-| K04-OD09 — Event-chain evolution | Anchor V1 as-is; introduce versioned V2 including stream and sequence in the hash input; never rewrite V1 history | PENDING |
-| K04-OD10 — Recovery authority | Separate two-person recovery approval; never reset witness high-water marks | PENDING |
-| K04-OD11 — Retention and jurisdiction | Approve retention, evidence access and data residency per operating jurisdiction | PENDING |
-| K04-OD12 — Blockchain | Do not introduce blockchain for K-04 unless a separate threat/benefit analysis demonstrates a requirement not met by independent witnesses | PENDING |
+| K04-OD01 — Witness topology | Three independent witnesses; 2-of-3 receipt quorum | APPROVED — see Owner Decision Record |
+| K04-OD02 — Independence | Separate security administration, cloud/account boundary, credentials, keys and backup operators | APPROVED — see Owner Decision Record |
+| K04-OD03 — Checkpoint cadence | Configurable time and event-count thresholds; numeric limits set by risk tier | APPROVED — see Owner Decision Record |
+| K04-OD04 — Freshness enforcement | High-risk protected operations require a current quorum checkpoint within an approved maximum staleness window | APPROVED — see Owner Decision Record |
+| K04-OD05 — Outage policy | Local append continues; alert and degrade; block designated high-risk operations after the approved staleness limit | APPROVED — see Owner Decision Record |
+| K04-OD06 — Signer custody | Separate non-exportable HSM/KMS or offline signing service; no application-host private key | APPROVED — see Owner Decision Record |
+| K04-OD07 — Witness receipt storage | Append-only transparency log or retention-locked storage with exportable signed receipts | APPROVED — see Owner Decision Record |
+| K04-OD08 — Stream and tenant model | One provisioned stream for pilot; define authenticated tenant stream partitioning before multi-tenant rollout | APPROVED — see Owner Decision Record |
+| K04-OD09 — Event-chain evolution | Anchor V1 as-is; introduce versioned V2 including stream and sequence in the hash input; never rewrite V1 history | APPROVED — see Owner Decision Record |
+| K04-OD10 — Recovery authority | Separate two-person recovery approval; never reset witness high-water marks | APPROVED — see Owner Decision Record |
+| K04-OD11 — Retention and jurisdiction | Approve retention, evidence access and data residency per operating jurisdiction | APPROVED — see Owner Decision Record |
+| K04-OD12 — Blockchain | Do not introduce blockchain for K-04 unless a separate threat/benefit analysis demonstrates a requirement not met by independent witnesses | APPROVED — see Owner Decision Record |
 
 ## 14. K-04 exit criteria
 
@@ -387,12 +387,12 @@ K-04 may be proposed for closure only when:
 ## 15. Current gate status
 
 - Existing local hash chain: **IMPLEMENTED — LOCAL TAMPER EVIDENCE ONLY**.
-- External signed checkpoint protocol: **DESIGNED — NOT IMPLEMENTED**.
-- Independent witness ledger: **MISSING**.
-- Checkpoint signing custody: **MISSING**.
-- Anti-equivocation and multi-witness quorum: **MISSING**.
-- Rollback/restore reconciliation: **MISSING**.
-- K-04: **OPEN — A2 DESIGN PROPOSAL AWAITING OWNER DISPOSITION**.
+- External signed checkpoint protocol: **PILOT IMPLEMENTED — PRODUCTION HARDENING OPEN**.
+- Independent witness ledger: **DURABLE SQLITE ADAPTER IMPLEMENTED — SEPARATE DEPLOYMENT / TRANSPORT MISSING**.
+- Checkpoint signing custody: **PROVIDER-NEUTRAL BOUNDARY IMPLEMENTED — PRODUCTION CUSTODY MISSING**.
+- Anti-equivocation and quorum verification: **PILOT IMPLEMENTED — CROSS-WITNESS GOSSIP / INDEPENDENCE EVIDENCE MISSING**.
+- Rollback/restore reconciliation: **LOCAL HIGH-WATER VERIFICATION IMPLEMENTED — FULL RESTORE ORCHESTRATION MISSING**.
+- K-04: **A3 PILOT IMPLEMENTED AND VERIFIED — PRODUCTION ACCEPTANCE OPEN**.
 - A2 overall: **PARTIAL — NOT CLOSED**.
 - Production readiness: **NOT ESTABLISHED**.
 
@@ -402,4 +402,4 @@ This proposal is committed on `architecture/k04-independent-audit-checkpoints`, 
 
 The branch `fix/a2-trust-concurrency-workflow` is not modified by this work. The verified source commit `d7a7e9d8f9736e6145457103470c0070d2851112` and successful workflow run [#78](https://github.com/akefadaka-git/iroka/actions/runs/41983074683) remain the prior A4 evidence.
 
-This document does not authorize code changes, database migrations, external service procurement, signing-key creation, witness deployment, PR merge, production deployment or K-04/A2 closure.
+The Owner decision record authorizes bounded A3 pilot code changes only. This document does not authorize changes to the primary audit database schema, external service procurement, production signing-key creation, live witness deployment, PR merge, production deployment or K-04/A2 closure.
