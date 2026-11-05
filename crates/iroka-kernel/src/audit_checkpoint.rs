@@ -48,15 +48,18 @@ impl CheckpointPayload {
         if self.protocol != CHECKPOINT_PROTOCOL_V1 || self.stream_id.trim().is_empty() {
             return Err(CheckpointError::InvalidStream);
         }
-        if self.checkpoint_number == 0 || self.first_sequence != 1
+        if self.checkpoint_number == 0
+            || self.first_sequence != 1
             || self.last_sequence < self.first_sequence
         {
             return Err(CheckpointError::InvalidSequence);
         }
-        if self.event_count == 0 || self.event_count != self.last_sequence - self.first_sequence + 1 {
+        if self.event_count == 0 || self.event_count != self.last_sequence - self.first_sequence + 1
+        {
             return Err(CheckpointError::InvalidCount);
         }
-        if self.head_event_hash == [0; 32] || self.chain_format != V1_CHAIN_FORMAT
+        if self.head_event_hash == [0; 32]
+            || self.chain_format != V1_CHAIN_FORMAT
             || self.hash_algorithm != HASH_SHA256
         {
             return Err(CheckpointError::InvalidHead);
@@ -107,7 +110,10 @@ pub struct CheckpointBuilder {
 
 impl CheckpointBuilder {
     pub fn new(stream_id: impl Into<String>, signing_key_id: impl Into<String>) -> Self {
-        Self { stream_id: stream_id.into(), signing_key_id: signing_key_id.into() }
+        Self {
+            stream_id: stream_id.into(),
+            signing_key_id: signing_key_id.into(),
+        }
     }
 
     /// Builds the first checkpoint that anchors an existing V1 chain without rewriting it.
@@ -116,8 +122,10 @@ impl CheckpointBuilder {
         head: &AuditHead,
         created_at: u64,
     ) -> Result<CheckpointPayload, CheckpointError> {
-        if head.chain_format != V1_CHAIN_FORMAT || head.last_sequence == 0
-            || head.first_sequence == 0 || head.event_count == 0
+        if head.chain_format != V1_CHAIN_FORMAT
+            || head.last_sequence == 0
+            || head.first_sequence == 0
+            || head.event_count == 0
             || head.last_sequence - head.first_sequence + 1 != head.event_count
         {
             return Err(CheckpointError::InvalidHead);
@@ -147,7 +155,8 @@ impl CheckpointBuilder {
         created_at: u64,
     ) -> Result<CheckpointPayload, CheckpointError> {
         previous.validate()?;
-        if previous.stream_id != self.stream_id || head.last_sequence <= previous.last_sequence
+        if previous.stream_id != self.stream_id
+            || head.last_sequence <= previous.last_sequence
             || head.first_sequence != previous.first_sequence
             || head.event_count != head.last_sequence - head.first_sequence + 1
             || head.chain_format != previous.chain_format
@@ -177,14 +186,30 @@ fn cbor_head(out: &mut Vec<u8>, major: u8, value: u64) {
     let prefix = major << 5;
     match value {
         0..=23 => out.push(prefix | value as u8),
-        24..=0xff => { out.push(prefix | 24); out.push(value as u8); }
-        0x100..=0xffff => { out.push(prefix | 25); out.extend_from_slice(&(value as u16).to_be_bytes()); }
-        0x1_0000..=0xffff_ffff => { out.push(prefix | 26); out.extend_from_slice(&(value as u32).to_be_bytes()); }
-        _ => { out.push(prefix | 27); out.extend_from_slice(&value.to_be_bytes()); }
+        24..=0xff => {
+            out.push(prefix | 24);
+            out.push(value as u8);
+        }
+        0x100..=0xffff => {
+            out.push(prefix | 25);
+            out.extend_from_slice(&(value as u16).to_be_bytes());
+        }
+        0x1_0000..=0xffff_ffff => {
+            out.push(prefix | 26);
+            out.extend_from_slice(&(value as u32).to_be_bytes());
+        }
+        _ => {
+            out.push(prefix | 27);
+            out.extend_from_slice(&value.to_be_bytes());
+        }
     }
 }
-fn cbor_array(out: &mut Vec<u8>, n: u64) { cbor_head(out, 4, n); }
-fn cbor_uint(out: &mut Vec<u8>, n: u64) { cbor_head(out, 0, n); }
+fn cbor_array(out: &mut Vec<u8>, n: u64) {
+    cbor_head(out, 4, n);
+}
+fn cbor_uint(out: &mut Vec<u8>, n: u64) {
+    cbor_head(out, 0, n);
+}
 fn cbor_text(out: &mut Vec<u8>, value: &str) {
     cbor_head(out, 3, value.len() as u64);
     out.extend_from_slice(value.as_bytes());
@@ -199,8 +224,13 @@ mod tests {
     use super::*;
 
     fn head(n: u64, hash: u8) -> AuditHead {
-        AuditHead { first_sequence: 1, last_sequence: n, event_count: n,
-            head_event_hash: [hash; 32], chain_format: V1_CHAIN_FORMAT.into() }
+        AuditHead {
+            first_sequence: 1,
+            last_sequence: n,
+            event_count: n,
+            head_event_hash: [hash; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        }
     }
 
     #[test]
