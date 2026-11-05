@@ -17,6 +17,9 @@ mod security_store;
 mod service;
 mod trust_lifecycle;
 
+#[cfg(all(feature = "dev-no-revocations", not(test)))]
+compile_error!("dev-no-revocations is restricted to test builds");
+
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
