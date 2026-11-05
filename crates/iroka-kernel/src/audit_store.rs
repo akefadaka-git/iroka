@@ -164,8 +164,9 @@ impl SqliteAuditSink {
             .connection
             .lock()
             .map_err(|_| AuditStoreError::Unavailable)?;
-        verify_connection(&c)?;
-        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = c
+        let tx = c.unchecked_transaction().map_err(|_| AuditStoreError::Unavailable)?;
+        verify_connection(&tx)?;
+        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = tx
             .query_row(
                 "SELECT MIN(sequence), MAX(sequence), COUNT(*),
              (SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1)
@@ -174,6 +175,7 @@ impl SqliteAuditSink {
                 |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
             )
             .map_err(|_| AuditStoreError::Unavailable)?;
+        tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
         if row.2 == 0 {
             return Ok(AuditHead {
                 first_sequence: 0,
