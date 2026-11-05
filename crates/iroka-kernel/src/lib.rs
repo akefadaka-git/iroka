@@ -4,6 +4,11 @@
 //! adapters remain independently reviewed trust-boundary components.
 
 mod assurance;
+mod audit_checkpoint;
+mod audit_operations;
+mod audit_signer;
+mod audit_verifier;
+mod audit_witness;
 mod audit_store;
 mod decision;
 #[cfg(test)]
@@ -21,6 +26,11 @@ mod trust_lifecycle;
 compile_error!("dev-no-revocations is restricted to test builds");
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
+pub use audit_checkpoint::{AuditHead, CheckpointBuilder, CheckpointError, CheckpointPayload};
+pub use audit_operations::{assess_anchoring, checkpoint_due, AnchoringAssessment, AnchoringState, CheckpointPolicy};
+pub use audit_signer::{CheckpointSignatureVerifier, CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner, SignedCheckpoint, SignerError};
+pub use audit_verifier::{reconcile_local_head, verify_checkpoint_and_quorum, LocalReconciliation, VerificationError, WitnessReceiptVerifier};
+pub use audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
