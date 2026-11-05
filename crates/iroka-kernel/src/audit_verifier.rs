@@ -6,11 +6,18 @@ use crate::audit_witness::WitnessReceipt;
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use std::collections::BTreeSet;
 
+/// The Owner-approved roster has exactly three independently administered witnesses.
+pub const AUTHORIZED_WITNESS_COUNT: usize = 3;
+/// OD01 requires two distinct authorized witnesses for an accepted checkpoint.
+pub const REQUIRED_WITNESS_QUORUM: usize = 2;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VerificationError {
     InvalidCheckpoint,
     InvalidCheckpointSignature,
     InvalidReceiptSignature,
+    InvalidWitnessRoster,
+    UnauthorizedWitness,
     WrongStream,
     ReceiptCheckpointMismatch,
     DuplicateWitness,
@@ -24,36 +31,71 @@ pub enum LocalReconciliation {
     LocalAheadOfCheckpoint,
 }
 
+/// One explicit binding between a provisioned witness identity, its key identifier,
+/// and the public key authorized to sign receipts for that identity.
+pub struct AuthorizedWitness {
+    pub witness_id: String,
+    pub signing_key_id: String,
+    pub verifying_key: VerifyingKey,
+}
+
 pub struct WitnessReceiptVerifier {
-    trusted_keys: Vec<(String, VerifyingKey)>,
+    roster: Vec<AuthorizedWitness>,
 }
 
 impl WitnessReceiptVerifier {
-    pub fn new(trusted_keys: Vec<(String, VerifyingKey)>) -> Self {
-        Self { trusted_keys }
+    /// Construct the fixed Owner-approved 3-witness roster.
+    ///
+    /// Rejects incomplete/oversized rosters, blank identifiers, duplicate witness IDs,
+    /// duplicate key IDs, and key reuse under multiple identities or key IDs.
+    pub fn new(roster: Vec<AuthorizedWitness>) -> Result<Self, VerificationError> {
+        if roster.len() != AUTHORIZED_WITNESS_COUNT {
+            return Err(VerificationError::InvalidWitnessRoster);
+        }
+        let mut witness_ids = BTreeSet::new();
+        let mut key_ids = BTreeSet::new();
+        let mut public_keys = BTreeSet::new();
+        for entry in &roster {
+            if entry.witness_id.trim().is_empty()
+                || entry.signing_key_id.trim().is_empty()
+                || !witness_ids.insert(entry.witness_id.as_str())
+                || !key_ids.insert(entry.signing_key_id.as_str())
+                || !public_keys.insert(entry.verifying_key.to_bytes())
+            {
+                return Err(VerificationError::InvalidWitnessRoster);
+            }
+        }
+        Ok(Self { roster })
     }
 
+    /// A valid signature is insufficient unless both the witness ID and key ID
+    /// match the same provisioned roster entry.
     pub fn verify(&self, receipt: &WitnessReceipt) -> Result<(), VerificationError> {
-        let key = self
-            .trusted_keys
+        let entry = self
+            .roster
             .iter()
-            .find(|(id, _)| id == &receipt.signing_key_id)
-            .map(|(_, key)| key)
-            .ok_or(VerificationError::InvalidReceiptSignature)?;
-        key.verify(
-            &receipt.signing_bytes(),
-            &Signature::from_bytes(&receipt.signature),
-        )
-        .map_err(|_| VerificationError::InvalidReceiptSignature)
+            .find(|entry| entry.witness_id == receipt.witness_id)
+            .ok_or(VerificationError::UnauthorizedWitness)?;
+        if entry.signing_key_id != receipt.signing_key_id {
+            return Err(VerificationError::UnauthorizedWitness);
+        }
+        entry
+            .verifying_key
+            .verify(
+                &receipt.signing_bytes(),
+                &Signature::from_bytes(&receipt.signature),
+            )
+            .map_err(|_| VerificationError::InvalidReceiptSignature)
     }
 }
 
+/// Verifies a checkpoint against the fixed Owner-approved 2-of-3 witness roster.
+/// Callers cannot lower, raise, or otherwise override the quorum policy.
 pub fn verify_checkpoint_and_quorum(
     signed: &SignedCheckpoint,
     checkpoint_verifier: &dyn CheckpointSignatureVerifier,
     receipts: &[WitnessReceipt],
     receipt_verifier: &WitnessReceiptVerifier,
-    required_quorum: usize,
 ) -> Result<(), VerificationError> {
     let payload: &CheckpointPayload = &signed.payload;
     payload
@@ -67,9 +109,6 @@ pub fn verify_checkpoint_and_quorum(
             }
             _ => VerificationError::InvalidCheckpoint,
         })?;
-    if required_quorum == 0 {
-        return Err(VerificationError::InsufficientQuorum);
-    }
     let digest = payload
         .digest()
         .map_err(|_| VerificationError::InvalidCheckpoint)?;
@@ -87,11 +126,11 @@ pub fn verify_checkpoint_and_quorum(
         {
             return Err(VerificationError::ReceiptCheckpointMismatch);
         }
-        if !witnesses.insert(receipt.witness_id.clone()) {
+        if !witnesses.insert(receipt.witness_id.as_str()) {
             return Err(VerificationError::DuplicateWitness);
         }
     }
-    if witnesses.len() < required_quorum {
+    if witnesses.len() < REQUIRED_WITNESS_QUORUM {
         return Err(VerificationError::InsufficientQuorum);
     }
     Ok(())
@@ -149,8 +188,19 @@ mod tests {
     };
     use crate::audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessLedger};
 
+    fn roster() -> WitnessReceiptVerifier {
+        let w1 = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]);
+        let w2 = LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]);
+        let w3 = LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]);
+        WitnessReceiptVerifier::new(vec![
+            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "w1-key".into(), verifying_key: w1.key_for_test() },
+            AuthorizedWitness { witness_id: "w2".into(), signing_key_id: "w2-key".into(), verifying_key: w2.key_for_test() },
+            AuthorizedWitness { witness_id: "w3".into(), signing_key_id: "w3-key".into(), verifying_key: w3.key_for_test() },
+        ]).unwrap()
+    }
+
     #[test]
-    fn two_distinct_signed_witness_receipts_satisfy_quorum() {
+    fn two_distinct_authorized_witness_receipts_satisfy_fixed_quorum() {
         let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [1; 32]);
         let cp_verifier = Ed25519CheckpointVerifier::new(vec![(
             "cp-key".into(),
@@ -167,26 +217,99 @@ mod tests {
         let signed = checkpoint_signer
             .sign_checkpoint(&builder.initial_v1_anchor(&head, 1).unwrap())
             .unwrap();
-        let w1 = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]);
-        let w2 = LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]);
-        let ledger1 = MemoryWitnessLedger::new("w1", Box::new(w1));
-        let ledger2 = MemoryWitnessLedger::new("w2", Box::new(w2));
+        let ledger1 = MemoryWitnessLedger::new(
+            "w1",
+            Box::new(LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32])),
+        );
+        let ledger2 = MemoryWitnessLedger::new(
+            "w2",
+            Box::new(LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32])),
+        );
         let r1 = ledger1.accept(&signed, &cp_verifier, 2).unwrap();
         let r2 = ledger2.accept(&signed, &cp_verifier, 2).unwrap();
-        let receipt_verifier = WitnessReceiptVerifier::new(vec![
-            (
-                "w1-key".into(),
-                LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]).key_for_test(),
-            ),
-            (
-                "w2-key".into(),
-                LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]).key_for_test(),
-            ),
-        ]);
         assert_eq!(
-            verify_checkpoint_and_quorum(&signed, &cp_verifier, &[r1, r2], &receipt_verifier, 2),
+            verify_checkpoint_and_quorum(&signed, &cp_verifier, &[r1, r2], &roster()),
             Ok(())
         );
+    }
+
+    #[test]
+    fn one_receipt_cannot_satisfy_fixed_two_of_three_quorum() {
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [1; 32]);
+        let cp_verifier = Ed25519CheckpointVerifier::new(vec![(
+            "cp-key".into(),
+            checkpoint_signer.verifying_key(),
+        )]);
+        let builder = CheckpointBuilder::new("stream:q", "cp-key");
+        let head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [8; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let signed = checkpoint_signer
+            .sign_checkpoint(&builder.initial_v1_anchor(&head, 1).unwrap())
+            .unwrap();
+        let ledger = MemoryWitnessLedger::new(
+            "w1",
+            Box::new(LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32])),
+        );
+        let receipt = ledger.accept(&signed, &cp_verifier, 2).unwrap();
+        assert_eq!(
+            verify_checkpoint_and_quorum(&signed, &cp_verifier, &[receipt], &roster()),
+            Err(VerificationError::InsufficientQuorum)
+        );
+    }
+
+    #[test]
+    fn receipt_key_cannot_be_relabelled_as_another_authorized_witness() {
+        let signer = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]);
+        let key = signer.key_for_test();
+        let roster = WitnessReceiptVerifier::new(vec![
+            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "w1-key".into(), verifying_key: key },
+            AuthorizedWitness {
+                witness_id: "w2".into(),
+                signing_key_id: "w2-key".into(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]).key_for_test(),
+            },
+            AuthorizedWitness {
+                witness_id: "w3".into(),
+                signing_key_id: "w3-key".into(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]).key_for_test(),
+            },
+        ]).unwrap();
+        let mut receipt = WitnessReceipt {
+            witness_id: "w2".into(),
+            stream_id: "stream:q".into(),
+            checkpoint_number: 1,
+            checkpoint_digest: [5; 32],
+            last_sequence: 1,
+            head_event_hash: [8; 32],
+            previous_checkpoint_digest: [0; 32],
+            previous_receipt_digest: [0; 32],
+            witnessed_at: 2,
+            log_index: 1,
+            signing_key_id: "w1-key".into(),
+            signature: [0; 64],
+        };
+        receipt.signature = signer.sign_receipt(&receipt).unwrap();
+        assert_eq!(roster.verify(&receipt), Err(VerificationError::UnauthorizedWitness));
+    }
+
+    #[test]
+    fn roster_rejects_reused_public_key_even_with_distinct_ids() {
+        let reused = LocalWitnessTestSigner::from_test_seed("shared-key", [9; 32]);
+        let result = WitnessReceiptVerifier::new(vec![
+            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "k1".into(), verifying_key: reused.key_for_test() },
+            AuthorizedWitness { witness_id: "w2".into(), signing_key_id: "k2".into(), verifying_key: reused.key_for_test() },
+            AuthorizedWitness {
+                witness_id: "w3".into(),
+                signing_key_id: "k3".into(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("k3", [4; 32]).key_for_test(),
+            },
+        ]);
+        assert!(matches!(result, Err(VerificationError::InvalidWitnessRoster)));
     }
 
     #[test]
@@ -214,12 +337,24 @@ mod tests {
         let p2 = builder.next(&h2, &p1, 20).unwrap();
         let signed2 = cp_signer.sign_checkpoint(&p2).unwrap();
 
-        let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key", [8; 32]);
+        let witness_signer = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]);
         let witness_key = witness_signer.key_for_test();
-        let ledger = MemoryWitnessLedger::new("witness-1", Box::new(witness_signer));
+        let ledger = MemoryWitnessLedger::new("w1", Box::new(witness_signer));
         let r1 = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
         let r2 = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
-        let receipt_verifier = WitnessReceiptVerifier::new(vec![("w-key".into(), witness_key)]);
+        let receipt_verifier = WitnessReceiptVerifier::new(vec![
+            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "w1-key".into(), verifying_key: witness_key },
+            AuthorizedWitness {
+                witness_id: "w2".into(),
+                signing_key_id: "w2-key".into(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]).key_for_test(),
+            },
+            AuthorizedWitness {
+                witness_id: "w3".into(),
+                signing_key_id: "w3-key".into(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]).key_for_test(),
+            },
+        ]).unwrap();
         assert_eq!(verify_receipt_chain(&[r1, r2], &receipt_verifier), Ok(()));
     }
 
