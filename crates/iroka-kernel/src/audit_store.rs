@@ -1,7 +1,7 @@
 //! G11 append-only SQLite audit adapter with a SHA-256 event chain.
 //! Hash chains detect local edits; production must externally anchor signed checkpoints.
 
-use crate::{AuditError, AuditEvent, AuditSink, DecisionCode};
+use crate::{AuditError, AuditEvent, AuditHead, AuditSink, DecisionCode};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::{Digest, Sha256};
 use std::{path::Path, sync::Mutex, time::Duration};
@@ -154,42 +154,56 @@ impl SqliteAuditSink {
             .connection
             .lock()
             .map_err(|_| AuditStoreError::Unavailable)?;
-        let mut s = c.prepare("SELECT event_id,correlation_id,subject,capability,resource,
-          policy_version,decision,occurred_at,previous_hash,event_hash FROM audit_events ORDER BY sequence")
-          .map_err(|_| AuditStoreError::Unavailable)?;
-        let mut rows = s.query([]).map_err(|_| AuditStoreError::Unavailable)?;
-        let mut previous = ZERO.to_vec();
-        while let Some(r) = rows.next().map_err(|_| AuditStoreError::Unavailable)? {
-            let id: String = r.get(0).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let trace: String = r.get(1).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let subject: String = r.get(2).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let capability: String = r.get(3).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let resource: String = r.get(4).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let policy: String = r.get(5).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let decision: String = r.get(6).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let at: i64 = r.get(7).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let prev: Vec<u8> = r.get(8).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let stored: Vec<u8> = r.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            if prev != previous || prev.len() != 32 {
-                return Err(AuditStoreError::IntegrityFailure);
-            }
-            let expected = hash_event(
-                &prev,
-                &id,
-                &trace,
-                &subject,
-                &capability,
-                &resource,
-                &policy,
-                &decision,
-                at,
-            );
-            if stored.as_slice() != expected.as_slice() {
-                return Err(AuditStoreError::IntegrityFailure);
-            }
-            previous = stored;
+        verify_connection(&c)
+    }
+
+    /// Returns a consistent V1 checkpoint snapshot after local chain verification.
+    /// The caller must pass this snapshot to the checkpoint builder without changing its fields.
+    pub fn checkpoint_head(&self) -> Result<AuditHead, AuditStoreError> {
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        let tx = c
+            .unchecked_transaction()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        verify_connection(&tx)?;
+        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = tx
+            .query_row(
+                "SELECT MIN(sequence), MAX(sequence), COUNT(*),
+             (SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1)
+             FROM audit_events",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
+        if row.2 == 0 {
+            return Ok(AuditHead {
+                first_sequence: 0,
+                last_sequence: 0,
+                event_count: 0,
+                head_event_hash: ZERO,
+                chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+            });
         }
-        Ok(())
+        let first = u64::try_from(row.0.ok_or(AuditStoreError::IntegrityFailure)?)
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let last = u64::try_from(row.1.ok_or(AuditStoreError::IntegrityFailure)?)
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let count = u64::try_from(row.2).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let hash: [u8; 32] = row
+            .3
+            .ok_or(AuditStoreError::IntegrityFailure)?
+            .try_into()
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        Ok(AuditHead {
+            first_sequence: first,
+            last_sequence: last,
+            event_count: count,
+            head_event_hash: hash,
+            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+        })
     }
 
     pub fn head(&self) -> Result<(u64, [u8; 32]), AuditStoreError> {
@@ -214,6 +228,53 @@ impl SqliteAuditSink {
             )),
         }
     }
+}
+
+fn verify_connection(c: &Connection) -> Result<(), AuditStoreError> {
+    let mut s = c.prepare("SELECT sequence,event_id,correlation_id,subject,capability,resource,
+      policy_version,decision,occurred_at,previous_hash,event_hash FROM audit_events ORDER BY sequence")
+      .map_err(|_| AuditStoreError::Unavailable)?;
+    let mut rows = s.query([]).map_err(|_| AuditStoreError::Unavailable)?;
+    let mut previous = ZERO.to_vec();
+    let mut expected_sequence = 1i64;
+    while let Some(r) = rows.next().map_err(|_| AuditStoreError::Unavailable)? {
+        let sequence: i64 = r.get(0).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        if sequence != expected_sequence {
+            return Err(AuditStoreError::IntegrityFailure);
+        }
+        expected_sequence = expected_sequence
+            .checked_add(1)
+            .ok_or(AuditStoreError::IntegrityFailure)?;
+        let id: String = r.get(1).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let trace: String = r.get(2).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let subject: String = r.get(3).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let capability: String = r.get(4).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let resource: String = r.get(5).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let policy: String = r.get(6).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let decision: String = r.get(7).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let at: i64 = r.get(8).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let prev: Vec<u8> = r.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let stored: Vec<u8> = r.get(10).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        if prev != previous || prev.len() != 32 {
+            return Err(AuditStoreError::IntegrityFailure);
+        }
+        let expected = hash_event(
+            &prev,
+            &id,
+            &trace,
+            &subject,
+            &capability,
+            &resource,
+            &policy,
+            &decision,
+            at,
+        );
+        if stored.as_slice() != expected.as_slice() {
+            return Err(AuditStoreError::IntegrityFailure);
+        }
+        previous = stored;
+    }
+    Ok(())
 }
 
 impl AuditSink for SqliteAuditSink {
@@ -289,6 +350,14 @@ mod tests {
         s.append_event(&event("event:1")).unwrap();
         s.append_event(&event("event:2")).unwrap();
         assert_eq!(s.head().unwrap().0, 2);
+        let snapshot = s.checkpoint_head().unwrap();
+        assert_eq!(snapshot.first_sequence, 1);
+        assert_eq!(snapshot.last_sequence, 2);
+        assert_eq!(snapshot.event_count, 2);
+        assert_eq!(
+            snapshot.chain_format,
+            crate::audit_checkpoint::V1_CHAIN_FORMAT
+        );
         assert_eq!(s.verify_integrity(), Ok(()));
     }
     #[test]
@@ -325,6 +394,21 @@ mod tests {
         }
         assert_eq!(s.verify_integrity(), Err(AuditStoreError::IntegrityFailure));
     }
+    #[test]
+    fn detects_sequence_metadata_tampering() {
+        let s = SqliteAuditSink::open_in_memory().unwrap();
+        s.append_event(&event("event:sequence")).unwrap();
+        {
+            let c = s.connection.lock().unwrap();
+            c.execute_batch(
+                "DROP TRIGGER audit_no_update; UPDATE audit_events SET sequence=9 WHERE sequence=1",
+            )
+            .unwrap();
+        }
+        assert_eq!(s.verify_integrity(), Err(AuditStoreError::IntegrityFailure));
+        assert_eq!(s.checkpoint_head(), Err(AuditStoreError::IntegrityFailure));
+    }
+
     #[test]
     fn persists_and_verifies_after_reopen() {
         use std::time::{SystemTime, UNIX_EPOCH};
