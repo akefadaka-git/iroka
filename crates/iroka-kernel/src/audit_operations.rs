@@ -98,8 +98,9 @@ pub fn checkpoint_due(
     unanchored_events: u64,
 ) -> bool {
     match (policy.max_staleness_seconds, policy.max_unanchored_events) {
-        (Some(age), Some(events)) =>
-            elapsed_since_quorum_seconds >= age || unanchored_events >= events,
+        (Some(age), Some(events)) => {
+            elapsed_since_quorum_seconds >= age || unanchored_events >= events
+        }
         _ => true,
     }
 }
@@ -127,8 +128,14 @@ mod tests {
     #[test]
     fn missing_event_threshold_is_unconfigured_even_when_age_is_set() {
         let a = assess_anchoring(
-            CheckpointPolicy { max_staleness_seconds: Some(60), max_unanchored_events: None },
-            100, Some(99), 0, true,
+            CheckpointPolicy {
+                max_staleness_seconds: Some(60),
+                max_unanchored_events: None,
+            },
+            100,
+            Some(99),
+            0,
+            true,
         );
         assert_eq!(a.state, AnchoringState::Unconfigured);
         assert!(!a.high_risk_operations_allowed);
