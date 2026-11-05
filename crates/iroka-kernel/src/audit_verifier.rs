@@ -549,13 +549,16 @@ mod tests {
         let second = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
         let roster = roster();
 
-        let tamper_and_resign = |mut receipt: WitnessReceipt, mutate: fn(&mut WitnessReceipt)| {
+        fn tamper_and_resign<F>(mut receipt: WitnessReceipt, mutate: F) -> WitnessReceipt
+        where
+            F: FnOnce(&mut WitnessReceipt),
+        {
             mutate(&mut receipt);
             receipt.signature = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32])
                 .sign_receipt(&receipt)
                 .unwrap();
             receipt
-        };
+        }
 
         let broken_checkpoint_number = tamper_and_resign(second.clone(), |r| {
             r.checkpoint_number = 3;
