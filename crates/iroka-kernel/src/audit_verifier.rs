@@ -144,6 +144,29 @@ mod tests {
     }
 
     #[test]
+    fn verifies_receipt_chain_across_checkpoint_advances() {
+        let cp_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [1; 32]);
+        let cp_verifier = Ed25519CheckpointVerifier::new(vec![("cp-key".into(), cp_signer.verifying_key())]);
+        let builder = CheckpointBuilder::new("stream:chain", "cp-key");
+        let h1 = AuditHead { first_sequence: 1, last_sequence: 1, event_count: 1,
+            head_event_hash: [1; 32], chain_format: V1_CHAIN_FORMAT.into() };
+        let p1 = builder.initial_v1_anchor(&h1, 10).unwrap();
+        let signed1 = cp_signer.sign_checkpoint(&p1).unwrap();
+        let h2 = AuditHead { first_sequence: 1, last_sequence: 2, event_count: 2,
+            head_event_hash: [2; 32], chain_format: V1_CHAIN_FORMAT.into() };
+        let p2 = builder.next(&h2, &p1, 20).unwrap();
+        let signed2 = cp_signer.sign_checkpoint(&p2).unwrap();
+
+        let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key", [8; 32]);
+        let witness_key = witness_signer.key_for_test();
+        let ledger = MemoryWitnessLedger::new("witness-1", Box::new(witness_signer));
+        let r1 = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
+        let r2 = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
+        let receipt_verifier = WitnessReceiptVerifier::new(vec![("w-key".into(), witness_key)]);
+        assert_eq!(verify_receipt_chain(&[r1, r2], &receipt_verifier), Ok(()));
+    }
+
+    #[test]
     fn detects_local_rollback_below_external_high_water_mark() {
         let builder = CheckpointBuilder::new("stream:q", "cp-key");
         let cp = builder.initial_v1_anchor(&AuditHead { first_sequence: 1, last_sequence: 5,
