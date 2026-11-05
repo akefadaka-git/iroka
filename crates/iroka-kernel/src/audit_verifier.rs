@@ -34,14 +34,15 @@ impl WitnessReceiptVerifier {
     }
 
     pub fn verify(&self, receipt: &WitnessReceipt) -> Result<(), VerificationError> {
-        let key = self
+        let (authorized_witness_id, key) = self
             .trusted_keys
             .iter()
-            .find(|(id, witness_id, _)| {
-                id == &receipt.signing_key_id && witness_id == &receipt.witness_id
-            })
-            .map(|(_, _, key)| key)
+            .find(|(id, _, _)| id == &receipt.signing_key_id)
+            .map(|(_, witness_id, key)| (witness_id, key))
             .ok_or(VerificationError::InvalidReceiptSignature)?;
+        if authorized_witness_id != &receipt.witness_id {
+            return Err(VerificationError::InvalidReceiptSignature);
+        }
         key.verify(
             &receipt.signing_bytes(),
             &Signature::from_bytes(&receipt.signature),
