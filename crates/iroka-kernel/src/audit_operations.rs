@@ -100,6 +100,15 @@ mod tests {
         let a = assess_anchoring(CheckpointPolicy { max_staleness_seconds: Some(60),
             max_unanchored_events: Some(100) }, 120, Some(100), 2, false);
         assert_eq!(a.state, AnchoringState::QuorumUnavailable);
+        assert!(a.high_risk_operations_allowed);
+        assert_eq!(a.state, AnchoringState::QuorumUnavailable);
+    }
+
+    #[test]
+    fn witness_outage_after_freshness_limit_blocks_high_risk() {
+        let a = assess_anchoring(CheckpointPolicy { max_staleness_seconds: Some(10),
+            max_unanchored_events: Some(100) }, 120, Some(100), 2, false);
+        assert_eq!(a.state, AnchoringState::Stale);
         assert!(!a.high_risk_operations_allowed);
     }
 
