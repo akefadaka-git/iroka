@@ -6,6 +6,7 @@ on:
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
+      - "rust-toolchain.toml"
       - "crates/**"
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
@@ -13,7 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: rust-kernel-${{ github.event.pull_request.number || github.ref }}
@@ -22,7 +23,7 @@ concurrency:
 jobs:
   verify:
     name: Format, compile, test and lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -31,44 +32,37 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Install stable Rust toolchain
+      - name: Install pinned Rust toolchain
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-          rustup default stable
+          rustup toolchain install 1.85.1 --profile minimal --component rustfmt --component clippy
+          rustup default 1.85.1
           rustc --version
           cargo --version
 
-      - name: Resolve and lock Rust dependencies
-        run: cargo generate-lockfile
-
-      - name: Apply canonical formatting
-        run: cargo fmt --all
-
-      - name: Commit formatting-only Rust changes
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ -n "$(git status --porcelain -- '*.rs')" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -- '*.rs' Cargo.lock
-            git commit -m "style: apply canonical Rust formatting"
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-            git push origin "HEAD:${GITHUB_HEAD_REF}"
-          fi
-
-      - name: Check formatting
+      - name: Check canonical formatting
         run: cargo fmt --all -- --check
 
-      - name: Compile all targets
-        run: cargo check --workspace --all-targets
+      - name: Compile all targets with the committed lockfile
+        run: cargo check --locked --workspace --all-targets
 
       - name: Verify production feature set excludes development bypasses
-        run: cargo check --workspace --all-targets --no-default-features
+        run: cargo check --locked --workspace --all-targets --no-default-features
+
+      - name: Reject development bypass in non-test builds
+        shell: bash
+        run: |
+          set +e
+          cargo check --locked --workspace --all-targets --features dev-no-revocations > /tmp/dev-feature-check.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "ERROR: dev-no-revocations unexpectedly compiled outside test configuration"
+            exit 1
+          fi
+          grep -F "dev-no-revocations is restricted to test builds" /tmp/dev-feature-check.log
 
       - name: Run complete unit and contract test suite
-        run: cargo test --workspace --all-targets
+        run: cargo test --locked --workspace --all-targets
 
-      - name: Run Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
+      - name: Run Clippy without development-only features
+        run: cargo clippy --locked --workspace --all-targets --no-default-features -- -D warnings -A clippy::pedantic
