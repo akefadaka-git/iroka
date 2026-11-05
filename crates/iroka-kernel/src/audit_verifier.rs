@@ -17,6 +17,7 @@ pub enum VerificationError {
     InvalidCheckpointSignature,
     InvalidReceiptSignature,
     InvalidWitnessRoster,
+    WitnessRosterUnprovisioned,
     UnauthorizedWitness,
     WrongStream,
     ReceiptCheckpointMismatch,
@@ -48,7 +49,7 @@ impl WitnessReceiptVerifier {
     ///
     /// Rejects incomplete/oversized rosters, blank identifiers, duplicate witness IDs,
     /// duplicate key IDs, and key reuse under multiple identities or key IDs.
-    pub fn new(roster: Vec<AuthorizedWitness>) -> Result<Self, VerificationError> {
+    fn new(roster: Vec<AuthorizedWitness>) -> Result<Self, VerificationError> {
         if roster.len() != AUTHORIZED_WITNESS_COUNT {
             return Err(VerificationError::InvalidWitnessRoster);
         }
@@ -89,14 +90,35 @@ impl WitnessReceiptVerifier {
     }
 }
 
+/// Runtime trust state for the independent witness roster.
+/// Production callers can only construct the unprovisioned state until a separately
+/// reviewed Owner-authorized roster activation path is implemented.
+pub struct WitnessRosterState {
+    verifier: Option<WitnessReceiptVerifier>,
+}
+
+impl WitnessRosterState {
+    pub fn unprovisioned() -> Self { Self { verifier: None } }
+
+    fn verifier(&self) -> Result<&WitnessReceiptVerifier, VerificationError> {
+        self.verifier.as_ref().ok_or(VerificationError::WitnessRosterUnprovisioned)
+    }
+
+    #[cfg(test)]
+    fn provisioned_for_test(verifier: WitnessReceiptVerifier) -> Self {
+        Self { verifier: Some(verifier) }
+    }
+}
+
 /// Verifies a checkpoint against the fixed Owner-approved 2-of-3 witness roster.
-/// Callers cannot lower, raise, or otherwise override the quorum policy.
+/// Missing Owner authorization is an explicit fail-closed state.
 pub fn verify_checkpoint_and_quorum(
     signed: &SignedCheckpoint,
     checkpoint_verifier: &dyn CheckpointSignatureVerifier,
     receipts: &[WitnessReceipt],
-    receipt_verifier: &WitnessReceiptVerifier,
+    roster_state: &WitnessRosterState,
 ) -> Result<(), VerificationError> {
+    let receipt_verifier = roster_state.verifier()?;
     let payload: &CheckpointPayload = &signed.payload;
     payload
         .validate()
@@ -155,8 +177,9 @@ pub fn reconcile_local_head(
 /// Verifies a single witness's exported receipt history from its genesis receipt.
 pub fn verify_receipt_chain(
     receipts: &[WitnessReceipt],
-    verifier: &WitnessReceiptVerifier,
+    roster_state: &WitnessRosterState,
 ) -> Result<(), VerificationError> {
+    let verifier = roster_state.verifier()?;
     let Some(first) = receipts.first() else {
         return Ok(());
     };
@@ -188,11 +211,11 @@ mod tests {
     };
     use crate::audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessLedger, WitnessReceiptSigner};
 
-    fn roster() -> WitnessReceiptVerifier {
+    fn roster() -> WitnessRosterState {
         let w1 = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]);
         let w2 = LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]);
         let w3 = LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]);
-        WitnessReceiptVerifier::new(vec![
+        WitnessRosterState::provisioned_for_test(WitnessReceiptVerifier::new(vec![
             AuthorizedWitness {
                 witness_id: "w1".into(),
                 signing_key_id: "w1-key".into(),
@@ -208,7 +231,13 @@ mod tests {
                 signing_key_id: "w3-key".into(),
                 verifying_key: w3.key_for_test(),
             },
-        ]).unwrap()
+        ]).unwrap())
+    }
+
+    #[test]
+    fn unprovisioned_roster_has_no_verification_authority() {
+        let state = WitnessRosterState::unprovisioned();
+        assert!(matches!(state.verifier(), Err(VerificationError::WitnessRosterUnprovisioned)));
     }
 
     #[test]
@@ -361,7 +390,7 @@ mod tests {
         let ledger = MemoryWitnessLedger::new("w1", Box::new(witness_signer));
         let r1 = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
         let r2 = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
-        let receipt_verifier = WitnessReceiptVerifier::new(vec![
+        let receipt_verifier = WitnessRosterState::provisioned_for_test(WitnessReceiptVerifier::new(vec![
             AuthorizedWitness {
                 witness_id: "w1".into(),
                 signing_key_id: "w1-key".into(),
@@ -377,7 +406,7 @@ mod tests {
                 signing_key_id: "w3-key".into(),
                 verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]).key_for_test(),
             },
-        ]).unwrap();
+        ]).unwrap());
         assert_eq!(verify_receipt_chain(&[r1, r2], &receipt_verifier), Ok(()));
     }
 
