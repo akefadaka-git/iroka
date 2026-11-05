@@ -150,53 +150,15 @@ impl SqliteAuditSink {
     }
 
     pub fn verify_integrity(&self) -> Result<(), AuditStoreError> {
-        let c = self
-            .connection
-            .lock()
-            .map_err(|_| AuditStoreError::Unavailable)?;
-        let mut s = c.prepare("SELECT event_id,correlation_id,subject,capability,resource,
-          policy_version,decision,occurred_at,previous_hash,event_hash FROM audit_events ORDER BY sequence")
-          .map_err(|_| AuditStoreError::Unavailable)?;
-        let mut rows = s.query([]).map_err(|_| AuditStoreError::Unavailable)?;
-        let mut previous = ZERO.to_vec();
-        while let Some(r) = rows.next().map_err(|_| AuditStoreError::Unavailable)? {
-            let id: String = r.get(0).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let trace: String = r.get(1).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let subject: String = r.get(2).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let capability: String = r.get(3).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let resource: String = r.get(4).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let policy: String = r.get(5).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let decision: String = r.get(6).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let at: i64 = r.get(7).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let prev: Vec<u8> = r.get(8).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            let stored: Vec<u8> = r.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
-            if prev != previous || prev.len() != 32 {
-                return Err(AuditStoreError::IntegrityFailure);
-            }
-            let expected = hash_event(
-                &prev,
-                &id,
-                &trace,
-                &subject,
-                &capability,
-                &resource,
-                &policy,
-                &decision,
-                at,
-            );
-            if stored.as_slice() != expected.as_slice() {
-                return Err(AuditStoreError::IntegrityFailure);
-            }
-            previous = stored;
-        }
-        Ok(())
+        let c = self.connection.lock().map_err(|_| AuditStoreError::Unavailable)?;
+        verify_connection(&c)
     }
 
     /// Returns a consistent V1 checkpoint snapshot after local chain verification.
     /// The caller must pass this snapshot to the checkpoint builder without changing its fields.
     pub fn checkpoint_head(&self) -> Result<AuditHead, AuditStoreError> {
-        self.verify_integrity()?;
         let c = self.connection.lock().map_err(|_| AuditStoreError::Unavailable)?;
+        verify_connection(&c)?;
         let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = c.query_row(
             "SELECT MIN(sequence), MAX(sequence), COUNT(*),
              (SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1)
@@ -245,6 +207,36 @@ impl SqliteAuditSink {
             )),
         }
     }
+}
+
+fn verify_connection(c: &Connection) -> Result<(), AuditStoreError> {
+    let mut s = c.prepare("SELECT event_id,correlation_id,subject,capability,resource,
+      policy_version,decision,occurred_at,previous_hash,event_hash FROM audit_events ORDER BY sequence")
+      .map_err(|_| AuditStoreError::Unavailable)?;
+    let mut rows = s.query([]).map_err(|_| AuditStoreError::Unavailable)?;
+    let mut previous = ZERO.to_vec();
+    while let Some(r) = rows.next().map_err(|_| AuditStoreError::Unavailable)? {
+        let id: String = r.get(0).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let trace: String = r.get(1).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let subject: String = r.get(2).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let capability: String = r.get(3).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let resource: String = r.get(4).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let policy: String = r.get(5).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let decision: String = r.get(6).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let at: i64 = r.get(7).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let prev: Vec<u8> = r.get(8).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let stored: Vec<u8> = r.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        if prev != previous || prev.len() != 32 {
+            return Err(AuditStoreError::IntegrityFailure);
+        }
+        let expected = hash_event(&prev, &id, &trace, &subject, &capability,
+            &resource, &policy, &decision, at);
+        if stored.as_slice() != expected.as_slice() {
+            return Err(AuditStoreError::IntegrityFailure);
+        }
+        previous = stored;
+    }
+    Ok(())
 }
 
 impl AuditSink for SqliteAuditSink {
