@@ -43,16 +43,14 @@ pub fn assess_anchoring(
         }
         None => None,
     };
-    let max_age = match policy.max_staleness_seconds {
-        Some(v) => v,
-        None => {
-            return AnchoringAssessment {
-                state: AnchoringState::Unconfigured,
-                high_risk_operations_allowed: false,
-                age_seconds: age,
-                unanchored_events,
-            }
-        }
+    let max_age = match (policy.max_staleness_seconds, policy.max_unanchored_events) {
+        (Some(v), Some(_)) => v,
+        _ => return AnchoringAssessment {
+            state: AnchoringState::Unconfigured,
+            high_risk_operations_allowed: false,
+            age_seconds: age,
+            unanchored_events,
+        },
     };
     let age_value = match age {
         Some(v) => v,
@@ -99,14 +97,11 @@ pub fn checkpoint_due(
     elapsed_since_quorum_seconds: u64,
     unanchored_events: u64,
 ) -> bool {
-    policy
-        .max_staleness_seconds
-        .map(|v| elapsed_since_quorum_seconds >= v)
-        .unwrap_or(false)
-        || policy
-            .max_unanchored_events
-            .map(|v| unanchored_events >= v)
-            .unwrap_or(false)
+    match (policy.max_staleness_seconds, policy.max_unanchored_events) {
+        (Some(age), Some(events)) =>
+            elapsed_since_quorum_seconds >= age || unanchored_events >= events,
+        _ => true,
+    }
 }
 
 #[cfg(test)]
@@ -124,6 +119,16 @@ mod tests {
             Some(99),
             0,
             true,
+        );
+        assert_eq!(a.state, AnchoringState::Unconfigured);
+        assert!(!a.high_risk_operations_allowed);
+    }
+
+    #[test]
+    fn missing_event_threshold_is_unconfigured_even_when_age_is_set() {
+        let a = assess_anchoring(
+            CheckpointPolicy { max_staleness_seconds: Some(60), max_unanchored_events: None },
+            100, Some(99), 0, true,
         );
         assert_eq!(a.state, AnchoringState::Unconfigured);
         assert!(!a.high_risk_operations_allowed);
