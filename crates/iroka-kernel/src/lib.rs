@@ -21,6 +21,7 @@ mod request;
 mod security_store;
 mod service;
 mod trust_lifecycle;
+mod witness_roster;
 
 #[cfg(all(feature = "dev-no-revocations", not(test)))]
 compile_error!("dev-no-revocations is restricted to test builds");
@@ -67,6 +68,10 @@ pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
+pub use witness_roster::{
+    activate_signed_witness_roster, SignedWitnessRosterManifest, WitnessRosterEntry,
+    WitnessRosterManifestError, WitnessRosterManifestPayload,
+};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
