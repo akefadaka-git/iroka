@@ -1,0 +1,35 @@
+name: K-04 Rust formatting export
+
+on:
+  push:
+    branches:
+      - fix/k04-witness-roster-fail-closed
+    paths:
+      - ".github/workflows/k04-rustfmt-export.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact pushed commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install pinned Rust formatter
+        run: |
+          rustup toolchain install 1.85.1 --profile minimal --component rustfmt
+          rustup default 1.85.1
+      - name: Apply canonical Rust formatting
+        run: cargo fmt --all
+      - name: Export formatted Rust sources
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: k04-rustfmt-output
+          path: crates/iroka-kernel/src/*.rs
+          if-no-files-found: error
+          retention-days: 1
