@@ -104,7 +104,12 @@ pub struct WitnessRosterState {
 
 impl WitnessRosterState {
     pub fn unprovisioned() -> Self {
-        Self { verifier: None, stream_id: None, version: None, expires_at: None }
+        Self {
+            verifier: None,
+            stream_id: None,
+            version: None,
+            expires_at: None,
+        }
     }
 
     /// Version of the currently activated Owner-signed roster, if provisioned.
@@ -121,25 +126,44 @@ impl WitnessRosterState {
         if self.expires_at.is_some_and(|expires_at| now >= expires_at) {
             return Err(VerificationError::WitnessRosterExpired);
         }
-        self.verifier.as_ref().ok_or(VerificationError::WitnessRosterUnprovisioned)
+        self.verifier
+            .as_ref()
+            .ok_or(VerificationError::WitnessRosterUnprovisioned)
     }
 
     fn validate_stream(&self, stream_id: &str) -> Result<(), VerificationError> {
-        if self.stream_id.as_deref().is_some_and(|authorized| authorized != stream_id) {
+        if self
+            .stream_id
+            .as_deref()
+            .is_some_and(|authorized| authorized != stream_id)
+        {
             return Err(VerificationError::WitnessRosterScopeMismatch);
         }
         Ok(())
     }
 
     pub(crate) fn provisioned_from_manifest(
-        verifier: WitnessReceiptVerifier, stream_id: String, version: u64, expires_at: u64,
+        verifier: WitnessReceiptVerifier,
+        stream_id: String,
+        version: u64,
+        expires_at: u64,
     ) -> Self {
-        Self { verifier: Some(verifier), stream_id: Some(stream_id), version: Some(version), expires_at: Some(expires_at) }
+        Self {
+            verifier: Some(verifier),
+            stream_id: Some(stream_id),
+            version: Some(version),
+            expires_at: Some(expires_at),
+        }
     }
 
     #[cfg(test)]
     fn provisioned_for_test(verifier: WitnessReceiptVerifier) -> Self {
-        Self { verifier: Some(verifier), stream_id: None, version: None, expires_at: None }
+        Self {
+            verifier: Some(verifier),
+            stream_id: None,
+            version: None,
+            expires_at: None,
+        }
     }
 }
 
@@ -270,35 +294,43 @@ mod tests {
     use crate::audit_signer::{
         CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner,
     };
-    use crate::audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessLedger, WitnessReceiptSigner};
+    use crate::audit_witness::{
+        LocalWitnessTestSigner, MemoryWitnessLedger, WitnessLedger, WitnessReceiptSigner,
+    };
 
     fn roster() -> WitnessRosterState {
         let w1 = LocalWitnessTestSigner::from_test_seed("w1-key", [2; 32]);
         let w2 = LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]);
         let w3 = LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]);
-        WitnessRosterState::provisioned_for_test(WitnessReceiptVerifier::new(vec![
-            AuthorizedWitness {
-                witness_id: "w1".into(),
-                signing_key_id: "w1-key".into(),
-                verifying_key: w1.key_for_test(),
-            },
-            AuthorizedWitness {
-                witness_id: "w2".into(),
-                signing_key_id: "w2-key".into(),
-                verifying_key: w2.key_for_test(),
-            },
-            AuthorizedWitness {
-                witness_id: "w3".into(),
-                signing_key_id: "w3-key".into(),
-                verifying_key: w3.key_for_test(),
-            },
-        ]).unwrap())
+        WitnessRosterState::provisioned_for_test(
+            WitnessReceiptVerifier::new(vec![
+                AuthorizedWitness {
+                    witness_id: "w1".into(),
+                    signing_key_id: "w1-key".into(),
+                    verifying_key: w1.key_for_test(),
+                },
+                AuthorizedWitness {
+                    witness_id: "w2".into(),
+                    signing_key_id: "w2-key".into(),
+                    verifying_key: w2.key_for_test(),
+                },
+                AuthorizedWitness {
+                    witness_id: "w3".into(),
+                    signing_key_id: "w3-key".into(),
+                    verifying_key: w3.key_for_test(),
+                },
+            ])
+            .unwrap(),
+        )
     }
 
     #[test]
     fn unprovisioned_roster_has_no_verification_authority() {
         let state = WitnessRosterState::unprovisioned();
-        assert!(matches!(state.verifier_at(100), Err(VerificationError::WitnessRosterUnprovisioned)));
+        assert!(matches!(
+            state.verifier_at(100),
+            Err(VerificationError::WitnessRosterUnprovisioned)
+        ));
     }
 
     #[test]
@@ -334,17 +366,39 @@ mod tests {
     #[test]
     fn activated_roster_rejects_wrong_stream_and_expired_state() {
         let verifier = WitnessReceiptVerifier::new(vec![
-            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "k1".into(), verifying_key: LocalWitnessTestSigner::from_test_seed("k1", [2; 32]).key_for_test() },
-            AuthorizedWitness { witness_id: "w2".into(), signing_key_id: "k2".into(), verifying_key: LocalWitnessTestSigner::from_test_seed("k2", [3; 32]).key_for_test() },
-            AuthorizedWitness { witness_id: "w3".into(), signing_key_id: "k3".into(), verifying_key: LocalWitnessTestSigner::from_test_seed("k3", [4; 32]).key_for_test() },
-        ]).unwrap();
+            AuthorizedWitness {
+                witness_id: "w1".into(),
+                signing_key_id: "k1".into(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("k1", [2; 32]).key_for_test(),
+            },
+            AuthorizedWitness {
+                witness_id: "w2".into(),
+                signing_key_id: "k2".into(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("k2", [3; 32]).key_for_test(),
+            },
+            AuthorizedWitness {
+                witness_id: "w3".into(),
+                signing_key_id: "k3".into(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("k3", [4; 32]).key_for_test(),
+            },
+        ])
+        .unwrap();
         let state = WitnessRosterState::provisioned_from_manifest(
-            verifier, "stream:authorized".into(), 4, 500,
+            verifier,
+            "stream:authorized".into(),
+            4,
+            500,
         );
         assert_eq!(state.version(), Some(4));
         assert_eq!(state.authorized_stream(), Some("stream:authorized"));
-        assert_eq!(state.validate_stream("stream:other"), Err(VerificationError::WitnessRosterScopeMismatch));
-        assert!(matches!(state.verifier_at(500), Err(VerificationError::WitnessRosterExpired)));
+        assert_eq!(
+            state.validate_stream("stream:other"),
+            Err(VerificationError::WitnessRosterScopeMismatch)
+        );
+        assert!(matches!(
+            state.verifier_at(500),
+            Err(VerificationError::WitnessRosterExpired)
+        ));
     }
 
     #[test]
@@ -432,7 +486,8 @@ mod tests {
                 verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32])
                     .key_for_test(),
             },
-        ]).unwrap();
+        ])
+        .unwrap();
         let mut receipt = WitnessReceipt {
             witness_id: "w2".into(),
             stream_id: "stream:q".into(),
@@ -448,23 +503,36 @@ mod tests {
             signature: [0; 64],
         };
         receipt.signature = signer.sign_receipt(&receipt).unwrap();
-        assert_eq!(roster.verify(&receipt), Err(VerificationError::UnauthorizedWitness));
+        assert_eq!(
+            roster.verify(&receipt),
+            Err(VerificationError::UnauthorizedWitness)
+        );
     }
 
     #[test]
     fn roster_rejects_reused_public_key_even_with_distinct_ids() {
         let reused = LocalWitnessTestSigner::from_test_seed("shared-key", [9; 32]);
         let result = WitnessReceiptVerifier::new(vec![
-            AuthorizedWitness { witness_id: "w1".into(), signing_key_id: "k1".into(), verifying_key: reused.key_for_test() },
-            AuthorizedWitness { witness_id: "w2".into(), signing_key_id: "k2".into(), verifying_key: reused.key_for_test() },
+            AuthorizedWitness {
+                witness_id: "w1".into(),
+                signing_key_id: "k1".into(),
+                verifying_key: reused.key_for_test(),
+            },
+            AuthorizedWitness {
+                witness_id: "w2".into(),
+                signing_key_id: "k2".into(),
+                verifying_key: reused.key_for_test(),
+            },
             AuthorizedWitness {
                 witness_id: "w3".into(),
                 signing_key_id: "k3".into(),
-                verifying_key: LocalWitnessTestSigner::from_test_seed("k3", [4; 32])
-                    .key_for_test(),
+                verifying_key: LocalWitnessTestSigner::from_test_seed("k3", [4; 32]).key_for_test(),
             },
         ]);
-        assert!(matches!(result, Err(VerificationError::InvalidWitnessRoster)));
+        assert!(matches!(
+            result,
+            Err(VerificationError::InvalidWitnessRoster)
+        ));
     }
 
     #[test]
@@ -497,24 +565,32 @@ mod tests {
         let ledger = MemoryWitnessLedger::new("w1", Box::new(witness_signer));
         let r1 = ledger.accept(&signed1, &cp_verifier, 11).unwrap();
         let r2 = ledger.accept(&signed2, &cp_verifier, 21).unwrap();
-        let receipt_verifier = WitnessRosterState::provisioned_for_test(WitnessReceiptVerifier::new(vec![
-            AuthorizedWitness {
-                witness_id: "w1".into(),
-                signing_key_id: "w1-key".into(),
-                verifying_key: witness_key,
-            },
-            AuthorizedWitness {
-                witness_id: "w2".into(),
-                signing_key_id: "w2-key".into(),
-                verifying_key: LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32]).key_for_test(),
-            },
-            AuthorizedWitness {
-                witness_id: "w3".into(),
-                signing_key_id: "w3-key".into(),
-                verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32]).key_for_test(),
-            },
-        ]).unwrap());
-        assert_eq!(verify_receipt_chain(&[r1.clone(), r2.clone()], &r2, &receipt_verifier, 30), Ok(()));
+        let receipt_verifier = WitnessRosterState::provisioned_for_test(
+            WitnessReceiptVerifier::new(vec![
+                AuthorizedWitness {
+                    witness_id: "w1".into(),
+                    signing_key_id: "w1-key".into(),
+                    verifying_key: witness_key,
+                },
+                AuthorizedWitness {
+                    witness_id: "w2".into(),
+                    signing_key_id: "w2-key".into(),
+                    verifying_key: LocalWitnessTestSigner::from_test_seed("w2-key", [3; 32])
+                        .key_for_test(),
+                },
+                AuthorizedWitness {
+                    witness_id: "w3".into(),
+                    signing_key_id: "w3-key".into(),
+                    verifying_key: LocalWitnessTestSigner::from_test_seed("w3-key", [4; 32])
+                        .key_for_test(),
+                },
+            ])
+            .unwrap(),
+        );
+        assert_eq!(
+            verify_receipt_chain(&[r1.clone(), r2.clone()], &r2, &receipt_verifier, 30),
+            Ok(())
+        );
     }
 
     #[test]
@@ -564,7 +640,12 @@ mod tests {
             r.checkpoint_number = 3;
         });
         assert_eq!(
-            verify_receipt_chain(&[first.clone(), broken_checkpoint_number.clone()], &broken_checkpoint_number, &roster, 30),
+            verify_receipt_chain(
+                &[first.clone(), broken_checkpoint_number.clone()],
+                &broken_checkpoint_number,
+                &roster,
+                30
+            ),
             Err(VerificationError::ReceiptCheckpointMismatch)
         );
 
@@ -572,7 +653,12 @@ mod tests {
             r.previous_checkpoint_digest = [99; 32];
         });
         assert_eq!(
-            verify_receipt_chain(&[first.clone(), broken_checkpoint_link.clone()], &broken_checkpoint_link, &roster, 30),
+            verify_receipt_chain(
+                &[first.clone(), broken_checkpoint_link.clone()],
+                &broken_checkpoint_link,
+                &roster,
+                30
+            ),
             Err(VerificationError::ReceiptCheckpointMismatch)
         );
 
@@ -580,7 +666,12 @@ mod tests {
             r.last_sequence = first.last_sequence;
         });
         assert_eq!(
-            verify_receipt_chain(&[first.clone(), regressed_sequence.clone()], &regressed_sequence, &roster, 30),
+            verify_receipt_chain(
+                &[first.clone(), regressed_sequence.clone()],
+                &regressed_sequence,
+                &roster,
+                30
+            ),
             Err(VerificationError::ReceiptCheckpointMismatch)
         );
 
@@ -588,7 +679,12 @@ mod tests {
             r.witnessed_at = first.witnessed_at - 1;
         });
         assert_eq!(
-            verify_receipt_chain(&[first.clone(), regressed_time.clone()], &regressed_time, &roster, 30),
+            verify_receipt_chain(
+                &[first.clone(), regressed_time.clone()],
+                &regressed_time,
+                &roster,
+                30
+            ),
             Err(VerificationError::ReceiptCheckpointMismatch)
         );
 

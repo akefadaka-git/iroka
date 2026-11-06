@@ -260,19 +260,33 @@ impl SqliteSecurityStore {
         }
         let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let issued_i = i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let expires_i = i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let installed_i = i64::try_from(installed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let expires_i =
+            i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let installed_i =
+            i64::try_from(installed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let current: Option<(i64, Vec<u8>)> = tx.query_row(
-            "SELECT version, digest FROM witness_roster_state WHERE singleton=1", [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, Vec<u8>)> = tx
+            .query_row(
+                "SELECT version, digest FROM witness_roster_state WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         match current {
-            Some((current_version, _)) if version_i < current_version => return Err(SecurityStoreError::Rollback),
+            Some((current_version, _)) if version_i < current_version => {
+                return Err(SecurityStoreError::Rollback)
+            }
             Some((current_version, current_digest)) if version_i == current_version => {
-                if current_digest != digest { return Err(SecurityStoreError::ConflictingVersion); }
+                if current_digest != digest {
+                    return Err(SecurityStoreError::ConflictingVersion);
+                }
                 tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
@@ -283,27 +297,45 @@ impl SqliteSecurityStore {
              VALUES(1,?1,?2,?3,?4)
              ON CONFLICT(singleton) DO UPDATE SET version=excluded.version,digest=excluded.digest,
              issued_at=excluded.issued_at,expires_at=excluded.expires_at",
-            params![version_i,digest,issued_i,expires_i],
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
+            params![version_i, digest, issued_i, expires_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
         tx.execute(
             "INSERT INTO witness_roster_history(version,digest,issued_at,expires_at,installed_at)
              VALUES(?1,?2,?3,?4,?5)",
-            params![version_i,digest,issued_i,expires_i,installed_i],
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
+            params![version_i, digest, issued_i, expires_i, installed_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
     }
 
     pub fn highest_witness_roster_version(&self) -> Result<Option<u64>, SecurityStoreError> {
-        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let version: Option<i64> = connection.query_row(
-            "SELECT version FROM witness_roster_state WHERE singleton=1", [], |row| row.get(0),
-        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-        version.map(|v| u64::try_from(v).map_err(|_| SecurityStoreError::Unavailable)).transpose()
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let version: Option<i64> = connection
+            .query_row(
+                "SELECT version FROM witness_roster_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        version
+            .map(|v| u64::try_from(v).map_err(|_| SecurityStoreError::Unavailable))
+            .transpose()
     }
 
     pub fn witness_roster_history_count(&self) -> Result<u64, SecurityStoreError> {
-        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let count: i64 = connection.query_row("SELECT COUNT(*) FROM witness_roster_history", [], |row| row.get(0))
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM witness_roster_history", [], |row| {
+                row.get(0)
+            })
             .map_err(|_| SecurityStoreError::Unavailable)?;
         u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }

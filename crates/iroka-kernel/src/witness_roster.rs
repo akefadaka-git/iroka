@@ -63,7 +63,11 @@ impl SignedWitnessRosterManifest {
         payload: WitnessRosterManifestPayload,
         signature: Vec<u8>,
     ) -> Self {
-        Self { root_key_id: root_key_id.into(), payload, signature }
+        Self {
+            root_key_id: root_key_id.into(),
+            payload,
+            signature,
+        }
     }
 
     /// Domain-separated signing input with deterministic struct-field ordering.
@@ -76,8 +80,11 @@ impl SignedWitnessRosterManifest {
             root_key_id: &'a str,
             payload: &'a WitnessRosterManifestPayload,
         }
-        let encoded = serde_json::to_vec(&Envelope { root_key_id, payload })
-            .map_err(|_| WitnessRosterManifestError::Malformed)?;
+        let encoded = serde_json::to_vec(&Envelope {
+            root_key_id,
+            payload,
+        })
+        .map_err(|_| WitnessRosterManifestError::Malformed)?;
         let mut bytes = Vec::with_capacity(DOMAIN_SEPARATOR.len() + encoded.len());
         bytes.extend_from_slice(DOMAIN_SEPARATOR);
         bytes.extend_from_slice(&encoded);
@@ -170,8 +177,14 @@ pub fn activate_signed_witness_roster(
     {
         return Err(WitnessRosterManifestError::OwnerRootOutsideValidity);
     }
-    if payload.witnesses.windows(2).any(|pair| pair[0].witness_id >= pair[1].witness_id)
-        || payload.revoked_key_ids.windows(2).any(|pair| pair[0] >= pair[1])
+    if payload
+        .witnesses
+        .windows(2)
+        .any(|pair| pair[0].witness_id >= pair[1].witness_id)
+        || payload
+            .revoked_key_ids
+            .windows(2)
+            .any(|pair| pair[0] >= pair[1])
     {
         return Err(WitnessRosterManifestError::NonCanonicalOrdering);
     }
@@ -181,7 +194,8 @@ pub fn activate_signed_witness_roster(
     let signature = Signature::from_slice(&manifest.signature)
         .map_err(|_| WitnessRosterManifestError::Malformed)?;
     let signing_bytes = manifest.signing_bytes()?;
-    root_key.verify(&signing_bytes, &signature)
+    root_key
+        .verify(&signing_bytes, &signature)
         .map_err(|_| WitnessRosterManifestError::InvalidSignature)?;
 
     let mut authorized = Vec::with_capacity(AUTHORIZED_WITNESS_COUNT);
@@ -190,7 +204,11 @@ pub fn activate_signed_witness_roster(
     let mut public_keys = std::collections::BTreeSet::new();
     let revoked: std::collections::BTreeSet<&str> =
         payload.revoked_key_ids.iter().map(String::as_str).collect();
-    if payload.revoked_key_ids.iter().any(|id| id.trim().is_empty()) {
+    if payload
+        .revoked_key_ids
+        .iter()
+        .any(|id| id.trim().is_empty())
+    {
         return Err(WitnessRosterManifestError::Malformed);
     }
     for witness in &payload.witnesses {
@@ -221,11 +239,18 @@ pub fn activate_signed_witness_roster(
     let verifier = WitnessReceiptVerifier::new(authorized)?;
     let digest = Sha256::digest(&signing_bytes);
     store.install_witness_roster(
-        payload.version, digest.as_slice(), payload.issued_at, payload.expires_at, now,
+        payload.version,
+        digest.as_slice(),
+        payload.issued_at,
+        payload.expires_at,
+        now,
     )?;
 
     Ok(WitnessRosterState::provisioned_from_manifest(
-        verifier, payload.stream_id.clone(), payload.version, payload.expires_at,
+        verifier,
+        payload.stream_id.clone(),
+        payload.version,
+        payload.expires_at,
     ))
 }
 
@@ -234,7 +259,13 @@ mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
 
-    fn fixture(version: u64) -> (SigningKey, OwnerWitnessRosterRoot, SignedWitnessRosterManifest) {
+    fn fixture(
+        version: u64,
+    ) -> (
+        SigningKey,
+        OwnerWitnessRosterRoot,
+        SignedWitnessRosterManifest,
+    ) {
         let owner = SigningKey::from_bytes(&[61u8; 32]);
         let witness_keys = [
             SigningKey::from_bytes(&[62u8; 32]),
@@ -248,13 +279,17 @@ mod tests {
             not_before: 900,
             not_after: 10_000,
         };
-        let witnesses = witness_keys.iter().enumerate().map(|(i, key)| WitnessRosterEntry {
-            witness_id: format!("witness-{}", i + 1),
-            signing_key_id: format!("witness-key-{}", i + 1),
-            public_key: key.verifying_key().to_bytes(),
-            not_before: 1_000,
-            not_after: 5_000,
-        }).collect::<Vec<_>>();
+        let witnesses = witness_keys
+            .iter()
+            .enumerate()
+            .map(|(i, key)| WitnessRosterEntry {
+                witness_id: format!("witness-{}", i + 1),
+                signing_key_id: format!("witness-key-{}", i + 1),
+                public_key: key.verifying_key().to_bytes(),
+                not_before: 1_000,
+                not_after: 5_000,
+            })
+            .collect::<Vec<_>>();
         let payload = WitnessRosterManifestPayload {
             version,
             owner_subject: "owner:akefa".into(),
@@ -267,7 +302,8 @@ mod tests {
         let bytes = SignedWitnessRosterManifest::signing_bytes_for(&root.key_id, &payload).unwrap();
         let signature = owner.sign(&bytes).to_bytes().to_vec();
         (
-            owner, root.clone(),
+            owner,
+            root.clone(),
             SignedWitnessRosterManifest::from_signature(root.key_id.clone(), payload, signature),
         )
     }
@@ -287,7 +323,9 @@ mod tests {
     #[test]
     fn activated_signed_roster_verifies_the_approved_two_of_three_quorum() {
         use crate::audit_checkpoint::{AuditHead, CheckpointBuilder, V1_CHAIN_FORMAT};
-        use crate::audit_signer::{CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner};
+        use crate::audit_signer::{
+            CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner,
+        };
         use crate::audit_verifier::verify_checkpoint_and_quorum;
         use crate::audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger, WitnessLedger};
 
@@ -297,7 +335,8 @@ mod tests {
 
         let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("checkpoint-key", [65; 32]);
         let checkpoint_verifier = Ed25519CheckpointVerifier::new(vec![(
-            "checkpoint-key".into(), checkpoint_signer.verifying_key(),
+            "checkpoint-key".into(),
+            checkpoint_signer.verifying_key(),
         )]);
         let builder = CheckpointBuilder::new("iroka:audit:primary", "checkpoint-key");
         let head = AuditHead {
@@ -307,23 +346,37 @@ mod tests {
             head_event_hash: [7; 32],
             chain_format: V1_CHAIN_FORMAT.into(),
         };
-        let signed = checkpoint_signer.sign_checkpoint(
-            &builder.initial_v1_anchor(&head, 1_100).unwrap(),
-        ).unwrap();
+        let signed = checkpoint_signer
+            .sign_checkpoint(&builder.initial_v1_anchor(&head, 1_100).unwrap())
+            .unwrap();
 
         let witness_one = MemoryWitnessLedger::new(
             "witness-1",
-            Box::new(LocalWitnessTestSigner::from_test_seed("witness-key-1", [62; 32])),
+            Box::new(LocalWitnessTestSigner::from_test_seed(
+                "witness-key-1",
+                [62; 32],
+            )),
         );
         let witness_two = MemoryWitnessLedger::new(
             "witness-2",
-            Box::new(LocalWitnessTestSigner::from_test_seed("witness-key-2", [63; 32])),
+            Box::new(LocalWitnessTestSigner::from_test_seed(
+                "witness-key-2",
+                [63; 32],
+            )),
         );
-        let receipt_one = witness_one.accept(&signed, &checkpoint_verifier, 1_101).unwrap();
-        let receipt_two = witness_two.accept(&signed, &checkpoint_verifier, 1_101).unwrap();
+        let receipt_one = witness_one
+            .accept(&signed, &checkpoint_verifier, 1_101)
+            .unwrap();
+        let receipt_two = witness_two
+            .accept(&signed, &checkpoint_verifier, 1_101)
+            .unwrap();
         assert_eq!(
             verify_checkpoint_and_quorum(
-                &signed, &checkpoint_verifier, &[receipt_one, receipt_two], &state, 1_102,
+                &signed,
+                &checkpoint_verifier,
+                &[receipt_one, receipt_two],
+                &state,
+                1_102,
             ),
             Ok(())
         );
@@ -340,7 +393,15 @@ mod tests {
             Err(WitnessRosterManifestError::InvalidSignature)
         ));
         assert!(matches!(
-            activate_signed_witness_roster(&manifest, &OwnerWitnessRosterRoot { owner_subject: String::from("owner:someone-else"), ..root.clone() }, &store, 1_100),
+            activate_signed_witness_roster(
+                &manifest,
+                &OwnerWitnessRosterRoot {
+                    owner_subject: String::from("owner:someone-else"),
+                    ..root.clone()
+                },
+                &store,
+                1_100
+            ),
             Err(WitnessRosterManifestError::OwnerMismatch)
         ));
     }
@@ -393,7 +454,10 @@ mod tests {
     fn rejects_a_key_listed_as_revoked_from_remaining_active() {
         let (owner, root, mut manifest) = fixture(1);
         manifest.payload.revoked_key_ids = vec!["witness-key-2".into()];
-        manifest.signature = owner.sign(&manifest.signing_bytes().unwrap()).to_bytes().to_vec();
+        manifest.signature = owner
+            .sign(&manifest.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         assert!(matches!(
             activate_signed_witness_roster(&manifest, &root, &store, 1_100),
@@ -408,12 +472,18 @@ mod tests {
         for (index, witness) in rotated.payload.witnesses.iter_mut().enumerate() {
             witness.signing_key_id = format!("witness-key-v2-{}", index + 1);
             witness.public_key = SigningKey::from_bytes(&[72 + index as u8; 32])
-                .verifying_key().to_bytes();
+                .verifying_key()
+                .to_bytes();
         }
         rotated.payload.revoked_key_ids = vec![
-            "witness-key-1".into(), "witness-key-2".into(), "witness-key-3".into(),
+            "witness-key-1".into(),
+            "witness-key-2".into(),
+            "witness-key-3".into(),
         ];
-        rotated.signature = owner.sign(&rotated.signing_bytes().unwrap()).to_bytes().to_vec();
+        rotated.signature = owner
+            .sign(&rotated.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         activate_signed_witness_roster(&first, &root, &store, 1_100).unwrap();
         let state = activate_signed_witness_roster(&rotated, &root, &store, 1_200).unwrap();
@@ -426,7 +496,10 @@ mod tests {
     fn rejects_witness_key_that_expires_before_its_roster() {
         let (owner, root, mut manifest) = fixture(1);
         manifest.payload.witnesses[0].not_after = 3_000;
-        manifest.signature = owner.sign(&manifest.signing_bytes().unwrap()).to_bytes().to_vec();
+        manifest.signature = owner
+            .sign(&manifest.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         assert!(matches!(
             activate_signed_witness_roster(&manifest, &root, &store, 1_100),
@@ -440,7 +513,10 @@ mod tests {
         let (_, _, first) = fixture(1);
         let (owner, _, mut conflicting) = fixture(2);
         conflicting.payload.stream_id = "iroka:audit:conflicting".into();
-        conflicting.signature = owner.sign(&conflicting.signing_bytes().unwrap()).to_bytes().to_vec();
+        conflicting.signature = owner
+            .sign(&conflicting.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         activate_signed_witness_roster(&second, &root, &store, 1_100).unwrap();
         assert!(matches!(
