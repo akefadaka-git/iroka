@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - fix/a2-trust-concurrency-workflow
-      - fix/k04-witness-roster-fail-closed
+      - fix/k04-witness-roster-fail-closed # K-04 stacked PR verification
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
