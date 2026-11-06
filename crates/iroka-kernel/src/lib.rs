@@ -21,6 +21,7 @@ mod request;
 mod security_store;
 mod service;
 mod trust_lifecycle;
+mod witness_roster;
 
 #[cfg(all(feature = "dev-no-revocations", not(test)))]
 compile_error!("dev-no-revocations is restricted to test builds");
@@ -37,8 +38,7 @@ pub use audit_signer::{
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use audit_verifier::{
     reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain, LocalReconciliation,
-    AuthorizedWitness, VerificationError, WitnessReceiptVerifier, AUTHORIZED_WITNESS_COUNT,
-    REQUIRED_WITNESS_QUORUM,
+    VerificationError, WitnessRosterState, AUTHORIZED_WITNESS_COUNT, REQUIRED_WITNESS_QUORUM,
 };
 pub use audit_witness::{
     LocalWitnessTestSigner, MemoryWitnessLedger, SqliteWitnessLedger, WitnessError, WitnessLedger,
@@ -71,6 +71,10 @@ pub(crate) use service::{authorize, authorize_authenticated};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
+};
+pub use witness_roster::{
+    activate_signed_witness_roster, OwnerWitnessRosterRoot, SignedWitnessRosterManifest,
+    WitnessRosterEntry, WitnessRosterManifestError, WitnessRosterManifestPayload,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,

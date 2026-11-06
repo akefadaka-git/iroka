@@ -2,7 +2,9 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [fix/a2-trust-concurrency-workflow]
+    branches:
+      - fix/a2-trust-concurrency-workflow
+      - fix/k04-witness-roster-fail-closed # K-04 stacked PR verification
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -15,7 +17,10 @@ on:
       - "docs/architecture/G11-K04-OWNER-DECISIONS-001.md"
       - "docs/operations/G11-K04-OPERATIONAL-ASSURANCE-RUNBOOK-001.md"
   pull_request:
-    branches: [main, fix/a2-trust-concurrency-workflow]
+    branches:
+      - main
+      - fix/a2-trust-concurrency-workflow
+      - fix/k04-authorized-witness-roster
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
