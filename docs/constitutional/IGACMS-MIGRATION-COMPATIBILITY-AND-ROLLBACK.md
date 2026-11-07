@@ -18,7 +18,7 @@
 
 Historical source: akeayu/iroka at commit 1224bb8298f9ef21d2590dd6e70273501281cd9. The 48-file DNA directory is legacy reference material. The inspected historical tsconfig excludes src/core/_legacy/**.
 
-Destination: ake fadaka-git/iroka. IGACMS documents are added under docs/constitutional on a dedicated branch. No historical TypeScript files are copied into active destination source paths in A2. Existing native OS A2 documents and kernel branches remain untouched.
+Destination: akefadaka-git/iroka. IGACMS documents are added under docs/constitutional on a dedicated branch. No historical TypeScript files are copied into active destination source paths in A2. Existing native OS A2 documents and kernel branches remain untouched.
 
 ## 3. Migration phases
 
