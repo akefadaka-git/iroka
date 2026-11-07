@@ -248,8 +248,8 @@ impl RecoveryApprovalVerifier {
                 return Err(RecoveryError::Revoked);
             }
             let signing_bytes = payload.signing_bytes()?;
-            let signature = Signature::from_slice(&approval.signature)
-                .map_err(|_| RecoveryError::Malformed)?;
+            let signature =
+                Signature::from_slice(&approval.signature).map_err(|_| RecoveryError::Malformed)?;
             key.verifying_key
                 .verify(&signing_bytes, &signature)
                 .map_err(|_| RecoveryError::InvalidSignature)?;
