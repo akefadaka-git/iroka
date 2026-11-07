@@ -260,6 +260,17 @@ mod tests {
     }
 
     #[test]
+    fn rejects_checkpoint_number_overflow() {
+        let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
+        let mut previous = b.initial_v1_anchor(&head(3, 7), 100).unwrap();
+        previous.checkpoint_number = u64::MAX;
+        assert_eq!(
+            b.next(&head(5, 8), &previous, 110),
+            Err(CheckpointError::InvalidSequence)
+        );
+    }
+
+    #[test]
     fn next_checkpoint_is_linked_and_strictly_advances() {
         let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
         let first = b.initial_v1_anchor(&head(3, 7), 100).unwrap();
