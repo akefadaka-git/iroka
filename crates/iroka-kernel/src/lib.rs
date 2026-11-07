@@ -11,6 +11,7 @@ mod audit_signer;
 mod audit_store;
 mod audit_verifier;
 mod audit_witness;
+pub mod conformance;
 mod decision;
 #[cfg(test)]
 mod governance;
@@ -52,6 +53,7 @@ pub use audit_verifier::{
 pub use audit_witness::{
     SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner,
 };
+pub use conformance::{build_conformance_report, CONFORMANCE_HARNESS_VERSION, REQUIRED_CASE_COUNT};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
 pub(crate) use governance::{
