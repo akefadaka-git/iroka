@@ -449,7 +449,7 @@ mod tests {
                 &approvals,
                 &local,
                 &TestHighWater(Some(current_high_water)),
-                1_200
+                1_200,
             )
             .unwrap();
         assert!(result.local_ahead_of_witnessed_head);
