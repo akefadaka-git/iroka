@@ -274,6 +274,7 @@ mod tests {
         let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
         let mut previous = b.initial_v1_anchor(&head(3, 7), 100).unwrap();
         previous.checkpoint_number = u64::MAX;
+        previous.previous_checkpoint_digest = [6; 32];
         assert_eq!(
             b.next(&head(5, 8), &previous, 110),
             Err(CheckpointError::InvalidSequence)
