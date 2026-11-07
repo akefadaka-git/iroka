@@ -16,7 +16,7 @@ pub enum AnchoringState {
     ClockAnomaly,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManualCheckpointRequest {
     pub request_id: String,
     pub requested_by: String,
@@ -138,7 +138,7 @@ pub fn checkpoint_due(
         || unanchored_events >= max_events
 }
 
-/// Manual checkpoint requests are explicit, attributable and independently validated.
+/// Manual checkpoint requests are explicit and attributable. The caller must authorize the requester.
 pub fn checkpoint_due_with_manual_request(
     policy: CheckpointPolicy,
     elapsed_since_quorum_seconds: u64,
