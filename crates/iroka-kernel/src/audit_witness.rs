@@ -9,9 +9,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use ed25519_dalek::{Signer, SigningKey};
 use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
 use sha2::{Digest, Sha256};
-use std::{path::Path, sync::Mutex, time::Duration};
-#[cfg(test)]
-use std::{collections::BTreeMap};
+use std::{collections::{BTreeMap, BTreeSet}, path::Path, sync::Mutex, time::Duration};
 
 const RECEIPT_DOMAIN: &[u8] = b"IROKA:G11:AUDIT-WITNESS-RECEIPT:V1\0";
 
@@ -304,7 +302,7 @@ pub struct SqliteWitnessLedger {
     witness_id: String,
     stream_id: String,
     signer: Box<dyn WitnessReceiptSigner>,
-    verifying_key: VerifyingKey,
+    verifying_keys: BTreeMap<String, VerifyingKey>,
     connection: Mutex<Connection>,
 }
 
@@ -314,7 +312,7 @@ impl SqliteWitnessLedger {
         witness_id: impl Into<String>,
         stream_id: impl Into<String>,
         signer: Box<dyn WitnessReceiptSigner>,
-        verifying_key: VerifyingKey,
+        verifying_keys: Vec<(String, VerifyingKey)>,
     ) -> Result<Self, WitnessError> {
         let path = path.as_ref();
         #[cfg(unix)]
@@ -345,7 +343,7 @@ impl SqliteWitnessLedger {
             witness_id.into(),
             stream_id.into(),
             signer,
-            verifying_key,
+            verifying_keys,
         )
     }
 
@@ -354,7 +352,7 @@ impl SqliteWitnessLedger {
         witness_id: String,
         stream_id: String,
         signer: Box<dyn WitnessReceiptSigner>,
-        verifying_key: VerifyingKey,
+        verifying_keys: Vec<(String, VerifyingKey)>,
     ) -> Result<Self, WitnessError> {
         if witness_id.trim().is_empty()
             || stream_id.trim().is_empty()
@@ -381,6 +379,19 @@ impl SqliteWitnessLedger {
              CREATE TRIGGER IF NOT EXISTS witness_no_delete BEFORE DELETE ON witness_receipts
                BEGIN SELECT RAISE(ABORT,'append-only witness ledger'); END;"
         ).map_err(|_| WitnessError::StorageUnavailable)?;
+        let mut trusted_keys = BTreeMap::new();
+        let mut public_keys = BTreeSet::new();
+        for (key_id, key) in verifying_keys {
+            if key_id.trim().is_empty()
+                || !public_keys.insert(key.to_bytes())
+                || trusted_keys.insert(key_id, key).is_some()
+            {
+                return Err(WitnessError::InvalidSignature);
+            }
+        }
+        if !trusted_keys.contains_key(signer.key_id()) {
+            return Err(WitnessError::InvalidSignature);
+        }
         let conflicting_rows: i64 = connection
             .query_row(
                 "SELECT COUNT(*) FROM witness_receipts
@@ -392,12 +403,12 @@ impl SqliteWitnessLedger {
         if conflicting_rows != 0 {
             return Err(WitnessError::InvalidCheckpoint);
         }
-        verify_witness_history(&connection, &witness_id, &stream_id, &verifying_key)?;
+        verify_witness_history(&connection, &witness_id, &stream_id, &trusted_keys)?;
         Ok(Self {
             witness_id,
             stream_id,
             signer,
-            verifying_key,
+            verifying_keys: trusted_keys,
             connection: Mutex::new(connection),
         })
     }
@@ -428,7 +439,7 @@ fn verify_witness_history(
     connection: &Connection,
     witness_id: &str,
     stream_id: &str,
-    verifying_key: &VerifyingKey,
+    verifying_keys: &BTreeMap<String, VerifyingKey>,
 ) -> Result<(), WitnessError> {
     let mut statement = connection
         .prepare(
@@ -460,6 +471,9 @@ fn verify_witness_history(
         {
             return Err(WitnessError::Equivocation);
         }
+        let verifying_key = verifying_keys
+            .get(&receipt.signing_key_id)
+            .ok_or(WitnessError::InvalidSignature)?;
         verifying_key
             .verify(
                 &receipt.signing_bytes(),
@@ -507,7 +521,7 @@ impl WitnessLedger for SqliteWitnessLedger {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| WitnessError::StorageUnavailable)?;
-        verify_witness_history(&tx, &self.witness_id, &self.stream_id, &self.verifying_key)?;
+        verify_witness_history(&tx, &self.witness_id, &self.stream_id, &self.verifying_keys)?;
         let number = i64::try_from(payload.checkpoint_number)
             .map_err(|_| WitnessError::InvalidCheckpoint)?;
         let existing = Self::select_receipt(
@@ -748,7 +762,7 @@ mod tests {
             "witness-bound",
             "stream:provisioned",
             Box::new(witness_signer),
-            witness_verifying_key,
+            vec![("w-key".into(), witness_verifying_key)],
         )
         .unwrap();
         assert_eq!(
@@ -801,7 +815,7 @@ mod tests {
                 "witness-durable",
                 "stream:durable",
                 Box::new(witness_signer),
-                witness_verifying_key,
+                vec![("w-key".into(), witness_verifying_key)],
             )
             .unwrap();
             ledger.accept(&signed, &verifier, 11).unwrap()
