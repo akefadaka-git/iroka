@@ -208,6 +208,14 @@ impl SqliteSecurityStore {
                 if current_digest != digest {
                     return Err(SecurityStoreError::ConflictingVersion);
                 }
+                // Backfill the immutable signed envelope when upgrading a store created
+                // before historical-manifest retention was introduced.
+                tx.execute(
+                    "INSERT OR IGNORE INTO witness_roster_manifest_history(version,manifest_json)
+                     VALUES(?1,?2)",
+                    params![version_i, manifest_json],
+                )
+                .map_err(|_| SecurityStoreError::Unavailable)?;
                 tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
