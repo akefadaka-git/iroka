@@ -12,10 +12,10 @@ The report captures repository, ref, exact commit SHA, workflow/run metadata, ru
 
 ## Current adapter coverage
 
-The harness currently registers nine synthetic kernel adapters:
+The harness currently registers nine synthetic kernel adapters, with eight expected PASS outcomes and one intentionally BLOCKED end-to-end case:
 
 - `OS-BOOT-003`: durable trust-bundle rollback rejection.
-- `OS-AUD-001`: audit sink failure escalates a proposed Allow decision; the caller must enforce the Escalate result before any protected effect.
+- `OS-AUD-001`: the kernel audit sink failure escalation is exercised, but the full protected-effect adapter remains BLOCKED until the caller's side-effect suppression is proven end to end.
 - `OS-TIME-001`: a future checkpoint timestamp is treated as a clock anomaly and high-risk actions are denied.
 - `A1-TIME-001`: date-only temporal value remains distinct from an absolute instant.
 - `A1-LOC-001`: Ethiopia technical profile resolves Amharic as its declared primary locale.
@@ -24,7 +24,7 @@ The harness currently registers nine synthetic kernel adapters:
 - `A1-REG-001`: synthetic Kenya profile does not inherit Ethiopia calendar, time-zone, currency or script defaults.
 - `A1-REG-002`: strict regional profile schema rejects an unrecognized kernel-authority field.
 
-The other 31 catalog cases remain BLOCKED when their fixture is absent, or NOT RUN when a fixture exists but no executor is registered. They are never silently marked PASS.
+The other 31 catalog cases remain BLOCKED when their fixture is absent, or NOT RUN when a fixture exists but no executor is registered. Including the protected-effect integration gap, the expected disposition is 8 PASS and 32 BLOCKED. They are never silently marked PASS.
 
 The nine synthetic fixtures are code-defined and non-sensitive. They are not replacements for independent boot hardware, IPC, isolation, INL compiler/runtime, VYRAQON authoritative grammar and semantic vectors, reviewed Amharic/English corpus, Ethiopian calendar reference oracle, legal/data-governance references, hardware profiles or end-to-end assurance fixtures.
 
