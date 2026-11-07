@@ -534,6 +534,33 @@ impl WitnessLedger for SqliteWitnessLedger {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn receipt_digest_uses_the_canonical_nul_terminated_domain() {
+        let receipt = WitnessReceipt {
+            witness_id: "witness-1".into(),
+            stream_id: "stream-1".into(),
+            checkpoint_number: 1,
+            checkpoint_digest: [1; 32],
+            last_sequence: 7,
+            head_event_hash: [2; 32],
+            previous_checkpoint_digest: [0; 32],
+            previous_receipt_digest: [0; 32],
+            witnessed_at: 100,
+            log_index: 1,
+            signing_key_id: "wkey-1".into(),
+            signature: [3; 64],
+        };
+        assert_eq!(
+            receipt.digest(),
+            [
+                0x69, 0x35, 0x03, 0xa7, 0x7b, 0xce, 0xc3, 0xcb,
+                0x6d, 0xd6, 0xa4, 0xe4, 0xed, 0x89, 0x6b, 0x4b,
+                0xda, 0x76, 0xeb, 0xa3, 0x8f, 0x6a, 0xc7, 0x00,
+                0xca, 0x77, 0xa4, 0xb1, 0xdb, 0xe9, 0xf1, 0x69,
+            ]
+        );
+    }
     use crate::audit_checkpoint::{AuditHead, CheckpointBuilder, V1_CHAIN_FORMAT};
     use crate::audit_signer::{
         CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner,
