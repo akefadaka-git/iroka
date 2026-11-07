@@ -18,7 +18,7 @@
 ## Known limitations to close before A3 completion
 - Trust-root provenance metadata is not a production custody ceremony; operational custody, dual-control signing and production key provisioning remain separate gates.
 - Historical Git blob SHA-1 is checked using the Git `blob <length>\\0` object preamble; SHA-256 is separately recorded for content integrity. SHA-1 is used only for Git object compatibility, not as a security primitive.
-- The A2 historical register records source commit `1224bb8298f9ef21d2590dd6e70273501281cd9` as a 39-character hexadecimal reference. It is preserved exactly as recorded but is not yet resolved to a full 40-character Git commit object; this remains an explicit historical-source evidence blocker.
+- RESOLVED: the 39-character value `1224bb8298f9ef21d2590dd6e70273501281cd9` is a valid unique Git object prefix and resolves in `akeayu/iroka` to full commit `1224bb8298f9ef21d2590dd6e70273501281cd9c` ([source commit](https://github.com/akeayu/iroka/commit/1224bb8298f9ef21d2590dd6e70273501281cd9c)). At that exact commit, the fetched Git blob IDs for DNA-001 (`7206f07941455c976af889884ec873da73349737`), DNA-012 (`a6446ea08890da3ea195b1d977d0a9aed0c4ba64`), DNA-013 (`d3fd1fcfaee32e3a13ca123c3f319ae8df750696`) and DNA-045 (`edd58b38fb2f2098aeea9716d0eba0897a753811`) match the A2 disposition register. The original register is preserved unchanged; this A3 record documents the prefix-to-full-SHA resolution.
 - Source tests are not PASS evidence until run at the exact final SHA.
 
 
@@ -46,10 +46,10 @@
 - **A3.4:** IMPLEMENTED — Ed25519 Genesis envelope signing/verification against the configured Owner-controlled trust-root set, with provenance, validity and revocation behavior. Production root provisioning and genesis activation are NOT RUN.
 - **A3.5:** VERIFIED — M0–M5 evidence gates and fail-closed tests.
 - **A3.6:** VERIFIED — protected Owner-approval authorization requires a verified Genesis token and the pinned embedded Genome.
-- **A3.7:** PARTIAL — Git blob SHA-1 object identity and SHA-256 content digest are checked; the A2 source commit reference remains unresolved because its recorded value is 39 hexadecimal characters rather than a full 40-character SHA.
-- **A3.8:** PARTIAL — automated conformance tests PASS; independent security review remains pending.
+- **A3.7:** PARTIAL — source commit prefix resolved to full SHA and four representative historical blob IDs independently matched the A2 register; full 48-artifact blob-by-blob reconciliation has not yet been completed. DNA-045 remains `EXTENSION-REVIEW` by the A2 disposition.
+- **A3.8:** PARTIAL — automated conformance tests PASS; an independent reviewer has not yet submitted a review.
 
-**Overall A3 status: PARTIAL — implementation and automated verification are in place, but historical source-commit resolution and independent security review remain open.**
+**Overall A3 status: PARTIAL — implementation and automated verification are in place; the historical commit reference is resolved. Full historical blob reconciliation and an independent security review remain open.**
 
 ## Explicitly not performed
 
