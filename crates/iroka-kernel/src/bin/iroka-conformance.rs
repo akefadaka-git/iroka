@@ -79,7 +79,11 @@ fn main() -> ExitCode {
 
     if let Ok(summary_path) = env::var("GITHUB_STEP_SUMMARY") {
         let counts = &report["counts"];
-        let mut summary = match OpenOptions::new().create(true).append(true).open(summary_path) {
+        let mut summary = match OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(summary_path)
+        {
             Ok(summary) => summary,
             Err(error) => {
                 eprintln!("cannot open GitHub step summary: {error}");
