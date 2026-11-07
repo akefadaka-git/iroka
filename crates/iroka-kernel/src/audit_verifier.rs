@@ -20,6 +20,7 @@ pub enum VerificationError {
     WitnessRosterUnprovisioned,
     WitnessRosterExpired,
     WitnessRosterScopeMismatch,
+    RosterStateUnavailable,
     UnauthorizedWitness,
     WrongStream,
     ReceiptCheckpointMismatch,
@@ -36,12 +37,14 @@ pub enum LocalReconciliation {
 
 /// One explicit binding between a provisioned witness identity, its key identifier,
 /// and the public key authorized to sign receipts for that identity.
+#[derive(Clone)]
 pub struct AuthorizedWitness {
     pub witness_id: String,
     pub signing_key_id: String,
     pub verifying_key: VerifyingKey,
 }
 
+#[derive(Clone)]
 pub struct WitnessReceiptVerifier {
     roster: Vec<AuthorizedWitness>,
 }
@@ -95,6 +98,7 @@ impl WitnessReceiptVerifier {
 /// Runtime trust state for the independent witness roster.
 /// Production callers can construct the unprovisioned state or activate a verified
 /// Owner-signed manifest using a separately provisioned Owner trust anchor.
+#[derive(Clone)]
 pub struct WitnessRosterState {
     verifier: Option<WitnessReceiptVerifier>,
     stream_id: Option<String>,
