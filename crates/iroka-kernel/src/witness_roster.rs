@@ -6,6 +6,7 @@
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
+use std::sync::RwLock;
 use sha2::{Digest, Sha256};
 
 use crate::audit_verifier::{
@@ -110,6 +111,7 @@ pub enum WitnessRosterManifestError {
     InvalidRoster,
     Rollback,
     StoreUnavailable,
+    StateUnavailable,
 }
 
 impl From<SecurityStoreError> for WitnessRosterManifestError {
@@ -254,6 +256,85 @@ pub fn activate_signed_witness_roster(
     ))
 }
 
+/// Process-local atomic publication boundary for the currently trusted witness roster.
+/// Deployments should share one manager across all checkpoint and recovery handlers.
+pub struct WitnessRosterManager {
+    state: RwLock<WitnessRosterState>,
+}
+
+impl WitnessRosterManager {
+    pub fn unprovisioned() -> Self {
+        Self {
+            state: RwLock::new(WitnessRosterState::unprovisioned()),
+        }
+    }
+
+    /// Persist and validate the new manifest first, then atomically replace the in-memory
+    /// state. Readers holding the read lock finish against the old snapshot; subsequent
+    /// readers observe only the new version.
+    pub fn activate(
+        &self,
+        manifest: &SignedWitnessRosterManifest,
+        root: &OwnerWitnessRosterRoot,
+        store: &SqliteSecurityStore,
+        now: u64,
+    ) -> Result<u64, WitnessRosterManifestError> {
+        let candidate = activate_signed_witness_roster(manifest, root, store, now)?;
+        let version = candidate
+            .version()
+            .ok_or(WitnessRosterManifestError::Malformed)?;
+        let mut active = self
+            .state
+            .write()
+            .map_err(|_| WitnessRosterManifestError::StateUnavailable)?;
+        if active.version().is_some_and(|current| version < current) {
+            return Err(WitnessRosterManifestError::Rollback);
+        }
+        *active = candidate;
+        Ok(version)
+    }
+
+    pub fn active_version(&self) -> Result<Option<u64>, WitnessRosterManifestError> {
+        self.state
+            .read()
+            .map(|state| state.version())
+            .map_err(|_| WitnessRosterManifestError::StateUnavailable)
+    }
+
+    pub fn verify_checkpoint_and_quorum(
+        &self,
+        signed: &crate::SignedCheckpoint,
+        checkpoint_verifier: &dyn crate::CheckpointSignatureVerifier,
+        receipts: &[crate::WitnessReceipt],
+        now: u64,
+    ) -> Result<(), VerificationError> {
+        let state = self
+            .state
+            .read()
+            .map_err(|_| VerificationError::RosterStateUnavailable)?;
+        crate::audit_verifier::verify_checkpoint_and_quorum(
+            signed,
+            checkpoint_verifier,
+            receipts,
+            &state,
+            now,
+        )
+    }
+
+    pub fn verify_receipt_chain(
+        &self,
+        receipts: &[crate::WitnessReceipt],
+        expected_head: &crate::WitnessReceipt,
+        now: u64,
+    ) -> Result<(), VerificationError> {
+        let state = self
+            .state
+            .read()
+            .map_err(|_| VerificationError::RosterStateUnavailable)?;
+        crate::audit_verifier::verify_receipt_chain(receipts, expected_head, &state, now)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -306,6 +387,24 @@ mod tests {
             root.clone(),
             SignedWitnessRosterManifest::from_signature(root.key_id.clone(), payload, signature),
         )
+    }
+
+    #[test]
+    fn manager_atomically_publishes_higher_roster_version() {
+        let (_, root, first) = fixture(1);
+        let (_, _, second) = fixture(2);
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let manager = WitnessRosterManager::unprovisioned();
+        assert_eq!(manager.active_version(), Ok(None));
+        assert_eq!(manager.activate(&first, &root, &store, 1_100), Ok(1));
+        assert_eq!(manager.active_version(), Ok(Some(1)));
+        assert_eq!(manager.activate(&second, &root, &store, 1_200), Ok(2));
+        assert_eq!(manager.active_version(), Ok(Some(2)));
+        assert_eq!(
+            manager.activate(&first, &root, &store, 1_300),
+            Err(WitnessRosterManifestError::Rollback)
+        );
+        assert_eq!(manager.active_version(), Ok(Some(2)));
     }
 
     #[test]
