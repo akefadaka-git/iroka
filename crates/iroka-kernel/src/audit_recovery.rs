@@ -8,7 +8,9 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{AuditHead, RevocationChecker, SecurityStoreError, SqliteSecurityStore};
+use crate::{
+    AuditStoreError, RevocationChecker, SecurityStoreError, SqliteAuditSink, SqliteSecurityStore,
+};
 
 const RECOVERY_DOMAIN: &[u8] = b"IROKA:G11:K04:RECOVERY-APPROVAL:V1\0";
 const RECOVERY_ISSUER: &str = "iroka:k04:recovery-authority";
@@ -92,6 +94,8 @@ pub enum RecoveryError {
     Revoked,
     HighWaterUnavailable,
     HighWaterMismatch,
+    LocalAuditUnavailable,
+    LocalAuditIntegrityFailure,
     LocalRollbackOrTampering,
     DuplicateApprover,
     Replay,
@@ -164,7 +168,7 @@ impl RecoveryApprovalVerifier {
     pub fn authorize_recovery(
         &self,
         approvals: &[SignedRecoveryApproval],
-        local: &AuditHead,
+        local_audit: &SqliteAuditSink,
         external: &dyn ExternalWitnessHighWater,
         now: u64,
     ) -> Result<RecoveryAuthorization, RecoveryError> {
@@ -208,6 +212,12 @@ impl RecoveryApprovalVerifier {
         if first.expires_at - first.issued_at > MAX_APPROVAL_TTL_SECS {
             return Err(RecoveryError::Malformed);
         }
+        let local = local_audit.checkpoint_head().map_err(|error| match error {
+            AuditStoreError::IntegrityFailure => RecoveryError::LocalAuditIntegrityFailure,
+            AuditStoreError::Unavailable | AuditStoreError::Rejected => {
+                RecoveryError::LocalAuditUnavailable
+            }
+        })?;
         if local.last_sequence != first.local_sequence
             || local.head_event_hash != first.local_head_hash
         {
@@ -301,6 +311,7 @@ impl RecoveryApprovalVerifier {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{AuditEvent, DecisionCode};
     use ed25519_dalek::{Signer, SigningKey};
 
     struct TestHighWater(Option<RecoveryHighWater>);
@@ -347,6 +358,24 @@ mod tests {
             head_event_hash: [8; 32],
         };
         (verifier, first, second, high_water, store)
+    }
+
+    fn local_audit(count: u64) -> SqliteAuditSink {
+        let sink = SqliteAuditSink::open_in_memory().unwrap();
+        for sequence in 1..=count {
+            sink.append_event(&AuditEvent::new(
+                format!("event:{sequence}"),
+                "trace:recovery",
+                "principal:recovery-test",
+                "audit.recovery.test",
+                "stream:pilot",
+                "policy:test",
+                DecisionCode::Allow,
+                1_000 + sequence,
+            ))
+            .unwrap();
+        }
+        sink
     }
 
     fn approvals(
@@ -397,14 +426,15 @@ mod tests {
     #[test]
     fn requires_two_distinct_approvers_and_independent_high_water() {
         let (verifier, first, second, high_water, _) = fixture();
-        let local = AuditHead {
-            first_sequence: 1,
-            last_sequence: 22,
-            event_count: 22,
-            head_event_hash: [9; 32],
-            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
-        };
-        let approvals = approvals(&first, &second, "recovery:one", 22, [9; 32]);
+        let local = local_audit(22);
+        let local_head = local.checkpoint_head().unwrap();
+        let approvals = approvals(
+            &first,
+            &second,
+            "recovery:one",
+            local_head.last_sequence,
+            local_head.head_event_hash,
+        );
         let result = verifier
             .authorize_recovery(&approvals, &local, &TestHighWater(Some(high_water)), 1_200)
             .unwrap();
@@ -415,15 +445,18 @@ mod tests {
     #[test]
     fn recovery_approval_pair_is_one_time() {
         let (verifier, first, second, high_water, _) = fixture();
-        let local = AuditHead {
-            first_sequence: 1,
-            last_sequence: 20,
-            event_count: 20,
-            head_event_hash: [8; 32],
-            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
-        };
-        let approvals = approvals(&first, &second, "recovery:replay", 20, [8; 32]);
-        let external = TestHighWater(Some(high_water));
+        let local = local_audit(20);
+        let local_head = local.checkpoint_head().unwrap();
+        let mut current_high_water = high_water;
+        current_high_water.head_event_hash = local_head.head_event_hash;
+        let approvals = approvals(
+            &first,
+            &second,
+            "recovery:replay",
+            local_head.last_sequence,
+            local_head.head_event_hash,
+        );
+        let external = TestHighWater(Some(current_high_water));
         assert!(verifier
             .authorize_recovery(&approvals, &local, &external, 1_200)
             .is_ok());
@@ -436,14 +469,15 @@ mod tests {
     #[test]
     fn refuses_local_rollback_below_external_high_water() {
         let (verifier, first, second, high_water, _) = fixture();
-        let local = AuditHead {
-            first_sequence: 1,
-            last_sequence: 19,
-            event_count: 19,
-            head_event_hash: [6; 32],
-            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
-        };
-        let approvals = approvals(&first, &second, "recovery:rollback", 19, [6; 32]);
+        let local = local_audit(19);
+        let local_head = local.checkpoint_head().unwrap();
+        let approvals = approvals(
+            &first,
+            &second,
+            "recovery:rollback",
+            local_head.last_sequence,
+            local_head.head_event_hash,
+        );
         assert_eq!(
             verifier.authorize_recovery(
                 &approvals,
@@ -462,13 +496,7 @@ mod tests {
         approvals[1].payload.approver_subject = approvals[0].payload.approver_subject.clone();
         let bytes = approvals[1].payload.signing_bytes().unwrap();
         approvals[1].signature = second.sign(&bytes).to_bytes().to_vec();
-        let local = AuditHead {
-            first_sequence: 1,
-            last_sequence: 20,
-            event_count: 20,
-            head_event_hash: [8; 32],
-            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
-        };
+        let local = local_audit(20);
         assert_eq!(
             verifier.authorize_recovery(
                 &approvals,
