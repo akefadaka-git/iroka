@@ -55,6 +55,9 @@ jobs:
           path: Cargo.lock
           if-no-files-found: error
 
+      - name: Apply canonical Rust formatting
+        run: cargo fmt --all
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
