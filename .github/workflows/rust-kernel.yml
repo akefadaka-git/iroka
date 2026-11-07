@@ -1,6 +1,13 @@
 name: Rust kernel verification
 
 on:
+  push:
+    branches: [feat/igacms-a3-implementation]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - ".github/workflows/rust-kernel.yml"
   pull_request:
     branches: [main, architecture/igacms-a2-ci-base]
     paths:
