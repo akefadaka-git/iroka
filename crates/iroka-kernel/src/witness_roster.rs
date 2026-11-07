@@ -6,8 +6,8 @@
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
 use sha2::{Digest, Sha256};
+use std::sync::{Arc, RwLock};
 
 use crate::audit_verifier::{
     AuthorizedWitness, VerificationError, WitnessReceiptVerifier, WitnessRosterState,
@@ -274,10 +274,7 @@ impl HistoricalWitnessRosterResolver {
 }
 
 impl crate::WitnessReceiptKeyResolver for HistoricalWitnessRosterResolver {
-    fn verify_receipt(
-        &self,
-        receipt: &crate::WitnessReceipt,
-    ) -> Result<(), VerificationError> {
+    fn verify_receipt(&self, receipt: &crate::WitnessReceipt) -> Result<(), VerificationError> {
         let manifests = self
             .store
             .witness_roster_manifests()
