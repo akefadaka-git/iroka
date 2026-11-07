@@ -264,8 +264,14 @@ impl RecoveryApprovalVerifier {
             return Err(RecoveryError::HighWaterMismatch);
         }
         if local.last_sequence < high_water.last_sequence
-            || (local.last_sequence == high_water.last_sequence
-                && local.head_event_hash != high_water.head_event_hash)
+            || !local_audit
+                .verify_prefix_head(high_water.last_sequence, &high_water.head_event_hash)
+                .map_err(|error| match error {
+                    AuditStoreError::IntegrityFailure => RecoveryError::LocalAuditIntegrityFailure,
+                    AuditStoreError::Unavailable | AuditStoreError::Rejected => {
+                        RecoveryError::LocalAuditUnavailable
+                    }
+                })?
         {
             return Err(RecoveryError::LocalRollbackOrTampering);
         }
@@ -428,6 +434,9 @@ mod tests {
         let (verifier, first, second, high_water, _) = fixture();
         let local = local_audit(22);
         let local_head = local.checkpoint_head().unwrap();
+        let witnessed_prefix = local_audit(20).checkpoint_head().unwrap();
+        let mut current_high_water = high_water;
+        current_high_water.head_event_hash = witnessed_prefix.head_event_hash;
         let approvals = approvals(
             &first,
             &second,
@@ -436,7 +445,12 @@ mod tests {
             local_head.head_event_hash,
         );
         let result = verifier
-            .authorize_recovery(&approvals, &local, &TestHighWater(Some(high_water)), 1_200)
+            .authorize_recovery(
+                &approvals,
+                &local,
+                &TestHighWater(Some(current_high_water)),
+                1_200
+            )
             .unwrap();
         assert!(result.local_ahead_of_witnessed_head);
         assert_eq!(result.approved_by, ["operator:one", "operator:two"]);
@@ -471,6 +485,9 @@ mod tests {
         let (verifier, first, second, high_water, _) = fixture();
         let local = local_audit(19);
         let local_head = local.checkpoint_head().unwrap();
+        let witnessed_prefix = local_audit(20).checkpoint_head().unwrap();
+        let mut current_high_water = high_water;
+        current_high_water.head_event_hash = witnessed_prefix.head_event_hash;
         let approvals = approvals(
             &first,
             &second,
@@ -482,7 +499,7 @@ mod tests {
             verifier.authorize_recovery(
                 &approvals,
                 &local,
-                &TestHighWater(Some(high_water)),
+                &TestHighWater(Some(current_high_water)),
                 1_200
             ),
             Err(RecoveryError::LocalRollbackOrTampering)
