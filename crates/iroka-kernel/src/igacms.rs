@@ -172,6 +172,8 @@ pub fn verify_attestation_with_trust_roots(
     let trusted=TrustedRoot{key_id:root.key_id.clone(),public_key:root.public_key,not_before:root.not_before,not_after:root.not_after,revoked:false,provenance:root.provenance_ref.clone()};
     verify_attestation(attestation,&[trusted],now)
 }
+/// Verify against the process trust snapshot, which must be bootstrapped from an Owner-controlled offline root ceremony.
+/// Never construct or accept this root set from an untrusted request.
 pub fn verify_genesis_with_trust_roots(
     genesis:&Genesis,
     fingerprint:&Fingerprint,
