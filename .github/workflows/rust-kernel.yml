@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   pull_request:
-    branches: [main, architecture/a2-reconciliation-contracts]
+    branches: [main, architecture/igacms-a2-ci-base]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -40,6 +40,13 @@ jobs:
 
       - name: Resolve and lock Rust dependencies
         run: cargo generate-lockfile
+
+      - name: Upload resolved lockfile for exact dependency evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: igacms-a3-cargo-lockfile
+          path: Cargo.lock
+          if-no-files-found: error
 
       - name: Check formatting
         run: cargo fmt --all -- --check
