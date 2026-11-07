@@ -3,7 +3,7 @@
   "$id": "https://iroka.local/igacms/1.0.0/genome.schema.json",
   "title": "IROKA ZERO IGACMS Genome v1.0.0",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": [
     "schema_version",
     "specification_id",
@@ -39,6 +39,7 @@
         "contract_version",
         "motto"
       ],
+      "additionalProperties": false,
       "properties": {
         "id": {
           "const": "iroka.dna"
@@ -62,6 +63,7 @@
         "compatibility_family",
         "epoch"
       ],
+      "additionalProperties": false,
       "properties": {
         "id": {
           "const": "IROKA_ZERO_GENOME"
@@ -80,31 +82,104 @@
     "historical_domains": {
       "type": "array",
       "minItems": 8,
-      "uniqueItems": true
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "identity",
+          "authority",
+          "evidence",
+          "assurance",
+          "reasoning",
+          "security",
+          "execution",
+          "evolution"
+        ]
+      }
     },
     "chromosomes": {
       "type": "array",
       "minItems": 12,
-      "maxItems": 12
+      "maxItems": 12,
+      "items": {
+        "$ref": "chromosome.schema.json"
+      }
     },
     "genes": {
       "type": "array",
-      "minItems": 36
+      "minItems": 36,
+      "items": {
+        "$ref": "gene.schema.json"
+      }
     },
     "principles": {
       "type": "array",
       "minItems": 14,
-      "maxItems": 14
+      "maxItems": 14,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "domain",
+          "statement"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string"
+          }
+        }
+      }
     },
     "invariants": {
       "type": "array",
       "minItems": 14,
-      "maxItems": 14
+      "maxItems": 14,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "enforcement",
+          "violation",
+          "statement"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high"
+            ]
+          },
+          "enforcement": {
+            "type": "string"
+          },
+          "violation": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string"
+          }
+        }
+      }
     },
     "markers": {
       "type": "array",
       "minItems": 27,
-      "maxItems": 27
+      "maxItems": 27,
+      "items": {
+        "$ref": "marker-definition.schema.json"
+      }
     },
     "mutation_policy": {
       "type": "array",
@@ -121,6 +196,9 @@
     "dependency_graph": {
       "type": "array",
       "minItems": 12
+    },
+    "created_by": {
+      "type": "string"
     }
   }
 }
