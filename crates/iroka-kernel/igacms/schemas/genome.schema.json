@@ -32,28 +32,7 @@
       "const": "1.0.0"
     },
     "dna": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "contract_version",
-        "motto"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "const": "iroka.dna"
-        },
-        "kind": {
-          "const": "IROKA_CONSTITUTIONAL_DNA_CONTRACT"
-        },
-        "contract_version": {
-          "const": "1.0.0"
-        },
-        "motto": {
-          "type": "string"
-        }
-      }
+      "$ref": "dna.schema.json"
     },
     "genome": {
       "type": "object",
