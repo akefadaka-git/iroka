@@ -141,10 +141,7 @@ where
     A: ApprovalVerifier,
     S: AuditSink,
 {
-    let baseline = crate::igacms::validate_embedded_baseline();
-    let decision = if baseline.as_ref().map_or(true, |fp| fp.digest_hex != genesis.digest() || genesis.epoch() != 0) {
-        Decision::new(DecisionCode::Escalate, DecisionReason::ConstitutionalValidationFailed, policy.version())
-    } else if principal.subject() != request.subject() {
+    let decision = if principal.subject() != request.subject() {
         Decision::new(
             DecisionCode::Deny,
             DecisionReason::IdentitySubjectMismatch,
@@ -215,7 +212,10 @@ pub fn authorize_authenticated_with_owner_approval<S: AuditSink>(
     event_id: &str,
     correlation_id: &str,
 ) -> Decision {
-    let decision = if crate::igacms::validate_embedded_baseline().is_err() {
+    let baseline = crate::igacms::validate_embedded_baseline();
+    let decision = if baseline.as_ref().map_or(true, |fp| {
+        fp.digest_hex != genesis.digest() || genesis.epoch() != 0
+    }) {
         Decision::new(DecisionCode::Escalate, DecisionReason::ConstitutionalValidationFailed, policy.version())
     } else if principal.subject() != request.subject() {
         Decision::new(
