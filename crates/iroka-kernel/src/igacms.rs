@@ -4,6 +4,7 @@ use serde::de::{self, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Number, Value};
 use std::fmt;
+use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 const ATTESTATION_DOMAIN: &str = "IROKA-IGACMS-ATTESTATION-V1";
@@ -193,8 +194,9 @@ pub fn authorize_mutation(c:MutationClass,e:&MutationEvidence)->Result<(),Igacms
 }
 #[derive(Debug,Clone,PartialEq,Eq)]pub struct HistoricalArtifact{pub id:String,pub commit:String,pub blob_sha:String,pub bytes:Vec<u8>}
 #[derive(Debug,Clone,PartialEq,Eq)]pub struct MigrationEvidence{pub id:String,pub source_commit:String,pub source_blob_sha:String,pub digest:String,pub disposition:String}
+pub fn git_blob_sha1(bytes:&[u8])->String{let mut h=Sha1::new();h.update(format!("blob {}\\0",bytes.len()).as_bytes());h.update(bytes);format!("{:x}",h.finalize())}
 pub fn preserve_historical(a:&HistoricalArtifact)->Result<MigrationEvidence,IgacmsError>{
-    if a.id.is_empty()||a.commit.is_empty()||a.blob_sha.is_empty()||a.bytes.is_empty(){return Err(IgacmsError::HistoricalEvidence)}
+    if a.id.is_empty()||a.commit.len()!=40||!a.commit.bytes().all(|b|b.is_ascii_hexdigit())||a.bytes.is_empty()||git_blob_sha1(&a.bytes)!=a.blob_sha{return Err(IgacmsError::HistoricalEvidence)}
     let d=Sha256::digest(&a.bytes);Ok(MigrationEvidence{id:a.id.clone(),source_commit:a.commit.clone(),source_blob_sha:a.blob_sha.clone(),digest:format!("{:x}",d),disposition:if a.id=="DNA-045"{"EXTENSION-REVIEW"}else{"RETAIN-HISTORICAL"}.into()})
 }
 pub fn cross_chromosome_invariants()->&'static [&'static str]{&[
@@ -210,7 +212,7 @@ use super::*;use ed25519_dalek::SigningKey;
 #[test]fn rejects_dependency_cycle(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();v["dependency_graph"][0]["depends_on"]=serde_json::json!(["G02"]);v["dependency_graph"][1]["depends_on"]=serde_json::json!(["G01"]);assert_eq!(validate_genome(&serde_json::to_vec(&v).unwrap()).unwrap_err(),IgacmsError::DependencyCycle);}
 #[test]fn verifies_ed25519_and_revocation(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[9u8;32]);let a=sign_fingerprint(&fp,0,"root",&key);let r=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:99,revoked:false,provenance:"test".into()};assert!(verify_attestation(&a,std::slice::from_ref(&r),50).is_ok());let mut revoked=r;revoked.revoked=true;assert_eq!(verify_attestation(&a,&[revoked],50),Err(IgacmsError::RevokedRoot));}
 #[test]fn mutation_requires_owner_and_independent_review(){assert_eq!(authorize_mutation(MutationClass::M4,&MutationEvidence::default()),Err(IgacmsError::MutationDenied));let e=MutationEvidence{owner_approved:true,independent_review:true,migration_rollback_ready:true,dual_control:true,security_review:true,impact_review:true,..Default::default()};assert!(authorize_mutation(MutationClass::M5,&e).is_ok());}
-#[test]fn preserves_dna045_outside_genesis(){let a=HistoricalArtifact{id:"DNA-045".into(),commit:"abc".into(),blob_sha:"def".into(),bytes:b"immutable".to_vec()};assert_eq!(preserve_historical(&a).unwrap().disposition,"EXTENSION-REVIEW");}
+#[test]fn preserves_dna045_outside_genesis(){let a=HistoricalArtifact{id:"DNA-045".into(),commit:"1224bb8298f9ef21d2590dd6e70273501281cd9".into(),blob_sha:git_blob_sha1(b"immutable"),bytes:b"immutable".to_vec()};assert_eq!(preserve_historical(&a).unwrap().disposition,"EXTENSION-REVIEW");let mut tampered=a.clone();tampered.blob_sha="0000000000000000000000000000000000000000".into();assert_eq!(preserve_historical(&tampered),Err(IgacmsError::HistoricalEvidence));}
 #[test]fn verifies_epoch_zero_genesis_binding(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[4u8;32]);let root=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:100,revoked:false,provenance:"custody-record:test".into()};let mut g=Genesis{dna_id:"iroka.dna".into(),dna_version:"1.0.0".into(),genome_id:"IROKA_ZERO_GENOME".into(),genome_version:"1.0.0".into(),digest:fp.digest_hex.clone(),canonicalization:"RFC8785-JCS".into(),hash_algorithm:"SHA-256".into(),epoch:0,parent:None,owner_approval_ref:"approval-record:test".into(),trust_root_key_ids:vec!["root".into()],trust_root_provenance_refs:vec!["custody-record:test".into()],attestation:Attestation{envelope_type:"iroka.igacms.attestation".into(),version:"1.0.0".into(),digest:String::new(),epoch:0,key_id:"root".into(),signature:Vec::new()},audit_refs:vec!["audit:test".into()]};g.attestation=sign_genesis(&g,"root",&key).unwrap();assert!(verify_genesis(&g,&fp,&[root],50).is_ok());let mut tampered=g.clone();tampered.owner_approval_ref="approval-record:tampered".into();assert_eq!(verify_genesis(&tampered,&fp,&[TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:100,revoked:false,provenance:"custody-record:test".into()}],50),Err(IgacmsError::Signature));}#[test]fn rejects_epoch_rollback(){assert_eq!(verify_epoch_transition(1,"d",1,None),Err(IgacmsError::Epoch));assert!(verify_epoch_transition(1,"d",2,Some("d")).is_ok());}
 
 }
