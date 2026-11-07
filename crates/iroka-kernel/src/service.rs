@@ -141,7 +141,8 @@ where
     A: ApprovalVerifier,
     S: AuditSink,
 {
-    let decision = if crate::igacms::validate_embedded_baseline().is_err() {
+    let baseline = crate::igacms::validate_embedded_baseline();
+    let decision = if baseline.as_ref().map_or(true, |fp| fp.digest_hex != genesis.digest() || genesis.epoch() != 0) {
         Decision::new(DecisionCode::Escalate, DecisionReason::ConstitutionalValidationFailed, policy.version())
     } else if principal.subject() != request.subject() {
         Decision::new(
@@ -204,6 +205,7 @@ where
 pub fn authorize_authenticated_with_owner_approval<S: AuditSink>(
     request: &AuthorizationRequest,
     principal: &VerifiedPrincipal,
+    genesis: &crate::igacms::VerifiedGenesis,
     approval: Option<&SignedOwnerApproval>,
     owner_approval_verifier: &OwnerApprovalVerifier,
     audit_sink: &S,
