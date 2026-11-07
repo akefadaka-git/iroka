@@ -388,7 +388,6 @@ mod tests {
             public_key: genesis_signer.verifying_key().to_bytes(),
             not_before: 900,
             not_after: 5_000,
-            revoked: false,
             provenance_ref: "test-root-record".into(),
         };
         let mut genesis = Genesis {
