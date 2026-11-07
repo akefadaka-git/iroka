@@ -730,6 +730,83 @@ mod tests {
         );
     }
     #[test]
+    fn sqlite_witness_ledger_verifies_history_across_receipt_key_rotation() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-witness-rotation-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [30; 32]);
+        let checkpoint_verifier = Ed25519CheckpointVerifier::new(vec![(
+            "cp-key".into(),
+            checkpoint_signer.verifying_key(),
+        )]);
+        let builder = CheckpointBuilder::new("stream:rotating", "cp-key");
+        let first_head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [31; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let first_payload = builder.initial_v1_anchor(&first_head, 100).unwrap();
+        let first_checkpoint = checkpoint_signer.sign_checkpoint(&first_payload).unwrap();
+
+        {
+            let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key-v1", [32; 32]);
+            let old_key = witness_signer.key_for_test();
+            let ledger = SqliteWitnessLedger::open(
+                &path,
+                "witness-rotation",
+                "stream:rotating",
+                Box::new(witness_signer),
+                vec![("w-key-v1".into(), old_key)],
+            )
+            .unwrap();
+            ledger.accept(&first_checkpoint, &checkpoint_verifier, 101).unwrap();
+        }
+
+        let second_head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 2,
+            event_count: 2,
+            head_event_hash: [33; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let second_payload = builder.next(&second_head, &first_payload, 200).unwrap();
+        let second_checkpoint = checkpoint_signer.sign_checkpoint(&second_payload).unwrap();
+        {
+            let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key-v2", [34; 32]);
+            let new_key = witness_signer.key_for_test();
+            let ledger = SqliteWitnessLedger::open(
+                &path,
+                "witness-rotation",
+                "stream:rotating",
+                Box::new(witness_signer),
+                vec![
+                    ("w-key-v1".into(), LocalWitnessTestSigner::from_test_seed(
+                        "w-key-v1",
+                        [32; 32],
+                    ).key_for_test()),
+                    ("w-key-v2".into(), new_key),
+                ],
+            )
+            .unwrap();
+            ledger.accept(&second_checkpoint, &checkpoint_verifier, 201).unwrap();
+            assert_eq!(ledger.head("stream:rotating").unwrap().unwrap().checkpoint_number, 2);
+        }
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
     fn sqlite_witness_ledger_is_bound_to_one_provisioned_stream() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
