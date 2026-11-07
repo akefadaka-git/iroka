@@ -28,21 +28,16 @@ mod witness_roster;
 compile_error!("dev-no-revocations is restricted to test builds");
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
-pub use audit_checkpoint::{AuditHead, CheckpointBuilder, CheckpointError, CheckpointPayload};
-pub use audit_operations::{
-    assess_anchoring, checkpoint_due, checkpoint_due_with_manual_request, AnchoringAssessment,
-    AnchoringState, CheckpointPolicy, ManualCheckpointRequest,
-};
+#[cfg(test)]
+pub(crate) use audit_signer::LocalEd25519TestSigner;
 pub use audit_signer::{
     CheckpointSignatureVerifier, CheckpointSigner, Ed25519CheckpointVerifier, SignedCheckpoint,
     SignerError,
 };
-#[cfg(test)]
-pub(crate) use audit_signer::LocalEd25519TestSigner;
-pub use audit_recovery::{
-    ExternalWitnessHighWater, RecoveryApprovalPayload, RecoveryApprovalVerifier,
-    RecoveryAuthorization, RecoveryError, RecoveryHighWater, SignedRecoveryApproval,
-    TrustedRecoveryApprover,
+pub use audit_checkpoint::{AuditHead, CheckpointBuilder, CheckpointError, CheckpointPayload};
+pub use audit_operations::{
+    assess_anchoring, checkpoint_due, checkpoint_due_with_manual_request, AnchoringAssessment,
+    AnchoringState, CheckpointPolicy, ManualCheckpointRequest,
 };
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use audit_verifier::{
@@ -86,8 +81,8 @@ pub use trust_lifecycle::{
 };
 pub use witness_roster::{
     activate_signed_witness_roster, OwnerWitnessRosterRoot, SignedWitnessRosterManifest,
-    WitnessRosterManager,
-    WitnessRosterEntry, WitnessRosterManifestError, WitnessRosterManifestPayload,
+    WitnessRosterEntry, WitnessRosterManager, WitnessRosterManifestError,
+    WitnessRosterManifestPayload,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
