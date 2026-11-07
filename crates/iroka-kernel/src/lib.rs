@@ -84,6 +84,7 @@ pub use trust_lifecycle::{
 };
 pub use witness_roster::{
     activate_signed_witness_roster, OwnerWitnessRosterRoot, SignedWitnessRosterManifest,
+    WitnessRosterManager,
     WitnessRosterEntry, WitnessRosterManifestError, WitnessRosterManifestPayload,
 };
 
