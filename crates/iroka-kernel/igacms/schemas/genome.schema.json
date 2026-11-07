@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.local/igacms/1.0.0/genome.schema.json",
+  "title": "IROKA ZERO IGACMS Genome v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "specification_id",
+    "specification_version",
+    "dna",
+    "genome",
+    "historical_domains",
+    "chromosomes",
+    "genes",
+    "principles",
+    "invariants",
+    "markers",
+    "mutation_policy",
+    "compatibility_manifest",
+    "historical_disposition_references",
+    "dependency_graph"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "specification_id": {
+      "const": "IGACMS"
+    },
+    "specification_version": {
+      "const": "1.0.0"
+    },
+    "dna": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "contract_version",
+        "motto"
+      ],
+      "properties": {
+        "id": {
+          "const": "iroka.dna"
+        },
+        "kind": {
+          "const": "IROKA_CONSTITUTIONAL_DNA_CONTRACT"
+        },
+        "contract_version": {
+          "const": "1.0.0"
+        },
+        "motto": {
+          "type": "string"
+        }
+      }
+    },
+    "genome": {
+      "type": "object",
+      "required": [
+        "id",
+        "version",
+        "compatibility_family",
+        "epoch"
+      ],
+      "properties": {
+        "id": {
+          "const": "IROKA_ZERO_GENOME"
+        },
+        "version": {
+          "type": "string"
+        },
+        "compatibility_family": {
+          "type": "string"
+        },
+        "epoch": {
+          "const": 0
+        }
+      }
+    },
+    "historical_domains": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true
+    },
+    "chromosomes": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12
+    },
+    "genes": {
+      "type": "array",
+      "minItems": 36
+    },
+    "principles": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14
+    },
+    "markers": {
+      "type": "array",
+      "minItems": 27,
+      "maxItems": 27
+    },
+    "mutation_policy": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6
+    },
+    "compatibility_manifest": {
+      "type": "object"
+    },
+    "historical_disposition_references": {
+      "type": "array",
+      "minItems": 2
+    },
+    "dependency_graph": {
+      "type": "array",
+      "minItems": 12
+    }
+  }
+}
