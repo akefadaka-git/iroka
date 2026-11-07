@@ -131,6 +131,13 @@ impl SqliteSecurityStore {
                version INTEGER NOT NULL, digest BLOB NOT NULL,
                issued_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
              );
+             CREATE TABLE IF NOT EXISTS k04_recovery_consumptions (
+               recovery_id TEXT PRIMARY KEY,
+               first_approval_id TEXT NOT NULL UNIQUE,
+               second_approval_id TEXT NOT NULL UNIQUE,
+               pair_digest BLOB NOT NULL CHECK(length(pair_digest)=32),
+               consumed_at INTEGER NOT NULL
+             );
              CREATE TABLE IF NOT EXISTS revoked_credentials (
                issuer TEXT NOT NULL, credential_id TEXT NOT NULL,
                revoked_at INTEGER NOT NULL, reason TEXT NOT NULL,
@@ -307,6 +314,62 @@ impl SqliteSecurityStore {
         )
         .map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Atomically consume a distinct two-person K-04 recovery approval pair.
+    /// A recovery ID and each approval ID are one-time across all future attempts.
+    pub(crate) fn consume_recovery_approval_pair(
+        &self,
+        recovery_id: &str,
+        approval_ids: [&str; 2],
+        pair_digest: &[u8],
+        consumed_at: u64,
+    ) -> Result<bool, SecurityStoreError> {
+        if recovery_id.trim().is_empty()
+            || approval_ids[0].trim().is_empty()
+            || approval_ids[1].trim().is_empty()
+            || approval_ids[0] == approval_ids[1]
+            || pair_digest.len() != 32
+        {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let consumed_i = i64::try_from(consumed_at)
+            .map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let already_used: Option<i64> = tx
+            .query_row(
+                "SELECT 1 FROM k04_recovery_consumptions
+                 WHERE recovery_id=?1 OR first_approval_id IN (?2,?3)
+                    OR second_approval_id IN (?2,?3) LIMIT 1",
+                params![recovery_id, approval_ids[0], approval_ids[1]],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if already_used.is_some() {
+            return Ok(false);
+        }
+        tx.execute(
+            "INSERT INTO k04_recovery_consumptions(
+               recovery_id,first_approval_id,second_approval_id,pair_digest,consumed_at
+             ) VALUES(?1,?2,?3,?4,?5)",
+            params![
+                recovery_id,
+                approval_ids[0],
+                approval_ids[1],
+                pair_digest,
+                consumed_i
+            ],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+        Ok(true)
     }
 
     pub fn highest_witness_roster_version(&self) -> Result<Option<u64>, SecurityStoreError> {
