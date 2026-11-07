@@ -11,6 +11,7 @@ mod audit_signer;
 mod audit_store;
 mod audit_verifier;
 mod audit_witness;
+pub mod conformance;
 mod decision;
 #[cfg(test)]
 mod governance;
@@ -18,9 +19,11 @@ mod identity;
 mod identity_crypto;
 mod owner_approval;
 mod policy;
+pub mod regional_profile;
 mod request;
 mod security_store;
 mod service;
+pub mod temporal;
 mod trust_lifecycle;
 mod witness_roster;
 
@@ -52,6 +55,7 @@ pub use audit_verifier::{
 pub use audit_witness::{
     SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner,
 };
+pub use conformance::{build_conformance_report, CONFORMANCE_HARNESS_VERSION, REQUIRED_CASE_COUNT};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
 pub(crate) use governance::{
@@ -71,11 +75,18 @@ pub use owner_approval::{
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
+pub use regional_profile::{
+    resolve_regional_profile, CalendarProfile, CurrencyProfile, DataGovernanceProfile,
+    LanguageProfile, LegalReference, PreferenceSource, ProfilePreferences, ProfileProvenance,
+    ProfileRequirement, ProfileResolutionContext, RegionalProfile, RegionalProfileError,
+    ResolvedRegionalProfile, ReviewStatus,
+};
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
+pub use temporal::{TemporalKind, TemporalValue, TemporalValueError};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,

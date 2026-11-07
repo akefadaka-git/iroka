@@ -6,11 +6,14 @@ on:
       - fix/a2-trust-concurrency-workflow
       - fix/k04-witness-roster-fail-closed # K-04 stacked PR verification
       - fix/k04-a2-a3-remediation # K-04 A2/A3 remediation verification
+      - feat/a2-conformance-regional-runtime # A2 conformance harness verification
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
       - "crates/**"
+      - "tests/conformance/**"
+      - "docs/assurance/**"
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - ".github/workflows/rust-kernel.yml"
@@ -23,11 +26,14 @@ on:
       - fix/a2-trust-concurrency-workflow
       - fix/k04-authorized-witness-roster
       - fix/k04-witness-roster-fail-closed
+      - fix/k04-a2-a3-remediation
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
       - "crates/**"
+      - "tests/conformance/**"
+      - "docs/assurance/**"
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - ".github/workflows/rust-kernel.yml"
@@ -89,3 +95,12 @@ jobs:
 
       - name: Run Clippy without development-only features
         run: cargo clippy --locked --workspace --all-targets --no-default-features -- -D warnings -A clippy::pedantic
+
+      - name: Generate exact-SHA A2 conformance disposition report
+        env:
+          GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          IROKA_CHECKED_OUT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          IROKA_CHECKED_OUT_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: cargo run --locked -p iroka-kernel --bin iroka-conformance -- tests/conformance/catalog.json --output "$RUNNER_TEMP/iroka-a2-conformance-report.json"
+
+
