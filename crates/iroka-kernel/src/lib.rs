@@ -26,7 +26,7 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use igacms::{authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical, sign_fingerprint, validate_embedded_baseline, validate_genome, validate_marker_assertion, verify_attestation, verify_epoch_transition, verify_genesis, Attestation, Fingerprint, Genesis, HistoricalArtifact, IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence, TrustedRoot, ValidatedGenome};
+pub use igacms::{authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical, sign_fingerprint, validate_embedded_baseline, validate_genome, validate_marker_assertion, verify_attestation, verify_epoch_transition, verify_genesis, Attestation, Fingerprint, Genesis, HistoricalArtifact, IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence, TrustedRoot, ValidatedGenome, VerifiedGenesis};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
@@ -381,9 +381,32 @@ mod tests {
             .to_bytes()
             .to_vec();
         let signed = SignedOwnerApproval::from_signature(payload, signature);
+        let fingerprint = validate_embedded_baseline().unwrap();
+        let genesis_signer = SigningKey::from_bytes(&[72u8; 32]);
+        let genesis_attestation = sign_fingerprint(&fingerprint, 0, "genesis-test-key", &genesis_signer);
+        let genesis_root = TrustedRoot {
+            key_id: "genesis-test-key".into(),
+            public_key: genesis_signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 5_000,
+            revoked: false,
+            provenance: "test-only ephemeral root".into(),
+        };
+        let genesis = Genesis {
+            dna_id: "iroka.dna".into(), dna_version: "1.0.0".into(),
+            genome_id: "IROKA_ZERO_GENOME".into(), genome_version: "1.0.0".into(),
+            digest: fingerprint.digest_hex.clone(), canonicalization: "RFC8785".into(),
+            hash_algorithm: "SHA-256".into(), epoch: 0, parent: None,
+            owner_approval_ref: "owner-approval:test-genesis".into(),
+            trust_root_key_ids: vec!["genesis-test-key".into()],
+            trust_root_provenance_refs: vec!["test-root-record".into()],
+            attestation: genesis_attestation, audit_refs: vec!["audit:test-genesis".into()],
+        };
+        let verified_genesis = verify_genesis(&genesis, &fingerprint, &[genesis_root], 1_200).unwrap();
         let first = authorize_authenticated_with_owner_approval(
             &request,
             &principal,
+            &verified_genesis,
             Some(&signed),
             &owner,
             &TestAudit,
