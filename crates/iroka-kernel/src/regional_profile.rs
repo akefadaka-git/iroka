@@ -204,7 +204,7 @@ impl RegionalProfile {
             && self
                 .effective_until
                 .as_deref()
-                .is_none_or(|until| effective_date <= until)
+                .map_or(true, |until| effective_date <= until)
     }
 
     /// Technical Ethiopia fixture: Amharic/Ethiopic, Ethiopian calendar, Addis Ababa and ETB.
