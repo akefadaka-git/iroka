@@ -6,6 +6,7 @@
 mod assurance;
 mod audit_checkpoint;
 mod audit_operations;
+mod audit_recovery;
 mod audit_signer;
 mod audit_store;
 mod audit_verifier;
@@ -38,6 +39,11 @@ pub use audit_signer::{
 };
 #[cfg(test)]
 pub(crate) use audit_signer::LocalEd25519TestSigner;
+pub use audit_recovery::{
+    ExternalWitnessHighWater, RecoveryApprovalPayload, RecoveryApprovalVerifier,
+    RecoveryAuthorization, RecoveryError, RecoveryHighWater, SignedRecoveryApproval,
+    TrustedRecoveryApprover,
+};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use audit_verifier::{
     reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain, LocalReconciliation,
