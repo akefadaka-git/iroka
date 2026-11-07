@@ -68,7 +68,9 @@ impl CheckpointPayload {
         {
             return Err(CheckpointError::InvalidHead);
         }
-        if self.checkpoint_number == 1 && self.previous_checkpoint_digest != [0; 32] {
+        if (self.checkpoint_number == 1 && self.previous_checkpoint_digest != [0; 32])
+            || (self.checkpoint_number > 1 && self.previous_checkpoint_digest == [0; 32])
+        {
             return Err(CheckpointError::InvalidPrevious);
         }
         if self.signing_key_id.trim().is_empty() {
@@ -257,6 +259,14 @@ mod tests {
         assert_eq!(cp.last_sequence, 3);
         assert_eq!(cp.previous_checkpoint_digest, [0; 32]);
         assert_eq!(cp.canonical_cbor().unwrap()[0], 0x8c);
+    }
+
+    #[test]
+    fn rejects_missing_predecessor_digest_after_genesis() {
+        let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
+        let mut checkpoint = b.initial_v1_anchor(&head(3, 7), 100).unwrap();
+        checkpoint.checkpoint_number = 2;
+        assert_eq!(checkpoint.validate(), Err(CheckpointError::InvalidPrevious));
     }
 
     #[test]
