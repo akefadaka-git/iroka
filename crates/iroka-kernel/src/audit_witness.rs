@@ -4,8 +4,9 @@
 
 use crate::audit_checkpoint::CheckpointPayload;
 use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint, SignerError};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 #[cfg(test)]
-use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+use ed25519_dalek::{Signer, SigningKey};
 use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
 use sha2::{Digest, Sha256};
 use std::{path::Path, sync::Mutex, time::Duration};
@@ -303,6 +304,7 @@ pub struct SqliteWitnessLedger {
     witness_id: String,
     stream_id: String,
     signer: Box<dyn WitnessReceiptSigner>,
+    verifying_key: VerifyingKey,
     connection: Mutex<Connection>,
 }
 
@@ -312,6 +314,7 @@ impl SqliteWitnessLedger {
         witness_id: impl Into<String>,
         stream_id: impl Into<String>,
         signer: Box<dyn WitnessReceiptSigner>,
+        verifying_key: VerifyingKey,
     ) -> Result<Self, WitnessError> {
         let path = path.as_ref();
         #[cfg(unix)]
@@ -337,7 +340,13 @@ impl SqliteWitnessLedger {
             }
         }
         let connection = Connection::open(path).map_err(|_| WitnessError::StorageUnavailable)?;
-        Self::from_connection(connection, witness_id.into(), stream_id.into(), signer)
+        Self::from_connection(
+            connection,
+            witness_id.into(),
+            stream_id.into(),
+            signer,
+            verifying_key,
+        )
     }
 
     fn from_connection(
@@ -345,6 +354,7 @@ impl SqliteWitnessLedger {
         witness_id: String,
         stream_id: String,
         signer: Box<dyn WitnessReceiptSigner>,
+        verifying_key: VerifyingKey,
     ) -> Result<Self, WitnessError> {
         if witness_id.trim().is_empty()
             || stream_id.trim().is_empty()
@@ -382,10 +392,12 @@ impl SqliteWitnessLedger {
         if conflicting_rows != 0 {
             return Err(WitnessError::InvalidCheckpoint);
         }
+        verify_witness_history(&connection, &witness_id, &stream_id, &verifying_key)?;
         Ok(Self {
             witness_id,
             stream_id,
             signer,
+            verifying_key,
             connection: Mutex::new(connection),
         })
     }
@@ -410,6 +422,62 @@ impl SqliteWitnessLedger {
         .map_err(|_| WitnessError::StorageUnavailable)?;
         raw.map(decode_receipt).transpose()
     }
+}
+
+fn verify_witness_history(
+    connection: &Connection,
+    witness_id: &str,
+    stream_id: &str,
+    verifying_key: &VerifyingKey,
+) -> Result<(), WitnessError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
+             head_event_hash,previous_checkpoint_digest,previous_receipt_digest,witnessed_at,
+             log_index,signing_key_id,signature FROM witness_receipts
+             WHERE stream_id=?1 ORDER BY log_index ASC",
+        )
+        .map_err(|_| WitnessError::StorageUnavailable)?;
+    let rows = statement
+        .query_map(params![stream_id], read_receipt)
+        .map_err(|_| WitnessError::StorageUnavailable)?;
+    let mut previous_receipt_digest = [0; 32];
+    let mut previous_checkpoint_digest = [0; 32];
+    let mut previous_sequence = 0u64;
+    let mut previous_witnessed_at = 0u64;
+    let mut expected_index = 1u64;
+    let mut expected_checkpoint = 1u64;
+    for row in rows {
+        let receipt = decode_receipt(row.map_err(|_| WitnessError::StorageUnavailable)?)?;
+        if receipt.witness_id != witness_id
+            || receipt.stream_id != stream_id
+            || receipt.log_index != expected_index
+            || receipt.checkpoint_number != expected_checkpoint
+            || receipt.previous_receipt_digest != previous_receipt_digest
+            || receipt.previous_checkpoint_digest != previous_checkpoint_digest
+            || receipt.last_sequence <= previous_sequence
+            || receipt.witnessed_at < previous_witnessed_at
+        {
+            return Err(WitnessError::Equivocation);
+        }
+        verifying_key
+            .verify(
+                &receipt.signing_bytes(),
+                &Signature::from_bytes(&receipt.signature),
+            )
+            .map_err(|_| WitnessError::InvalidSignature)?;
+        previous_receipt_digest = receipt.digest();
+        previous_checkpoint_digest = receipt.checkpoint_digest;
+        previous_sequence = receipt.last_sequence;
+        previous_witnessed_at = receipt.witnessed_at;
+        expected_index = expected_index
+            .checked_add(1)
+            .ok_or(WitnessError::CheckpointGap)?;
+        expected_checkpoint = expected_checkpoint
+            .checked_add(1)
+            .ok_or(WitnessError::CheckpointGap)?;
+    }
+    Ok(())
 }
 
 impl WitnessLedger for SqliteWitnessLedger {
@@ -439,6 +507,7 @@ impl WitnessLedger for SqliteWitnessLedger {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| WitnessError::StorageUnavailable)?;
+        verify_witness_history(&tx, &self.witness_id, &self.stream_id, &self.verifying_key)?;
         let number = i64::try_from(payload.checkpoint_number)
             .map_err(|_| WitnessError::InvalidCheckpoint)?;
         let existing = Self::select_receipt(
@@ -544,6 +613,7 @@ impl WitnessLedger for SqliteWitnessLedger {
             .connection
             .lock()
             .map_err(|_| WitnessError::StorageUnavailable)?;
+        verify_witness_history(&connection, &self.witness_id, &self.stream_id, &self.verifying_key)?;
         Self::select_receipt(
             &connection,
             "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
@@ -671,11 +741,14 @@ mod tests {
         let signed = signer
             .sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap())
             .unwrap();
+        let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key", [23; 32]);
+        let witness_verifying_key = witness_signer.key_for_test();
         let ledger = SqliteWitnessLedger::open(
             &path,
             "witness-bound",
             "stream:provisioned",
-            Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [23; 32])),
+            Box::new(witness_signer),
+            witness_verifying_key,
         )
         .unwrap();
         assert_eq!(
@@ -721,21 +794,27 @@ mod tests {
             .unwrap();
 
         let first = {
+            let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key", [12; 32]);
+            let witness_verifying_key = witness_signer.key_for_test();
             let ledger = SqliteWitnessLedger::open(
                 &path,
                 "witness-durable",
                 "stream:durable",
-                Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [12; 32])),
+                Box::new(witness_signer),
+                witness_verifying_key,
             )
             .unwrap();
             ledger.accept(&signed, &verifier, 11).unwrap()
         };
         {
+            let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key", [12; 32]);
+            let witness_verifying_key = witness_signer.key_for_test();
             let ledger = SqliteWitnessLedger::open(
                 &path,
                 "witness-durable",
                 "stream:durable",
-                Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [12; 32])),
+                Box::new(witness_signer),
+                witness_verifying_key,
             )
             .unwrap();
             assert_eq!(ledger.accept(&signed, &verifier, 12), Ok(first.clone()));
