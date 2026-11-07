@@ -9,7 +9,12 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use ed25519_dalek::{Signer, SigningKey};
 use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
 use sha2::{Digest, Sha256};
-use std::{collections::{BTreeMap, BTreeSet}, path::Path, sync::Mutex, time::Duration};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+    sync::Mutex,
+    time::Duration,
+};
 
 const RECEIPT_DOMAIN: &[u8] = b"IROKA:G11:AUDIT-WITNESS-RECEIPT:V1\0";
 
@@ -180,7 +185,9 @@ impl WitnessLedger for MemoryWitnessLedger {
         let (expected_number, expected_previous, previous_sequence) = match history.last() {
             None => (1, [0; 32], 0),
             Some(last) => (
-                last.checkpoint_number.checked_add(1).ok_or(WitnessError::CheckpointGap)?,
+                last.checkpoint_number
+                    .checked_add(1)
+                    .ok_or(WitnessError::CheckpointGap)?,
                 last.checkpoint_digest,
                 last.last_sequence,
             ),
@@ -563,7 +570,9 @@ impl WitnessLedger for SqliteWitnessLedger {
                 last.last_sequence,
                 last.digest(),
                 last.witnessed_at,
-                last.log_index.checked_add(1).ok_or(WitnessError::CheckpointGap)?,
+                last.log_index
+                    .checked_add(1)
+                    .ok_or(WitnessError::CheckpointGap)?,
             ),
         };
         if payload.checkpoint_number != expected_number {
@@ -627,7 +636,12 @@ impl WitnessLedger for SqliteWitnessLedger {
             .connection
             .lock()
             .map_err(|_| WitnessError::StorageUnavailable)?;
-        verify_witness_history(&connection, &self.witness_id, &self.stream_id, &self.verifying_keys)?;
+        verify_witness_history(
+            &connection,
+            &self.witness_id,
+            &self.stream_id,
+            &self.verifying_keys,
+        )?;
         Self::select_receipt(
             &connection,
             "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
@@ -663,10 +677,9 @@ mod tests {
         assert_eq!(
             receipt.digest(),
             [
-                0x69, 0x35, 0x03, 0xa7, 0x7b, 0xce, 0xc3, 0xcb,
-                0x6d, 0xd6, 0xa4, 0xe4, 0xed, 0x89, 0x6b, 0x4b,
-                0xda, 0x76, 0xeb, 0xa3, 0x8f, 0x6a, 0xc7, 0x00,
-                0xca, 0x77, 0xa4, 0xb1, 0xdb, 0xe9, 0xf1, 0x69,
+                0x69, 0x35, 0x03, 0xa7, 0x7b, 0xce, 0xc3, 0xcb, 0x6d, 0xd6, 0xa4, 0xe4, 0xed, 0x89,
+                0x6b, 0x4b, 0xda, 0x76, 0xeb, 0xa3, 0x8f, 0x6a, 0xc7, 0x00, 0xca, 0x77, 0xa4, 0xb1,
+                0xdb, 0xe9, 0xf1, 0x69,
             ]
         );
     }
@@ -768,7 +781,9 @@ mod tests {
                 vec![("w-key-v1".into(), old_key)],
             )
             .unwrap();
-            ledger.accept(&first_checkpoint, &checkpoint_verifier, 101).unwrap();
+            ledger
+                .accept(&first_checkpoint, &checkpoint_verifier, 101)
+                .unwrap();
         }
 
         let second_head = AuditHead {
@@ -789,16 +804,25 @@ mod tests {
                 "stream:rotating",
                 Box::new(witness_signer),
                 vec![
-                    ("w-key-v1".into(), LocalWitnessTestSigner::from_test_seed(
-                        "w-key-v1",
-                        [32; 32],
-                    ).key_for_test()),
+                    (
+                        "w-key-v1".into(),
+                        LocalWitnessTestSigner::from_test_seed("w-key-v1", [32; 32]).key_for_test(),
+                    ),
                     ("w-key-v2".into(), new_key),
                 ],
             )
             .unwrap();
-            ledger.accept(&second_checkpoint, &checkpoint_verifier, 201).unwrap();
-            assert_eq!(ledger.head("stream:rotating").unwrap().unwrap().checkpoint_number, 2);
+            ledger
+                .accept(&second_checkpoint, &checkpoint_verifier, 201)
+                .unwrap();
+            assert_eq!(
+                ledger
+                    .head("stream:rotating")
+                    .unwrap()
+                    .unwrap()
+                    .checkpoint_number,
+                2
+            );
         }
 
         let _ = std::fs::remove_file(&path);
@@ -846,10 +870,7 @@ mod tests {
             ledger.accept(&signed, &verifier, 11),
             Err(WitnessError::WrongStream)
         );
-        assert_eq!(
-            ledger.head("stream:other"),
-            Err(WitnessError::WrongStream)
-        );
+        assert_eq!(ledger.head("stream:other"), Err(WitnessError::WrongStream));
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
