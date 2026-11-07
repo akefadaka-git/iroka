@@ -454,6 +454,80 @@ mod tests {
     }
 
     #[test]
+    fn historical_resolver_verifies_receipts_across_witness_key_rotation() {
+        use crate::audit_verifier::verify_receipt_chain_with_resolver;
+        use crate::audit_witness::WitnessReceipt;
+        use ed25519_dalek::Signer;
+        use std::sync::Arc;
+
+        let (owner, root, first_manifest) = fixture(1);
+        let (_, _, mut second_manifest) = fixture(2);
+        for (index, witness) in second_manifest.payload.witnesses.iter_mut().enumerate() {
+            witness.signing_key_id = format!("witness-key-v2-{}", index + 1);
+            witness.public_key = SigningKey::from_bytes(&[72 + index as u8; 32])
+                .verifying_key()
+                .to_bytes();
+        }
+        second_manifest.payload.revoked_key_ids = vec![
+            "witness-key-1".into(),
+            "witness-key-2".into(),
+            "witness-key-3".into(),
+        ];
+        second_manifest.signature = owner
+            .sign(&second_manifest.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        activate_signed_witness_roster(&first_manifest, &root, &store, 1_100).unwrap();
+        activate_signed_witness_roster(&second_manifest, &root, &store, 1_200).unwrap();
+
+        let old_key = SigningKey::from_bytes(&[62; 32]);
+        let mut first_receipt = WitnessReceipt {
+            witness_id: "witness-1".into(),
+            stream_id: "iroka:audit:primary".into(),
+            checkpoint_number: 1,
+            checkpoint_digest: [10; 32],
+            last_sequence: 1,
+            head_event_hash: [11; 32],
+            previous_checkpoint_digest: [0; 32],
+            previous_receipt_digest: [0; 32],
+            witnessed_at: 1_101,
+            log_index: 1,
+            signing_key_id: "witness-key-1".into(),
+            signature: [0; 64],
+        };
+        first_receipt.signature = old_key.sign(&first_receipt.signing_bytes()).to_bytes();
+
+        let new_key = SigningKey::from_bytes(&[72; 32]);
+        let mut second_receipt = WitnessReceipt {
+            witness_id: "witness-1".into(),
+            stream_id: "iroka:audit:primary".into(),
+            checkpoint_number: 2,
+            checkpoint_digest: [12; 32],
+            last_sequence: 2,
+            head_event_hash: [13; 32],
+            previous_checkpoint_digest: [10; 32],
+            previous_receipt_digest: first_receipt.digest(),
+            witnessed_at: 1_201,
+            log_index: 2,
+            signing_key_id: "witness-key-v2-1".into(),
+            signature: [0; 64],
+        };
+        second_receipt.signature = new_key.sign(&second_receipt.signing_bytes()).to_bytes();
+
+        let resolver = HistoricalWitnessRosterResolver::new(root, store);
+        assert_eq!(
+            verify_receipt_chain_with_resolver(
+                &[first_receipt, second_receipt.clone()],
+                &second_receipt,
+                &resolver
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
     fn manager_atomically_publishes_higher_roster_version() {
         let (_, root, first) = fixture(1);
         let (_, _, second) = fixture(2);
