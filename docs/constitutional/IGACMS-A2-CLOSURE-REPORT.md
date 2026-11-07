@@ -3,7 +3,7 @@
 **Report:** IGACMS-A2-CLOSE-001 v1.0.0  
 **Date:** 2026-11-07  
 **Owner decision baseline:** D01–D14 APPROVED; conditions/comments: none  
-**Destination repository:** ake fadaka-git/iroka  
+**Destination repository:** akefadaka-git/iroka  
 **Working branch:** architecture/igacms-a2-owner-approved  
 **Base commit:** 8709a710a96f102faa181726ddc853f1e94a933e  
 **Historical reference:** akeayu/iroka at 1224bb8298f9ef21d2590dd6e70273501281cd9  
@@ -62,7 +62,7 @@ The documents are:
 5. IGACMS-MIGRATION-COMPATIBILITY-AND-ROLLBACK.md
 6. IGACMS-A2-CLOSURE-REPORT.md
 
-The exact resulting commit SHA and PR status must be appended after the repository write and read-back verification. Until then, the branch content is not represented as merged or published to main.
+The documentation commit sequence is: initial six-document commit a1127d7bee6d5fbb9427ea376fe32d9484ae3c38; baseline identity correction d389150488cdee57886aca4d9edfaa5421d002c9; historical fingerprint-scope correction 5127e7c8ddd0dc3c849f2f735de396b20fe0d5e6. These commits are on the dedicated branch only. The branch is not merged and main is unchanged.
 
 ## 6. A3 backlog — not authorized
 
