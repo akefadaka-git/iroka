@@ -4,10 +4,13 @@
 
 use crate::audit_checkpoint::CheckpointPayload;
 use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint, SignerError};
+#[cfg(test)]
 use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
 use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, path::Path, sync::Mutex, time::Duration};
+use std::{path::Path, sync::Mutex, time::Duration};
+#[cfg(test)]
+use std::{collections::BTreeMap};
 
 const RECEIPT_DOMAIN: &[u8] = b"IROKA:G11:AUDIT-WITNESS-RECEIPT:V1\0";
 
@@ -43,7 +46,7 @@ pub struct WitnessReceipt {
 impl WitnessReceipt {
     pub fn digest(&self) -> [u8; 32] {
         let mut h = Sha256::new();
-        h.update(b"IROKA:G11:WITNESS-RECEIPT-DIGEST:V1\\0");
+        h.update(b"IROKA:G11:WITNESS-RECEIPT-DIGEST:V1\0");
         h.update(self.signing_bytes());
         h.update(self.signature);
         h.finalize().into()
@@ -78,10 +81,12 @@ pub trait WitnessReceiptSigner: Send + Sync {
 }
 
 /// Local witness receipt signer for tests only; production keys must be independently held.
+#[cfg(test)]
 pub struct LocalWitnessTestSigner {
     key_id: String,
     key: SigningKey,
 }
+#[cfg(test)]
 impl LocalWitnessTestSigner {
     pub fn from_test_seed(key_id: impl Into<String>, seed: [u8; 32]) -> Self {
         Self {
@@ -94,6 +99,7 @@ impl LocalWitnessTestSigner {
         self.key.verifying_key()
     }
 }
+#[cfg(test)]
 impl WitnessReceiptSigner for LocalWitnessTestSigner {
     fn key_id(&self) -> &str {
         &self.key_id
@@ -116,6 +122,7 @@ pub trait WitnessLedger: Send + Sync {
     fn head(&self, stream_id: &str) -> Result<Option<WitnessReceipt>, WitnessError>;
 }
 
+#[cfg(test)]
 #[derive(Default)]
 pub struct MemoryWitnessLedger {
     witness_id: String,
@@ -123,6 +130,7 @@ pub struct MemoryWitnessLedger {
     streams: Mutex<BTreeMap<String, Vec<WitnessReceipt>>>,
 }
 
+#[cfg(test)]
 impl MemoryWitnessLedger {
     pub fn new(witness_id: impl Into<String>, signer: Box<dyn WitnessReceiptSigner>) -> Self {
         Self {
@@ -133,6 +141,7 @@ impl MemoryWitnessLedger {
     }
 }
 
+#[cfg(test)]
 impl WitnessLedger for MemoryWitnessLedger {
     fn accept(
         &self,
@@ -171,7 +180,7 @@ impl WitnessLedger for MemoryWitnessLedger {
         let (expected_number, expected_previous, previous_sequence) = match history.last() {
             None => (1, [0; 32], 0),
             Some(last) => (
-                last.checkpoint_number + 1,
+                last.checkpoint_number.checked_add(1).ok_or(WitnessError::CheckpointGap)?,
                 last.checkpoint_digest,
                 last.last_sequence,
             ),
@@ -210,7 +219,10 @@ impl WitnessLedger for MemoryWitnessLedger {
                 .map(WitnessReceipt::digest)
                 .unwrap_or([0; 32]),
             witnessed_at,
-            log_index: history.len() as u64 + 1,
+            log_index: u64::try_from(history.len())
+                .ok()
+                .and_then(|index| index.checked_add(1))
+                .ok_or(WitnessError::CheckpointGap)?,
             signing_key_id: signer.key_id().to_string(),
             signature: [0; 64],
         };
@@ -441,12 +453,12 @@ impl WitnessLedger for SqliteWitnessLedger {
         ) = match previous {
             None => (1, [0; 32], 0, [0; 32], 0, 1),
             Some(last) => (
-                last.checkpoint_number + 1,
+                last.checkpoint_number.checked_add(1).ok_or(WitnessError::CheckpointGap)?,
                 last.checkpoint_digest,
                 last.last_sequence,
                 last.digest(),
                 last.witnessed_at,
-                last.log_index + 1,
+                last.log_index.checked_add(1).ok_or(WitnessError::CheckpointGap)?,
             ),
         };
         if payload.checkpoint_number != expected_number {
