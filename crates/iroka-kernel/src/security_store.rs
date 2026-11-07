@@ -268,10 +268,7 @@ impl SqliteSecurityStore {
         installed_at: u64,
         manifest_json: &[u8],
     ) -> Result<(), SecurityStoreError> {
-        if version == 0
-            || issued_at >= expires_at
-            || digest.len() != 32
-            || manifest_json.is_empty()
+        if version == 0 || issued_at >= expires_at || digest.len() != 32 || manifest_json.is_empty()
         {
             return Err(SecurityStoreError::InvalidVersion);
         }
