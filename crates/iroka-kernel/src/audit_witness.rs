@@ -2,11 +2,11 @@
 //! MemoryWitnessLedger is NOT an independent production witness: it is a deterministic
 //! adapter for protocol tests. Production must implement durable storage and separate custody.
 
-use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint};
 #[cfg(test)]
 use crate::audit_checkpoint::CheckpointPayload;
 #[cfg(test)]
 use crate::audit_signer::SignerError;
+use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 #[cfg(test)]
 use ed25519_dalek::{Signer, SigningKey};
