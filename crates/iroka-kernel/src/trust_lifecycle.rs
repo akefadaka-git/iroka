@@ -145,6 +145,8 @@ pub fn verify_and_install_trust_bundle(
     if root.key_id.trim().is_empty()
         || root.key_id != bundle.root_key_id
         || root.not_before >= root.not_after
+        || root.provenance_ref.trim().is_empty()
+        || VerifyingKey::from_bytes(&root.public_key).is_err()
     {
         return Err(TrustBundleError::InvalidRoot);
     }
@@ -333,6 +335,17 @@ mod tests {
             TrustBundleError::Expired
         );
         let _ = signer;
+    }
+
+    #[test]
+    fn rejects_unprovenanced_root_on_direct_bundle_install_path() {
+        let (_, mut root, bundle) = fixture(1);
+        root.provenance_ref.clear();
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            verify_and_install_trust_bundle(&bundle, &root, &store, 1_100).unwrap_err(),
+            TrustBundleError::InvalidRoot
+        );
     }
 
     #[test]
