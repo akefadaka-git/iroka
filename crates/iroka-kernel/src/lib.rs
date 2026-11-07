@@ -46,8 +46,10 @@ pub use audit_recovery::{
 };
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use audit_verifier::{
-    reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain, LocalReconciliation,
-    VerificationError, WitnessRosterState, AUTHORIZED_WITNESS_COUNT, REQUIRED_WITNESS_QUORUM,
+    reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain,
+    verify_receipt_chain_with_resolver, LocalReconciliation, VerificationError,
+    WitnessReceiptKeyResolver, WitnessRosterState, AUTHORIZED_WITNESS_COUNT,
+    REQUIRED_WITNESS_QUORUM,
 };
 pub use audit_witness::{
     SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner,
