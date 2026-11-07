@@ -80,10 +80,10 @@ pub fn validate_genome(bytes:&[u8])->Result<ValidatedGenome,IgacmsError>{
     let c=v["chromosomes"].as_array().ok_or(IgacmsError::Chromosome)?;
     if c.len()!=12{return Err(IgacmsError::Chromosome)}let ids=unique(c,"id")?;
     for id in CHROMOSOMES{if !ids.contains(id){return Err(IgacmsError::Chromosome)}}
-    for x in c{let gs=x["core_genes"].as_array().ok_or(IgacmsError::Gene)?;if gs.len()!=3{return Err(IgacmsError::Gene)}for name in gs{let gene_name=name.as_str().ok_or(IgacmsError::Gene)?;let expected=format!("{}.{}",text(x,"id")?.to_lowercase(),gene_name);if !v["genes"].as_array().ok_or(IgacmsError::Gene)?.iter().any(|g|g["id"].as_str()==Some(expected.as_str())&&g["chromosome_id"].as_str()==text(x,"id").ok()){return Err(IgacmsError::Gene)}}}
     let genes=v["genes"].as_array().ok_or(IgacmsError::Gene)?;
     if genes.len()!=36{ return Err(IgacmsError::Gene)}unique(genes,"id")?;
     for g in genes{for k in ["chromosome_id","version","purpose","input_schema","output_schema","failure_semantics","compatibility_policy","owner","review_state"]{text(g,k)?;}if !ids.contains(text(g,"chromosome_id")?){return Err(IgacmsError::Gene)}}
+    for x in c{let gs=x["core_genes"].as_array().ok_or(IgacmsError::Gene)?;if gs.len()!=3{return Err(IgacmsError::Gene)}for name in gs{let gene_name=name.as_str().ok_or(IgacmsError::Gene)?;let expected=format!("{}.{}",text(x,"id")?.to_lowercase(),gene_name);if !v["genes"].as_array().ok_or(IgacmsError::Gene)?.iter().any(|g|g["id"].as_str()==Some(expected.as_str())&&g["chromosome_id"].as_str()==text(x,"id").ok()){return Err(IgacmsError::Gene)}}}
     let p=v["principles"].as_array().ok_or(IgacmsError::Malformed)?;let i=v["invariants"].as_array().ok_or(IgacmsError::Malformed)?;
     if p.len()!=14||i.len()!=14{return Err(IgacmsError::Identity)}unique(p,"id")?;unique(i,"id")?;
     let m=v["markers"].as_array().ok_or(IgacmsError::Marker)?;if m.len()!=27{return Err(IgacmsError::Marker)}unique(m,"id")?;
@@ -158,7 +158,7 @@ pub fn sign_genesis(g:&Genesis,key_id:&str,key:&SigningKey)->Result<Attestation,
 pub struct VerifiedGenesis{digest:String,epoch:u64}
 impl VerifiedGenesis{pub fn digest(&self)->&str{&self.digest}pub fn epoch(&self)->u64{self.epoch}}
 pub fn verify_genesis(g:&Genesis,fp:&Fingerprint,roots:&[TrustedRoot],now:u64)->Result<VerifiedGenesis,IgacmsError>{
-    if g.dna_id!="iroka.dna"||g.dna_version!="1.0.0"||g.genome_id!="IROKA_ZERO_GENOME"||g.genome_version!="1.0.0"||g.digest!=fp.digest_hex||g.canonicalization!="RFC8785-JCS"||g.hash_algorithm!="SHA-256"||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||g.trust_root_provenance_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.digest!=format!("{:x}",Sha256::digest(g.signing_bytes()?))||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}
+    if g.dna_id!="iroka.dna"||g.dna_version!="1.0.0"||g.genome_id!="IROKA_ZERO_GENOME"||g.genome_version!="1.0.0"||g.digest!=fp.digest_hex||g.canonicalization!="RFC8785-JCS"||g.hash_algorithm!="SHA-256"||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||g.trust_root_provenance_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}if g.attestation.digest!=format!("{:x}",Sha256::digest(g.signing_bytes()?)){return Err(IgacmsError::Signature)}
     verify_attestation(&g.attestation,roots,now)?;
     Ok(VerifiedGenesis{digest:g.digest.clone(),epoch:g.epoch})
 }
