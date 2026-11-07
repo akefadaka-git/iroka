@@ -31,7 +31,7 @@ pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_checkpoint::{AuditHead, CheckpointBuilder, CheckpointError, CheckpointPayload};
 pub use audit_operations::{
     assess_anchoring, checkpoint_due, checkpoint_due_with_manual_request, AnchoringAssessment,
-    AnchoringState, CheckpointPolicy, ManualCheckpointRequest,
+    AnchoringState, CheckpointPolicy, ManualCheckpointError, ManualCheckpointRequest,
 };
 pub use audit_recovery::{
     ExternalWitnessHighWater, RecoveryApprovalPayload, RecoveryApprovalVerifier,
