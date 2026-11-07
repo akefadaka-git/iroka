@@ -6,7 +6,7 @@
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use sha2::{Digest, Sha256};
 
 use crate::audit_verifier::{
@@ -240,12 +240,15 @@ pub fn activate_signed_witness_roster(
 
     let verifier = WitnessReceiptVerifier::new(authorized)?;
     let digest = Sha256::digest(&signing_bytes);
+    let manifest_json =
+        serde_json::to_vec(manifest).map_err(|_| WitnessRosterManifestError::Malformed)?;
     store.install_witness_roster(
         payload.version,
         digest.as_slice(),
         payload.issued_at,
         payload.expires_at,
         now,
+        &manifest_json,
     )?;
 
     Ok(WitnessRosterState::provisioned_from_manifest(
@@ -254,6 +257,67 @@ pub fn activate_signed_witness_roster(
         payload.version,
         payload.expires_at,
     ))
+}
+
+/// Historical resolver backed by immutable Owner-signed roster manifests retained by the
+/// security store. It deliberately validates a historical manifest at the receipt's
+/// witness-assigned time, not at the current time.
+pub struct HistoricalWitnessRosterResolver {
+    root: OwnerWitnessRosterRoot,
+    store: Arc<SqliteSecurityStore>,
+}
+
+impl HistoricalWitnessRosterResolver {
+    pub fn new(root: OwnerWitnessRosterRoot, store: Arc<SqliteSecurityStore>) -> Self {
+        Self { root, store }
+    }
+}
+
+impl crate::WitnessReceiptKeyResolver for HistoricalWitnessRosterResolver {
+    fn verify_receipt(
+        &self,
+        receipt: &crate::WitnessReceipt,
+    ) -> Result<(), VerificationError> {
+        let manifests = self
+            .store
+            .witness_roster_manifests()
+            .map_err(|_| VerificationError::InvalidWitnessRoster)?;
+        let mut matched = false;
+        for (_, bytes) in manifests {
+            let manifest: SignedWitnessRosterManifest = serde_json::from_slice(&bytes)
+                .map_err(|_| VerificationError::InvalidWitnessRoster)?;
+            if manifest.payload.stream_id != receipt.stream_id
+                || receipt.witnessed_at < manifest.payload.issued_at
+                || receipt.witnessed_at >= manifest.payload.expires_at
+                || !manifest.payload.witnesses.iter().any(|entry| {
+                    entry.witness_id == receipt.witness_id
+                        && entry.signing_key_id == receipt.signing_key_id
+                })
+            {
+                continue;
+            }
+            let temporary_store = SqliteSecurityStore::open_in_memory()
+                .map_err(|_| VerificationError::InvalidWitnessRoster)?;
+            let state = activate_signed_witness_roster(
+                &manifest,
+                &self.root,
+                &temporary_store,
+                receipt.witnessed_at,
+            )
+            .map_err(|_| VerificationError::UnauthorizedWitness)?;
+            state.verify_receipt_at(receipt, receipt.witnessed_at)?;
+            if matched {
+                // A key ID must resolve to exactly one historical signed roster.
+                return Err(VerificationError::InvalidWitnessRoster);
+            }
+            matched = true;
+        }
+        if matched {
+            Ok(())
+        } else {
+            Err(VerificationError::UnauthorizedWitness)
+        }
+    }
 }
 
 /// Process-local atomic publication boundary for the currently trusted witness roster.
