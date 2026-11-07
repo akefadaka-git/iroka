@@ -565,7 +565,9 @@ impl WitnessLedger for SqliteWitnessLedger {
         ) = match previous {
             None => (1, [0; 32], 0, [0; 32], 0, 1),
             Some(last) => (
-                last.checkpoint_number.checked_add(1).ok_or(WitnessError::CheckpointGap)?,
+                last.checkpoint_number
+                    .checked_add(1)
+                    .ok_or(WitnessError::CheckpointGap)?,
                 last.checkpoint_digest,
                 last.last_sequence,
                 last.digest(),
