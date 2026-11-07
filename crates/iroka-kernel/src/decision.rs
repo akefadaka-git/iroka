@@ -25,6 +25,7 @@ pub enum DecisionReason {
     ApprovalRevokedOrUnknown,
     ApprovalVerificationFailed,
     AuditUnavailable,
+    ConstitutionalValidationFailed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
