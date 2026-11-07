@@ -11,7 +11,7 @@ use std::sync::RwLock;
 
 use crate::audit_verifier::{
     verify_checkpoint_and_quorum, AuthorizedWitness, VerificationError, WitnessReceiptVerifier,
-    WitnessRosterState, AUTHORIZED_WITNESS_COUNT, REQUIRED_WITNESS_QUORUM,
+    WitnessRosterState, AUTHORIZED_WITNESS_COUNT,
 };
 use crate::{SecurityStoreError, SqliteSecurityStore};
 
