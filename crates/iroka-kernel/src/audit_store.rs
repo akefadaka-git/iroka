@@ -160,12 +160,17 @@ impl SqliteAuditSink {
     /// Returns a consistent V1 checkpoint snapshot after local chain verification.
     /// The caller must pass this snapshot to the checkpoint builder without changing its fields.
     pub fn checkpoint_head(&self) -> Result<AuditHead, AuditStoreError> {
-        let c = self
+        let mut c = self
             .connection
             .lock()
             .map_err(|_| AuditStoreError::Unavailable)?;
-        verify_connection(&c)?;
-        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = c
+        // One deferred read transaction pins a single SQLite snapshot for both
+        // full-chain verification and head/count extraction.
+        let tx = c
+            .transaction_with_behavior(TransactionBehavior::Deferred)
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        verify_connection(&tx)?;
+        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = tx
             .query_row(
                 "SELECT MIN(sequence), MAX(sequence), COUNT(*),
              (SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1)
@@ -175,6 +180,7 @@ impl SqliteAuditSink {
             )
             .map_err(|_| AuditStoreError::Unavailable)?;
         if row.2 == 0 {
+            tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
             return Ok(AuditHead {
                 first_sequence: 0,
                 last_sequence: 0,
@@ -183,6 +189,7 @@ impl SqliteAuditSink {
                 chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
             });
         }
+        tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
         let first = u64::try_from(row.0.ok_or(AuditStoreError::IntegrityFailure)?)
             .map_err(|_| AuditStoreError::IntegrityFailure)?;
         let last = u64::try_from(row.1.ok_or(AuditStoreError::IntegrityFailure)?)
