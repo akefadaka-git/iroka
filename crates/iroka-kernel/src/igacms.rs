@@ -105,9 +105,7 @@ pub struct MarkerAssertion {
 pub fn validate_marker_assertion(a:&MarkerAssertion)->Result<(),IgacmsError>{
     let known=["IDN-001","IDN-002","IDN-003","IDN-004","INT-001","INT-002","INT-003","PRV-001","PRV-002","EVD-001","EVD-002","EVD-003","AUT-001","AUT-002","AZN-001","AZN-002","SEC-001","SEC-002","ASN-001","ASN-002","LFC-001","LFC-002","EVO-001","EVO-002","EVO-003","CNF-001","CNF-002"];
     if !known.contains(&a.marker_id.as_str())||[&a.assertion_id,&a.subject_id,&a.genome_version,&a.chromosome_version,&a.issuer].iter().any(|s|s.trim().is_empty())||a.issued_at<a.valid_from||a.valid_until.is_some_and(|x|x<=a.valid_from){return Err(IgacmsError::Marker)}
-    if a.asserted_state=="VERIFIED"||a.asserted_state=="ATTESTED" {
-        if a.evidence_refs.is_empty()||a.verifier.trim().is_empty()||a.verification_method.trim().is_empty(){return Err(IgacmsError::Marker)}
-    }
+    if (a.asserted_state=="VERIFIED"||a.asserted_state=="ATTESTED")&&(a.evidence_refs.is_empty()||a.verifier.trim().is_empty()||a.verification_method.trim().is_empty()){return Err(IgacmsError::Marker)}
     if a.asserted_state=="ATTESTED"&&a.signature_ref.as_deref().unwrap_or("").trim().is_empty(){return Err(IgacmsError::Marker)}
     if !["DEFINED","OBSERVED","VERIFIED","ATTESTED","FAILED","REVOKED","UNKNOWN","NOT_APPLICABLE"].contains(&a.asserted_state.as_str()){return Err(IgacmsError::Marker)}
     if !["PASS","FAIL","INDETERMINATE","NOT_RUN","NOT_APPLICABLE"].contains(&a.status.as_str()){return Err(IgacmsError::Marker)}
