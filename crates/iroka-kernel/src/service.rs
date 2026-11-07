@@ -213,7 +213,9 @@ pub fn authorize_authenticated_with_owner_approval<S: AuditSink>(
     event_id: &str,
     correlation_id: &str,
 ) -> Decision {
-    let decision = if principal.subject() != request.subject() {
+    let decision = if crate::igacms::validate_embedded_baseline().is_err() {
+        Decision::new(DecisionCode::Escalate, DecisionReason::ConstitutionalValidationFailed, policy.version())
+    } else if principal.subject() != request.subject() {
         Decision::new(
             DecisionCode::Deny,
             DecisionReason::IdentitySubjectMismatch,
