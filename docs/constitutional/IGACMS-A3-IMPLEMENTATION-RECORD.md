@@ -41,15 +41,15 @@
 ## A3 completion assessment
 
 - **A3.1:** VERIFIED — DNA, Genome, chromosome, gene, marker-definition, marker-assertion, Genesis, attestation, mutation-evidence and migration-evidence schemas committed.
-- **A3.2:** VERIFIED — strict duplicate-key parser; required historical domains including reasoning; chromosome/gene/marker catalogues; dependency-cycle checks.
+- **A3.2:** IMPLEMENTED — strict duplicate-key parser; exact eight-domain set; exact 12 chromosome IDs, 36 core genes and 27 marker IDs; dependency-cycle checks. The additional hardening changes have not yet been rerun through CI at the current head.
 - **A3.3:** VERIFIED — RFC 8785 JCS canonicalization and SHA-256 fingerprint pinned to the approved manifest.
 - **A3.4:** IMPLEMENTED — Ed25519 Genesis envelope signing/verification against the configured Owner-controlled trust-root set, with provenance, validity and revocation behavior. Production root provisioning and genesis activation are NOT RUN.
 - **A3.5:** VERIFIED — M0–M5 evidence gates and fail-closed tests.
 - **A3.6:** VERIFIED — protected Owner-approval authorization requires a verified Genesis token and the pinned embedded Genome.
-- **A3.7:** PARTIAL — source commit prefix resolved to full SHA and four representative historical blob IDs independently matched the A2 register; full 48-artifact blob-by-blob reconciliation has not yet been completed. DNA-045 remains `EXTENSION-REVIEW` by the A2 disposition.
-- **A3.8:** PARTIAL — automated conformance tests PASS; an independent reviewer has not yet submitted a review.
+- **A3.7:** PARTIAL — source commit prefix resolved to full SHA and four representative historical blob IDs matched the A2 register; full 48-artifact blob-by-blob reconciliation has not yet been completed. DNA-045 remains `EXTENSION-REVIEW` by the A2 disposition.
+- **A3.8:** PARTIAL — prior automated conformance tests PASS at `72296b5e3c78fa8c3cf3b782dd8caff22045ba27`; current hardening head `134ed29c087831fd81ea6f0ff07748133f45c3c9` has no fresh workflow result returned yet. Independent reviewer has not yet submitted a review.
 
-**Overall A3 status: PARTIAL — implementation and automated verification are in place; the historical commit reference is resolved. Full historical blob reconciliation and an independent security review remain open.**
+**Overall A3 status: PARTIAL — historical commit reference resolved; implementation hardening applied. Fresh exact-head verification, full 48-artifact blob reconciliation and an independent security review remain open.**
 
 ## Explicitly not performed
 
@@ -58,3 +58,24 @@
 - No deployment.
 - PR #13 remains draft and unmerged; A2 PR #12 remains open and unmerged.
 - No production security claim is made from unit-test evidence alone.
+
+
+## Preliminary security hardening (internal pre-review; not an independent review)
+
+A separate adversarial pass over the implementation identified and remediated these issues on the A3 branch:
+
+1. Genome validation previously checked that all eight historical domains were present but did not reject duplicates or extra entries. It now enforces the exact eight-domain set.
+2. Marker validation previously checked only count and uniqueness. It now enforces the exact 27 v1.0 marker IDs.
+3. Epoch transition used saturating addition, which could accept a non-increment at `u64::MAX`. It now uses checked addition and fails closed on overflow.
+4. The public direct trust-bundle installation path did not require non-empty root provenance or validate the root public key before bundle processing. It now rejects missing provenance and invalid root keys.
+5. The Rust workflow previously ran `cargo fmt --all` before the formatting check, potentially formatting the checkout before asserting it. The mutating step was removed; CI now checks the committed formatting without modifying it.
+
+These are implementation remediations from an internal review pass. They do not satisfy the independent-review requirement.
+
+## Current verification boundary
+
+- Last verified implementation SHA: `72296b5e3c78fa8c3cf3b782dd8caff22045ba27`, workflow run [#42390862217](https://github.com/akefadaka-git/iroka/actions/runs/42390862217) — PASS.
+- Current branch head after hardening: `134ed29c087831fd81ea6f0ff07748133f45c3c9`.
+- No workflow run was returned for the current head by the available PR-run lookup. Current-head format, compile, test and Clippy status is therefore **NOT VERIFIED**.
+- PR #13 has no submitted reviews, review threads, requested reviewers, CODEOWNERS file or SECURITY.md review instructions.
+- A named, qualified external reviewer must be granted repository access and submit a review before A3.8 can close.
