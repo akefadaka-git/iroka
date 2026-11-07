@@ -221,17 +221,25 @@ pub fn build_conformance_report(
     for case in cases {
         let test_id = case["test_id"].as_str().unwrap_or("UNKNOWN");
         let fixture_ref = case.get("fixture_ref").and_then(Value::as_str);
-        let outcome = match fixture_ref {
-            None => CaseOutcome {
-                status: CaseStatus::Blocked,
-                reason_code: "FIXTURE_MISSING",
-                detail: "No reviewed or synthetic fixture is registered for this case.",
-            },
-            Some(_) => execute_registered_case(test_id).unwrap_or(CaseOutcome {
-                status: CaseStatus::Blocked,
-                reason_code: "EXECUTOR_MISSING",
-                detail: "A fixture reference exists, but no executable adapter is registered.",
-            }),
+        let outcome = if case["status"].as_str() == Some("NOT APPLICABLE") {
+            CaseOutcome {
+                status: CaseStatus::NotApplicable,
+                reason_code: "EXPLICITLY_NOT_APPLICABLE",
+                detail: "The catalog explicitly marks this case not applicable.",
+            }
+        } else {
+            match fixture_ref {
+                None => CaseOutcome {
+                    status: CaseStatus::Blocked,
+                    reason_code: "FIXTURE_MISSING",
+                    detail: "No reviewed or synthetic fixture is registered for this case.",
+                },
+                Some(_) => execute_registered_case(test_id).unwrap_or(CaseOutcome {
+                    status: CaseStatus::NotRun,
+                    reason_code: "EXECUTOR_MISSING",
+                    detail: "A fixture reference exists, but no executable adapter is registered.",
+                }),
+            }
         };
         *counts.entry(outcome.status.as_str().to_owned()).or_default() += 1;
         results.push(json!({
