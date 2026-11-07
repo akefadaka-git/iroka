@@ -115,7 +115,7 @@ pub fn validate_marker_assertion(a:&MarkerAssertion)->Result<(),IgacmsError>{
     Ok(())
 }
 #[derive(Debug,Clone,PartialEq,Eq)]
-pub struct TrustedRoot{pub key_id:String,pub public_key:[u8;32],pub not_before:u64,pub not_after:u64,pub revoked:bool,pub provenance:String}
+pub(crate) struct TrustedRoot{pub key_id:String,pub public_key:[u8;32],pub not_before:u64,pub not_after:u64,pub revoked:bool,pub provenance:String}
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Attestation{pub envelope_type:String,pub version:String,pub digest:String,pub epoch:u64,pub key_id:String,pub signature:Vec<u8>}
 impl Attestation{fn bytes(&self)->Vec<u8>{{ let mut out=Vec::new(); for field in [ATTESTATION_DOMAIN,self.envelope_type.as_str(),self.version.as_str(),self.digest.as_str(),self.key_id.as_str()] { let b=field.as_bytes(); out.extend_from_slice(&(b.len() as u64).to_be_bytes()); out.extend_from_slice(b); } out.extend_from_slice(&self.epoch.to_be_bytes()); out }}}
@@ -123,7 +123,7 @@ pub fn sign_fingerprint(fp:&Fingerprint,epoch:u64,key_id:&str,key:&SigningKey)->
     let mut a=Attestation{envelope_type:"iroka.igacms.attestation".into(),version:"1.0.0".into(),digest:fp.digest_hex.clone(),epoch,key_id:key_id.into(),signature:Vec::new()};
     a.signature=key.sign(&a.bytes()).to_bytes().to_vec();a
 }
-pub fn verify_attestation(a:&Attestation,roots:&[TrustedRoot],now:u64)->Result<(),IgacmsError>{
+pub(crate) fn verify_attestation(a:&Attestation,roots:&[TrustedRoot],now:u64)->Result<(),IgacmsError>{
     let r=roots.iter().find(|r|r.key_id==a.key_id).ok_or(IgacmsError::UnknownRoot)?;
     if r.revoked{return Err(IgacmsError::RevokedRoot)}if now<r.not_before||now>=r.not_after||r.not_before>=r.not_after||r.provenance.trim().is_empty(){return Err(IgacmsError::RootExpired)}if a.envelope_type!="iroka.igacms.attestation"||a.version!="1.0.0"{return Err(IgacmsError::Signature)}
     let k=VerifyingKey::from_bytes(&r.public_key).map_err(|_|IgacmsError::UnknownRoot)?;
@@ -157,10 +157,31 @@ pub fn sign_genesis(g:&Genesis,key_id:&str,key:&SigningKey)->Result<Attestation,
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct VerifiedGenesis{digest:String,epoch:u64}
 impl VerifiedGenesis{pub fn digest(&self)->&str{&self.digest}pub fn epoch(&self)->u64{self.epoch}}
-pub fn verify_genesis(g:&Genesis,fp:&Fingerprint,roots:&[TrustedRoot],now:u64)->Result<VerifiedGenesis,IgacmsError>{
+pub(crate) fn verify_genesis(g:&Genesis,fp:&Fingerprint,roots:&[TrustedRoot],now:u64)->Result<VerifiedGenesis,IgacmsError>{
     if g.dna_id!="iroka.dna"||g.dna_version!="1.0.0"||g.genome_id!="IROKA_ZERO_GENOME"||g.genome_version!="1.0.0"||g.digest!=fp.digest_hex||g.canonicalization!="RFC8785-JCS"||g.hash_algorithm!="SHA-256"||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||g.trust_root_provenance_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}if g.attestation.digest!=format!("{:x}",Sha256::digest(g.signing_bytes()?)){return Err(IgacmsError::Signature)}
     verify_attestation(&g.attestation,roots,now)?;
     Ok(VerifiedGenesis{digest:g.digest.clone(),epoch:g.epoch})
+}
+
+pub fn verify_attestation_with_trust_roots(
+    attestation:&Attestation,
+    roots:&crate::trust_lifecycle::TrustRootSet,
+    now:u64,
+)->Result<(),IgacmsError>{
+    let root=roots.get(&attestation.key_id).map_err(|_|IgacmsError::UnknownRoot)?;
+    let trusted=TrustedRoot{key_id:root.key_id.clone(),public_key:root.public_key,not_before:root.not_before,not_after:root.not_after,revoked:false,provenance:root.provenance_ref.clone()};
+    verify_attestation(attestation,&[trusted],now)
+}
+pub fn verify_genesis_with_trust_roots(
+    genesis:&Genesis,
+    fingerprint:&Fingerprint,
+    roots:&crate::trust_lifecycle::TrustRootSet,
+    now:u64,
+)->Result<VerifiedGenesis,IgacmsError>{
+    let root=roots.get(&genesis.attestation.key_id).map_err(|_|IgacmsError::UnknownRoot)?;
+    if !genesis.trust_root_provenance_refs.contains(&root.provenance_ref){return Err(IgacmsError::Genesis)}
+    let trusted=TrustedRoot{key_id:root.key_id.clone(),public_key:root.public_key,not_before:root.not_before,not_after:root.not_after,revoked:false,provenance:root.provenance_ref.clone()};
+    verify_genesis(genesis,fingerprint,&[trusted],now)
 }
 pub fn verify_epoch_transition(epoch:u64,digest:&str,next:u64,parent:Option<&str>)->Result<(),IgacmsError>{if next!=epoch.saturating_add(1)||parent!=Some(digest){Err(IgacmsError::Epoch)}else{Ok(())}}
 
