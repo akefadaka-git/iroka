@@ -5,6 +5,7 @@ on:
     branches:
       - fix/a2-trust-concurrency-workflow
       - fix/k04-witness-roster-fail-closed # K-04 stacked PR verification
+      - fix/k04-a3-security-remediation # K-04 A3 remediation verification
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -21,6 +22,8 @@ on:
       - main
       - fix/a2-trust-concurrency-workflow
       - fix/k04-authorized-witness-roster
+      - fix/k04-witness-roster-fail-closed
+      - fix/k04-a3-security-remediation
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
