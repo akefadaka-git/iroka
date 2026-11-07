@@ -196,7 +196,7 @@ pub fn authorize_mutation(c:MutationClass,e:&MutationEvidence)->Result<(),Igacms
 #[derive(Debug,Clone,PartialEq,Eq)]pub struct MigrationEvidence{pub id:String,pub source_commit:String,pub source_blob_sha:String,pub digest:String,pub disposition:String}
 pub fn git_blob_sha1(bytes:&[u8])->String{let mut h=Sha1::new();h.update(format!("blob {}\0",bytes.len()).as_bytes());h.update(bytes);format!("{:x}",h.finalize())}
 pub fn preserve_historical(a:&HistoricalArtifact)->Result<MigrationEvidence,IgacmsError>{
-    if a.id.is_empty()||a.commit.len()!=40||!a.commit.bytes().all(|b|b.is_ascii_hexdigit())||a.bytes.is_empty()||git_blob_sha1(&a.bytes)!=a.blob_sha{return Err(IgacmsError::HistoricalEvidence)}
+    if a.id.is_empty()||!(7..=40).contains(&a.commit.len())||!a.commit.bytes().all(|b|b.is_ascii_hexdigit())||a.bytes.is_empty()||git_blob_sha1(&a.bytes)!=a.blob_sha{return Err(IgacmsError::HistoricalEvidence)}
     let d=Sha256::digest(&a.bytes);Ok(MigrationEvidence{id:a.id.clone(),source_commit:a.commit.clone(),source_blob_sha:a.blob_sha.clone(),digest:format!("{:x}",d),disposition:if a.id=="DNA-045"{"EXTENSION-REVIEW"}else{"RETAIN-HISTORICAL"}.into()})
 }
 pub fn cross_chromosome_invariants()->&'static [&'static str]{&[
