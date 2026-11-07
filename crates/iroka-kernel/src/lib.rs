@@ -26,7 +26,7 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use igacms::{authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical, sign_fingerprint, sign_genesis, validate_embedded_baseline, validate_genome, validate_marker_assertion, verify_attestation, verify_epoch_transition, verify_genesis, Attestation, Fingerprint, Genesis, HistoricalArtifact, IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence, TrustedRoot, ValidatedGenome, VerifiedGenesis};
+pub use igacms::{authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical, sign_fingerprint, sign_genesis, validate_embedded_baseline, validate_genome, validate_marker_assertion, verify_attestation_with_trust_roots, verify_epoch_transition, verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact, IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence, ValidatedGenome, VerifiedGenesis};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
@@ -383,13 +383,13 @@ mod tests {
         let signed = SignedOwnerApproval::from_signature(payload, signature);
         let fingerprint = validate_embedded_baseline().unwrap();
         let genesis_signer = SigningKey::from_bytes(&[72u8; 32]);
-        let genesis_root = TrustedRoot {
+        let genesis_root = TrustRoot {
             key_id: "genesis-test-key".into(),
             public_key: genesis_signer.verifying_key().to_bytes(),
             not_before: 900,
             not_after: 5_000,
             revoked: false,
-            provenance: "test-only ephemeral root".into(),
+            provenance_ref: "test-root-record".into(),
         };
         let mut genesis = Genesis {
             dna_id: "iroka.dna".into(), dna_version: "1.0.0".into(),
@@ -403,7 +403,8 @@ mod tests {
             audit_refs: vec!["audit:test-genesis".into()],
         };
         genesis.attestation = sign_genesis(&genesis, "genesis-test-key", &genesis_signer).unwrap();
-        let verified_genesis = verify_genesis(&genesis, &fingerprint, &[genesis_root], 1_200).unwrap();
+        let roots = TrustRootSet::new(vec![genesis_root]).unwrap();
+        let verified_genesis = verify_genesis_with_trust_roots(&genesis, &fingerprint, &roots, 1_200).unwrap();
         let first = authorize_authenticated_with_owner_approval(
             &request,
             &principal,
