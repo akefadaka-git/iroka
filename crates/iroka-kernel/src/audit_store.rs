@@ -223,8 +223,7 @@ impl SqliteAuditSink {
         if sequence == 0 {
             return Ok(expected_hash == &ZERO);
         }
-        let sequence_i =
-            i64::try_from(sequence).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let sequence_i = i64::try_from(sequence).map_err(|_| AuditStoreError::IntegrityFailure)?;
         let mut connection = self
             .connection
             .lock()
