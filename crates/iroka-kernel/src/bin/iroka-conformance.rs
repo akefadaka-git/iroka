@@ -40,7 +40,7 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let metadata = [
+    let mut metadata = [
         "GITHUB_REPOSITORY",
         "GITHUB_REF",
         "GITHUB_SHA",
@@ -54,6 +54,14 @@ fn main() -> ExitCode {
     .into_iter()
     .filter_map(|key| env::var(key).ok().map(|value| (key.to_owned(), value)))
     .collect::<BTreeMap<_, _>>();
+    // For pull_request events GitHub's default GITHUB_SHA is the synthetic merge
+    // commit. The workflow explicitly supplies the checked-out PR head SHA/ref here.
+    if let Ok(sha) = env::var("IROKA_CHECKED_OUT_SHA") {
+        metadata.insert("GITHUB_SHA".into(), sha);
+    }
+    if let Ok(reference) = env::var("IROKA_CHECKED_OUT_REF") {
+        metadata.insert("GITHUB_REF".into(), reference);
+    }
     let report = match build_conformance_report(&catalog, &metadata, started_at, now_unix_ms()) {
         Ok(report) => report,
         Err(error) => {
