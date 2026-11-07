@@ -45,15 +45,6 @@ jobs:
           rustc --version
           cargo --version
 
-      - name: Resolve and lock Rust dependencies
-        run: cargo generate-lockfile
-
-      - name: Upload resolved lockfile for exact dependency evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: igacms-a3-cargo-lockfile
-          path: Cargo.lock
-          if-no-files-found: error
 
       - name: Apply canonical Rust formatting
         run: cargo fmt --all
@@ -62,13 +53,13 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Compile all targets
-        run: cargo check --workspace --all-targets
+        run: cargo check --workspace --all-targets --locked
 
       - name: Verify production feature set excludes development bypasses
         run: cargo check --workspace --all-targets --no-default-features
 
       - name: Run complete unit and contract test suite
-        run: cargo test --workspace --all-targets
+        run: cargo test --workspace --all-targets --locked
 
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
