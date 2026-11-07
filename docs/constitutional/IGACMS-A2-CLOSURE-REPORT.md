@@ -17,7 +17,7 @@ It does not mean A3 implementation exists, that the validator or runtime guard i
 
 ## 2. Owner decisions
 
-All fourteen decisions were approved by the Owner with no conditions:
+The immutable decision transcription is [IGACMS-A2-OWNER-APPROVAL-001.md](./IGACMS-A2-OWNER-APPROVAL-001.md). All fourteen decisions were approved by the Owner with no conditions:
 D01 canonical identity; D02 12 chromosomes; D03 historical DNA preservation and reconciliation; D04 genetic hierarchy; D05 11 marker families and proposed marker catalogue; D06 14 historical principles; D07 14 historical invariants; D08 SHA-256 canonical fingerprints and independent attestations; D09 signed Owner-approved genesis and anti-rollback; D10 M0–M5 mutation governance; D11 identity/authority/authorization/execution separation; D12 Kernel enforcement requirement; D13 destination and historical repository boundaries; D14 no implementation/merge/deployment without separate authorization.
 
 ## 3. A2 deliverables
@@ -55,12 +55,13 @@ These are not concealed as completed implementation. They are explicitly carried
 The work is isolated to documentation under docs/constitutional on branch architecture/igacms-a2-owner-approved, based on the exact A2 branch commit recorded above. No executable source, workflow, dependency, production key, trust root, runtime configuration or database was modified. No branch was merged and no deployment was performed.
 
 The documents are:
-1. IGACMS-V1.0-A2-OWNER-APPROVED-BASELINE.md
-2. HISTORICAL-DNA-DISPOSITION-REGISTER.md
-3. IGACMS-THREAT-MODEL-AND-TRUST-BOUNDARIES.md
-4. IGACMS-VERIFICATION-AND-CONFORMANCE-MATRIX.md
-5. IGACMS-MIGRATION-COMPATIBILITY-AND-ROLLBACK.md
-6. IGACMS-A2-CLOSURE-REPORT.md
+1. IGACMS-A2-OWNER-APPROVAL-001.md
+2. IGACMS-V1.0-A2-OWNER-APPROVED-BASELINE.md
+3. HISTORICAL-DNA-DISPOSITION-REGISTER.md
+4. IGACMS-THREAT-MODEL-AND-TRUST-BOUNDARIES.md
+5. IGACMS-VERIFICATION-AND-CONFORMANCE-MATRIX.md
+6. IGACMS-MIGRATION-COMPATIBILITY-AND-ROLLBACK.md
+7. IGACMS-A2-CLOSURE-REPORT.md
 
 The documentation commit sequence is: initial six-document commit a1127d7bee6d5fbb9427ea376fe32d9484ae3c38; baseline identity correction d389150488cdee57886aca4d9edfaa5421d002c9; historical fingerprint-scope correction 5127e7c8ddd0dc3c849f2f735de396b20fe0d5e6. These commits are on the dedicated branch only. The branch is not merged and main is unchanged.
 
