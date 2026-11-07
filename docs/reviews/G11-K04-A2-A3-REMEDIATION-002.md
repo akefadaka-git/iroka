@@ -5,7 +5,7 @@
 **Repository:** `akefadaka-git/iroka`  
 **Remediation branch:** `fix/k04-a2-a3-remediation`  
 **Parent:** PR #8, `fix/k04-witness-roster-fail-closed`  
-**Status:** Source remediation committed; exact-head CI and independent operational evidence pending.
+**Status:** Source remediation committed; exact-head CI PASS; independent operational evidence pending.
 
 ## 1. Scope and governance
 
@@ -101,13 +101,23 @@ The remediation branch has a push-triggered Rust kernel workflow. The final PR h
 - complete unit/contract tests, including new recovery, key-rotation, stream-binding, arithmetic, digest and tamper-continuation cases;
 - Clippy with warnings denied under the configured policy.
 
-The exact checked-out SHA, run URL, job steps and test totals are recorded in the PR #10 description after successful verification against the final PR head. No earlier SHA's successful run is transferable to a later head.
+The final PR-head CI result is recorded below. The workflow ran on the pull-request event and checked out the exact final SHA; no earlier SHA's successful run is transferred to this head.
+
+- Checked-out SHA: `067604a57ee109bc674fea4221b47668a7426502`
+- Workflow: [Rust kernel verification — run #194](https://github.com/akefadaka-git/iroka/actions/runs/42321521852)
+- Formatting: PASS
+- Locked workspace/all-target compilation: PASS
+- Production feature configuration: PASS
+- Development bypass rejection in non-test build: PASS (expected rejection)
+- Unit/contract tests: PASS — 89 + 2 = 91 passed, 0 failed
+- Clippy: PASS
+- Job conclusion: SUCCESS; all nine verification steps completed.
 
 ## 7. Final disposition
 
-- K-04 A2 source-level review findings RV-01 through RV-09: **SOURCE REMEDIATION IMPLEMENTED; EXACT-SHA VERIFICATION PENDING**.
+- K-04 A2 source-level review findings RV-01 through RV-09: **SOURCE REMEDIATION IMPLEMENTED; EXACT-SHA CI PASS**.
 - A2 platform-wide gate: **PARTIAL**.
-- A3 security remediation: **IMPLEMENTATION IN PROGRESS; VERIFICATION PENDING**.
+- A3 security remediation: **IMPLEMENTED IN THIS PR; CONFIGURED EXACT-SHA CI PASS; INDEPENDENT OPERATIONAL VERIFICATION OPEN**.
 - K-04 production readiness: **NOT ESTABLISHED**.
 - PR #5, #7 and #8: remain open and draft.
 - This remediation PR: draft only.
