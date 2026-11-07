@@ -2039,74 +2039,60 @@
   "mutation_policy": [
     {
       "class": "M0",
-      "change": "as defined by IGACMS v1.0 section 12",
+      "change": "No semantic change; formatting or metadata-only",
       "controls": [
-        "canonical-diff",
-        "provenance",
-        "compatibility-review",
-        "independent-review",
-        "Owner-approval-when-required",
-        "migration-rollback-evidence"
+        "automated-canonical-diff",
+        "provenance"
       ]
     },
     {
       "class": "M1",
-      "change": "as defined by IGACMS v1.0 section 12",
+      "change": "Editorial clarification with no normative semantic effect",
       "controls": [
-        "canonical-diff",
-        "provenance",
-        "compatibility-review",
-        "independent-review",
-        "Owner-approval-when-required",
-        "migration-rollback-evidence"
+        "review",
+        "semantic-equivalence-note",
+        "patch-version"
       ]
     },
     {
       "class": "M2",
-      "change": "as defined by IGACMS v1.0 section 12",
+      "change": "Additive non-breaking gene/marker extension",
       "controls": [
-        "canonical-diff",
-        "provenance",
         "compatibility-review",
-        "independent-review",
-        "Owner-approval-when-required",
-        "migration-rollback-evidence"
+        "schema-validation",
+        "conformance-vectors"
       ]
     },
     {
       "class": "M3",
-      "change": "as defined by IGACMS v1.0 section 12",
+      "change": "Behavior or compatibility change within approved constitutional boundaries",
       "controls": [
-        "canonical-diff",
-        "provenance",
-        "compatibility-review",
-        "independent-review",
-        "Owner-approval-when-required",
-        "migration-rollback-evidence"
+        "security-review",
+        "impact-review",
+        "migration-rollback-plan",
+        "Owner-approval-if-authority-or-protected-behavior-changes"
       ]
     },
     {
       "class": "M4",
-      "change": "as defined by IGACMS v1.0 section 12",
+      "change": "Principle, invariant, marker meaning, dependency or constitutional enforcement change",
       "controls": [
-        "canonical-diff",
-        "provenance",
-        "compatibility-review",
+        "explicit-Owner-approval",
         "independent-review",
-        "Owner-approval-when-required",
-        "migration-rollback-evidence"
+        "new-fingerprint",
+        "migration",
+        "regression-evidence"
       ]
     },
     {
       "class": "M5",
-      "change": "as defined by IGACMS v1.0 section 12",
+      "change": "DNA identity, genesis, trust-root policy or constitutional root change",
       "controls": [
-        "canonical-diff",
-        "provenance",
-        "compatibility-review",
-        "independent-review",
-        "Owner-approval-when-required",
-        "migration-rollback-evidence"
+        "explicit-Owner-authorization",
+        "enhanced-independent-review",
+        "dual-control",
+        "new-epoch",
+        "anti-rollback-evidence"
       ]
     }
   ],
