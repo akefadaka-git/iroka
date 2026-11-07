@@ -9,6 +9,7 @@ mod decision;
 #[cfg(test)]
 mod governance;
 mod identity;
+mod igacms;
 mod identity_crypto;
 mod owner_approval;
 mod policy;
@@ -25,6 +26,7 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
+pub use igacms::{authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical, sign_fingerprint, validate_embedded_baseline, validate_genome, verify_attestation, verify_epoch_transition, verify_genesis, Attestation, Fingerprint, Genesis, HistoricalArtifact, IgacmsError, MigrationEvidence, MutationClass, MutationEvidence, TrustedRoot, ValidatedGenome};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
