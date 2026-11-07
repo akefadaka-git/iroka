@@ -11,6 +11,7 @@ const ATTESTATION_DOMAIN: &str = "IROKA-IGACMS-ATTESTATION-V1";
 const EMBEDDED: &[u8] = include_bytes!("../igacms/genome-v1.0.0.json");
 const DOMAINS: [&str; 8] = ["identity","authority","evidence","assurance","reasoning","security","execution","evolution"];
 const CHROMOSOMES: [&str; 12] = ["G01","G02","G03","G04","G05","G06","G07","G08","G09","G10","G11","G12"];
+const EXPECTED_GENOME_SHA256: &str = "a89e2b5bdb3519201268cf087b84df676e34f932c33c888de00794362864351c";
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub enum IgacmsError { Malformed, Identity, MissingDomain(String), Chromosome, Gene, Marker, DuplicateId(String), Dependency, DependencyCycle, UnknownRoot, RevokedRoot, RootExpired, Signature, Genesis, Epoch, MutationDenied, HistoricalEvidence }
 
@@ -73,13 +74,13 @@ fn graph_is_acyclic(g:&[(String,Vec<String>)])->Result<(),IgacmsError>{
 }
 pub fn validate_genome(bytes:&[u8])->Result<ValidatedGenome,IgacmsError>{
     let v=parse_unique(bytes)?;
-    if text(&v,"specification_id")?!="IGACMS"||text(&v,"specification_version")?!="1.0.0"||text(v.get("dna").ok_or(IgacmsError::Identity)?,"id")?!="iroka.dna"||text(v.get("genome").ok_or(IgacmsError::Identity)?,"id")?!="IROKA_ZERO_GENOME"{return Err(IgacmsError::Identity)}
+    if text(&v,"specification_id")?!="IGACMS"||text(&v,"specification_version")?!="1.0.0"||text(v.get("dna").ok_or(IgacmsError::Identity)?,"id")?!="iroka.dna"||text(v.get("dna").ok_or(IgacmsError::Identity)?,"kind")?!="IROKA_CONSTITUTIONAL_DNA_CONTRACT"||text(v.get("dna").ok_or(IgacmsError::Identity)?,"contract_version")?!="1.0.0"||text(v.get("genome").ok_or(IgacmsError::Identity)?,"id")?!="IROKA_ZERO_GENOME"||text(v.get("genome").ok_or(IgacmsError::Identity)?,"version")?!="1.0.0"||v["genome"]["epoch"].as_u64()!=Some(0){return Err(IgacmsError::Identity)}
     let domains=v["historical_domains"].as_array().ok_or(IgacmsError::Malformed)?;
     for d in DOMAINS{if !domains.iter().any(|x|x.as_str()==Some(d)){return Err(IgacmsError::MissingDomain(d.into()))}}
     let c=v["chromosomes"].as_array().ok_or(IgacmsError::Chromosome)?;
     if c.len()!=12{return Err(IgacmsError::Chromosome)}let ids=unique(c,"id")?;
     for id in CHROMOSOMES{if !ids.contains(id){return Err(IgacmsError::Chromosome)}}
-    for x in c{let gs=x["core_genes"].as_array().ok_or(IgacmsError::Gene)?;if gs.len()!=3{return Err(IgacmsError::Gene)}}
+    for x in c{let gs=x["core_genes"].as_array().ok_or(IgacmsError::Gene)?;if gs.len()!=3{return Err(IgacmsError::Gene)}for name in gs{let gene_name=name.as_str().ok_or(IgacmsError::Gene)?;let expected=format!("{}.{}",text(x,"id")?.to_lowercase(),gene_name);if !v["genes"].as_array().ok_or(IgacmsError::Gene)?.iter().any(|g|g["id"].as_str()==Some(expected.as_str())&&g["chromosome_id"].as_str()==text(x,"id").ok()){return Err(IgacmsError::Gene)}}}
     let genes=v["genes"].as_array().ok_or(IgacmsError::Gene)?;
     if genes.len()!=36{ return Err(IgacmsError::Gene)}unique(genes,"id")?;
     for g in genes{for k in ["chromosome_id","version","purpose","input_schema","output_schema","failure_semantics","compatibility_policy","owner","review_state"]{text(g,k)?}if !ids.contains(text(g,"chromosome_id")?){return Err(IgacmsError::Gene)}}
@@ -88,12 +89,31 @@ pub fn validate_genome(bytes:&[u8])->Result<ValidatedGenome,IgacmsError>{
     let m=v["markers"].as_array().ok_or(IgacmsError::Marker)?;if m.len()!=27{return Err(IgacmsError::Marker)}unique(m,"id")?;
     let mut edges=Vec::new();for n in v["dependency_graph"].as_array().ok_or(IgacmsError::Dependency)?{
         let id=text(n,"node")?.to_owned();let ds=n["depends_on"].as_array().ok_or(IgacmsError::Dependency)?.iter().map(|x|x.as_str().map(str::to_owned).ok_or(IgacmsError::Dependency)).collect::<Result<Vec<_>,_>>()?;edges.push((id,ds));
-    }if edges.len()!=12{return Err(IgacmsError::Dependency)}graph_is_acyclic(&edges)?;
+    }if edges.len()!=12||edges.iter().map(|x|x.0.as_str()).collect::<BTreeSet<_>>().len()!=12||CHROMOSOMES.iter().any(|id|!edges.iter().any(|x|x.0==*id)){return Err(IgacmsError::Dependency)}graph_is_acyclic(&edges)?;
     let bytes=canonical_json(&v)?;let digest=Sha256::digest(&bytes);
     Ok(ValidatedGenome{value:v,fingerprint:Fingerprint{digest_hex:format!("{:x}",digest),canonical_bytes:bytes,algorithm:"SHA-256",canonicalization:"RFC8785-JCS"}})
 }
-pub fn validate_embedded_baseline()->Result<Fingerprint,IgacmsError>{Ok(validate_genome(EMBEDDED)?.fingerprint)}
+pub fn validate_embedded_baseline()->Result<Fingerprint,IgacmsError>{let fp=validate_genome(EMBEDDED)?.fingerprint;if fp.digest_hex!=EXPECTED_GENOME_SHA256{return Err(IgacmsError::Identity)}Ok(fp)}
 
+#[derive(Debug,Clone,PartialEq,Eq)]
+pub struct MarkerAssertion {
+    pub assertion_id:String,pub marker_id:String,pub subject_id:String,pub genome_version:String,
+    pub chromosome_version:String,pub asserted_state:String,pub issuer:String,pub issued_at:u64,
+    pub valid_from:u64,pub valid_until:Option<u64>,pub evidence_refs:Vec<String>,pub verifier:String,
+    pub verification_method:String,pub signature_ref:Option<String>,pub supersedes_ref:Option<String>,pub status:String
+}
+pub fn validate_marker_assertion(a:&MarkerAssertion)->Result<(),IgacmsError>{
+    let known=["IDN-001","IDN-002","IDN-003","IDN-004","INT-001","INT-002","INT-003","PRV-001","PRV-002","EVD-001","EVD-002","EVD-003","AUT-001","AUT-002","AZN-001","AZN-002","SEC-001","SEC-002","ASN-001","ASN-002","LFC-001","LFC-002","EVO-001","EVO-002","EVO-003","CNF-001","CNF-002"];
+    if !known.contains(&a.marker_id.as_str())||[&a.assertion_id,&a.subject_id,&a.genome_version,&a.chromosome_version,&a.issuer].iter().any(|s|s.trim().is_empty())||a.issued_at<a.valid_from||a.valid_until.map_or(false,|x|x<=a.valid_from){return Err(IgacmsError::Marker)}
+    if a.asserted_state=="VERIFIED"||a.asserted_state=="ATTESTED" {
+        if a.evidence_refs.is_empty()||a.verifier.trim().is_empty()||a.verification_method.trim().is_empty(){return Err(IgacmsError::Marker)}
+    }
+    if a.asserted_state=="ATTESTED"&&a.signature_ref.as_deref().unwrap_or("").trim().is_empty(){return Err(IgacmsError::Marker)}
+    if !["DEFINED","OBSERVED","VERIFIED","ATTESTED","FAILED","REVOKED","UNKNOWN","NOT_APPLICABLE"].contains(&a.asserted_state.as_str()){return Err(IgacmsError::Marker)}
+    if !["PASS","FAIL","INDETERMINATE","NOT_RUN","NOT_APPLICABLE"].contains(&a.status.as_str()){return Err(IgacmsError::Marker)}
+    if matches!(a.asserted_state.as_str(),"UNKNOWN"|"NOT_APPLICABLE")&&a.status=="PASS"{return Err(IgacmsError::Marker)}
+    Ok(())
+}
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct TrustedRoot{pub key_id:String,pub public_key:[u8;32],pub not_before:u64,pub not_after:u64,pub revoked:bool,pub provenance:String}
 #[derive(Debug,Clone,PartialEq,Eq)]
@@ -137,31 +157,14 @@ pub fn cross_chromosome_invariants()->&'static [&'static str]{&[
 use super::*;use ed25519_dalek::SigningKey;
 #[test]fn rejects_duplicate_object_keys_before_canonicalization(){assert_eq!(validate_genome(br#"{"a":1,"a":2}"#),Err(IgacmsError::Malformed));}
 #[test]fn marker_cannot_upgrade_unknown_to_pass(){let a=MarkerAssertion{assertion_id:"a".into(),marker_id:"IDN-001".into(),subject_id:"s".into(),genome_version:"1.0.0".into(),chromosome_version:"1.0.0".into(),asserted_state:"UNKNOWN".into(),issuer:"issuer".into(),issued_at:1,valid_from:1,valid_until:None,evidence_refs:vec![],verifier:"".into(),verification_method:"".into(),signature_ref:None,supersedes_ref:None,status:"PASS".into()};assert_eq!(validate_marker_assertion(&a),Err(IgacmsError::Marker));}
-#[test]fn validates_all_twelve_and_reasoning_domain(){let f=validate_embedded_baseline().unwrap();assert_eq!(f.algorithm,"SHA-256");}
+#[test]fn validates_all_twelve_and_reasoning_domain(){let f=validate_embedded_baseline().unwrap();assert_eq!(f.algorithm,"SHA-256");assert_eq!(f.digest_hex,EXPECTED_GENOME_SHA256);}
 #[test]fn rejects_missing_reasoning(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();v["historical_domains"]=Value::Array(v["historical_domains"].as_array().unwrap().iter().filter(|x|x.as_str()!=Some("reasoning")).cloned().collect());assert!(matches!(validate_genome(&serde_json::to_vec(&v).unwrap()),Err(IgacmsError::MissingDomain(_))));}
 #[test]fn rejects_duplicate_gene_ids(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();let first=v["genes"][0].clone();v["genes"][1]=first;assert!(matches!(validate_genome(&serde_json::to_vec(&v).unwrap()),Err(IgacmsError::DuplicateId(_))));}
 #[test]fn rejects_dependency_cycle(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();v["dependency_graph"][0]["depends_on"]=serde_json::json!(["G02"]);v["dependency_graph"][1]["depends_on"]=serde_json::json!(["G01"]);assert_eq!(validate_genome(&serde_json::to_vec(&v).unwrap()).unwrap_err(),IgacmsError::DependencyCycle);}
 #[test]fn verifies_ed25519_and_revocation(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[9u8;32]);let a=sign_fingerprint(&fp,0,"root",&key);let r=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:99,revoked:false,provenance:"test".into()};assert!(verify_attestation(&a,&[r.clone()],50).is_ok());let mut revoked=r;revoked.revoked=true;assert_eq!(verify_attestation(&a,&[revoked],50),Err(IgacmsError::RevokedRoot));}
 #[test]fn mutation_requires_owner_and_independent_review(){assert_eq!(authorize_mutation(MutationClass::M4,&MutationEvidence::default()),Err(IgacmsError::MutationDenied));let e=MutationEvidence{owner_approved:true,independent_review:true,migration_rollback_ready:true,dual_control:true,security_review:true,impact_review:true,..Default::default()};assert!(authorize_mutation(MutationClass::M5,&e).is_ok());}
 #[test]fn preserves_dna045_outside_genesis(){let a=HistoricalArtifact{id:"DNA-045".into(),commit:"abc".into(),blob_sha:"def".into(),bytes:b"immutable".to_vec()};assert_eq!(preserve_historical(&a).unwrap().disposition,"EXTENSION-REVIEW");}
+#[test]fn verifies_epoch_zero_genesis_binding(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[4u8;32]);let att=sign_fingerprint(&fp,0,"root",&key);let root=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:100,revoked:false,provenance:"owner-approved offline custody record".into()};let g=Genesis{dna_id:"iroka.dna".into(),dna_version:"1.0.0".into(),genome_id:"IROKA_ZERO_GENOME".into(),genome_version:"1.0.0".into(),digest:fp.digest_hex.clone(),canonicalization:"RFC8785".into(),hash_algorithm:"SHA-256".into(),epoch:0,parent:None,owner_approval_ref:"approval-record:test".into(),trust_root_key_ids:vec!["root".into()],trust_root_provenance_refs:vec!["custody-record:test".into()],attestation:att,audit_refs:vec!["audit:test".into()]};assert!(verify_genesis(&g,&fp,&[root],50).is_ok());}
 #[test]fn rejects_epoch_rollback(){assert_eq!(verify_epoch_transition(1,"d",1,None),Err(IgacmsError::Epoch));assert!(verify_epoch_transition(1,"d",2,Some("d")).is_ok());}
-#[derive(Debug,Clone,PartialEq,Eq)]
-pub struct MarkerAssertion {
-    pub assertion_id:String,pub marker_id:String,pub subject_id:String,pub genome_version:String,
-    pub chromosome_version:String,pub asserted_state:String,pub issuer:String,pub issued_at:u64,
-    pub valid_from:u64,pub valid_until:Option<u64>,pub evidence_refs:Vec<String>,pub verifier:String,
-    pub verification_method:String,pub signature_ref:Option<String>,pub supersedes_ref:Option<String>,pub status:String
-}
-pub fn validate_marker_assertion(a:&MarkerAssertion)->Result<(),IgacmsError>{
-    let known=["IDN-001","IDN-002","IDN-003","IDN-004","INT-001","INT-002","INT-003","PRV-001","PRV-002","EVD-001","EVD-002","EVD-003","AUT-001","AUT-002","AZN-001","AZN-002","SEC-001","SEC-002","ASN-001","ASN-002","LFC-001","LFC-002","EVO-001","EVO-002","EVO-003","CNF-001","CNF-002"];
-    if !known.contains(&a.marker_id.as_str())||[&a.assertion_id,&a.subject_id,&a.genome_version,&a.chromosome_version,&a.issuer].iter().any(|s|s.trim().is_empty())||a.issued_at<a.valid_from||a.valid_until.map_or(false,|x|x<=a.valid_from){return Err(IgacmsError::Marker)}
-    if a.asserted_state=="VERIFIED"||a.asserted_state=="ATTESTED" {
-        if a.evidence_refs.is_empty()||a.verifier.trim().is_empty()||a.verification_method.trim().is_empty(){return Err(IgacmsError::Marker)}
-    }
-    if a.asserted_state=="ATTESTED"&&a.signature_ref.as_deref().unwrap_or("").trim().is_empty(){return Err(IgacmsError::Marker)}
-    if !["DEFINED","OBSERVED","VERIFIED","ATTESTED","FAILED","REVOKED","UNKNOWN","NOT_APPLICABLE"].contains(&a.asserted_state.as_str()){return Err(IgacmsError::Marker)}
-    if !["PASS","FAIL","INDETERMINATE","NOT_RUN","NOT_APPLICABLE"].contains(&a.status.as_str()){return Err(IgacmsError::Marker)}
-    if matches!(a.asserted_state.as_str(),"UNKNOWN"|"NOT_APPLICABLE")&&a.status=="PASS"{return Err(IgacmsError::Marker)}
-    Ok(())
-}
+
 }
