@@ -132,9 +132,13 @@ pub fn verify_attestation(a:&Attestation,roots:&[TrustedRoot],now:u64)->Result<(
 }
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Genesis{pub dna_id:String,pub dna_version:String,pub genome_id:String,pub genome_version:String,pub digest:String,pub canonicalization:String,pub hash_algorithm:String,pub epoch:u64,pub parent:Option<String>,pub owner_approval_ref:String,pub trust_root_key_ids:Vec<String>,pub trust_root_provenance_refs:Vec<String>,pub attestation:Attestation,pub audit_refs:Vec<String>}
-pub fn verify_genesis(g:&Genesis,fp:&Fingerprint,roots:&[TrustedRoot],now:u64)->Result<(),IgacmsError>{
+#[derive(Debug,Clone,PartialEq,Eq)]
+pub struct VerifiedGenesis{digest:String,epoch:u64}
+impl VerifiedGenesis{pub fn digest(&self)->&str{&self.digest}pub fn epoch(&self)->u64{self.epoch}}
+pub fn verify_genesis(g:&Genesis,fp:&Fingerprint,roots:&[TrustedRoot],now:u64)->Result<VerifiedGenesis,IgacmsError>{
     if g.dna_id!="iroka.dna"||g.dna_version!="1.0.0"||g.genome_id!="IROKA_ZERO_GENOME"||g.genome_version!="1.0.0"||g.digest!=fp.digest_hex||g.canonicalization!="RFC8785"||g.hash_algorithm!="SHA-256"||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||g.trust_root_provenance_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.digest!=g.digest||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}
-    verify_attestation(&g.attestation,roots,now)
+    verify_attestation(&g.attestation,roots,now)?;
+    Ok(VerifiedGenesis{digest:g.digest.clone(),epoch:g.epoch})
 }
 pub fn verify_epoch_transition(epoch:u64,digest:&str,next:u64,parent:Option<&str>)->Result<(),IgacmsError>{if next!=epoch.saturating_add(1)||parent!=Some(digest){Err(IgacmsError::Epoch)}else{Ok(())}}
 
