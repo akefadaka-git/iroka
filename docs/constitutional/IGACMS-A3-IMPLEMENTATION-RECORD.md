@@ -16,5 +16,5 @@
 8. A3.8 — Positive/negative conformance tests; full A4 exact-SHA execution and independent review require recorded evidence.
 
 ## Known limitations to close before A3 completion
-- Trust-root provenance metadata is not a production custody ceremony.
+- Trust-root provenance metadata is not a production custody ceremony; operational custody, dual-control signing and production key provisioning remain separate gates.
 - Source tests are not PASS evidence until run at the exact final SHA.
