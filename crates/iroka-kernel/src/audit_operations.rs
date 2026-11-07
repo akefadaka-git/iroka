@@ -33,6 +33,17 @@ impl ManualCheckpointRequest {
             && !self.reason.trim().is_empty()
             && self.reason.len() <= 1024
     }
+
+    pub fn validate_at(&self, now: u64) -> bool {
+        self.validate()
+            && self.requested_at <= now.saturating_add(30)
+            && now.saturating_sub(self.requested_at) <= 900
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ManualCheckpointError {
+    MalformedRequest,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,7 +117,7 @@ pub fn assess_anchoring(
     if !quorum_available {
         return AnchoringAssessment {
             state: AnchoringState::QuorumUnavailable,
-            high_risk_operations_allowed: true,
+            high_risk_operations_allowed: false,
             age_seconds: age,
             unanchored_events,
         };
@@ -142,9 +153,19 @@ pub fn checkpoint_due_with_manual_request(
     elapsed_since_quorum_seconds: u64,
     unanchored_events: u64,
     request: Option<&ManualCheckpointRequest>,
-) -> bool {
-    request.is_some_and(ManualCheckpointRequest::validate)
-        || checkpoint_due(policy, elapsed_since_quorum_seconds, unanchored_events)
+    now: u64,
+) -> Result<bool, ManualCheckpointError> {
+    if let Some(request) = request {
+        if !request.validate_at(now) {
+            return Err(ManualCheckpointError::MalformedRequest);
+        }
+        return Ok(true);
+    }
+    Ok(checkpoint_due(
+        policy,
+        elapsed_since_quorum_seconds,
+        unanchored_events,
+    ))
 }
 
 #[cfg(test)]
@@ -197,7 +218,7 @@ mod tests {
             false,
         );
         assert_eq!(a.state, AnchoringState::QuorumUnavailable);
-        assert!(a.high_risk_operations_allowed);
+        assert!(!a.high_risk_operations_allowed);
         assert_eq!(a.state, AnchoringState::QuorumUnavailable);
     }
 
@@ -253,22 +274,18 @@ mod tests {
             reason: "pre-maintenance anchor".into(),
             requested_at: 100,
         };
-        assert!(checkpoint_due_with_manual_request(
-            policy,
-            1,
-            1,
-            Some(&valid)
-        ));
+        assert_eq!(
+            checkpoint_due_with_manual_request(policy, 1, 1, Some(&valid), 100),
+            Ok(true)
+        );
         let invalid = ManualCheckpointRequest {
             reason: " ".into(),
             ..valid
         };
-        assert!(!checkpoint_due_with_manual_request(
-            policy,
-            1,
-            1,
-            Some(&invalid)
-        ));
+        assert_eq!(
+            checkpoint_due_with_manual_request(policy, 1, 1, Some(&invalid), 100),
+            Err(ManualCheckpointError::MalformedRequest)
+        );
     }
 
     #[test]
