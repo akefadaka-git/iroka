@@ -244,7 +244,7 @@ impl SqliteAuditSink {
         let Some(stored) = stored else {
             return Ok(false);
         };
-        Ok(stored.as_slice() == expected_hash)
+        Ok(stored.as_slice() == expected_hash.as_slice())
     }
 
     pub fn head(&self) -> Result<(u64, [u8; 32]), AuditStoreError> {
