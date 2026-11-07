@@ -54,8 +54,12 @@ impl CheckpointPayload {
         {
             return Err(CheckpointError::InvalidSequence);
         }
-        if self.event_count == 0 || self.event_count != self.last_sequence - self.first_sequence + 1
-        {
+        let expected_count = self
+            .last_sequence
+            .checked_sub(self.first_sequence)
+            .and_then(|count| count.checked_add(1))
+            .ok_or(CheckpointError::InvalidCount)?;
+        if self.event_count == 0 || self.event_count != expected_count {
             return Err(CheckpointError::InvalidCount);
         }
         if self.head_event_hash == [0; 32]
@@ -64,7 +68,9 @@ impl CheckpointPayload {
         {
             return Err(CheckpointError::InvalidHead);
         }
-        if self.checkpoint_number == 1 && self.previous_checkpoint_digest != [0; 32] {
+        if (self.checkpoint_number == 1 && self.previous_checkpoint_digest != [0; 32])
+            || (self.checkpoint_number > 1 && self.previous_checkpoint_digest == [0; 32])
+        {
             return Err(CheckpointError::InvalidPrevious);
         }
         if self.signing_key_id.trim().is_empty() {
@@ -126,7 +132,11 @@ impl CheckpointBuilder {
             || head.last_sequence == 0
             || head.first_sequence == 0
             || head.event_count == 0
-            || head.last_sequence - head.first_sequence + 1 != head.event_count
+            || head
+                .last_sequence
+                .checked_sub(head.first_sequence)
+                .and_then(|count| count.checked_add(1))
+                != Some(head.event_count)
         {
             return Err(CheckpointError::InvalidHead);
         }
@@ -158,15 +168,23 @@ impl CheckpointBuilder {
         if previous.stream_id != self.stream_id
             || head.last_sequence <= previous.last_sequence
             || head.first_sequence != previous.first_sequence
-            || head.event_count != head.last_sequence - head.first_sequence + 1
+            || head
+                .last_sequence
+                .checked_sub(head.first_sequence)
+                .and_then(|count| count.checked_add(1))
+                != Some(head.event_count)
             || head.chain_format != previous.chain_format
         {
             return Err(CheckpointError::InvalidSequence);
         }
+        let next_checkpoint_number = previous
+            .checkpoint_number
+            .checked_add(1)
+            .ok_or(CheckpointError::InvalidSequence)?;
         let payload = CheckpointPayload {
             protocol: CHECKPOINT_PROTOCOL_V1.into(),
             stream_id: self.stream_id.clone(),
-            checkpoint_number: previous.checkpoint_number + 1,
+            checkpoint_number: next_checkpoint_number,
             first_sequence: previous.first_sequence,
             last_sequence: head.last_sequence,
             event_count: head.event_count,
@@ -241,6 +259,26 @@ mod tests {
         assert_eq!(cp.last_sequence, 3);
         assert_eq!(cp.previous_checkpoint_digest, [0; 32]);
         assert_eq!(cp.canonical_cbor().unwrap()[0], 0x8c);
+    }
+
+    #[test]
+    fn rejects_missing_predecessor_digest_after_genesis() {
+        let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
+        let mut checkpoint = b.initial_v1_anchor(&head(3, 7), 100).unwrap();
+        checkpoint.checkpoint_number = 2;
+        assert_eq!(checkpoint.validate(), Err(CheckpointError::InvalidPrevious));
+    }
+
+    #[test]
+    fn rejects_checkpoint_number_overflow() {
+        let b = CheckpointBuilder::new("stream:pilot", "checkpoint-key-1");
+        let mut previous = b.initial_v1_anchor(&head(3, 7), 100).unwrap();
+        previous.checkpoint_number = u64::MAX;
+        previous.previous_checkpoint_digest = [6; 32];
+        assert_eq!(
+            b.next(&head(5, 8), &previous, 110),
+            Err(CheckpointError::InvalidSequence)
+        );
     }
 
     #[test]

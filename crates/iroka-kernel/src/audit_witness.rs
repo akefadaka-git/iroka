@@ -2,12 +2,22 @@
 //! MemoryWitnessLedger is NOT an independent production witness: it is a deterministic
 //! adapter for protocol tests. Production must implement durable storage and separate custody.
 
+#[cfg(test)]
 use crate::audit_checkpoint::CheckpointPayload;
-use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint, SignerError};
-use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+#[cfg(test)]
+use crate::audit_signer::SignerError;
+use crate::audit_signer::{CheckpointSignatureVerifier, SignedCheckpoint};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+#[cfg(test)]
+use ed25519_dalek::{Signer, SigningKey};
 use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, path::Path, sync::Mutex, time::Duration};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+    sync::Mutex,
+    time::Duration,
+};
 
 const RECEIPT_DOMAIN: &[u8] = b"IROKA:G11:AUDIT-WITNESS-RECEIPT:V1\0";
 
@@ -22,6 +32,7 @@ pub enum WitnessError {
     StorageUnavailable,
     SigningUnavailable,
     ClockAnomaly,
+    WrongStream,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,7 +54,7 @@ pub struct WitnessReceipt {
 impl WitnessReceipt {
     pub fn digest(&self) -> [u8; 32] {
         let mut h = Sha256::new();
-        h.update(b"IROKA:G11:WITNESS-RECEIPT-DIGEST:V1\\0");
+        h.update(b"IROKA:G11:WITNESS-RECEIPT-DIGEST:V1\0");
         h.update(self.signing_bytes());
         h.update(self.signature);
         h.finalize().into()
@@ -78,10 +89,12 @@ pub trait WitnessReceiptSigner: Send + Sync {
 }
 
 /// Local witness receipt signer for tests only; production keys must be independently held.
+#[cfg(test)]
 pub struct LocalWitnessTestSigner {
     key_id: String,
     key: SigningKey,
 }
+#[cfg(test)]
 impl LocalWitnessTestSigner {
     pub fn from_test_seed(key_id: impl Into<String>, seed: [u8; 32]) -> Self {
         Self {
@@ -94,6 +107,7 @@ impl LocalWitnessTestSigner {
         self.key.verifying_key()
     }
 }
+#[cfg(test)]
 impl WitnessReceiptSigner for LocalWitnessTestSigner {
     fn key_id(&self) -> &str {
         &self.key_id
@@ -116,6 +130,7 @@ pub trait WitnessLedger: Send + Sync {
     fn head(&self, stream_id: &str) -> Result<Option<WitnessReceipt>, WitnessError>;
 }
 
+#[cfg(test)]
 #[derive(Default)]
 pub struct MemoryWitnessLedger {
     witness_id: String,
@@ -123,6 +138,7 @@ pub struct MemoryWitnessLedger {
     streams: Mutex<BTreeMap<String, Vec<WitnessReceipt>>>,
 }
 
+#[cfg(test)]
 impl MemoryWitnessLedger {
     pub fn new(witness_id: impl Into<String>, signer: Box<dyn WitnessReceiptSigner>) -> Self {
         Self {
@@ -133,6 +149,7 @@ impl MemoryWitnessLedger {
     }
 }
 
+#[cfg(test)]
 impl WitnessLedger for MemoryWitnessLedger {
     fn accept(
         &self,
@@ -171,7 +188,9 @@ impl WitnessLedger for MemoryWitnessLedger {
         let (expected_number, expected_previous, previous_sequence) = match history.last() {
             None => (1, [0; 32], 0),
             Some(last) => (
-                last.checkpoint_number + 1,
+                last.checkpoint_number
+                    .checked_add(1)
+                    .ok_or(WitnessError::CheckpointGap)?,
                 last.checkpoint_digest,
                 last.last_sequence,
             ),
@@ -210,7 +229,10 @@ impl WitnessLedger for MemoryWitnessLedger {
                 .map(WitnessReceipt::digest)
                 .unwrap_or([0; 32]),
             witnessed_at,
-            log_index: history.len() as u64 + 1,
+            log_index: u64::try_from(history.len())
+                .ok()
+                .and_then(|index| index.checked_add(1))
+                .ok_or(WitnessError::CheckpointGap)?,
             signing_key_id: signer.key_id().to_string(),
             signature: [0; 64],
         };
@@ -288,7 +310,9 @@ fn read_receipt(row: &Row<'_>) -> rusqlite::Result<ReceiptRow> {
 /// separate administration, storage, credentials, backups and receipt-key custody.
 pub struct SqliteWitnessLedger {
     witness_id: String,
+    stream_id: String,
     signer: Box<dyn WitnessReceiptSigner>,
+    verifying_keys: BTreeMap<String, VerifyingKey>,
     connection: Mutex<Connection>,
 }
 
@@ -296,7 +320,9 @@ impl SqliteWitnessLedger {
     pub fn open(
         path: impl AsRef<Path>,
         witness_id: impl Into<String>,
+        stream_id: impl Into<String>,
         signer: Box<dyn WitnessReceiptSigner>,
+        verifying_keys: Vec<(String, VerifyingKey)>,
     ) -> Result<Self, WitnessError> {
         let path = path.as_ref();
         #[cfg(unix)]
@@ -322,15 +348,26 @@ impl SqliteWitnessLedger {
             }
         }
         let connection = Connection::open(path).map_err(|_| WitnessError::StorageUnavailable)?;
-        Self::from_connection(connection, witness_id.into(), signer)
+        Self::from_connection(
+            connection,
+            witness_id.into(),
+            stream_id.into(),
+            signer,
+            verifying_keys,
+        )
     }
 
     fn from_connection(
         connection: Connection,
         witness_id: String,
+        stream_id: String,
         signer: Box<dyn WitnessReceiptSigner>,
+        verifying_keys: Vec<(String, VerifyingKey)>,
     ) -> Result<Self, WitnessError> {
-        if witness_id.trim().is_empty() || signer.key_id().trim().is_empty() {
+        if witness_id.trim().is_empty()
+            || stream_id.trim().is_empty()
+            || signer.key_id().trim().is_empty()
+        {
             return Err(WitnessError::InvalidCheckpoint);
         }
         connection
@@ -352,9 +389,36 @@ impl SqliteWitnessLedger {
              CREATE TRIGGER IF NOT EXISTS witness_no_delete BEFORE DELETE ON witness_receipts
                BEGIN SELECT RAISE(ABORT,'append-only witness ledger'); END;"
         ).map_err(|_| WitnessError::StorageUnavailable)?;
+        let mut trusted_keys = BTreeMap::new();
+        let mut public_keys = BTreeSet::new();
+        for (key_id, key) in verifying_keys {
+            if key_id.trim().is_empty()
+                || !public_keys.insert(key.to_bytes())
+                || trusted_keys.insert(key_id, key).is_some()
+            {
+                return Err(WitnessError::InvalidSignature);
+            }
+        }
+        if !trusted_keys.contains_key(signer.key_id()) {
+            return Err(WitnessError::InvalidSignature);
+        }
+        let conflicting_rows: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM witness_receipts
+                 WHERE witness_id != ?1 OR stream_id != ?2",
+                params![witness_id, stream_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| WitnessError::StorageUnavailable)?;
+        if conflicting_rows != 0 {
+            return Err(WitnessError::InvalidCheckpoint);
+        }
+        verify_witness_history(&connection, &witness_id, &stream_id, &trusted_keys)?;
         Ok(Self {
             witness_id,
+            stream_id,
             signer,
+            verifying_keys: trusted_keys,
             connection: Mutex::new(connection),
         })
     }
@@ -381,6 +445,65 @@ impl SqliteWitnessLedger {
     }
 }
 
+fn verify_witness_history(
+    connection: &Connection,
+    witness_id: &str,
+    stream_id: &str,
+    verifying_keys: &BTreeMap<String, VerifyingKey>,
+) -> Result<(), WitnessError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
+             head_event_hash,previous_checkpoint_digest,previous_receipt_digest,witnessed_at,
+             log_index,signing_key_id,signature FROM witness_receipts
+             WHERE stream_id=?1 ORDER BY log_index ASC",
+        )
+        .map_err(|_| WitnessError::StorageUnavailable)?;
+    let rows = statement
+        .query_map(params![stream_id], read_receipt)
+        .map_err(|_| WitnessError::StorageUnavailable)?;
+    let mut previous_receipt_digest = [0; 32];
+    let mut previous_checkpoint_digest = [0; 32];
+    let mut previous_sequence = 0u64;
+    let mut previous_witnessed_at = 0u64;
+    let mut expected_index = 1u64;
+    let mut expected_checkpoint = 1u64;
+    for row in rows {
+        let receipt = decode_receipt(row.map_err(|_| WitnessError::StorageUnavailable)?)?;
+        if receipt.witness_id != witness_id
+            || receipt.stream_id != stream_id
+            || receipt.log_index != expected_index
+            || receipt.checkpoint_number != expected_checkpoint
+            || receipt.previous_receipt_digest != previous_receipt_digest
+            || receipt.previous_checkpoint_digest != previous_checkpoint_digest
+            || receipt.last_sequence <= previous_sequence
+            || receipt.witnessed_at < previous_witnessed_at
+        {
+            return Err(WitnessError::Equivocation);
+        }
+        let verifying_key = verifying_keys
+            .get(&receipt.signing_key_id)
+            .ok_or(WitnessError::InvalidSignature)?;
+        verifying_key
+            .verify(
+                &receipt.signing_bytes(),
+                &Signature::from_bytes(&receipt.signature),
+            )
+            .map_err(|_| WitnessError::InvalidSignature)?;
+        previous_receipt_digest = receipt.digest();
+        previous_checkpoint_digest = receipt.checkpoint_digest;
+        previous_sequence = receipt.last_sequence;
+        previous_witnessed_at = receipt.witnessed_at;
+        expected_index = expected_index
+            .checked_add(1)
+            .ok_or(WitnessError::CheckpointGap)?;
+        expected_checkpoint = expected_checkpoint
+            .checked_add(1)
+            .ok_or(WitnessError::CheckpointGap)?;
+    }
+    Ok(())
+}
+
 impl WitnessLedger for SqliteWitnessLedger {
     fn accept(
         &self,
@@ -395,6 +518,9 @@ impl WitnessLedger for SqliteWitnessLedger {
         payload
             .validate()
             .map_err(|_| WitnessError::InvalidCheckpoint)?;
+        if payload.stream_id != self.stream_id {
+            return Err(WitnessError::WrongStream);
+        }
         let digest = payload
             .digest()
             .map_err(|_| WitnessError::InvalidCheckpoint)?;
@@ -405,6 +531,7 @@ impl WitnessLedger for SqliteWitnessLedger {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| WitnessError::StorageUnavailable)?;
+        verify_witness_history(&tx, &self.witness_id, &self.stream_id, &self.verifying_keys)?;
         let number = i64::try_from(payload.checkpoint_number)
             .map_err(|_| WitnessError::InvalidCheckpoint)?;
         let existing = Self::select_receipt(
@@ -441,12 +568,16 @@ impl WitnessLedger for SqliteWitnessLedger {
         ) = match previous {
             None => (1, [0; 32], 0, [0; 32], 0, 1),
             Some(last) => (
-                last.checkpoint_number + 1,
+                last.checkpoint_number
+                    .checked_add(1)
+                    .ok_or(WitnessError::CheckpointGap)?,
                 last.checkpoint_digest,
                 last.last_sequence,
                 last.digest(),
                 last.witnessed_at,
-                last.log_index + 1,
+                last.log_index
+                    .checked_add(1)
+                    .ok_or(WitnessError::CheckpointGap)?,
             ),
         };
         if payload.checkpoint_number != expected_number {
@@ -503,10 +634,19 @@ impl WitnessLedger for SqliteWitnessLedger {
     }
 
     fn head(&self, stream_id: &str) -> Result<Option<WitnessReceipt>, WitnessError> {
+        if stream_id != self.stream_id {
+            return Err(WitnessError::WrongStream);
+        }
         let connection = self
             .connection
             .lock()
             .map_err(|_| WitnessError::StorageUnavailable)?;
+        verify_witness_history(
+            &connection,
+            &self.witness_id,
+            &self.stream_id,
+            &self.verifying_keys,
+        )?;
         Self::select_receipt(
             &connection,
             "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
@@ -522,6 +662,32 @@ impl WitnessLedger for SqliteWitnessLedger {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn receipt_digest_uses_the_canonical_nul_terminated_domain() {
+        let receipt = WitnessReceipt {
+            witness_id: "witness-1".into(),
+            stream_id: "stream-1".into(),
+            checkpoint_number: 1,
+            checkpoint_digest: [1; 32],
+            last_sequence: 7,
+            head_event_hash: [2; 32],
+            previous_checkpoint_digest: [0; 32],
+            previous_receipt_digest: [0; 32],
+            witnessed_at: 100,
+            log_index: 1,
+            signing_key_id: "wkey-1".into(),
+            signature: [3; 64],
+        };
+        assert_eq!(
+            receipt.digest(),
+            [
+                0x69, 0x35, 0x03, 0xa7, 0x7b, 0xce, 0xc3, 0xcb, 0x6d, 0xd6, 0xa4, 0xe4, 0xed, 0x89,
+                0x6b, 0x4b, 0xda, 0x76, 0xeb, 0xa3, 0x8f, 0x6a, 0xc7, 0x00, 0xca, 0x77, 0xa4, 0xb1,
+                0xdb, 0xe9, 0xf1, 0x69,
+            ]
+        );
+    }
     use crate::audit_checkpoint::{AuditHead, CheckpointBuilder, V1_CHAIN_FORMAT};
     use crate::audit_signer::{
         CheckpointSigner, Ed25519CheckpointVerifier, LocalEd25519TestSigner,
@@ -582,6 +748,140 @@ mod tests {
         );
     }
     #[test]
+    fn sqlite_witness_ledger_verifies_history_across_receipt_key_rotation() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-witness-rotation-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [30; 32]);
+        let checkpoint_verifier = Ed25519CheckpointVerifier::new(vec![(
+            "cp-key".into(),
+            checkpoint_signer.verifying_key(),
+        )]);
+        let builder = CheckpointBuilder::new("stream:rotating", "cp-key");
+        let first_head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [31; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let first_payload = builder.initial_v1_anchor(&first_head, 100).unwrap();
+        let first_checkpoint = checkpoint_signer.sign_checkpoint(&first_payload).unwrap();
+
+        {
+            let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key-v1", [32; 32]);
+            let old_key = witness_signer.key_for_test();
+            let ledger = SqliteWitnessLedger::open(
+                &path,
+                "witness-rotation",
+                "stream:rotating",
+                Box::new(witness_signer),
+                vec![("w-key-v1".into(), old_key)],
+            )
+            .unwrap();
+            ledger
+                .accept(&first_checkpoint, &checkpoint_verifier, 101)
+                .unwrap();
+        }
+
+        let second_head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 2,
+            event_count: 2,
+            head_event_hash: [33; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let second_payload = builder.next(&second_head, &first_payload, 200).unwrap();
+        let second_checkpoint = checkpoint_signer.sign_checkpoint(&second_payload).unwrap();
+        {
+            let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key-v2", [34; 32]);
+            let new_key = witness_signer.key_for_test();
+            let ledger = SqliteWitnessLedger::open(
+                &path,
+                "witness-rotation",
+                "stream:rotating",
+                Box::new(witness_signer),
+                vec![
+                    (
+                        "w-key-v1".into(),
+                        LocalWitnessTestSigner::from_test_seed("w-key-v1", [32; 32]).key_for_test(),
+                    ),
+                    ("w-key-v2".into(), new_key),
+                ],
+            )
+            .unwrap();
+            ledger
+                .accept(&second_checkpoint, &checkpoint_verifier, 201)
+                .unwrap();
+            assert_eq!(
+                ledger
+                    .head("stream:rotating")
+                    .unwrap()
+                    .unwrap()
+                    .checkpoint_number,
+                2
+            );
+        }
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
+    fn sqlite_witness_ledger_is_bound_to_one_provisioned_stream() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-witness-stream-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let signer = LocalEd25519TestSigner::from_test_seed("cp-key", [21; 32]);
+        let verifier =
+            Ed25519CheckpointVerifier::new(vec![("cp-key".into(), signer.verifying_key())]);
+        let builder = CheckpointBuilder::new("stream:other", "cp-key");
+        let head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [22; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let signed = signer
+            .sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap())
+            .unwrap();
+        let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key", [23; 32]);
+        let witness_verifying_key = witness_signer.key_for_test();
+        let ledger = SqliteWitnessLedger::open(
+            &path,
+            "witness-bound",
+            "stream:provisioned",
+            Box::new(witness_signer),
+            vec![("w-key".into(), witness_verifying_key)],
+        )
+        .unwrap();
+        assert_eq!(
+            ledger.accept(&signed, &verifier, 11),
+            Err(WitnessError::WrongStream)
+        );
+        assert_eq!(ledger.head("stream:other"), Err(WitnessError::WrongStream));
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
     fn sqlite_witness_ledger_survives_reopen_and_replays_same_receipt() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -611,19 +911,27 @@ mod tests {
             .unwrap();
 
         let first = {
+            let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key", [12; 32]);
+            let witness_verifying_key = witness_signer.key_for_test();
             let ledger = SqliteWitnessLedger::open(
                 &path,
                 "witness-durable",
-                Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [12; 32])),
+                "stream:durable",
+                Box::new(witness_signer),
+                vec![("w-key".into(), witness_verifying_key)],
             )
             .unwrap();
             ledger.accept(&signed, &verifier, 11).unwrap()
         };
         {
+            let witness_signer = LocalWitnessTestSigner::from_test_seed("w-key", [12; 32]);
+            let witness_verifying_key = witness_signer.key_for_test();
             let ledger = SqliteWitnessLedger::open(
                 &path,
                 "witness-durable",
-                Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [12; 32])),
+                "stream:durable",
+                Box::new(witness_signer),
+                vec![("w-key".into(), witness_verifying_key)],
             )
             .unwrap();
             assert_eq!(ledger.accept(&signed, &verifier, 12), Ok(first.clone()));

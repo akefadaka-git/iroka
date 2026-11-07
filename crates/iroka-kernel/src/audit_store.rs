@@ -99,6 +99,9 @@ impl SqliteAuditSink {
         let tx = c
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| AuditStoreError::Unavailable)?;
+        // Revalidate the entire committed prefix inside the append transaction.
+        // Startup-only verification would allow a post-startup tamper to be extended.
+        verify_connection(&tx)?;
         let previous: Vec<u8> = tx
             .query_row(
                 "SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1",
@@ -160,12 +163,17 @@ impl SqliteAuditSink {
     /// Returns a consistent V1 checkpoint snapshot after local chain verification.
     /// The caller must pass this snapshot to the checkpoint builder without changing its fields.
     pub fn checkpoint_head(&self) -> Result<AuditHead, AuditStoreError> {
-        let c = self
+        let mut c = self
             .connection
             .lock()
             .map_err(|_| AuditStoreError::Unavailable)?;
-        verify_connection(&c)?;
-        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = c
+        // One deferred read transaction pins a single SQLite snapshot for both
+        // full-chain verification and head/count extraction.
+        let tx = c
+            .transaction_with_behavior(TransactionBehavior::Deferred)
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        verify_connection(&tx)?;
+        let row: (Option<i64>, Option<i64>, i64, Option<Vec<u8>>) = tx
             .query_row(
                 "SELECT MIN(sequence), MAX(sequence), COUNT(*),
              (SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1)
@@ -175,6 +183,7 @@ impl SqliteAuditSink {
             )
             .map_err(|_| AuditStoreError::Unavailable)?;
         if row.2 == 0 {
+            tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
             return Ok(AuditHead {
                 first_sequence: 0,
                 last_sequence: 0,
@@ -183,6 +192,7 @@ impl SqliteAuditSink {
                 chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
             });
         }
+        tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
         let first = u64::try_from(row.0.ok_or(AuditStoreError::IntegrityFailure)?)
             .map_err(|_| AuditStoreError::IntegrityFailure)?;
         let last = u64::try_from(row.1.ok_or(AuditStoreError::IntegrityFailure)?)
@@ -200,6 +210,41 @@ impl SqliteAuditSink {
             head_event_hash: hash,
             chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
         })
+    }
+
+    /// Confirm that a locally verified event-chain prefix matches an independently
+    /// obtained checkpoint high-water hash. This prevents accepting a locally valid
+    /// but divergent chain merely because it has a larger terminal sequence.
+    pub fn verify_prefix_head(
+        &self,
+        sequence: u64,
+        expected_hash: &[u8; 32],
+    ) -> Result<bool, AuditStoreError> {
+        if sequence == 0 {
+            return Ok(expected_hash == &ZERO);
+        }
+        let sequence_i = i64::try_from(sequence).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Deferred)
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        verify_connection(&tx)?;
+        let stored: Option<Vec<u8>> = tx
+            .query_row(
+                "SELECT event_hash FROM audit_events WHERE sequence=?1",
+                params![sequence_i],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
+        let Some(stored) = stored else {
+            return Ok(false);
+        };
+        Ok(stored.as_slice() == expected_hash.as_slice())
     }
 
     pub fn head(&self) -> Result<(u64, [u8; 32]), AuditStoreError> {
@@ -403,6 +448,24 @@ mod tests {
         }
         assert_eq!(s.verify_integrity(), Err(AuditStoreError::IntegrityFailure));
         assert_eq!(s.checkpoint_head(), Err(AuditStoreError::IntegrityFailure));
+    }
+
+    #[test]
+    fn refuses_to_extend_a_chain_tampered_after_startup() {
+        let s = SqliteAuditSink::open_in_memory().unwrap();
+        s.append_event(&event("event:before-tamper")).unwrap();
+        {
+            let c = s.connection.lock().unwrap();
+            c.execute_batch(
+                "DROP TRIGGER audit_no_update; UPDATE audit_events SET subject='tampered' WHERE sequence=1",
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            s.append_event(&event("event:must-not-append")),
+            Err(AuditStoreError::IntegrityFailure)
+        );
+        assert_eq!(s.head().unwrap().0, 1);
     }
 
     #[test]

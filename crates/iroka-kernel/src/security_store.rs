@@ -126,10 +126,22 @@ impl SqliteSecurityStore {
                version INTEGER PRIMARY KEY, digest BLOB NOT NULL, issued_at INTEGER NOT NULL,
                expires_at INTEGER NOT NULL, installed_at INTEGER NOT NULL
              );
+             CREATE TABLE IF NOT EXISTS witness_roster_manifest_history (
+               version INTEGER PRIMARY KEY,
+               manifest_json BLOB NOT NULL,
+               FOREIGN KEY(version) REFERENCES witness_roster_history(version)
+             );
              CREATE TABLE IF NOT EXISTS witness_roster_state (
                singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
                version INTEGER NOT NULL, digest BLOB NOT NULL,
                issued_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS k04_recovery_consumptions (
+               recovery_id TEXT PRIMARY KEY,
+               first_approval_id TEXT NOT NULL UNIQUE,
+               second_approval_id TEXT NOT NULL UNIQUE,
+               pair_digest BLOB NOT NULL CHECK(length(pair_digest)=32),
+               consumed_at INTEGER NOT NULL
              );
              CREATE TABLE IF NOT EXISTS revoked_credentials (
                issuer TEXT NOT NULL, credential_id TEXT NOT NULL,
@@ -254,8 +266,10 @@ impl SqliteSecurityStore {
         issued_at: u64,
         expires_at: u64,
         installed_at: u64,
+        manifest_json: &[u8],
     ) -> Result<(), SecurityStoreError> {
-        if version == 0 || issued_at >= expires_at || digest.len() != 32 {
+        if version == 0 || issued_at >= expires_at || digest.len() != 32 || manifest_json.is_empty()
+        {
             return Err(SecurityStoreError::InvalidVersion);
         }
         let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
@@ -287,6 +301,14 @@ impl SqliteSecurityStore {
                 if current_digest != digest {
                     return Err(SecurityStoreError::ConflictingVersion);
                 }
+                // Backfill the immutable signed envelope when upgrading a store created
+                // before historical-manifest retention was introduced.
+                tx.execute(
+                    "INSERT OR IGNORE INTO witness_roster_manifest_history(version,manifest_json)
+                     VALUES(?1,?2)",
+                    params![version_i, manifest_json],
+                )
+                .map_err(|_| SecurityStoreError::Unavailable)?;
                 tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
@@ -306,7 +328,69 @@ impl SqliteSecurityStore {
             params![version_i, digest, issued_i, expires_i, installed_i],
         )
         .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "INSERT INTO witness_roster_manifest_history(version,manifest_json)
+             VALUES(?1,?2)",
+            params![version_i, manifest_json],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Atomically consume a distinct two-person K-04 recovery approval pair.
+    /// A recovery ID and each approval ID are one-time across all future attempts.
+    pub(crate) fn consume_recovery_approval_pair(
+        &self,
+        recovery_id: &str,
+        approval_ids: [&str; 2],
+        pair_digest: &[u8],
+        consumed_at: u64,
+    ) -> Result<bool, SecurityStoreError> {
+        if recovery_id.trim().is_empty()
+            || approval_ids[0].trim().is_empty()
+            || approval_ids[1].trim().is_empty()
+            || approval_ids[0] == approval_ids[1]
+            || pair_digest.len() != 32
+        {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let consumed_i =
+            i64::try_from(consumed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let already_used: Option<i64> = tx
+            .query_row(
+                "SELECT 1 FROM k04_recovery_consumptions
+                 WHERE recovery_id=?1 OR first_approval_id IN (?2,?3)
+                    OR second_approval_id IN (?2,?3) LIMIT 1",
+                params![recovery_id, approval_ids[0], approval_ids[1]],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if already_used.is_some() {
+            return Ok(false);
+        }
+        tx.execute(
+            "INSERT INTO k04_recovery_consumptions(
+               recovery_id,first_approval_id,second_approval_id,pair_digest,consumed_at
+             ) VALUES(?1,?2,?3,?4,?5)",
+            params![
+                recovery_id,
+                approval_ids[0],
+                approval_ids[1],
+                pair_digest,
+                consumed_i
+            ],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+        Ok(true)
     }
 
     pub fn highest_witness_roster_version(&self) -> Result<Option<u64>, SecurityStoreError> {
@@ -325,6 +409,35 @@ impl SqliteSecurityStore {
         version
             .map(|v| u64::try_from(v).map_err(|_| SecurityStoreError::Unavailable))
             .transpose()
+    }
+
+    /// Return the immutable signed roster manifests needed for historical receipt verification.
+    pub(crate) fn witness_roster_manifests(
+        &self,
+    ) -> Result<Vec<(u64, Vec<u8>)>, SecurityStoreError> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let mut statement = connection
+            .prepare(
+                "SELECT version,manifest_json FROM witness_roster_manifest_history ORDER BY version",
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+            })
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let mut manifests = Vec::new();
+        for row in rows {
+            let (version, bytes) = row.map_err(|_| SecurityStoreError::Unavailable)?;
+            manifests.push((
+                u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
+                bytes,
+            ));
+        }
+        Ok(manifests)
     }
 
     pub fn witness_roster_history_count(&self) -> Result<u64, SecurityStoreError> {

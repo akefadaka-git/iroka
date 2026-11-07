@@ -7,6 +7,7 @@
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::sync::{Arc, RwLock};
 
 use crate::audit_verifier::{
     AuthorizedWitness, VerificationError, WitnessReceiptVerifier, WitnessRosterState,
@@ -110,6 +111,7 @@ pub enum WitnessRosterManifestError {
     InvalidRoster,
     Rollback,
     StoreUnavailable,
+    StateUnavailable,
 }
 
 impl From<SecurityStoreError> for WitnessRosterManifestError {
@@ -238,12 +240,15 @@ pub fn activate_signed_witness_roster(
 
     let verifier = WitnessReceiptVerifier::new(authorized)?;
     let digest = Sha256::digest(&signing_bytes);
+    let manifest_json =
+        serde_json::to_vec(manifest).map_err(|_| WitnessRosterManifestError::Malformed)?;
     store.install_witness_roster(
         payload.version,
         digest.as_slice(),
         payload.issued_at,
         payload.expires_at,
         now,
+        &manifest_json,
     )?;
 
     Ok(WitnessRosterState::provisioned_from_manifest(
@@ -252,6 +257,143 @@ pub fn activate_signed_witness_roster(
         payload.version,
         payload.expires_at,
     ))
+}
+
+/// Historical resolver backed by immutable Owner-signed roster manifests retained by the
+/// security store. It deliberately validates a historical manifest at the receipt's
+/// witness-assigned time, not at the current time.
+pub struct HistoricalWitnessRosterResolver {
+    root: OwnerWitnessRosterRoot,
+    store: Arc<SqliteSecurityStore>,
+}
+
+impl HistoricalWitnessRosterResolver {
+    pub fn new(root: OwnerWitnessRosterRoot, store: Arc<SqliteSecurityStore>) -> Self {
+        Self { root, store }
+    }
+}
+
+impl crate::WitnessReceiptKeyResolver for HistoricalWitnessRosterResolver {
+    fn verify_receipt(&self, receipt: &crate::WitnessReceipt) -> Result<(), VerificationError> {
+        let manifests = self
+            .store
+            .witness_roster_manifests()
+            .map_err(|_| VerificationError::InvalidWitnessRoster)?;
+        let mut matched = false;
+        for (_, bytes) in manifests {
+            let manifest: SignedWitnessRosterManifest = serde_json::from_slice(&bytes)
+                .map_err(|_| VerificationError::InvalidWitnessRoster)?;
+            if manifest.payload.stream_id != receipt.stream_id
+                || receipt.witnessed_at < manifest.payload.issued_at
+                || receipt.witnessed_at >= manifest.payload.expires_at
+                || !manifest.payload.witnesses.iter().any(|entry| {
+                    entry.witness_id == receipt.witness_id
+                        && entry.signing_key_id == receipt.signing_key_id
+                })
+            {
+                continue;
+            }
+            let temporary_store = SqliteSecurityStore::open_in_memory()
+                .map_err(|_| VerificationError::InvalidWitnessRoster)?;
+            let state = activate_signed_witness_roster(
+                &manifest,
+                &self.root,
+                &temporary_store,
+                receipt.witnessed_at,
+            )
+            .map_err(|_| VerificationError::UnauthorizedWitness)?;
+            state.verify_receipt_at(receipt, receipt.witnessed_at)?;
+            if matched {
+                // A key ID must resolve to exactly one historical signed roster.
+                return Err(VerificationError::InvalidWitnessRoster);
+            }
+            matched = true;
+        }
+        if matched {
+            Ok(())
+        } else {
+            Err(VerificationError::UnauthorizedWitness)
+        }
+    }
+}
+
+/// Process-local atomic publication boundary for the currently trusted witness roster.
+/// Deployments should share one manager across all checkpoint and recovery handlers.
+pub struct WitnessRosterManager {
+    state: RwLock<WitnessRosterState>,
+}
+
+impl WitnessRosterManager {
+    pub fn unprovisioned() -> Self {
+        Self {
+            state: RwLock::new(WitnessRosterState::unprovisioned()),
+        }
+    }
+
+    /// Persist and validate the new manifest first, then atomically replace the in-memory
+    /// state. Readers holding the read lock finish against the old snapshot; subsequent
+    /// readers observe only the new version.
+    pub fn activate(
+        &self,
+        manifest: &SignedWitnessRosterManifest,
+        root: &OwnerWitnessRosterRoot,
+        store: &SqliteSecurityStore,
+        now: u64,
+    ) -> Result<u64, WitnessRosterManifestError> {
+        let candidate = activate_signed_witness_roster(manifest, root, store, now)?;
+        let version = candidate
+            .version()
+            .ok_or(WitnessRosterManifestError::Malformed)?;
+        let mut active = self
+            .state
+            .write()
+            .map_err(|_| WitnessRosterManifestError::StateUnavailable)?;
+        if active.version().is_some_and(|current| version < current) {
+            return Err(WitnessRosterManifestError::Rollback);
+        }
+        *active = candidate;
+        Ok(version)
+    }
+
+    pub fn active_version(&self) -> Result<Option<u64>, WitnessRosterManifestError> {
+        self.state
+            .read()
+            .map(|state| state.version())
+            .map_err(|_| WitnessRosterManifestError::StateUnavailable)
+    }
+
+    pub fn verify_checkpoint_and_quorum(
+        &self,
+        signed: &crate::SignedCheckpoint,
+        checkpoint_verifier: &dyn crate::CheckpointSignatureVerifier,
+        receipts: &[crate::WitnessReceipt],
+        now: u64,
+    ) -> Result<(), VerificationError> {
+        let state = self
+            .state
+            .read()
+            .map_err(|_| VerificationError::RosterStateUnavailable)?;
+        crate::audit_verifier::verify_checkpoint_and_quorum(
+            signed,
+            checkpoint_verifier,
+            receipts,
+            &state,
+            now,
+        )
+    }
+
+    pub fn verify_receipt_chain(
+        &self,
+        receipts: &[crate::WitnessReceipt],
+        expected_head: &crate::WitnessReceipt,
+        now: u64,
+    ) -> Result<(), VerificationError> {
+        let state = self
+            .state
+            .read()
+            .map_err(|_| VerificationError::RosterStateUnavailable)?;
+        crate::audit_verifier::verify_receipt_chain(receipts, expected_head, &state, now)
+    }
 }
 
 #[cfg(test)]
@@ -306,6 +448,98 @@ mod tests {
             root.clone(),
             SignedWitnessRosterManifest::from_signature(root.key_id.clone(), payload, signature),
         )
+    }
+
+    #[test]
+    fn historical_resolver_verifies_receipts_across_witness_key_rotation() {
+        use crate::audit_verifier::verify_receipt_chain_with_resolver;
+        use crate::audit_witness::WitnessReceipt;
+        use ed25519_dalek::Signer;
+        use std::sync::Arc;
+
+        let (owner, root, first_manifest) = fixture(1);
+        let (_, _, mut second_manifest) = fixture(2);
+        for (index, witness) in second_manifest.payload.witnesses.iter_mut().enumerate() {
+            witness.signing_key_id = format!("witness-key-v2-{}", index + 1);
+            witness.public_key = SigningKey::from_bytes(&[72 + index as u8; 32])
+                .verifying_key()
+                .to_bytes();
+        }
+        second_manifest.payload.revoked_key_ids = vec![
+            "witness-key-1".into(),
+            "witness-key-2".into(),
+            "witness-key-3".into(),
+        ];
+        second_manifest.signature = owner
+            .sign(&second_manifest.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        activate_signed_witness_roster(&first_manifest, &root, &store, 1_100).unwrap();
+        activate_signed_witness_roster(&second_manifest, &root, &store, 1_200).unwrap();
+
+        let old_key = SigningKey::from_bytes(&[62; 32]);
+        let mut first_receipt = WitnessReceipt {
+            witness_id: "witness-1".into(),
+            stream_id: "iroka:audit:primary".into(),
+            checkpoint_number: 1,
+            checkpoint_digest: [10; 32],
+            last_sequence: 1,
+            head_event_hash: [11; 32],
+            previous_checkpoint_digest: [0; 32],
+            previous_receipt_digest: [0; 32],
+            witnessed_at: 1_101,
+            log_index: 1,
+            signing_key_id: "witness-key-1".into(),
+            signature: [0; 64],
+        };
+        first_receipt.signature = old_key.sign(&first_receipt.signing_bytes()).to_bytes();
+
+        let new_key = SigningKey::from_bytes(&[72; 32]);
+        let mut second_receipt = WitnessReceipt {
+            witness_id: "witness-1".into(),
+            stream_id: "iroka:audit:primary".into(),
+            checkpoint_number: 2,
+            checkpoint_digest: [12; 32],
+            last_sequence: 2,
+            head_event_hash: [13; 32],
+            previous_checkpoint_digest: [10; 32],
+            previous_receipt_digest: first_receipt.digest(),
+            witnessed_at: 1_201,
+            log_index: 2,
+            signing_key_id: "witness-key-v2-1".into(),
+            signature: [0; 64],
+        };
+        second_receipt.signature = new_key.sign(&second_receipt.signing_bytes()).to_bytes();
+
+        let resolver = HistoricalWitnessRosterResolver::new(root, store);
+        assert_eq!(
+            verify_receipt_chain_with_resolver(
+                &[first_receipt, second_receipt.clone()],
+                &second_receipt,
+                &resolver
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn manager_atomically_publishes_higher_roster_version() {
+        let (_, root, first) = fixture(1);
+        let (_, _, second) = fixture(2);
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let manager = WitnessRosterManager::unprovisioned();
+        assert_eq!(manager.active_version(), Ok(None));
+        assert_eq!(manager.activate(&first, &root, &store, 1_100), Ok(1));
+        assert_eq!(manager.active_version(), Ok(Some(1)));
+        assert_eq!(manager.activate(&second, &root, &store, 1_200), Ok(2));
+        assert_eq!(manager.active_version(), Ok(Some(2)));
+        assert_eq!(
+            manager.activate(&first, &root, &store, 1_300),
+            Err(WitnessRosterManifestError::Rollback)
+        );
+        assert_eq!(manager.active_version(), Ok(Some(2)));
     }
 
     #[test]

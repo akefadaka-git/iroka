@@ -3,7 +3,9 @@
 //! Production adapters must call a separately administered HSM/KMS/offline signer.
 
 use crate::audit_checkpoint::{CheckpointError, CheckpointPayload};
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+#[cfg(test)]
+use ed25519_dalek::{Signer, SigningKey};
 
 const SIGNING_DOMAIN: &[u8] = b"IROKA:G11:AUDIT-CHECKPOINT-SIGNATURE:V1\0";
 
@@ -33,11 +35,13 @@ pub trait CheckpointSignatureVerifier: Send + Sync {
 }
 
 /// Local key implementation intended for tests. Do not construct from production application config.
+#[cfg(test)]
 pub struct LocalEd25519TestSigner {
     key_id: String,
     signing_key: SigningKey,
 }
 
+#[cfg(test)]
 impl LocalEd25519TestSigner {
     pub fn from_test_seed(key_id: impl Into<String>, seed: [u8; 32]) -> Self {
         Self {
@@ -51,6 +55,7 @@ impl LocalEd25519TestSigner {
     }
 }
 
+#[cfg(test)]
 impl CheckpointSigner for LocalEd25519TestSigner {
     fn key_id(&self) -> &str {
         &self.key_id

@@ -20,6 +20,7 @@ pub enum VerificationError {
     WitnessRosterUnprovisioned,
     WitnessRosterExpired,
     WitnessRosterScopeMismatch,
+    RosterStateUnavailable,
     UnauthorizedWitness,
     WrongStream,
     ReceiptCheckpointMismatch,
@@ -36,12 +37,14 @@ pub enum LocalReconciliation {
 
 /// One explicit binding between a provisioned witness identity, its key identifier,
 /// and the public key authorized to sign receipts for that identity.
+#[derive(Clone)]
 pub struct AuthorizedWitness {
     pub witness_id: String,
     pub signing_key_id: String,
     pub verifying_key: VerifyingKey,
 }
 
+#[derive(Clone)]
 pub struct WitnessReceiptVerifier {
     roster: Vec<AuthorizedWitness>,
 }
@@ -95,6 +98,7 @@ impl WitnessReceiptVerifier {
 /// Runtime trust state for the independent witness roster.
 /// Production callers can construct the unprovisioned state or activate a verified
 /// Owner-signed manifest using a separately provisioned Owner trust anchor.
+#[derive(Clone)]
 pub struct WitnessRosterState {
     verifier: Option<WitnessReceiptVerifier>,
     stream_id: Option<String>,
@@ -120,6 +124,16 @@ impl WitnessRosterState {
     /// Stream authorized by the activated roster, if provisioned.
     pub fn authorized_stream(&self) -> Option<&str> {
         self.stream_id.as_deref()
+    }
+
+    /// Verify one receipt against this roster at the receipt's witnessed time.
+    pub fn verify_receipt_at(
+        &self,
+        receipt: &WitnessReceipt,
+        witnessed_at: u64,
+    ) -> Result<(), VerificationError> {
+        self.verifier_at(witnessed_at)?.verify(receipt)?;
+        self.validate_stream(&receipt.stream_id)
     }
 
     fn verifier_at(&self, now: u64) -> Result<&WitnessReceiptVerifier, VerificationError> {
@@ -231,6 +245,61 @@ pub fn reconcile_local_head(
         return Ok(LocalReconciliation::MatchesCheckpoint);
     }
     Ok(LocalReconciliation::LocalAheadOfCheckpoint)
+}
+
+/// Resolves each receipt's signing key from the signed roster version valid at its
+/// witness-assigned acceptance time. Implementations must verify the Owner signature.
+pub trait WitnessReceiptKeyResolver: Send + Sync {
+    fn verify_receipt(&self, receipt: &WitnessReceipt) -> Result<(), VerificationError>;
+}
+
+/// Verify a complete receipt history while allowing legitimate witness-key rotation.
+/// The expected terminal receipt must come from an independently queried witness head.
+pub fn verify_receipt_chain_with_resolver(
+    receipts: &[WitnessReceipt],
+    expected_head: &WitnessReceipt,
+    resolver: &dyn WitnessReceiptKeyResolver,
+) -> Result<(), VerificationError> {
+    let Some(first) = receipts.first() else {
+        return Err(VerificationError::ReceiptCheckpointMismatch);
+    };
+    if receipts.last() != Some(expected_head) {
+        return Err(VerificationError::ReceiptCheckpointMismatch);
+    }
+    let witness_id = first.witness_id.as_str();
+    let stream_id = first.stream_id.as_str();
+    let mut previous_receipt_digest = [0; 32];
+    let mut previous_checkpoint_digest = [0; 32];
+    let mut previous_sequence = 0u64;
+    let mut previous_witnessed_at = 0u64;
+    let mut expected_log_index = 1u64;
+    let mut expected_checkpoint_number = 1u64;
+
+    for receipt in receipts {
+        resolver.verify_receipt(receipt)?;
+        if receipt.witness_id != witness_id
+            || receipt.stream_id != stream_id
+            || receipt.log_index != expected_log_index
+            || receipt.checkpoint_number != expected_checkpoint_number
+            || receipt.previous_receipt_digest != previous_receipt_digest
+            || receipt.previous_checkpoint_digest != previous_checkpoint_digest
+            || receipt.last_sequence <= previous_sequence
+            || receipt.witnessed_at < previous_witnessed_at
+        {
+            return Err(VerificationError::ReceiptCheckpointMismatch);
+        }
+        previous_receipt_digest = receipt.digest();
+        previous_checkpoint_digest = receipt.checkpoint_digest;
+        previous_sequence = receipt.last_sequence;
+        previous_witnessed_at = receipt.witnessed_at;
+        expected_log_index = expected_log_index
+            .checked_add(1)
+            .ok_or(VerificationError::ReceiptCheckpointMismatch)?;
+        expected_checkpoint_number = expected_checkpoint_number
+            .checked_add(1)
+            .ok_or(VerificationError::ReceiptCheckpointMismatch)?;
+    }
+    Ok(())
 }
 
 /// Verifies a single witness's exported receipt history from its genesis receipt.

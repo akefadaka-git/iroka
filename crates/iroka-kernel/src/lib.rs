@@ -6,6 +6,7 @@
 mod assurance;
 mod audit_checkpoint;
 mod audit_operations;
+mod audit_recovery;
 mod audit_signer;
 mod audit_store;
 mod audit_verifier;
@@ -29,20 +30,27 @@ compile_error!("dev-no-revocations is restricted to test builds");
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_checkpoint::{AuditHead, CheckpointBuilder, CheckpointError, CheckpointPayload};
 pub use audit_operations::{
-    assess_anchoring, checkpoint_due, AnchoringAssessment, AnchoringState, CheckpointPolicy,
+    assess_anchoring, checkpoint_due, checkpoint_due_with_manual_request, AnchoringAssessment,
+    AnchoringState, CheckpointPolicy, ManualCheckpointError, ManualCheckpointRequest,
+};
+pub use audit_recovery::{
+    ExternalWitnessHighWater, RecoveryApprovalPayload, RecoveryApprovalVerifier,
+    RecoveryAuthorization, RecoveryError, RecoveryHighWater, SignedRecoveryApproval,
+    TrustedRecoveryApprover,
 };
 pub use audit_signer::{
-    CheckpointSignatureVerifier, CheckpointSigner, Ed25519CheckpointVerifier,
-    LocalEd25519TestSigner, SignedCheckpoint, SignerError,
+    CheckpointSignatureVerifier, CheckpointSigner, Ed25519CheckpointVerifier, SignedCheckpoint,
+    SignerError,
 };
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use audit_verifier::{
-    reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain, LocalReconciliation,
-    VerificationError, WitnessRosterState, AUTHORIZED_WITNESS_COUNT, REQUIRED_WITNESS_QUORUM,
+    reconcile_local_head, verify_checkpoint_and_quorum, verify_receipt_chain,
+    verify_receipt_chain_with_resolver, LocalReconciliation, VerificationError,
+    WitnessReceiptKeyResolver, WitnessRosterState, AUTHORIZED_WITNESS_COUNT,
+    REQUIRED_WITNESS_QUORUM,
 };
 pub use audit_witness::{
-    LocalWitnessTestSigner, MemoryWitnessLedger, SqliteWitnessLedger, WitnessError, WitnessLedger,
-    WitnessReceipt, WitnessReceiptSigner,
+    SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner,
 };
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
@@ -73,8 +81,9 @@ pub use trust_lifecycle::{
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
 };
 pub use witness_roster::{
-    activate_signed_witness_roster, OwnerWitnessRosterRoot, SignedWitnessRosterManifest,
-    WitnessRosterEntry, WitnessRosterManifestError, WitnessRosterManifestPayload,
+    activate_signed_witness_roster, HistoricalWitnessRosterResolver, OwnerWitnessRosterRoot,
+    SignedWitnessRosterManifest, WitnessRosterEntry, WitnessRosterManager,
+    WitnessRosterManifestError, WitnessRosterManifestPayload,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
