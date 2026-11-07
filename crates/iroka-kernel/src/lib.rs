@@ -21,6 +21,8 @@ mod owner_approval;
 mod policy;
 mod request;
 mod security_store;
+pub mod regional_profile;
+pub mod temporal;
 mod service;
 mod trust_lifecycle;
 mod witness_roster;
@@ -54,6 +56,13 @@ pub use audit_witness::{
     SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner,
 };
 pub use conformance::{build_conformance_report, CONFORMANCE_HARNESS_VERSION, REQUIRED_CASE_COUNT};
+pub use regional_profile::{
+    resolve_regional_profile, CalendarProfile, CurrencyProfile, DataGovernanceProfile,
+    LanguageProfile, LegalReference, PreferenceSource, ProfilePreferences, ProfileProvenance,
+    ProfileRequirement, ProfileResolutionContext, RegionalProfile, RegionalProfileError,
+    ResolvedRegionalProfile, ReviewStatus,
+};
+pub use temporal::{TemporalKind, TemporalValue, TemporalValueError};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
 pub(crate) use governance::{
