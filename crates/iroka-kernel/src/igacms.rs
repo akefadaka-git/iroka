@@ -1,14 +1,16 @@
 //! IGACMS v1.0 validator, fingerprint, attestation, genesis and evolution contracts.
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
-use serde_json::Value;
+use serde::de::{self, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
+use serde_json::{Map, Number, Value};
+use std::fmt;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+const ATTESTATION_DOMAIN: &str = "IROKA-IGACMS-ATTESTATION-V1";
 
 const EMBEDDED: &[u8] = include_bytes!("../igacms/genome-v1.0.0.json");
 const DOMAINS: [&str; 8] = ["identity","authority","evidence","assurance","reasoning","security","execution","evolution"];
 const CHROMOSOMES: [&str; 12] = ["G01","G02","G03","G04","G05","G06","G07","G08","G09","G10","G11","G12"];
-const ATTESTATION_DOMAIN: &str = "IROKA-IGACMS-ATTESTATION-V1";
-
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub enum IgacmsError { Malformed, UnsupportedNumber, Identity, MissingDomain(String), Chromosome, Gene, Marker, DuplicateId(String), Dependency, DependencyCycle, UnknownRoot, RevokedRoot, RootExpired, Signature, Genesis, Epoch, MutationDenied, HistoricalEvidence }
 
@@ -17,17 +19,47 @@ pub struct Fingerprint { pub digest_hex:String, pub canonical_bytes:Vec<u8>, pub
 #[derive(Debug,Clone)]
 pub struct ValidatedGenome { pub value:Value, pub fingerprint:Fingerprint }
 
-fn canonical(value:&Value,out:&mut Vec<u8>)->Result<(),IgacmsError>{
-    match value {
-        Value::Null=>out.extend_from_slice(b"null"),
-        Value::Bool(v)=>out.extend_from_slice(if *v {b"true"} else {b"false"}),
-        Value::Number(n)=>{if n.is_i64()||n.is_u64(){out.extend_from_slice(n.to_string().as_bytes())}else{return Err(IgacmsError::UnsupportedNumber)}},
-        Value::String(s)=>out.extend_from_slice(serde_json::to_string(s).map_err(|_|IgacmsError::Malformed)?.as_bytes()),
-        Value::Array(a)=>{out.push(b'[');for(i,v)in a.iter().enumerate(){if i>0{out.push(b',')}canonical(v,out)?}out.push(b']')},
-        Value::Object(m)=>{let mut e:Vec<_>=m.iter().collect();e.sort_by(|a,b|a.0.encode_utf16().cmp(b.0.encode_utf16()));out.push(b'{');for(i,(k,v))in e.iter().enumerate(){if i>0{out.push(b',')}out.extend_from_slice(serde_json::to_string(k).map_err(|_|IgacmsError::Malformed)?.as_bytes());out.push(b':');canonical(v,out)?}out.push(b'}')}
-    } Ok(())
+struct UniqueValue(Value);
+impl<'de> Deserialize<'de> for UniqueValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where D: Deserializer<'de> {
+        struct UniqueVisitor;
+        impl<'de> Visitor<'de> for UniqueVisitor {
+            type Value = UniqueValue;
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result { f.write_str("a JSON value with unique object keys") }
+            fn visit_bool<E: de::Error>(self, v: bool) -> Result<Self::Value,E> { Ok(UniqueValue(Value::Bool(v))) }
+            fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value,E> { Ok(UniqueValue(Value::Number(Number::from(v)))) }
+            fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value,E> { Ok(UniqueValue(Value::Number(Number::from(v)))) }
+            fn visit_f64<E: de::Error>(self, v: f64) -> Result<Self::Value,E> { Number::from_f64(v).map(|n|UniqueValue(Value::Number(n))).ok_or_else(||E::custom("non-finite JSON number")) }
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value,E> { Ok(UniqueValue(Value::String(v.to_owned()))) }
+            fn visit_string<E: de::Error>(self, v: String) -> Result<Self::Value,E> { Ok(UniqueValue(Value::String(v))) }
+            fn visit_unit<E: de::Error>(self) -> Result<Self::Value,E> { Ok(UniqueValue(Value::Null)) }
+            fn visit_none<E: de::Error>(self) -> Result<Self::Value,E> { Ok(UniqueValue(Value::Null)) }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq:A) -> Result<Self::Value,A::Error> {
+                let mut values=Vec::new(); while let Some(v)=seq.next_element::<UniqueValue>()? { values.push(v.0); }
+                Ok(UniqueValue(Value::Array(values)))
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut access:A) -> Result<Self::Value,A::Error> {
+                let mut values=Map::new();
+                while let Some((key,value))=access.next_entry::<String,UniqueValue>()? {
+                    if values.contains_key(&key) { return Err(de::Error::custom("duplicate JSON object key")); }
+                    values.insert(key,value.0);
+                }
+                Ok(UniqueValue(Value::Object(values)))
+            }
+        }
+        deserializer.deserialize_any(UniqueVisitor)
+    }
 }
-pub fn canonical_json(v:&Value)->Result<Vec<u8>,IgacmsError>{let mut b=Vec::new();canonical(v,&mut b)?;Ok(b)}
+pub fn canonical_json(value:&Value)->Result<Vec<u8>,IgacmsError>{
+    serde_jcs::to_vec(value).map_err(|_|IgacmsError::Malformed)
+}
+fn parse_unique(bytes:&[u8])->Result<Value,IgacmsError>{
+    let mut d=serde_json::Deserializer::from_slice(bytes);
+    let v=UniqueValue::deserialize(&mut d).map_err(|_|IgacmsError::Malformed)?.0;
+    d.end().map_err(|_|IgacmsError::Malformed)?;
+    Ok(v)
+}
 fn text<'a>(v:&'a Value,k:&str)->Result<&'a str,IgacmsError>{v.get(k).and_then(Value::as_str).filter(|s|!s.trim().is_empty()).ok_or(IgacmsError::Malformed)}
 fn unique<'a>(a:&'a [Value],k:&str)->Result<BTreeSet<&'a str>,IgacmsError>{let mut s=BTreeSet::new();for v in a{let id=text(v,k)?;if !s.insert(id){return Err(IgacmsError::DuplicateId(id.into()))}}Ok(s)}
 fn graph_is_acyclic(g:&[(String,Vec<String>)])->Result<(),IgacmsError>{
@@ -40,7 +72,7 @@ fn graph_is_acyclic(g:&[(String,Vec<String>)])->Result<(),IgacmsError>{
     for n in m.keys(){visit(n,&m,&mut a,&mut d)?}Ok(())
 }
 pub fn validate_genome(bytes:&[u8])->Result<ValidatedGenome,IgacmsError>{
-    let v:Value=serde_json::from_slice(bytes).map_err(|_|IgacmsError::Malformed)?;
+    let v=parse_unique(bytes)?;
     if text(&v,"specification_id")?!="IGACMS"||text(&v,"specification_version")?!="1.0.0"||text(v.get("dna").ok_or(IgacmsError::Identity)?,"id")?!="iroka.dna"||text(v.get("genome").ok_or(IgacmsError::Identity)?,"id")?!="IROKA_ZERO_GENOME"{return Err(IgacmsError::Identity)}
     let domains=v["historical_domains"].as_array().ok_or(IgacmsError::Malformed)?;
     for d in DOMAINS{if !domains.iter().any(|x|x.as_str()==Some(d)){return Err(IgacmsError::MissingDomain(d.into()))}}
@@ -58,7 +90,7 @@ pub fn validate_genome(bytes:&[u8])->Result<ValidatedGenome,IgacmsError>{
         let id=text(n,"node")?.to_owned();let ds=n["depends_on"].as_array().ok_or(IgacmsError::Dependency)?.iter().map(|x|x.as_str().map(str::to_owned).ok_or(IgacmsError::Dependency)).collect::<Result<Vec<_>,_>>()?;edges.push((id,ds));
     }if edges.len()!=12{return Err(IgacmsError::Dependency)}graph_is_acyclic(&edges)?;
     let bytes=canonical_json(&v)?;let digest=Sha256::digest(&bytes);
-    Ok(ValidatedGenome{value:v,fingerprint:Fingerprint{digest_hex:format!("{:x}",digest),canonical_bytes:bytes,algorithm:"SHA-256",canonicalization:"JCS-compatible integer-only profile"}})
+    Ok(ValidatedGenome{value:v,fingerprint:Fingerprint{digest_hex:format!("{:x}",digest),canonical_bytes:bytes,algorithm:"SHA-256",canonicalization:"RFC8785-JCS"}})
 }
 pub fn validate_embedded_baseline()->Result<Fingerprint,IgacmsError>{Ok(validate_genome(EMBEDDED)?.fingerprint)}
 
@@ -66,7 +98,7 @@ pub fn validate_embedded_baseline()->Result<Fingerprint,IgacmsError>{Ok(validate
 pub struct TrustedRoot{pub key_id:String,pub public_key:[u8;32],pub not_before:u64,pub not_after:u64,pub revoked:bool,pub provenance:String}
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Attestation{pub envelope_type:String,pub version:String,pub digest:String,pub epoch:u64,pub key_id:String,pub signature:Vec<u8>}
-impl Attestation{fn bytes(&self)->Vec<u8>{format!("{}|{}|{}|{}|{}|{}",ATTESTATION_DOMAIN,self.envelope_type,self.version,self.digest,self.epoch,self.key_id).into_bytes()}}
+impl Attestation{fn bytes(&self)->Vec<u8>{{ let mut out=Vec::new(); for field in [ATTESTATION_DOMAIN,self.envelope_type.as_str(),self.version.as_str(),self.digest.as_str(),self.key_id.as_str()] { let b=field.as_bytes(); out.extend_from_slice(&(b.len() as u64).to_be_bytes()); out.extend_from_slice(b); } out.extend_from_slice(&self.epoch.to_be_bytes()); out }}}
 pub fn sign_fingerprint(fp:&Fingerprint,epoch:u64,key_id:&str,key:&SigningKey)->Attestation{
     let mut a=Attestation{envelope_type:"iroka.igacms.attestation".into(),version:"1.0.0".into(),digest:fp.digest_hex.clone(),epoch,key_id:key_id.into(),signature:Vec::new()};
     a.signature=key.sign(&a.bytes()).to_bytes().to_vec();a
@@ -81,7 +113,7 @@ pub fn verify_attestation(a:&Attestation,roots:&[TrustedRoot],now:u64)->Result<(
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Genesis{pub dna_id:String,pub genome_id:String,pub digest:String,pub epoch:u64,pub parent:Option<String>,pub owner_approval_ref:String,pub trust_root_key_ids:Vec<String>,pub attestation:Attestation,pub audit_refs:Vec<String>}
 pub fn verify_genesis(g:&Genesis,fp:&Fingerprint,roots:&[TrustedRoot],now:u64)->Result<(),IgacmsError>{
-    if g.dna_id!="iroka.dna"||g.genome_id!="IROKA_ZERO_GENOME"||g.digest!=fp.digest_hex||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id){return Err(IgacmsError::Genesis)}
+    if g.dna_id!="iroka.dna"||g.genome_id!="IROKA_ZERO_GENOME"||g.digest!=fp.digest_hex||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.digest!=g.digest||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}
     verify_attestation(&g.attestation,roots,now)
 }
 pub fn verify_epoch_transition(epoch:u64,digest:&str,next:u64,parent:Option<&str>)->Result<(),IgacmsError>{if next!=epoch.saturating_add(1)||parent!=Some(digest){Err(IgacmsError::Epoch)}else{Ok(())}}
@@ -105,7 +137,7 @@ pub fn cross_chromosome_invariants()->&'static [&'static str]{&[
 use super::*;use ed25519_dalek::SigningKey;
 #[test]fn validates_all_twelve_and_reasoning_domain(){let f=validate_embedded_baseline().unwrap();assert_eq!(f.algorithm,"SHA-256");}
 #[test]fn rejects_missing_reasoning(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();v["historical_domains"]=Value::Array(v["historical_domains"].as_array().unwrap().iter().filter(|x|x.as_str()!=Some("reasoning")).cloned().collect());assert!(matches!(validate_genome(&serde_json::to_vec(&v).unwrap()),Err(IgacmsError::MissingDomain(_))));}
-#[test]fn rejects_duplicate_gene_ids(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();v["genes"][1]=v["genes"][0].clone();assert!(matches!(validate_genome(&serde_json::to_vec(&v).unwrap()),Err(IgacmsError::DuplicateId(_))));}
+#[test]fn rejects_duplicate_gene_ids(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();let first=v["genes"][0].clone();v["genes"][1]=first;assert!(matches!(validate_genome(&serde_json::to_vec(&v).unwrap()),Err(IgacmsError::DuplicateId(_))));}
 #[test]fn rejects_dependency_cycle(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();v["dependency_graph"][0]["depends_on"]=serde_json::json!(["G02"]);v["dependency_graph"][1]["depends_on"]=serde_json::json!(["G01"]);assert_eq!(validate_genome(&serde_json::to_vec(&v).unwrap()).unwrap_err(),IgacmsError::DependencyCycle);}
 #[test]fn verifies_ed25519_and_revocation(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[9u8;32]);let a=sign_fingerprint(&fp,0,"root",&key);let r=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:99,revoked:false,provenance:"test".into()};assert!(verify_attestation(&a,&[r.clone()],50).is_ok());let mut revoked=r;revoked.revoked=true;assert_eq!(verify_attestation(&a,&[revoked],50),Err(IgacmsError::RevokedRoot));}
 #[test]fn mutation_requires_owner_and_independent_review(){assert_eq!(authorize_mutation(MutationClass::M4,&MutationEvidence::default()),Err(IgacmsError::MutationDenied));let e=MutationEvidence{owner_approved:true,independent_review:true,migration_rollback_ready:true,dual_control:true,..Default::default()};assert!(authorize_mutation(MutationClass::M5,&e).is_ok());}
