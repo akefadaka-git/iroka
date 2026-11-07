@@ -97,9 +97,9 @@ fn execute_registered_case(test_id: &str) -> Option<CaseOutcome> {
                 && actual.reason() == DecisionReason::AuditUnavailable
             {
                 Some(CaseOutcome {
-                    status: CaseStatus::Pass,
-                    reason_code: "AUDIT_FAILURE_ESCALATED",
-                    detail: "An unavailable audit sink converts the proposed Allow decision to Escalate; protected callers must not execute on Escalate.",
+                    status: CaseStatus::Blocked,
+                    reason_code: "PROTECTED_EFFECT_ADAPTER_MISSING",
+                    detail: "The kernel escalates an unavailable audit sink, but the end-to-end protected-effect adapter is not yet wired to prove that the side effect is blocked.",
                 })
             } else {
                 Some(CaseOutcome {
@@ -464,8 +464,8 @@ mod tests {
         let report = build_conformance_report(CATALOG, &BTreeMap::new(), 10, 20).unwrap();
         assert_eq!(report["case_count"], REQUIRED_CASE_COUNT);
         assert_eq!(report["gate_status"], "BLOCKED");
-        assert_eq!(report["counts"]["PASS"], 9);
-        assert_eq!(report["counts"]["BLOCKED"], 31);
+        assert_eq!(report["counts"]["PASS"], 8);
+        assert_eq!(report["counts"]["BLOCKED"], 32);
         assert_eq!(report["counts"]["FAIL"], 0);
     }
 
@@ -486,6 +486,9 @@ mod tests {
             .filter(|case| case["severity"] == "critical")
             .collect::<Vec<_>>();
         assert!(!critical.is_empty());
-        assert!(critical.iter().all(|case| case["status"] != "PASS"));
+        assert!(critical
+            .iter()
+            .filter(|case| case["fixture_ref"].is_null())
+            .all(|case| case["status"] == "BLOCKED"));
     }
 }
