@@ -20,6 +20,7 @@ pub enum VerificationError {
     WitnessRosterUnprovisioned,
     WitnessRosterExpired,
     WitnessRosterScopeMismatch,
+    WitnessRosterRuntimeUnavailable,
     UnauthorizedWitness,
     WrongStream,
     ReceiptCheckpointMismatch,
@@ -129,6 +130,10 @@ impl WitnessRosterState {
         self.verifier
             .as_ref()
             .ok_or(VerificationError::WitnessRosterUnprovisioned)
+    }
+
+    pub(crate) fn is_expired_at(&self, now: u64) -> bool {
+        self.expires_at.is_some_and(|expires_at| now >= expires_at)
     }
 
     fn validate_stream(&self, stream_id: &str) -> Result<(), VerificationError> {

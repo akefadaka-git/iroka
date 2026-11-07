@@ -381,6 +381,59 @@ impl SqliteWitnessLedger {
     }
 }
 
+/// Validate the complete persisted receipt history before extending it. This is
+/// a structural continuity check; cryptographic signature verification remains the
+/// responsibility of the offline verifier with the applicable historical roster.
+fn verify_persisted_stream_history(
+    connection: &Connection,
+    stream_id: &str,
+    expected_witness_id: &str,
+) -> Result<(), WitnessError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
+             head_event_hash,previous_checkpoint_digest,previous_receipt_digest,witnessed_at,
+             log_index,signing_key_id,signature FROM witness_receipts
+             WHERE stream_id=?1 ORDER BY log_index",
+        )
+        .map_err(|_| WitnessError::StorageUnavailable)?;
+    let rows = statement
+        .query_map(params![stream_id], read_receipt)
+        .map_err(|_| WitnessError::StorageUnavailable)?;
+    let mut previous_receipt_digest = [0; 32];
+    let mut previous_checkpoint_digest = [0; 32];
+    let mut previous_sequence = 0u64;
+    let mut previous_witnessed_at = 0u64;
+    let mut expected_log_index = 1u64;
+    let mut expected_checkpoint_number = 1u64;
+
+    for row in rows {
+        let receipt = decode_receipt(row.map_err(|_| WitnessError::StorageUnavailable)?)?;
+        if receipt.witness_id != expected_witness_id
+            || receipt.stream_id != stream_id
+            || receipt.log_index != expected_log_index
+            || receipt.checkpoint_number != expected_checkpoint_number
+            || receipt.previous_receipt_digest != previous_receipt_digest
+            || receipt.previous_checkpoint_digest != previous_checkpoint_digest
+            || receipt.last_sequence <= previous_sequence
+            || receipt.witnessed_at < previous_witnessed_at
+        {
+            return Err(WitnessError::StorageUnavailable);
+        }
+        previous_receipt_digest = receipt.digest();
+        previous_checkpoint_digest = receipt.checkpoint_digest;
+        previous_sequence = receipt.last_sequence;
+        previous_witnessed_at = receipt.witnessed_at;
+        expected_log_index = expected_log_index
+            .checked_add(1)
+            .ok_or(WitnessError::StorageUnavailable)?;
+        expected_checkpoint_number = expected_checkpoint_number
+            .checked_add(1)
+            .ok_or(WitnessError::StorageUnavailable)?;
+    }
+    Ok(())
+}
+
 impl WitnessLedger for SqliteWitnessLedger {
     fn accept(
         &self,
@@ -405,6 +458,9 @@ impl WitnessLedger for SqliteWitnessLedger {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| WitnessError::StorageUnavailable)?;
+        // Never extend a persisted ledger whose prior receipt chain is malformed,
+        // truncated, reordered, or internally inconsistent.
+        verify_persisted_stream_history(&tx, &payload.stream_id, &self.witness_id)?;
         let number = i64::try_from(payload.checkpoint_number)
             .map_err(|_| WitnessError::InvalidCheckpoint)?;
         let existing = Self::select_receipt(
@@ -629,6 +685,118 @@ mod tests {
             assert_eq!(ledger.accept(&signed, &verifier, 12), Ok(first.clone()));
             assert_eq!(ledger.head("stream:durable").unwrap(), Some(first));
         }
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+    #[test]
+    fn sqlite_witness_refuses_to_extend_tampered_persisted_history() {
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [21; 32]);
+        let verifier = Ed25519CheckpointVerifier::new(vec![(
+            "cp-key".into(),
+            checkpoint_signer.verifying_key(),
+        )]);
+        let builder = CheckpointBuilder::new("stream:tamper", "cp-key");
+        let first_head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [31; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let first = checkpoint_signer
+            .sign_checkpoint(&builder.initial_v1_anchor(&first_head, 10).unwrap())
+            .unwrap();
+        let next_head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 2,
+            event_count: 2,
+            head_event_hash: [32; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let next = checkpoint_signer
+            .sign_checkpoint(&builder.next(&next_head, &first.payload, 11).unwrap())
+            .unwrap();
+        let ledger = SqliteWitnessLedger::from_connection(
+            Connection::open_in_memory().unwrap(),
+            "witness-tamper".into(),
+            Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [22; 32])),
+        )
+        .unwrap();
+        ledger.accept(&first, &verifier, 12).unwrap();
+        {
+            let connection = ledger.connection.lock().unwrap();
+            connection
+                .execute_batch(
+                    "DROP TRIGGER witness_no_update;
+                     UPDATE witness_receipts SET previous_receipt_digest=zeroblob(32)
+                     WHERE stream_id='stream:tamper' AND checkpoint_number=1;",
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            ledger.accept(&next, &verifier, 13),
+            Err(WitnessError::StorageUnavailable)
+        );
+    }
+    #[test]
+    fn sqlite_witness_serializes_concurrent_duplicate_acceptance_across_connections() {
+        use std::sync::{Arc, Barrier};
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-witness-concurrent-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [41; 32]);
+        let verifier = Arc::new(Ed25519CheckpointVerifier::new(vec![(
+            "cp-key".into(),
+            checkpoint_signer.verifying_key(),
+        )]));
+        let builder = CheckpointBuilder::new("stream:concurrent", "cp-key");
+        let head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [42; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let signed = Arc::new(
+            checkpoint_signer
+                .sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap())
+                .unwrap(),
+        );
+        let make_ledger = || {
+            SqliteWitnessLedger::open(
+                &path,
+                "witness-concurrent",
+                Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [43; 32])),
+            )
+            .unwrap()
+        };
+        let first = Arc::new(make_ledger());
+        let second = Arc::new(make_ledger());
+        let barrier = Arc::new(Barrier::new(3));
+        let spawn_accept = |ledger: Arc<SqliteWitnessLedger>, barrier: Arc<Barrier>| {
+            let signed = Arc::clone(&signed);
+            let verifier = Arc::clone(&verifier);
+            std::thread::spawn(move || {
+                barrier.wait();
+                ledger.accept(&signed, verifier.as_ref(), 11).unwrap()
+            })
+        };
+        let one = spawn_accept(Arc::clone(&first), Arc::clone(&barrier));
+        let two = spawn_accept(Arc::clone(&second), Arc::clone(&barrier));
+        barrier.wait();
+        let receipt_one = one.join().unwrap();
+        let receipt_two = two.join().unwrap();
+        assert_eq!(receipt_one, receipt_two);
+        assert_eq!(receipt_one.log_index, 1);
+        assert_eq!(first.head("stream:concurrent").unwrap(), Some(receipt_one));
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
