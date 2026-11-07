@@ -627,7 +627,7 @@ impl WitnessLedger for SqliteWitnessLedger {
             .connection
             .lock()
             .map_err(|_| WitnessError::StorageUnavailable)?;
-        verify_witness_history(&connection, &self.witness_id, &self.stream_id, &self.verifying_key)?;
+        verify_witness_history(&connection, &self.witness_id, &self.stream_id, &self.verifying_keys)?;
         Self::select_receipt(
             &connection,
             "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
@@ -828,7 +828,7 @@ mod tests {
                 "witness-durable",
                 "stream:durable",
                 Box::new(witness_signer),
-                witness_verifying_key,
+                vec![("w-key".into(), witness_verifying_key)],
             )
             .unwrap();
             assert_eq!(ledger.accept(&signed, &verifier, 12), Ok(first.clone()));
