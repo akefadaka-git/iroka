@@ -381,6 +381,59 @@ impl SqliteWitnessLedger {
     }
 }
 
+/// Validate the complete persisted receipt history before extending it. This is
+/// a structural continuity check; cryptographic signature verification remains the
+/// responsibility of the offline verifier with the applicable historical roster.
+fn verify_persisted_stream_history(
+    connection: &Connection,
+    stream_id: &str,
+    expected_witness_id: &str,
+) -> Result<(), WitnessError> {
+    let mut statement = connection
+        .prepare(
+            "SELECT witness_id,stream_id,checkpoint_number,checkpoint_digest,last_sequence,
+             head_event_hash,previous_checkpoint_digest,previous_receipt_digest,witnessed_at,
+             log_index,signing_key_id,signature FROM witness_receipts
+             WHERE stream_id=?1 ORDER BY log_index",
+        )
+        .map_err(|_| WitnessError::StorageUnavailable)?;
+    let rows = statement
+        .query_map(params![stream_id], read_receipt)
+        .map_err(|_| WitnessError::StorageUnavailable)?;
+    let mut previous_receipt_digest = [0; 32];
+    let mut previous_checkpoint_digest = [0; 32];
+    let mut previous_sequence = 0u64;
+    let mut previous_witnessed_at = 0u64;
+    let mut expected_log_index = 1u64;
+    let mut expected_checkpoint_number = 1u64;
+
+    for row in rows {
+        let receipt = decode_receipt(row.map_err(|_| WitnessError::StorageUnavailable)?)?;
+        if receipt.witness_id != expected_witness_id
+            || receipt.stream_id != stream_id
+            || receipt.log_index != expected_log_index
+            || receipt.checkpoint_number != expected_checkpoint_number
+            || receipt.previous_receipt_digest != previous_receipt_digest
+            || receipt.previous_checkpoint_digest != previous_checkpoint_digest
+            || receipt.last_sequence <= previous_sequence
+            || receipt.witnessed_at < previous_witnessed_at
+        {
+            return Err(WitnessError::StorageUnavailable);
+        }
+        previous_receipt_digest = receipt.digest();
+        previous_checkpoint_digest = receipt.checkpoint_digest;
+        previous_sequence = receipt.last_sequence;
+        previous_witnessed_at = receipt.witnessed_at;
+        expected_log_index = expected_log_index
+            .checked_add(1)
+            .ok_or(WitnessError::StorageUnavailable)?;
+        expected_checkpoint_number = expected_checkpoint_number
+            .checked_add(1)
+            .ok_or(WitnessError::StorageUnavailable)?;
+    }
+    Ok(())
+}
+
 impl WitnessLedger for SqliteWitnessLedger {
     fn accept(
         &self,
@@ -405,6 +458,9 @@ impl WitnessLedger for SqliteWitnessLedger {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| WitnessError::StorageUnavailable)?;
+        // Never extend a persisted ledger whose prior receipt chain is malformed,
+        // truncated, reordered, or internally inconsistent.
+        verify_persisted_stream_history(&tx, &payload.stream_id, &self.witness_id)?;
         let number = i64::try_from(payload.checkpoint_number)
             .map_err(|_| WitnessError::InvalidCheckpoint)?;
         let existing = Self::select_receipt(
