@@ -176,7 +176,8 @@ impl SqliteSecurityStore {
         installed_at: u64,
         manifest_json: &[u8],
     ) -> Result<(), SecurityStoreError> {
-        if version == 0 || issued_at >= expires_at || digest.len() != 32 || manifest_json.is_empty() {
+        if version == 0 || issued_at >= expires_at || digest.len() != 32 || manifest_json.is_empty()
+        {
             return Err(SecurityStoreError::InvalidVersion);
         }
         let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
@@ -353,8 +354,8 @@ impl SqliteSecurityStore {
         {
             return Err(SecurityStoreError::InvalidVersion);
         }
-        let consumed_i = i64::try_from(consumed_at)
-            .map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let consumed_i =
+            i64::try_from(consumed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let mut connection = self
             .connection
             .lock()
@@ -411,7 +412,9 @@ impl SqliteSecurityStore {
     }
 
     /// Return the immutable signed roster manifests needed for historical receipt verification.
-    pub(crate) fn witness_roster_manifests(&self) -> Result<Vec<(u64, Vec<u8>)>, SecurityStoreError> {
+    pub(crate) fn witness_roster_manifests(
+        &self,
+    ) -> Result<Vec<(u64, Vec<u8>)>, SecurityStoreError> {
         let connection = self
             .connection
             .lock()
@@ -422,7 +425,9 @@ impl SqliteSecurityStore {
             )
             .map_err(|_| SecurityStoreError::Unavailable)?;
         let rows = statement
-            .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?)))
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+            })
             .map_err(|_| SecurityStoreError::Unavailable)?;
         let mut manifests = Vec::new();
         for row in rows {
