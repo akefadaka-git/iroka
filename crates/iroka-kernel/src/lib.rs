@@ -51,11 +51,11 @@ pub use audit_verifier::{
     WitnessReceiptKeyResolver, WitnessRosterState, AUTHORIZED_WITNESS_COUNT,
     REQUIRED_WITNESS_QUORUM,
 };
+#[cfg(test)]
+pub(crate) use audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger};
 pub use audit_witness::{
     SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner,
 };
-#[cfg(test)]
-pub(crate) use audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
 pub(crate) use governance::{
