@@ -132,11 +132,33 @@ pub fn verify_attestation(a:&Attestation,roots:&[TrustedRoot],now:u64)->Result<(
 }
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Genesis{pub dna_id:String,pub dna_version:String,pub genome_id:String,pub genome_version:String,pub digest:String,pub canonicalization:String,pub hash_algorithm:String,pub epoch:u64,pub parent:Option<String>,pub owner_approval_ref:String,pub trust_root_key_ids:Vec<String>,pub trust_root_provenance_refs:Vec<String>,pub attestation:Attestation,pub audit_refs:Vec<String>}
+impl Genesis{
+    fn signing_bytes(&self)->Result<Vec<u8>,IgacmsError>{
+        let envelope=serde_json::json!({
+            "domain":"IROKA-IGACMS-GENESIS-V1",
+            "dna_id":self.dna_id,"dna_version":self.dna_version,
+            "genome_id":self.genome_id,"genome_version":self.genome_version,
+            "payload_digest":self.digest,"canonicalization":self.canonicalization,
+            "hash_algorithm":self.hash_algorithm,"epoch":self.epoch,"parent":self.parent,
+            "owner_approval_ref":self.owner_approval_ref,
+            "trust_root_key_ids":self.trust_root_key_ids,
+            "trust_root_provenance_refs":self.trust_root_provenance_refs,
+            "audit_refs":self.audit_refs
+        });
+        canonical_json(&envelope)
+    }
+}
+pub fn sign_genesis(g:&Genesis,key_id:&str,key:&SigningKey)->Result<Attestation,IgacmsError>{
+    let envelope_digest=Sha256::digest(g.signing_bytes()?);
+    let mut a=Attestation{envelope_type:"iroka.igacms.attestation".into(),version:"1.0.0".into(),digest:format!("{:x}",envelope_digest),epoch:g.epoch,key_id:key_id.into(),signature:Vec::new()};
+    a.signature=key.sign(&a.bytes()).to_bytes().to_vec();
+    Ok(a)
+}
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct VerifiedGenesis{digest:String,epoch:u64}
 impl VerifiedGenesis{pub fn digest(&self)->&str{&self.digest}pub fn epoch(&self)->u64{self.epoch}}
 pub fn verify_genesis(g:&Genesis,fp:&Fingerprint,roots:&[TrustedRoot],now:u64)->Result<VerifiedGenesis,IgacmsError>{
-    if g.dna_id!="iroka.dna"||g.dna_version!="1.0.0"||g.genome_id!="IROKA_ZERO_GENOME"||g.genome_version!="1.0.0"||g.digest!=fp.digest_hex||g.canonicalization!="RFC8785"||g.hash_algorithm!="SHA-256"||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||g.trust_root_provenance_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.digest!=g.digest||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}
+    if g.dna_id!="iroka.dna"||g.dna_version!="1.0.0"||g.genome_id!="IROKA_ZERO_GENOME"||g.genome_version!="1.0.0"||g.digest!=fp.digest_hex||g.canonicalization!="RFC8785-JCS"||g.hash_algorithm!="SHA-256"||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||g.trust_root_provenance_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.digest!=format!("{:x}",Sha256::digest(g.signing_bytes()?))||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}
     verify_attestation(&g.attestation,roots,now)?;
     Ok(VerifiedGenesis{digest:g.digest.clone(),epoch:g.epoch})
 }
@@ -168,7 +190,7 @@ use super::*;use ed25519_dalek::SigningKey;
 #[test]fn verifies_ed25519_and_revocation(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[9u8;32]);let a=sign_fingerprint(&fp,0,"root",&key);let r=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:99,revoked:false,provenance:"test".into()};assert!(verify_attestation(&a,&[r.clone()],50).is_ok());let mut revoked=r;revoked.revoked=true;assert_eq!(verify_attestation(&a,&[revoked],50),Err(IgacmsError::RevokedRoot));}
 #[test]fn mutation_requires_owner_and_independent_review(){assert_eq!(authorize_mutation(MutationClass::M4,&MutationEvidence::default()),Err(IgacmsError::MutationDenied));let e=MutationEvidence{owner_approved:true,independent_review:true,migration_rollback_ready:true,dual_control:true,security_review:true,impact_review:true,..Default::default()};assert!(authorize_mutation(MutationClass::M5,&e).is_ok());}
 #[test]fn preserves_dna045_outside_genesis(){let a=HistoricalArtifact{id:"DNA-045".into(),commit:"abc".into(),blob_sha:"def".into(),bytes:b"immutable".to_vec()};assert_eq!(preserve_historical(&a).unwrap().disposition,"EXTENSION-REVIEW");}
-#[test]fn verifies_epoch_zero_genesis_binding(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[4u8;32]);let att=sign_fingerprint(&fp,0,"root",&key);let root=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:100,revoked:false,provenance:"owner-approved offline custody record".into()};let g=Genesis{dna_id:"iroka.dna".into(),dna_version:"1.0.0".into(),genome_id:"IROKA_ZERO_GENOME".into(),genome_version:"1.0.0".into(),digest:fp.digest_hex.clone(),canonicalization:"RFC8785".into(),hash_algorithm:"SHA-256".into(),epoch:0,parent:None,owner_approval_ref:"approval-record:test".into(),trust_root_key_ids:vec!["root".into()],trust_root_provenance_refs:vec!["custody-record:test".into()],attestation:att,audit_refs:vec!["audit:test".into()]};assert!(verify_genesis(&g,&fp,&[root],50).is_ok());}
+#[test]fn verifies_epoch_zero_genesis_binding(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[4u8;32]);let att=sign_fingerprint(&fp,0,"root",&key);let root=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:100,revoked:false,provenance:"owner-approved offline custody record".into()};let g=Genesis{dna_id:"iroka.dna".into(),dna_version:"1.0.0".into(),genome_id:"IROKA_ZERO_GENOME".into(),genome_version:"1.0.0".into(),digest:fp.digest_hex.clone(),canonicalization:"RFC8785-JCS".into(),hash_algorithm:"SHA-256".into(),epoch:0,parent:None,owner_approval_ref:"approval-record:test".into(),trust_root_key_ids:vec!["root".into()],trust_root_provenance_refs:vec!["custody-record:test".into()],attestation:att,audit_refs:vec!["audit:test".into()]};assert!(verify_genesis(&g,&fp,&[root],50).is_ok());}
 #[test]fn rejects_epoch_rollback(){assert_eq!(verify_epoch_transition(1,"d",1,None),Err(IgacmsError::Epoch));assert!(verify_epoch_transition(1,"d",2,Some("d")).is_ok());}
 
 }
