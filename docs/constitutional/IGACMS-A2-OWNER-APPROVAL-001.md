@@ -27,7 +27,7 @@ The Owner explicitly approved D01 through D14 as proposed, without amendment, de
 | D10 | Adopt the M0–M5 mutation classification and governed evolution model. | APPROVED |
 | D11 | Enforce strict separation of identity, authority, authorization and execution. | APPROVED |
 | D12 | Require constitutional enforcement at the Kernel boundary; documentation or unit tests alone are insufficient. | APPROVED |
-| D13 | Use ake fadaka-git/iroka (canonical repository name: akefadaka-git/iroka) as destination and akeayu/iroka as historical reference. | APPROVED |
+| D13 | Use akefadaka-git/iroka as destination and akeayu/iroka as historical reference. | APPROVED |
 | D14 | No A3 implementation, merge or deployment until a separate explicit Owner authorization is issued. | APPROVED |
 
 ## Binding interpretation
