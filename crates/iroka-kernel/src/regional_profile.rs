@@ -142,7 +142,9 @@ fn valid_iso_date(value: &str) -> bool {
         && parts[0].len() == 4
         && parts[1].len() == 2
         && parts[2].len() == 2
-        && parts.iter().all(|part| part.bytes().all(|byte| byte.is_ascii_digit()))
+        && parts
+            .iter()
+            .all(|part| part.bytes().all(|byte| byte.is_ascii_digit()))
 }
 
 fn contains_unique_non_empty(values: &[String]) -> bool {
@@ -172,7 +174,11 @@ impl RegionalProfile {
             || !contains_unique_non_empty(&self.calendar.supported)
             || self.time_zone.trim().is_empty()
             || self.currencies.default.len() != 3
-            || !self.currencies.default.bytes().all(|byte| byte.is_ascii_uppercase())
+            || !self
+                .currencies
+                .default
+                .bytes()
+                .all(|byte| byte.is_ascii_uppercase())
             || !self.currencies.supported.contains(&self.currencies.default)
             || !contains_unique_non_empty(&self.currencies.supported)
             || !contains_unique_non_empty(&self.numeral_systems)
