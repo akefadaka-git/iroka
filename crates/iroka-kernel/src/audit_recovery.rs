@@ -214,7 +214,6 @@ impl RecoveryApprovalVerifier {
             return Err(RecoveryError::ScopeMismatch);
         }
 
-        let mut approval_digests = Vec::with_capacity(2);
         for approval in approvals {
             let payload = &approval.payload;
             let key = self
@@ -244,7 +243,6 @@ impl RecoveryApprovalVerifier {
             key.verifying_key
                 .verify(&signing_bytes, &signature)
                 .map_err(|_| RecoveryError::InvalidSignature)?;
-            approval_digests.push(Sha256::digest(&signing_bytes).to_vec());
         }
 
         let high_water = external
@@ -297,5 +295,188 @@ impl RecoveryApprovalVerifier {
             local_ahead_of_witnessed_head: local.last_sequence > high_water.last_sequence,
             approved_by,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
+
+    struct TestHighWater(Option<RecoveryHighWater>);
+    impl ExternalWitnessHighWater for TestHighWater {
+        fn high_water(&self, _stream_id: &str) -> Result<Option<RecoveryHighWater>, RecoveryError> {
+            Ok(self.0)
+        }
+    }
+
+    fn fixture() -> (
+        RecoveryApprovalVerifier,
+        SigningKey,
+        SigningKey,
+        RecoveryHighWater,
+        Arc<SqliteSecurityStore>,
+    ) {
+        let first = SigningKey::from_bytes(&[41; 32]);
+        let second = SigningKey::from_bytes(&[42; 32]);
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let verifier = RecoveryApprovalVerifier::new(
+            vec![
+                TrustedRecoveryApprover {
+                    subject: "operator:one".into(),
+                    key_id: "recovery-key-one".into(),
+                    public_key: first.verifying_key().to_bytes(),
+                    not_before: 900,
+                    not_after: 5_000,
+                },
+                TrustedRecoveryApprover {
+                    subject: "operator:two".into(),
+                    key_id: "recovery-key-two".into(),
+                    public_key: second.verifying_key().to_bytes(),
+                    not_before: 900,
+                    not_after: 5_000,
+                },
+            ],
+            store.clone(),
+        )
+        .unwrap();
+        let high_water = RecoveryHighWater {
+            checkpoint_number: 4,
+            checkpoint_digest: [7; 32],
+            last_sequence: 20,
+            head_event_hash: [8; 32],
+        };
+        (verifier, first, second, high_water, store)
+    }
+
+    fn approvals(
+        first: &SigningKey,
+        second: &SigningKey,
+        recovery_id: &str,
+        local_sequence: u64,
+        local_hash: [u8; 32],
+    ) -> [SignedRecoveryApproval; 2] {
+        let payloads = [
+            RecoveryApprovalPayload {
+                approval_id: "approval:one".into(),
+                recovery_id: recovery_id.into(),
+                approver_subject: "operator:one".into(),
+                key_id: "recovery-key-one".into(),
+                stream_id: "stream:pilot".into(),
+                expected_checkpoint_number: 4,
+                expected_checkpoint_digest: [7; 32],
+                local_sequence,
+                local_head_hash: local_hash,
+                issued_at: 1_000,
+                expires_at: 1_500,
+            },
+            RecoveryApprovalPayload {
+                approval_id: "approval:two".into(),
+                recovery_id: recovery_id.into(),
+                approver_subject: "operator:two".into(),
+                key_id: "recovery-key-two".into(),
+                stream_id: "stream:pilot".into(),
+                expected_checkpoint_number: 4,
+                expected_checkpoint_digest: [7; 32],
+                local_sequence,
+                local_head_hash: local_hash,
+                issued_at: 1_000,
+                expires_at: 1_500,
+            },
+        ];
+        let signers = [first, second];
+        std::array::from_fn(|index| {
+            let bytes = payloads[index].signing_bytes().unwrap();
+            SignedRecoveryApproval {
+                payload: payloads[index].clone(),
+                signature: signers[index].sign(&bytes).to_bytes().to_vec(),
+            }
+        })
+    }
+
+    #[test]
+    fn requires_two_distinct_approvers_and_independent_high_water() {
+        let (verifier, first, second, high_water, _) = fixture();
+        let local = AuditHead {
+            first_sequence: 1,
+            last_sequence: 22,
+            event_count: 22,
+            head_event_hash: [9; 32],
+            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+        };
+        let approvals = approvals(&first, &second, "recovery:one", 22, [9; 32]);
+        let result = verifier
+            .authorize_recovery(&approvals, &local, &TestHighWater(Some(high_water)), 1_200)
+            .unwrap();
+        assert!(result.local_ahead_of_witnessed_head);
+        assert_eq!(result.approved_by, ["operator:one", "operator:two"]);
+    }
+
+    #[test]
+    fn recovery_approval_pair_is_one_time() {
+        let (verifier, first, second, high_water, _) = fixture();
+        let local = AuditHead {
+            first_sequence: 1,
+            last_sequence: 20,
+            event_count: 20,
+            head_event_hash: [8; 32],
+            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+        };
+        let approvals = approvals(&first, &second, "recovery:replay", 20, [8; 32]);
+        let external = TestHighWater(Some(high_water));
+        assert!(verifier
+            .authorize_recovery(&approvals, &local, &external, 1_200)
+            .is_ok());
+        assert_eq!(
+            verifier.authorize_recovery(&approvals, &local, &external, 1_200),
+            Err(RecoveryError::Replay)
+        );
+    }
+
+    #[test]
+    fn refuses_local_rollback_below_external_high_water() {
+        let (verifier, first, second, high_water, _) = fixture();
+        let local = AuditHead {
+            first_sequence: 1,
+            last_sequence: 19,
+            event_count: 19,
+            head_event_hash: [6; 32],
+            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+        };
+        let approvals = approvals(&first, &second, "recovery:rollback", 19, [6; 32]);
+        assert_eq!(
+            verifier.authorize_recovery(
+                &approvals,
+                &local,
+                &TestHighWater(Some(high_water)),
+                1_200
+            ),
+            Err(RecoveryError::LocalRollbackOrTampering)
+        );
+    }
+
+    #[test]
+    fn refuses_duplicate_approver_identity() {
+        let (verifier, first, second, high_water, _) = fixture();
+        let mut approvals = approvals(&first, &second, "recovery:duplicate", 20, [8; 32]);
+        approvals[1].payload.approver_subject = approvals[0].payload.approver_subject.clone();
+        let bytes = approvals[1].payload.signing_bytes().unwrap();
+        approvals[1].signature = second.sign(&bytes).to_bytes().to_vec();
+        let local = AuditHead {
+            first_sequence: 1,
+            last_sequence: 20,
+            event_count: 20,
+            head_event_hash: [8; 32],
+            chain_format: crate::audit_checkpoint::V1_CHAIN_FORMAT.into(),
+        };
+        assert_eq!(
+            verifier.authorize_recovery(
+                &approvals,
+                &local,
+                &TestHighWater(Some(high_water)),
+                1_200
+            ),
+            Err(RecoveryError::DuplicateApprover)
+        );
     }
 }
