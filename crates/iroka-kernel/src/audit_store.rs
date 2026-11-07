@@ -212,6 +212,42 @@ impl SqliteAuditSink {
         })
     }
 
+    /// Confirm that a locally verified event-chain prefix matches an independently
+    /// obtained checkpoint high-water hash. This prevents accepting a locally valid
+    /// but divergent chain merely because it has a larger terminal sequence.
+    pub fn verify_prefix_head(
+        &self,
+        sequence: u64,
+        expected_hash: &[u8; 32],
+    ) -> Result<bool, AuditStoreError> {
+        if sequence == 0 {
+            return Ok(expected_hash == &ZERO);
+        }
+        let sequence_i =
+            i64::try_from(sequence).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Deferred)
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        verify_connection(&tx)?;
+        let stored: Option<Vec<u8>> = tx
+            .query_row(
+                "SELECT event_hash FROM audit_events WHERE sequence=?1",
+                params![sequence_i],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
+        let Some(stored) = stored else {
+            return Ok(false);
+        };
+        Ok(stored.as_slice() == expected_hash)
+    }
+
     pub fn head(&self) -> Result<(u64, [u8; 32]), AuditStoreError> {
         let c = self
             .connection
