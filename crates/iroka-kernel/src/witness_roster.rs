@@ -7,10 +7,11 @@
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::sync::RwLock;
 
 use crate::audit_verifier::{
     AuthorizedWitness, VerificationError, WitnessReceiptVerifier, WitnessRosterState,
-    AUTHORIZED_WITNESS_COUNT,
+    verify_checkpoint_and_quorum, AUTHORIZED_WITNESS_COUNT, REQUIRED_WITNESS_QUORUM,
 };
 use crate::{SecurityStoreError, SqliteSecurityStore};
 
@@ -110,6 +111,7 @@ pub enum WitnessRosterManifestError {
     InvalidRoster,
     Rollback,
     StoreUnavailable,
+    RuntimeUnavailable,
 }
 
 impl From<SecurityStoreError> for WitnessRosterManifestError {
@@ -252,6 +254,89 @@ pub fn activate_signed_witness_roster(
         payload.version,
         payload.expires_at,
     ))
+}
+
+/// Process-local atomic roster lifecycle. Durable anti-rollback state is committed
+/// before the active verifier is swapped; readers observe either the old complete
+/// roster or the new complete roster, never a partially populated roster.
+pub struct WitnessRosterRuntime {
+    active: RwLock<WitnessRosterState>,
+}
+
+impl WitnessRosterRuntime {
+    pub fn unprovisioned() -> Self {
+        Self {
+            active: RwLock::new(WitnessRosterState::unprovisioned()),
+        }
+    }
+
+    /// Verify, durably install and atomically activate a new Owner-signed roster.
+    pub fn activate(
+        &self,
+        manifest: &SignedWitnessRosterManifest,
+        root: &OwnerWitnessRosterRoot,
+        store: &SqliteSecurityStore,
+        now: u64,
+    ) -> Result<u64, WitnessRosterManifestError> {
+        let next = activate_signed_witness_roster(manifest, root, store, now)?;
+        let version = next
+            .version()
+            .ok_or(WitnessRosterManifestError::Malformed)?;
+        let mut active = self
+            .active
+            .write()
+            .map_err(|_| WitnessRosterManifestError::RuntimeUnavailable)?;
+        if active.version().is_some_and(|current| version < current) {
+            return Err(WitnessRosterManifestError::Rollback);
+        }
+        *active = next;
+        Ok(version)
+    }
+
+    /// Verify under a read lock so one operation cannot observe mixed roster state.
+    pub fn verify_checkpoint_and_quorum(
+        &self,
+        signed: &crate::audit_signer::SignedCheckpoint,
+        checkpoint_verifier: &dyn crate::audit_signer::CheckpointSignatureVerifier,
+        receipts: &[crate::audit_witness::WitnessReceipt],
+        now: u64,
+    ) -> Result<(), VerificationError> {
+        let active = self
+            .active
+            .read()
+            .map_err(|_| VerificationError::WitnessRosterRuntimeUnavailable)?;
+        verify_checkpoint_and_quorum(
+            signed,
+            checkpoint_verifier,
+            receipts,
+            &active,
+            now,
+        )
+    }
+
+    /// Expired trust is removed from process memory, not merely rejected on reads.
+    /// Returns true only when an active roster was invalidated.
+    pub fn invalidate_if_expired(
+        &self,
+        now: u64,
+    ) -> Result<bool, WitnessRosterManifestError> {
+        let mut active = self
+            .active
+            .write()
+            .map_err(|_| WitnessRosterManifestError::RuntimeUnavailable)?;
+        if active.is_expired_at(now) {
+            *active = WitnessRosterState::unprovisioned();
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    pub fn active_version(&self) -> Result<Option<u64>, WitnessRosterManifestError> {
+        self.active
+            .read()
+            .map(|active| active.version())
+            .map_err(|_| WitnessRosterManifestError::RuntimeUnavailable)
+    }
 }
 
 #[cfg(test)]
@@ -527,5 +612,22 @@ mod tests {
             activate_signed_witness_roster(&conflicting, &root, &store, 1_100),
             Err(WitnessRosterManifestError::Rollback)
         ));
+    }    #[test]
+    fn runtime_atomically_replaces_roster_and_invalidates_expired_state() {
+        let (_, root, first) = fixture(1);
+        let (_, _, second) = fixture(2);
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let runtime = WitnessRosterRuntime::unprovisioned();
+        assert_eq!(runtime.active_version().unwrap(), None);
+        assert_eq!(runtime.activate(&first, &root, &store, 1_100), Ok(1));
+        assert_eq!(runtime.active_version().unwrap(), Some(1));
+        assert_eq!(runtime.activate(&second, &root, &store, 1_200), Ok(2));
+        assert_eq!(runtime.active_version().unwrap(), Some(2));
+        assert_eq!(runtime.invalidate_if_expired(3_999), Ok(false));
+        assert_eq!(runtime.invalidate_if_expired(4_000), Ok(true));
+        assert_eq!(runtime.active_version().unwrap(), None);
+        assert_eq!(runtime.invalidate_if_expired(4_001), Ok(false));
     }
+
+
 }
