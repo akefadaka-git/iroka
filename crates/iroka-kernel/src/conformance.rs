@@ -338,7 +338,7 @@ fn validate_catalog(catalog: &Value) -> Result<&Vec<Value>, String> {
         if requirements.is_empty()
             || requirements
                 .iter()
-                .any(|value| value.as_str().is_none_or(|text| text.trim().is_empty()))
+                .any(|value| value.as_str().map_or(true, |text| text.trim().is_empty()))
         {
             return Err(format!(
                 "{id}: requirement_ids must contain non-empty strings"
