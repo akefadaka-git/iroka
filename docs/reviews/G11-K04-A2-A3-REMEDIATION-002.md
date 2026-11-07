@@ -101,17 +101,9 @@ The remediation branch has a push-triggered Rust kernel workflow. The final PR h
 - complete unit/contract tests, including new recovery, key-rotation, stream-binding, arithmetic, digest and tamper-continuation cases;
 - Clippy with warnings denied under the configured policy.
 
-The final PR-head CI result is recorded below. The workflow ran on the pull-request event and checked out the exact final SHA; no earlier SHA's successful run is transferred to this head.
+The authoritative exact-SHA verification evidence is maintained in the live PR #10 description. It is updated after every final-head run; do not reuse a prior head's result after the PR changes.
 
-- Checked-out SHA: `067604a57ee109bc674fea4221b47668a7426502`
-- Workflow: [Rust kernel verification — run #194](https://github.com/akefadaka-git/iroka/actions/runs/42321521852)
-- Formatting: PASS
-- Locked workspace/all-target compilation: PASS
-- Production feature configuration: PASS
-- Development bypass rejection in non-test build: PASS (expected rejection)
-- Unit/contract tests: PASS — 89 + 2 = 91 passed, 0 failed
-- Clippy: PASS
-- Job conclusion: SUCCESS; all nine verification steps completed.
+This document records the source-level remediation and A2/A3 disposition. The PR description records the current checked-out SHA, workflow URL, job results and test totals.
 
 ## 7. Final disposition
 
