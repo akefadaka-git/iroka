@@ -38,8 +38,6 @@ pub use audit_recovery::{
     RecoveryAuthorization, RecoveryError, RecoveryHighWater, SignedRecoveryApproval,
     TrustedRecoveryApprover,
 };
-#[cfg(test)]
-pub(crate) use audit_signer::LocalEd25519TestSigner;
 pub use audit_signer::{
     CheckpointSignatureVerifier, CheckpointSigner, Ed25519CheckpointVerifier, SignedCheckpoint,
     SignerError,
@@ -51,8 +49,6 @@ pub use audit_verifier::{
     WitnessReceiptKeyResolver, WitnessRosterState, AUTHORIZED_WITNESS_COUNT,
     REQUIRED_WITNESS_QUORUM,
 };
-#[cfg(test)]
-pub(crate) use audit_witness::{LocalWitnessTestSigner, MemoryWitnessLedger};
 pub use audit_witness::{
     SqliteWitnessLedger, WitnessError, WitnessLedger, WitnessReceipt, WitnessReceiptSigner,
 };
