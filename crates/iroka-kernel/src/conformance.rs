@@ -138,6 +138,151 @@ fn execute_registered_case(test_id: &str) -> Option<CaseOutcome> {
                 })
             }
         }
+        "A1-TIME-001" => {
+            let value = crate::TemporalValue::DateOnly {
+                calendar: "ethiopic".into(),
+                year: 2019,
+                month: 1,
+                day: 1,
+            };
+            if value.validate().is_ok()
+                && value.kind() == crate::TemporalKind::DateOnly
+                && value.as_unix_instant().is_none()
+            {
+                Some(CaseOutcome {
+                    status: CaseStatus::Pass,
+                    reason_code: "DATE_ONLY_TYPE_PRESERVED",
+                    detail: "The date-only value remains distinct from an absolute instant and cannot be silently converted to Unix time.",
+                })
+            } else {
+                Some(CaseOutcome {
+                    status: CaseStatus::Fail,
+                    reason_code: "DATE_ONLY_COERCED",
+                    detail: "Date-only semantics were not preserved.",
+                })
+            }
+        }
+        "A1-LOC-001" => {
+            let profile = crate::RegionalProfile::ethiopia_technical_fixture();
+            let resolved = crate::resolve_regional_profile(
+                &profile,
+                "2026-11-07",
+                &crate::ProfileResolutionContext::default(),
+                crate::ProfileRequirement::Presentation,
+            );
+            if resolved.is_ok_and(|value| value.language == "am-ET") {
+                Some(CaseOutcome {
+                    status: CaseStatus::Pass,
+                    reason_code: "ETHIOPIA_LOCALE_DEFAULT",
+                    detail: "The Ethiopia technical profile resolves its declared Amharic primary locale.",
+                })
+            } else {
+                Some(CaseOutcome {
+                    status: CaseStatus::Fail,
+                    reason_code: "ETHIOPIA_LOCALE_MISMATCH",
+                    detail: "The Ethiopia technical profile did not resolve the expected primary locale.",
+                })
+            }
+        }
+        "A1-LOC-002" => {
+            let profile = crate::RegionalProfile::ethiopia_technical_fixture();
+            let resolved = crate::resolve_regional_profile(
+                &profile,
+                "2026-11-07",
+                &crate::ProfileResolutionContext::default(),
+                crate::ProfileRequirement::Presentation,
+            );
+            if resolved.is_ok_and(|value| value.time_zone == "Africa/Addis_Ababa") {
+                Some(CaseOutcome {
+                    status: CaseStatus::Pass,
+                    reason_code: "ETHIOPIA_TIME_ZONE_DEFAULT",
+                    detail: "The Ethiopia technical profile resolves Africa/Addis_Ababa as its deployment time zone.",
+                })
+            } else {
+                Some(CaseOutcome {
+                    status: CaseStatus::Fail,
+                    reason_code: "ETHIOPIA_TIME_ZONE_MISMATCH",
+                    detail: "The Ethiopia technical profile did not resolve the expected time zone.",
+                })
+            }
+        }
+        "A1-CUR-001" => {
+            let profile = crate::RegionalProfile::ethiopia_technical_fixture();
+            let resolved = crate::resolve_regional_profile(
+                &profile,
+                "2026-11-07",
+                &crate::ProfileResolutionContext::default(),
+                crate::ProfileRequirement::Presentation,
+            );
+            if resolved.is_ok_and(|value| value.currency == "ETB") {
+                Some(CaseOutcome {
+                    status: CaseStatus::Pass,
+                    reason_code: "ETHIOPIA_CURRENCY_DEFAULT",
+                    detail: "The Ethiopia technical profile resolves ETB as its configured currency.",
+                })
+            } else {
+                Some(CaseOutcome {
+                    status: CaseStatus::Fail,
+                    reason_code: "ETHIOPIA_CURRENCY_MISMATCH",
+                    detail: "The Ethiopia technical profile did not resolve ETB.",
+                })
+            }
+        }
+        "A1-REG-001" => {
+            let profile = crate::RegionalProfile::kenya_technical_fixture();
+            let resolved = crate::resolve_regional_profile(
+                &profile,
+                "2026-11-07",
+                &crate::ProfileResolutionContext::default(),
+                crate::ProfileRequirement::Presentation,
+            );
+            if resolved.is_ok_and(|value| {
+                value.jurisdiction == "KE"
+                    && value.calendar == "gregorian"
+                    && value.time_zone == "Africa/Nairobi"
+                    && value.currency == "KES"
+                    && !value.scripts.contains(&"Ethiopic".into())
+            }) {
+                Some(CaseOutcome {
+                    status: CaseStatus::Pass,
+                    reason_code: "REGIONAL_DEFAULTS_ISOLATED",
+                    detail: "The synthetic Kenya profile resolves its own language/calendar/time-zone/currency configuration without inheriting Ethiopia defaults.",
+                })
+            } else {
+                Some(CaseOutcome {
+                    status: CaseStatus::Fail,
+                    reason_code: "REGIONAL_DEFAULTS_LEAKED",
+                    detail: "The synthetic Kenya profile inherited or resolved an Ethiopia-specific value.",
+                })
+            }
+        }
+        "A1-REG-002" => {
+            let profile = crate::RegionalProfile::ethiopia_technical_fixture();
+            let mut value = match serde_json::to_value(profile) {
+                Ok(value) => value,
+                Err(_) => {
+                    return Some(CaseOutcome {
+                        status: CaseStatus::Fail,
+                        reason_code: "PROFILE_SERIALIZATION_FAILED",
+                        detail: "The typed regional profile could not be serialized for the authority-boundary check.",
+                    });
+                }
+            };
+            value["kernel_authority"] = json!({"may_override": true});
+            if serde_json::from_value::<crate::RegionalProfile>(value).is_err() {
+                Some(CaseOutcome {
+                    status: CaseStatus::Pass,
+                    reason_code: "UNKNOWN_AUTHORITY_FIELD_REJECTED",
+                    detail: "The strict regional-profile schema rejects an attempted kernel-authority field.",
+                })
+            } else {
+                Some(CaseOutcome {
+                    status: CaseStatus::Fail,
+                    reason_code: "AUTHORITY_FIELD_ACCEPTED",
+                    detail: "The regional profile accepted an unrecognized kernel-authority field.",
+                })
+            }
+        }
         _ => None,
     }
 }
@@ -311,8 +456,8 @@ mod tests {
         let report = build_conformance_report(CATALOG, &BTreeMap::new(), 10, 20).unwrap();
         assert_eq!(report["case_count"], REQUIRED_CASE_COUNT);
         assert_eq!(report["gate_status"], "BLOCKED");
-        assert_eq!(report["counts"]["PASS"], 3);
-        assert_eq!(report["counts"]["BLOCKED"], 37);
+        assert_eq!(report["counts"]["PASS"], 9);
+        assert_eq!(report["counts"]["BLOCKED"], 31);
         assert_eq!(report["counts"]["FAIL"], 0);
     }
 
