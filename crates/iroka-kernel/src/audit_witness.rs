@@ -739,5 +739,4 @@ mod tests {
             Err(WitnessError::StorageUnavailable)
         );
     }
-
 }
