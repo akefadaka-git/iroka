@@ -16,7 +16,7 @@ pub enum IgacmsError { Malformed, Identity, MissingDomain(String), Chromosome, G
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Fingerprint { pub digest_hex:String, pub canonical_bytes:Vec<u8>, pub algorithm:&'static str, pub canonicalization:&'static str }
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq,Eq)]
 pub struct ValidatedGenome { pub value:Value, pub fingerprint:Fingerprint }
 
 struct UniqueValue(Value);
@@ -105,23 +105,23 @@ pub fn sign_fingerprint(fp:&Fingerprint,epoch:u64,key_id:&str,key:&SigningKey)->
 }
 pub fn verify_attestation(a:&Attestation,roots:&[TrustedRoot],now:u64)->Result<(),IgacmsError>{
     let r=roots.iter().find(|r|r.key_id==a.key_id).ok_or(IgacmsError::UnknownRoot)?;
-    if r.revoked{return Err(IgacmsError::RevokedRoot)}if now<r.not_before||now>=r.not_after||r.provenance.trim().is_empty(){return Err(IgacmsError::RootExpired)}
+    if r.revoked{return Err(IgacmsError::RevokedRoot)}if now<r.not_before||now>=r.not_after||r.not_before>=r.not_after||r.provenance.trim().is_empty(){return Err(IgacmsError::RootExpired)}if a.envelope_type!="iroka.igacms.attestation"||a.version!="1.0.0"{return Err(IgacmsError::Signature)}
     let k=VerifyingKey::from_bytes(&r.public_key).map_err(|_|IgacmsError::UnknownRoot)?;
     let s=Signature::from_slice(&a.signature).map_err(|_|IgacmsError::Signature)?;
     k.verify(&a.bytes(),&s).map_err(|_|IgacmsError::Signature)
 }
 #[derive(Debug,Clone,PartialEq,Eq)]
-pub struct Genesis{pub dna_id:String,pub genome_id:String,pub digest:String,pub epoch:u64,pub parent:Option<String>,pub owner_approval_ref:String,pub trust_root_key_ids:Vec<String>,pub attestation:Attestation,pub audit_refs:Vec<String>}
+pub struct Genesis{pub dna_id:String,pub dna_version:String,pub genome_id:String,pub genome_version:String,pub digest:String,pub canonicalization:String,pub hash_algorithm:String,pub epoch:u64,pub parent:Option<String>,pub owner_approval_ref:String,pub trust_root_key_ids:Vec<String>,pub trust_root_provenance_refs:Vec<String>,pub attestation:Attestation,pub audit_refs:Vec<String>}
 pub fn verify_genesis(g:&Genesis,fp:&Fingerprint,roots:&[TrustedRoot],now:u64)->Result<(),IgacmsError>{
-    if g.dna_id!="iroka.dna"||g.genome_id!="IROKA_ZERO_GENOME"||g.digest!=fp.digest_hex||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.digest!=g.digest||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}
+    if g.dna_id!="iroka.dna"||g.dna_version!="1.0.0"||g.genome_id!="IROKA_ZERO_GENOME"||g.genome_version!="1.0.0"||g.digest!=fp.digest_hex||g.canonicalization!="RFC8785"||g.hash_algorithm!="SHA-256"||g.epoch!=0||g.parent.is_some()||g.owner_approval_ref.trim().is_empty()||g.audit_refs.is_empty()||g.trust_root_provenance_refs.is_empty()||!g.trust_root_key_ids.contains(&g.attestation.key_id)||g.attestation.digest!=g.digest||g.attestation.epoch!=0||g.attestation.envelope_type!="iroka.igacms.attestation"||g.attestation.version!="1.0.0"{return Err(IgacmsError::Genesis)}
     verify_attestation(&g.attestation,roots,now)
 }
 pub fn verify_epoch_transition(epoch:u64,digest:&str,next:u64,parent:Option<&str>)->Result<(),IgacmsError>{if next!=epoch.saturating_add(1)||parent!=Some(digest){Err(IgacmsError::Epoch)}else{Ok(())}}
 
 #[derive(Debug,Clone,Copy,PartialEq,Eq)]pub enum MutationClass{M0,M1,M2,M3,M4,M5}
-#[derive(Debug,Clone,Default,PartialEq,Eq)]pub struct MutationEvidence{pub owner_approved:bool,pub independent_review:bool,pub compatibility_checked:bool,pub migration_rollback_ready:bool,pub dual_control:bool,pub canonical_diff:bool}
+#[derive(Debug,Clone,Default,PartialEq,Eq)]pub struct MutationEvidence{pub owner_approved:bool,pub independent_review:bool,pub compatibility_checked:bool,pub schema_validated:bool,pub conformance_vectors_passed:bool,pub semantic_equivalence:bool,pub security_review:bool,pub impact_review:bool,pub migration_rollback_ready:bool,pub dual_control:bool,pub canonical_diff:bool}
 pub fn authorize_mutation(c:MutationClass,e:&MutationEvidence)->Result<(),IgacmsError>{
-    let ok=match c{MutationClass::M0=>e.canonical_diff,MutationClass::M1=>e.canonical_diff&&e.independent_review,MutationClass::M2=>e.compatibility_checked&&e.independent_review,MutationClass::M3=>e.independent_review&&e.migration_rollback_ready&&e.owner_approved,MutationClass::M4=>e.owner_approved&&e.independent_review&&e.migration_rollback_ready,MutationClass::M5=>e.owner_approved&&e.independent_review&&e.migration_rollback_ready&&e.dual_control};
+    let ok=match c{MutationClass::M0=>e.canonical_diff,MutationClass::M1=>e.canonical_diff&&e.independent_review&&e.semantic_equivalence,MutationClass::M2=>e.compatibility_checked&&e.schema_validated&&e.conformance_vectors_passed,MutationClass::M3=>e.security_review&&e.impact_review&&e.migration_rollback_ready&&e.owner_approved,MutationClass::M4=>e.owner_approved&&e.independent_review&&e.migration_rollback_ready,MutationClass::M5=>e.owner_approved&&e.independent_review&&e.migration_rollback_ready&&e.dual_control};
     if ok{Ok(())}else{Err(IgacmsError::MutationDenied)}
 }
 #[derive(Debug,Clone,PartialEq,Eq)]pub struct HistoricalArtifact{pub id:String,pub commit:String,pub blob_sha:String,pub bytes:Vec<u8>}
@@ -135,14 +135,14 @@ pub fn cross_chromosome_invariants()->&'static [&'static str]{&[
 
 #[cfg(test)]mod tests{
 use super::*;use ed25519_dalek::SigningKey;
-#[test]fn rejects_duplicate_object_keys_before_canonicalization(){assert_eq!(validate_genome(br#"{\"a\":1,\"a\":2}"#),Err(IgacmsError::Malformed));}
+#[test]fn rejects_duplicate_object_keys_before_canonicalization(){assert_eq!(validate_genome(br#"{"a":1,"a":2}"#),Err(IgacmsError::Malformed));}
 #[test]fn marker_cannot_upgrade_unknown_to_pass(){let a=MarkerAssertion{assertion_id:"a".into(),marker_id:"IDN-001".into(),subject_id:"s".into(),genome_version:"1.0.0".into(),chromosome_version:"1.0.0".into(),asserted_state:"UNKNOWN".into(),issuer:"issuer".into(),issued_at:1,valid_from:1,valid_until:None,evidence_refs:vec![],verifier:"".into(),verification_method:"".into(),signature_ref:None,supersedes_ref:None,status:"PASS".into()};assert_eq!(validate_marker_assertion(&a),Err(IgacmsError::Marker));}
 #[test]fn validates_all_twelve_and_reasoning_domain(){let f=validate_embedded_baseline().unwrap();assert_eq!(f.algorithm,"SHA-256");}
 #[test]fn rejects_missing_reasoning(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();v["historical_domains"]=Value::Array(v["historical_domains"].as_array().unwrap().iter().filter(|x|x.as_str()!=Some("reasoning")).cloned().collect());assert!(matches!(validate_genome(&serde_json::to_vec(&v).unwrap()),Err(IgacmsError::MissingDomain(_))));}
 #[test]fn rejects_duplicate_gene_ids(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();let first=v["genes"][0].clone();v["genes"][1]=first;assert!(matches!(validate_genome(&serde_json::to_vec(&v).unwrap()),Err(IgacmsError::DuplicateId(_))));}
 #[test]fn rejects_dependency_cycle(){let mut v:Value=serde_json::from_slice(EMBEDDED).unwrap();v["dependency_graph"][0]["depends_on"]=serde_json::json!(["G02"]);v["dependency_graph"][1]["depends_on"]=serde_json::json!(["G01"]);assert_eq!(validate_genome(&serde_json::to_vec(&v).unwrap()).unwrap_err(),IgacmsError::DependencyCycle);}
 #[test]fn verifies_ed25519_and_revocation(){let fp=validate_embedded_baseline().unwrap();let key=SigningKey::from_bytes(&[9u8;32]);let a=sign_fingerprint(&fp,0,"root",&key);let r=TrustedRoot{key_id:"root".into(),public_key:key.verifying_key().to_bytes(),not_before:1,not_after:99,revoked:false,provenance:"test".into()};assert!(verify_attestation(&a,&[r.clone()],50).is_ok());let mut revoked=r;revoked.revoked=true;assert_eq!(verify_attestation(&a,&[revoked],50),Err(IgacmsError::RevokedRoot));}
-#[test]fn mutation_requires_owner_and_independent_review(){assert_eq!(authorize_mutation(MutationClass::M4,&MutationEvidence::default()),Err(IgacmsError::MutationDenied));let e=MutationEvidence{owner_approved:true,independent_review:true,migration_rollback_ready:true,dual_control:true,..Default::default()};assert!(authorize_mutation(MutationClass::M5,&e).is_ok());}
+#[test]fn mutation_requires_owner_and_independent_review(){assert_eq!(authorize_mutation(MutationClass::M4,&MutationEvidence::default()),Err(IgacmsError::MutationDenied));let e=MutationEvidence{owner_approved:true,independent_review:true,migration_rollback_ready:true,dual_control:true,security_review:true,impact_review:true,..Default::default()};assert!(authorize_mutation(MutationClass::M5,&e).is_ok());}
 #[test]fn preserves_dna045_outside_genesis(){let a=HistoricalArtifact{id:"DNA-045".into(),commit:"abc".into(),blob_sha:"def".into(),bytes:b"immutable".to_vec()};assert_eq!(preserve_historical(&a).unwrap().disposition,"EXTENSION-REVIEW");}
 #[test]fn rejects_epoch_rollback(){assert_eq!(verify_epoch_transition(1,"d",1,None),Err(IgacmsError::Epoch));assert!(verify_epoch_transition(1,"d",2,Some("d")).is_ok());}
 #[derive(Debug,Clone,PartialEq,Eq)]
