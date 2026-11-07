@@ -95,9 +95,7 @@ pub fn assess_anchoring(
             }
         }
     };
-    if age_value > max_age
-        || unanchored_events > max_events
-    {
+    if age_value > max_age || unanchored_events > max_events {
         return AnchoringAssessment {
             state: AnchoringState::Stale,
             high_risk_operations_allowed: false,
@@ -255,12 +253,22 @@ mod tests {
             reason: "pre-maintenance anchor".into(),
             requested_at: 100,
         };
-        assert!(checkpoint_due_with_manual_request(policy, 1, 1, Some(&valid)));
+        assert!(checkpoint_due_with_manual_request(
+            policy,
+            1,
+            1,
+            Some(&valid)
+        ));
         let invalid = ManualCheckpointRequest {
             reason: " ".into(),
             ..valid
         };
-        assert!(!checkpoint_due_with_manual_request(policy, 1, 1, Some(&invalid)));
+        assert!(!checkpoint_due_with_manual_request(
+            policy,
+            1,
+            1,
+            Some(&invalid)
+        ));
     }
 
     #[test]
