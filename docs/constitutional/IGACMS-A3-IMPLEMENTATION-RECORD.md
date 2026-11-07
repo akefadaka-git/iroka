@@ -16,7 +16,5 @@
 8. A3.8 — Positive/negative conformance tests; full A4 exact-SHA execution and independent review require recorded evidence.
 
 ## Known limitations to close before A3 completion
-- Raw JSON duplicate-key detection is not yet implemented at token parsing level.
-- JCS numeric serialization is restricted to integer-only values; full RFC 8785 numeric support is required before claiming general JCS conformance.
 - Trust-root provenance metadata is not a production custody ceremony.
 - Source tests are not PASS evidence until run at the exact final SHA.
