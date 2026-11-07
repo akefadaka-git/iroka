@@ -3,7 +3,7 @@
   "$id": "https://iroka.local/igacms/1.0.0/genome.schema.json",
   "title": "IROKA ZERO IGACMS Genome v1.0.0",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "schema_version",
     "specification_id",
