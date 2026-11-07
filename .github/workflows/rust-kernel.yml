@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, architecture/a2-reconciliation-contracts]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: rust-kernel-${{ github.event.pull_request.number || github.ref }}
