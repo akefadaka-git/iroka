@@ -70,6 +70,8 @@ pub struct TrustRoot {
     pub public_key: [u8; 32],
     pub not_before: u64,
     pub not_after: u64,
+    /// Owner-controlled provenance record for this offline root ceremony.
+    pub provenance_ref: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,6 +118,7 @@ impl TrustRootSet {
         for root in roots {
             if root.key_id.trim().is_empty()
                 || root.not_before >= root.not_after
+                || root.provenance_ref.trim().is_empty()
                 || VerifyingKey::from_bytes(&root.public_key).is_err()
                 || indexed.insert(root.key_id.clone(), root).is_some()
             {
@@ -125,7 +128,7 @@ impl TrustRootSet {
         Ok(Self { roots: indexed })
     }
 
-    fn get(&self, key_id: &str) -> Result<&TrustRoot, TrustBundleError> {
+    pub(crate) fn get(&self, key_id: &str) -> Result<&TrustRoot, TrustBundleError> {
         self.roots.get(key_id).ok_or(TrustBundleError::InvalidRoot)
     }
 }
@@ -271,6 +274,7 @@ mod tests {
             public_key: root_signer.verifying_key().to_bytes(),
             not_before: 900,
             not_after: 10_000,
+            provenance_ref: "fixture-root-provenance".into(),
         };
         let payload = TrustBundlePayload {
             version,
@@ -382,6 +386,7 @@ mod tests {
             public_key: new_signer.verifying_key().to_bytes(),
             not_before: 1_200,
             not_after: 10_000,
+            provenance_ref: "fixture-next-root-provenance".into(),
         };
         let issuer = SigningKey::from_bytes(&[41u8; 32]);
         let payload = TrustBundlePayload {
