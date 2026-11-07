@@ -23,7 +23,7 @@ PR #5 → PR #7 → PR #8 remain the existing dependency chain. This remediation
 | K04-RV-04 — missing event-count threshold | Both freshness and event-count limits are mandatory; missing/zero values report UNCONFIGURED and force checkpoint due; manual request trigger contract added | IMPLEMENTED IN KERNEL POLICY; production numeric values and caller authorization integration remain open |
 | K04-RV-05 — receipt digest domain | Correct NUL-terminated receipt-digest domain and fixed regression vector | IMPLEMENTED IN SOURCE |
 | K04-RV-06 — consistent snapshot and append integrity | Checkpoint head verification and extraction run in one SQLite read transaction; every append revalidates the chain inside its immediate transaction | IMPLEMENTED IN SOURCE |
-| K04-RV-07 — recovery continuity | Two distinct signed recovery approvals bind one recovery ID, stream, external checkpoint and verified local head; approvals are consumed atomically; local rollback below external high-water is rejected | IMPLEMENTED IN KERNEL; external high-water adapter and production approver keys remain open |
+| K04-RV-07 — recovery continuity | Two distinct signed recovery approvals bind one recovery ID, stream, external checkpoint and chain-verified local head; approvals are consumed atomically; local history must match the external high-water hash at the exact witnessed sequence, even when local history is longer | IMPLEMENTED IN KERNEL; external high-water adapter and production approver keys remain open |
 | K04-RV-08 — test signer exposure | Local Ed25519 checkpoint/witness test signers and in-memory witness ledger are compiled/exported only under `cfg(test)` | IMPLEMENTED IN SOURCE; production-feature build verification pending |
 | K04-RV-09 — Owner decision reconciliation | Section 3 maps all OD01–OD12 to source and operational evidence | DOCUMENTED; OD02/03/06/07/10/11 production evidence remains open |
 
@@ -34,7 +34,7 @@ PR #5 → PR #7 → PR #8 remain the existing dependency chain. This remediation
 | OD01 — 3 witnesses, 2-of-3 | `audit_verifier.rs`, `witness_roster.rs` | Three production witnesses and independent operators |
 | OD02 — independent administration | `audit_witness.rs` durable adapter; operational runbook | Separate control planes, administrators, credentials, key custody and backup operators |
 | OD03 — time, event-count and manual triggers | `audit_operations.rs` | Risk-tier numeric configuration; authenticated request endpoint and production scheduler |
-| OD04 — fresh quorum for high-risk actions | `audit_operations.rs`, quorum verifier | Authorization-service enforcement integration and approved freshness values |
+| OD04 — fresh quorum for high-risk actions | `audit_operations.rs`, quorum verifier | Policy now denies high-risk operations when a fresh quorum is unavailable; authorization-service enforcement integration and approved freshness values remain open |
 | OD05 — synchronous fail-closed audit | Existing authorization/audit sink path; `audit_store.rs` | End-to-end protected-operation evidence and alert delivery |
 | OD06 — provider-neutral signer | `audit_signer.rs`, `audit_witness.rs` signer traits | Production HSM/KMS/offline adapter and custody ceremony |
 | OD07 — independent append-only witness history | `audit_witness.rs` SQLite adapter and receipt verification | Independently administered transparency/retention-locked storage |
@@ -65,13 +65,15 @@ PR #5 → PR #7 → PR #8 remain the existing dependency chain. This remediation
 - Recovery requires exactly two distinct approver subjects with valid Ed25519 signatures.
 - Both approvals bind the same recovery, stream, external checkpoint and locally verified audit head.
 - The local head is obtained from `SqliteAuditSink::checkpoint_head()`, not trusted as a caller-supplied arbitrary value.
-- The external high-water value must match the signed approvals; local history below that high-water or a conflicting hash is rejected.
+- The external high-water adapter must independently verify a 2-of-3 witness checkpoint/receipt head before returning it.
+- The local event chain is verified and its hash at the exact externally witnessed sequence is compared with the external high-water hash, including when local history is longer; local rollback or a divergent prefix is rejected.
 - Recovery IDs and approval IDs are consumed atomically and cannot be replayed.
 
 ### Operational policy
 - Missing/zero freshness or event-count thresholds are UNCONFIGURED and block high-risk operations.
 - Time and event-count checkpoint triggers are explicit.
-- A structurally valid manual checkpoint request forces a checkpoint attempt. The caller remains responsible for authenticating and authorizing the requester before accepting the request.
+- Manual requests require an attributable request ID, requester and reason, with a bounded timestamp window (30 seconds future skew; 15-minute age). A valid request forces a checkpoint attempt. The caller remains responsible for authenticating/authorizing the requester and persisting the request before accepting it.
+- High-risk operations are denied when a fresh quorum is unavailable, even if the last quorum checkpoint remains inside its age window.
 
 ## 5. Remaining A2 and production boundaries
 
@@ -99,7 +101,7 @@ The remediation branch has a push-triggered Rust kernel workflow. The final PR h
 - complete unit/contract tests, including new recovery, key-rotation, stream-binding, arithmetic, digest and tamper-continuation cases;
 - Clippy with warnings denied under the configured policy.
 
-The exact checked-out SHA, run URL, job logs and exit codes are to be appended only after a successful run against the final PR head. No earlier SHA's successful run is transferable to a later head.
+The exact checked-out SHA, run URL, job steps and test totals are recorded in the PR #10 description after successful verification against the final PR head. No earlier SHA's successful run is transferable to a later head.
 
 ## 7. Final disposition
 
