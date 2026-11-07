@@ -174,10 +174,8 @@ impl SqliteSecurityStore {
         issued_at: u64,
         expires_at: u64,
         installed_at: u64,
-        manifest_json: &[u8],
     ) -> Result<(), SecurityStoreError> {
-        if version == 0 || issued_at >= expires_at || digest.len() != 32 || manifest_json.is_empty()
-        {
+        if version == 0 || issued_at >= expires_at || digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
         }
         let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
@@ -209,14 +207,6 @@ impl SqliteSecurityStore {
                 if current_digest != digest {
                     return Err(SecurityStoreError::ConflictingVersion);
                 }
-                // Backfill the immutable signed envelope when upgrading a store created
-                // before historical-manifest retention was introduced.
-                tx.execute(
-                    "INSERT OR IGNORE INTO witness_roster_manifest_history(version,manifest_json)
-                     VALUES(?1,?2)",
-                    params![version_i, manifest_json],
-                )
-                .map_err(|_| SecurityStoreError::Unavailable)?;
                 tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
@@ -276,8 +266,13 @@ impl SqliteSecurityStore {
         issued_at: u64,
         expires_at: u64,
         installed_at: u64,
+        manifest_json: &[u8],
     ) -> Result<(), SecurityStoreError> {
-        if version == 0 || issued_at >= expires_at || digest.len() != 32 {
+        if version == 0
+            || issued_at >= expires_at
+            || digest.len() != 32
+            || manifest_json.is_empty()
+        {
             return Err(SecurityStoreError::InvalidVersion);
         }
         let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
@@ -309,6 +304,14 @@ impl SqliteSecurityStore {
                 if current_digest != digest {
                     return Err(SecurityStoreError::ConflictingVersion);
                 }
+                // Backfill the immutable signed envelope when upgrading a store created
+                // before historical-manifest retention was introduced.
+                tx.execute(
+                    "INSERT OR IGNORE INTO witness_roster_manifest_history(version,manifest_json)
+                     VALUES(?1,?2)",
+                    params![version_i, manifest_json],
+                )
+                .map_err(|_| SecurityStoreError::Unavailable)?;
                 tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
