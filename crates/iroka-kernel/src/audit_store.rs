@@ -99,6 +99,9 @@ impl SqliteAuditSink {
         let tx = c
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| AuditStoreError::Unavailable)?;
+        // Revalidate the entire committed prefix inside the append transaction.
+        // Startup-only verification would allow a post-startup tamper to be extended.
+        verify_connection(&tx)?;
         let previous: Vec<u8> = tx
             .query_row(
                 "SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1",
