@@ -420,6 +420,7 @@ mod tests {
         let replay = authorize_authenticated_with_owner_approval(
             &request,
             &principal,
+            &verified_genesis,
             Some(&signed),
             &owner,
             &TestAudit,
