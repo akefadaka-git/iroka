@@ -5,7 +5,7 @@
 **Owner decisions:** D01–D14 APPROVED; conditions: none  
 **Scope:** Constitutional DNA, 12-chromosome Genome, gene/marker model, integrity, genesis, mutation governance and conformance contracts  
 **Implementation authorization:** NONE — A3 requires separate Owner authorization  
-**Destination:** ake fadaka-git/iroka (repository name: ake fadaka-git/iroka)  
+**Destination:** akefadaka-git/iroka  
 **Historical source:** akeayu/iroka, commit 1224bb8298f9ef21d2590dd6e70273501281cd9
 
 ## 1. Normative purpose and status
@@ -23,7 +23,7 @@ The canonical motto is: “Intelligence Guided by Wisdom. Governed by Integrity.
 | System | IROKA |
 | Expansion | Intelligent Reasoning, Orchestration, Knowledge & Assurance |
 | DNA identifier | iroka.dna |
-| DNA kind | IROKA_CONSTITUTIONAL_DNA |
+| DNA kind | IROKA_CONSTITUTIONAL_DNA_CONTRACT |
 | DNA contract version | 1.0.0 (historical root contract) |
 | IROKA ZERO Genome identifier | IROKA_ZERO_GENOME |
 | IGACMS specification version | 1.0.0 |
