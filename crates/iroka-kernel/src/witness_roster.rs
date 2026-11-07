@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 use std::sync::RwLock;
 
 use crate::audit_verifier::{
-    AuthorizedWitness, VerificationError, WitnessReceiptVerifier, WitnessRosterState,
-    verify_checkpoint_and_quorum, AUTHORIZED_WITNESS_COUNT, REQUIRED_WITNESS_QUORUM,
+    verify_checkpoint_and_quorum, AuthorizedWitness, VerificationError, WitnessReceiptVerifier,
+    WitnessRosterState, AUTHORIZED_WITNESS_COUNT, REQUIRED_WITNESS_QUORUM,
 };
 use crate::{SecurityStoreError, SqliteSecurityStore};
 
@@ -305,21 +305,12 @@ impl WitnessRosterRuntime {
             .active
             .read()
             .map_err(|_| VerificationError::WitnessRosterRuntimeUnavailable)?;
-        verify_checkpoint_and_quorum(
-            signed,
-            checkpoint_verifier,
-            receipts,
-            &active,
-            now,
-        )
+        verify_checkpoint_and_quorum(signed, checkpoint_verifier, receipts, &active, now)
     }
 
     /// Expired trust is removed from process memory, not merely rejected on reads.
     /// Returns true only when an active roster was invalidated.
-    pub fn invalidate_if_expired(
-        &self,
-        now: u64,
-    ) -> Result<bool, WitnessRosterManifestError> {
+    pub fn invalidate_if_expired(&self, now: u64) -> Result<bool, WitnessRosterManifestError> {
         let mut active = self
             .active
             .write()
@@ -612,7 +603,9 @@ mod tests {
             activate_signed_witness_roster(&conflicting, &root, &store, 1_100),
             Err(WitnessRosterManifestError::Rollback)
         ));
-    }    #[test]
+    }
+
+    #[test]
     fn runtime_atomically_replaces_roster_and_invalidates_expired_state() {
         let (_, root, first) = fixture(1);
         let (_, _, second) = fixture(2);
@@ -628,6 +621,4 @@ mod tests {
         assert_eq!(runtime.active_version().unwrap(), None);
         assert_eq!(runtime.invalidate_if_expired(4_001), Ok(false));
     }
-
-
 }
