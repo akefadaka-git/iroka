@@ -32,14 +32,15 @@
 
 ## 2. Current conformance disposition
 
-The exact-SHA workflow report is the authoritative count. The harness is expected to report:
+The exact-SHA pull-request workflow executed the harness on the checked-out head and reported:
 - 40 catalog cases total;
 - 9 registered synthetic adapters;
 - 8 PASS for implemented kernel/profile/temporal contracts;
 - 32 BLOCKED, including the protected-effect adapter gap and the missing reviewed fixtures, runtime components or independent oracles;
-- 0 catalog-only or implicit passes.
+- 0 FAIL and 0 NOT RUN;
+- overall A2 conformance gate: BLOCKED.
 
-A green Rust workflow means formatting, compilation, tests, lint and the harness execution succeeded. The A2 conformance gate remains BLOCKED while any required case is BLOCKED or NOT RUN.
+A green Rust workflow means formatting, compilation, tests, lint and the harness execution succeeded. It does not mean the A2 conformance gate passed; the 32 blocked cases remain release/closure blockers.
 
 ## 3. Remaining A2 blockers
 
@@ -66,7 +67,7 @@ A green Rust workflow means formatting, compilation, tests, lint and the harness
 
 ## 5. Gate disposition
 
-- A2 conformance harness: **IMPLEMENTED; EXACT-SHA EXECUTION REQUIRED**.
+- A2 conformance harness: **IMPLEMENTED; EXACT-SHA CI PASS; 8 PASS / 32 BLOCKED; GATE BLOCKED**.
 - Regional profile resolver: **IMPLEMENTED AS TECHNICAL FOUNDATION; PRODUCTION GOVERNANCE OPEN**.
 - Typed temporal semantics: **IMPLEMENTED; CALENDAR ORACLE OPEN**.
 - K-04 A2 source findings: **REMEDIATED IN PR #10; EXACT-SHA CI PASS**.
