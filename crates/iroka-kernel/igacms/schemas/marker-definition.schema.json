@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IGACMS Marker Definition v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "family",
+    "id",
+    "assertion",
+    "schema_version",
+    "states"
+  ],
+  "properties": {
+    "family": {
+      "enum": [
+        "IDN",
+        "INT",
+        "PRV",
+        "EVD",
+        "AUT",
+        "AZN",
+        "SEC",
+        "ASN",
+        "LFC",
+        "EVO",
+        "CNF"
+      ]
+    },
+    "id": {
+      "pattern": "^(IDN|INT|PRV|EVD|AUT|AZN|SEC|ASN|LFC|EVO|CNF)-[0-9]{3}$"
+    },
+    "assertion": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "states": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "DEFINED",
+          "OBSERVED",
+          "VERIFIED",
+          "ATTESTED",
+          "FAILED",
+          "REVOKED",
+          "UNKNOWN",
+          "NOT_APPLICABLE"
+        ]
+      }
+    }
+  }
+}
