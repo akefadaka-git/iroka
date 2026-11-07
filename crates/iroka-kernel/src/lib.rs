@@ -26,7 +26,7 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use igacms::{authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical, sign_fingerprint, validate_embedded_baseline, validate_genome, verify_attestation, verify_epoch_transition, verify_genesis, Attestation, Fingerprint, Genesis, HistoricalArtifact, IgacmsError, MigrationEvidence, MutationClass, MutationEvidence, TrustedRoot, ValidatedGenome};
+pub use igacms::{authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical, sign_fingerprint, validate_embedded_baseline, validate_genome, validate_marker_assertion, verify_attestation, verify_epoch_transition, verify_genesis, Attestation, Fingerprint, Genesis, HistoricalArtifact, IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence, TrustedRoot, ValidatedGenome};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
