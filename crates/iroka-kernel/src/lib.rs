@@ -81,9 +81,9 @@ pub use trust_lifecycle::{
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
 };
 pub use witness_roster::{
-    activate_signed_witness_roster, OwnerWitnessRosterRoot, SignedWitnessRosterManifest,
-    WitnessRosterEntry, WitnessRosterManager, WitnessRosterManifestError,
-    WitnessRosterManifestPayload,
+    activate_signed_witness_roster, HistoricalWitnessRosterResolver, OwnerWitnessRosterRoot,
+    SignedWitnessRosterManifest, WitnessRosterEntry, WitnessRosterManager,
+    WitnessRosterManifestError, WitnessRosterManifestPayload,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
