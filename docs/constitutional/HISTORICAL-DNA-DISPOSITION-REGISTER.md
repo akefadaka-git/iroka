@@ -88,7 +88,7 @@ DNA-001 declares the reasoning domain. DNA-012's REQUIRED_CONSTITUTIONAL_DOMAINS
 
 ### 3.4 DNA-013 fingerprint coverage
 
-DNA-013 uses SHA-256 over a canonicalized input containing DNA-001, principles, invariants, capabilities, authority, evidence, assurance, security, execution and evolution, plus validator-related contract data. It does not include the new 12-chromosome Genome catalogue, new IGACMS gene catalogue or v1.0 marker registry. Its historical fingerprint must not be reused as proof of the new Genome's integrity.
+DNA-013 uses SHA-256 over a canonicalized input containing DNA-001, principles, invariants, capabilities, authority, evidence, assurance, security, execution and evolution. The validator is run as a precondition, and the registry records a validator dependency, but the fingerprint input schema does not contain the validator as a payload field. It does not include DNA-002 identity-genome, the new 12-chromosome Genome catalogue, the new IGACMS gene catalogue or the v1.0 marker registry. Its historical fingerprint must not be reused as proof of the new Genome's integrity.
 
 ### 3.5 DNA-014 registry and DNA-015 runtime guard
 
