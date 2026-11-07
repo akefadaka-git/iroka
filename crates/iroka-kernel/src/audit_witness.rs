@@ -689,4 +689,55 @@ mod tests {
         let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
     }
+    #[test]
+    fn sqlite_witness_refuses_to_extend_tampered_persisted_history() {
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [21; 32]);
+        let verifier = Ed25519CheckpointVerifier::new(vec![(
+            "cp-key".into(),
+            checkpoint_signer.verifying_key(),
+        )]);
+        let builder = CheckpointBuilder::new("stream:tamper", "cp-key");
+        let first_head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [31; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let first = checkpoint_signer
+            .sign_checkpoint(&builder.initial_v1_anchor(&first_head, 10).unwrap())
+            .unwrap();
+        let next_head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 2,
+            event_count: 2,
+            head_event_hash: [32; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let next = checkpoint_signer
+            .sign_checkpoint(&builder.next(&next_head, &first.payload, 11).unwrap())
+            .unwrap();
+        let ledger = SqliteWitnessLedger::from_connection(
+            Connection::open_in_memory().unwrap(),
+            "witness-tamper".into(),
+            Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [22; 32])),
+        )
+        .unwrap();
+        ledger.accept(&first, &verifier, 12).unwrap();
+        {
+            let connection = ledger.connection.lock().unwrap();
+            connection
+                .execute_batch(
+                    "DROP TRIGGER witness_no_update;
+                     UPDATE witness_receipts SET previous_receipt_digest=zeroblob(32)
+                     WHERE stream_id='stream:tamper' AND checkpoint_number=1;",
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            ledger.accept(&next, &verifier, 13),
+            Err(WitnessError::StorageUnavailable)
+        );
+    }
+
 }
