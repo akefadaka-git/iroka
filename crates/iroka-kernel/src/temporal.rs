@@ -164,11 +164,17 @@ mod tests {
             time_zone: "Africa/Addis_Ababa".into(),
             fold: None,
         };
-        assert_eq!(local.validate(), Err(TemporalValueError::InvalidClockComponents));
+        assert_eq!(
+            local.validate(),
+            Err(TemporalValueError::InvalidClockComponents)
+        );
         let instant = TemporalValue::Instant {
             unix_seconds: 0,
             nanosecond: 1_000_000_000,
         };
-        assert_eq!(instant.validate(), Err(TemporalValueError::InvalidNanosecond));
+        assert_eq!(
+            instant.validate(),
+            Err(TemporalValueError::InvalidNanosecond)
+        );
     }
 }
