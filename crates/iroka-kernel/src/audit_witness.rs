@@ -739,4 +739,67 @@ mod tests {
             Err(WitnessError::StorageUnavailable)
         );
     }
+    #[test]
+    fn sqlite_witness_serializes_concurrent_duplicate_acceptance_across_connections() {
+        use std::sync::{Arc, Barrier};
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-witness-concurrent-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let checkpoint_signer = LocalEd25519TestSigner::from_test_seed("cp-key", [41; 32]);
+        let verifier = Arc::new(Ed25519CheckpointVerifier::new(vec![(
+            "cp-key".into(),
+            checkpoint_signer.verifying_key(),
+        )]));
+        let builder = CheckpointBuilder::new("stream:concurrent", "cp-key");
+        let head = AuditHead {
+            first_sequence: 1,
+            last_sequence: 1,
+            event_count: 1,
+            head_event_hash: [42; 32],
+            chain_format: V1_CHAIN_FORMAT.into(),
+        };
+        let signed = Arc::new(
+            checkpoint_signer
+                .sign_checkpoint(&builder.initial_v1_anchor(&head, 10).unwrap())
+                .unwrap(),
+        );
+        let make_ledger = || {
+            SqliteWitnessLedger::open(
+                &path,
+                "witness-concurrent",
+                Box::new(LocalWitnessTestSigner::from_test_seed("w-key", [43; 32])),
+            )
+            .unwrap()
+        };
+        let first = Arc::new(make_ledger());
+        let second = Arc::new(make_ledger());
+        let barrier = Arc::new(Barrier::new(3));
+        let spawn_accept = |ledger: Arc<SqliteWitnessLedger>, barrier: Arc<Barrier>| {
+            let signed = Arc::clone(&signed);
+            let verifier = Arc::clone(&verifier);
+            std::thread::spawn(move || {
+                barrier.wait();
+                ledger.accept(&signed, verifier.as_ref(), 11).unwrap()
+            })
+        };
+        let one = spawn_accept(Arc::clone(&first), Arc::clone(&barrier));
+        let two = spawn_accept(Arc::clone(&second), Arc::clone(&barrier));
+        barrier.wait();
+        let receipt_one = one.join().unwrap();
+        let receipt_two = two.join().unwrap();
+        assert_eq!(receipt_one, receipt_two);
+        assert_eq!(receipt_one.log_index, 1);
+        assert_eq!(first.head("stream:concurrent").unwrap(), Some(receipt_one));
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
 }
