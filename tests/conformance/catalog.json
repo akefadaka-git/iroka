@@ -515,7 +515,7 @@
       "expected_result": "PRESERVE_SEMANTIC_TYPE",
       "severity": "high",
       "status": "NOT RUN",
-      "fixture_ref": null,
+      "fixture_ref": "inline:rust-conformance-executor-v1/A1-TIME-001",
       "tested_sha": null,
       "evidence_ref": null
     },
@@ -530,7 +530,7 @@
       "expected_result": "am-ET",
       "severity": "high",
       "status": "NOT RUN",
-      "fixture_ref": null,
+      "fixture_ref": "inline:rust-conformance-executor-v1/A1-LOC-001",
       "tested_sha": null,
       "evidence_ref": null
     },
@@ -545,7 +545,7 @@
       "expected_result": "Africa/Addis_Ababa",
       "severity": "high",
       "status": "NOT RUN",
-      "fixture_ref": null,
+      "fixture_ref": "inline:rust-conformance-executor-v1/A1-LOC-002",
       "tested_sha": null,
       "evidence_ref": null
     },
@@ -560,7 +560,7 @@
       "expected_result": "ETB",
       "severity": "high",
       "status": "NOT RUN",
-      "fixture_ref": null,
+      "fixture_ref": "inline:rust-conformance-executor-v1/A1-CUR-001",
       "tested_sha": null,
       "evidence_ref": null
     },
@@ -575,7 +575,7 @@
       "expected_result": "NO_UNCONFIGURED_LEAKAGE",
       "severity": "high",
       "status": "NOT RUN",
-      "fixture_ref": null,
+      "fixture_ref": "inline:rust-conformance-executor-v1/A1-REG-001",
       "tested_sha": null,
       "evidence_ref": null
     },
@@ -590,7 +590,7 @@
       "expected_result": "DENY",
       "severity": "high",
       "status": "NOT RUN",
-      "fixture_ref": null,
+      "fixture_ref": "inline:rust-conformance-executor-v1/A1-REG-002",
       "tested_sha": null,
       "evidence_ref": null
     },
