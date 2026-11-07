@@ -416,6 +416,24 @@ mod tests {
     }
 
     #[test]
+    fn refuses_to_extend_a_chain_tampered_after_startup() {
+        let s = SqliteAuditSink::open_in_memory().unwrap();
+        s.append_event(&event("event:before-tamper")).unwrap();
+        {
+            let c = s.connection.lock().unwrap();
+            c.execute_batch(
+                "DROP TRIGGER audit_no_update; UPDATE audit_events SET subject='tampered' WHERE sequence=1",
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            s.append_event(&event("event:must-not-append")),
+            Err(AuditStoreError::IntegrityFailure)
+        );
+        assert_eq!(s.head().unwrap().0, 1);
+    }
+
+    #[test]
     fn persists_and_verifies_after_reopen() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
