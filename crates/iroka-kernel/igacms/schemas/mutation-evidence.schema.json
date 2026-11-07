@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IGACMS Mutation Evidence v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "class",
+    "evidence"
+  ],
+  "properties": {
+    "class": {
+      "enum": [
+        "M0",
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_approved",
+        "independent_review",
+        "compatibility_checked",
+        "schema_validated",
+        "conformance_vectors_passed",
+        "semantic_equivalence",
+        "security_review",
+        "impact_review",
+        "migration_rollback_ready",
+        "dual_control",
+        "canonical_diff"
+      ],
+      "properties": {
+        "owner_approved": {
+          "type": "boolean"
+        },
+        "independent_review": {
+          "type": "boolean"
+        },
+        "compatibility_checked": {
+          "type": "boolean"
+        },
+        "schema_validated": {
+          "type": "boolean"
+        },
+        "conformance_vectors_passed": {
+          "type": "boolean"
+        },
+        "semantic_equivalence": {
+          "type": "boolean"
+        },
+        "security_review": {
+          "type": "boolean"
+        },
+        "impact_review": {
+          "type": "boolean"
+        },
+        "migration_rollback_ready": {
+          "type": "boolean"
+        },
+        "dual_control": {
+          "type": "boolean"
+        },
+        "canonical_diff": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
