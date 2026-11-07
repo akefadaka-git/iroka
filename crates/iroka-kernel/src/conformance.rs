@@ -56,9 +56,7 @@ fn execute_registered_case(test_id: &str) -> Option<CaseOutcome> {
             let digest = [0xA5; 32];
             let installed = store.install_trust_bundle(2, &digest, 100, 200, 110);
             let rollback = store.install_trust_bundle(1, &digest, 100, 200, 120);
-            if installed.is_ok()
-                && matches!(rollback, Err(crate::SecurityStoreError::Rollback))
-            {
+            if installed.is_ok() && matches!(rollback, Err(crate::SecurityStoreError::Rollback)) {
                 Some(CaseOutcome {
                     status: CaseStatus::Pass,
                     reason_code: "ROLLBACK_REJECTED",
@@ -202,7 +200,8 @@ fn execute_registered_case(test_id: &str) -> Option<CaseOutcome> {
                 Some(CaseOutcome {
                     status: CaseStatus::Fail,
                     reason_code: "ETHIOPIA_TIME_ZONE_MISMATCH",
-                    detail: "The Ethiopia technical profile did not resolve the expected time zone.",
+                    detail:
+                        "The Ethiopia technical profile did not resolve the expected time zone.",
                 })
             }
         }
@@ -218,7 +217,8 @@ fn execute_registered_case(test_id: &str) -> Option<CaseOutcome> {
                 Some(CaseOutcome {
                     status: CaseStatus::Pass,
                     reason_code: "ETHIOPIA_CURRENCY_DEFAULT",
-                    detail: "The Ethiopia technical profile resolves ETB as its configured currency.",
+                    detail:
+                        "The Ethiopia technical profile resolves ETB as its configured currency.",
                 })
             } else {
                 Some(CaseOutcome {
@@ -294,9 +294,7 @@ fn validate_catalog(catalog: &Value) -> Result<&Vec<Value>, String> {
     if object.get("schema_version").and_then(Value::as_str) != Some("1.0.0") {
         return Err("unsupported conformance catalog schema_version".into());
     }
-    if object.get("contract_id").and_then(Value::as_str)
-        != Some("IROKA-A2-CONFORMANCE-001")
-    {
+    if object.get("contract_id").and_then(Value::as_str) != Some("IROKA-A2-CONFORMANCE-001") {
         return Err("unexpected conformance contract_id".into());
     }
     if object.get("zero_tolerance").and_then(Value::as_bool) != Some(true) {
@@ -322,7 +320,13 @@ fn validate_catalog(catalog: &Value) -> Result<&Vec<Value>, String> {
         if !ids.insert(id.to_owned()) {
             return Err(format!("duplicate test_id: {id}"));
         }
-        for field in ["suite", "test_class", "title", "expected_result", "severity"] {
+        for field in [
+            "suite",
+            "test_class",
+            "title",
+            "expected_result",
+            "severity",
+        ] {
             if case.get(field).and_then(Value::as_str).is_none() {
                 return Err(format!("{id}: missing string field {field}"));
             }
@@ -332,11 +336,13 @@ fn validate_catalog(catalog: &Value) -> Result<&Vec<Value>, String> {
             .and_then(Value::as_array)
             .ok_or_else(|| format!("{id}: requirement_ids must be an array"))?;
         if requirements.is_empty()
-            || requirements.iter().any(|value| {
-                value.as_str().is_none_or(|text| text.trim().is_empty())
-            })
+            || requirements
+                .iter()
+                .any(|value| value.as_str().is_none_or(|text| text.trim().is_empty()))
         {
-            return Err(format!("{id}: requirement_ids must contain non-empty strings"));
+            return Err(format!(
+                "{id}: requirement_ids must contain non-empty strings"
+            ));
         }
         let status = case
             .get("status")
@@ -386,7 +392,9 @@ pub fn build_conformance_report(
                 }),
             }
         };
-        *counts.entry(outcome.status.as_str().to_owned()).or_default() += 1;
+        *counts
+            .entry(outcome.status.as_str().to_owned())
+            .or_default() += 1;
         results.push(json!({
             "test_id": test_id,
             "suite": case["suite"],
@@ -466,13 +474,7 @@ mod tests {
         let mut catalog: Value = serde_json::from_str(CATALOG).unwrap();
         let cases = catalog["cases"].as_array_mut().unwrap();
         cases[1]["test_id"] = cases[0]["test_id"].clone();
-        assert!(build_conformance_report(
-            &catalog.to_string(),
-            &BTreeMap::new(),
-            10,
-            20
-        )
-        .is_err());
+        assert!(build_conformance_report(&catalog.to_string(), &BTreeMap::new(), 10, 20).is_err());
     }
 
     #[test]
