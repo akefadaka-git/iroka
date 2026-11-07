@@ -15,7 +15,7 @@
 - Emits JSON into the workflow log and a GitHub Actions step summary.
 - Uses distinct PASS, FAIL, BLOCKED, NOT RUN and NOT APPLICABLE states.
 - A blocked case never becomes a pass merely because the catalog entry exists.
-- The first nine adapters cover the existing kernel audit-failure decision, trust-store rollback, clock-anomaly denial, typed date-only semantics, Ethiopia technical locale/time-zone/currency defaults and cross-region isolation/authority-field rejection.
+- The nine adapters cover the kernel audit-failure escalation contract (reported BLOCKED until protected-effect suppression is integrated), trust-store rollback, clock-anomaly denial, typed date-only semantics, Ethiopia technical locale/time-zone/currency defaults and cross-region isolation/authority-field rejection.
 
 ### Regional profile runtime foundation
 - Adds a typed regional profile schema with jurisdiction, effective dates, language/script, calendar, time zone, currency, numeral systems, legal references, data-governance references and provenance.
@@ -35,8 +35,8 @@
 The exact-SHA workflow report is the authoritative count. The harness is expected to report:
 - 40 catalog cases total;
 - 9 registered synthetic adapters;
-- 9 PASS if all registered adapter contracts succeed;
-- 31 BLOCKED because required reviewed fixtures, runtime components or independent oracles are not yet available;
+- 8 PASS for implemented kernel/profile/temporal contracts;
+- 32 BLOCKED, including the protected-effect adapter gap and the missing reviewed fixtures, runtime components or independent oracles;
 - 0 catalog-only or implicit passes.
 
 A green Rust workflow means formatting, compilation, tests, lint and the harness execution succeeded. The A2 conformance gate remains BLOCKED while any required case is BLOCKED or NOT RUN.
