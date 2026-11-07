@@ -17,4 +17,6 @@
 
 ## Known limitations to close before A3 completion
 - Trust-root provenance metadata is not a production custody ceremony; operational custody, dual-control signing and production key provisioning remain separate gates.
+- Historical Git blob SHA-1 is checked using the Git `blob <length>\\0` object preamble; SHA-256 is separately recorded for content integrity. SHA-1 is used only for Git object compatibility, not as a security primitive.
+- The A2 historical register records source commit `1224bb8298f9ef21d2590dd6e70273501281cd9` as a 39-character hexadecimal reference. It is preserved exactly as recorded but is not yet resolved to a full 40-character Git commit object; this remains an explicit historical-source evidence blocker.
 - Source tests are not PASS evidence until run at the exact final SHA.
