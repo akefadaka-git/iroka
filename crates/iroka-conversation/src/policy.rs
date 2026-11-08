@@ -22,7 +22,7 @@ pub struct PolicyTrustRoot {
     public_key: [u8;32],
     not_before: u64,
     not_after: u64,
-    provenance: String,
+    _provenance: String,
 }
 impl PolicyTrustRoot {
     /// Provision this value from a separately Owner-authorized policy-signing root.
@@ -32,7 +32,7 @@ impl PolicyTrustRoot {
             || VerifyingKey::from_bytes(&public_key).is_err() {
             return Err(PolicyError::InvalidRoot);
         }
-        Ok(Self {key_id,public_key,not_before,not_after,provenance})
+        Ok(Self {key_id,public_key,not_before,not_after,_provenance:provenance})
     }
 }
 
