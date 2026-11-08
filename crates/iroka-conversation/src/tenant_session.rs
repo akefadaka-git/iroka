@@ -129,6 +129,7 @@ impl SqliteSessionRegistry {
     }
     /// Register a session ID minted by a trusted cryptographic session issuer.
     /// The caller must not accept caller-chosen IDs or extend a session beyond this cap.
+    #[allow(clippy::too_many_arguments)] // Explicitly binds session identity and lifetime at provisioning.
     pub fn register(
         &self,
         session_id: &str,
