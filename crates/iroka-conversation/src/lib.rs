@@ -306,7 +306,7 @@ ConversationService<T,S,A,G> {
         let c = Conversation { id:id.into(),tenant_id:tenant,owner_subject:principal.subject().into(),
             locale:Locale::parse(locale),created_at:now };
         self.store.insert_conversation(&c)?;
-        self.store.record_event(&format!("ciw:{correlation}:created"),&tenant,id,None,
+        self.store.record_event(&format!("ciw:{correlation}:created"),&c.tenant_id,id,None,
             "conversation.created",correlation,now)?;
         Ok(c)
     }
