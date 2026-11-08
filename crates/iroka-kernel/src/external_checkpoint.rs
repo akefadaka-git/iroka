@@ -28,6 +28,9 @@ pub enum CheckpointError {
     ForkDetected,
     QuorumNotMet,
     DuplicateWitness,
+    InvalidWitnessEndpoint,
+    InvalidWitnessResponse,
+    WitnessIdentityMismatch,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
