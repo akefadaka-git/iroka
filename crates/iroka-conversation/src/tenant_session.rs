@@ -169,7 +169,7 @@ impl SqliteSessionRegistry {
         db.execute_batch(
             "CREATE TABLE app_sessions(
           session_id TEXT PRIMARY KEY NOT NULL,subject TEXT NOT NULL,tenant_id TEXT NOT NULL,
-          credential_id TEXT NOT NULL,issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
+          issuer TEXT NOT NULL,credential_id TEXT NOT NULL,issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
