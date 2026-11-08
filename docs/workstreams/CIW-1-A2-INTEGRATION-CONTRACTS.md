@@ -479,16 +479,16 @@ The following are product/policy choices, not safe assumptions for implementatio
 
 | ID | Decision | Owner disposition | Status |
 |---|---|---|---|
-| CIW-D01 | Tenant model | Server-resolved authoritative membership; each conversation bound immutably to one tenant | PROPOSED — OWNER RATIFICATION REQUIRED |
-| CIW-D02 | Conversation sharing | Owner-only; no shared threads in the first slice | PROPOSED — OWNER RATIFICATION REQUIRED |
+| CIW-D01 | Tenant model | Server-resolved authoritative membership; each conversation bound immutably to one tenant | APPROVED BY OWNER — 2026-11-08 |
+| CIW-D02 | Conversation sharing | Owner-only; no shared threads in the first slice | APPROVED BY OWNER — 2026-11-08 |
 | CIW-D03 | Retention | Configurable; no indefinite-retention default; do not hard-code a period | APPROVED BY OWNER |
 | CIW-D04 | User deletion | Revoke access immediately; schedule purge subject to legal, security-audit and backup-retention obligations | APPROVED BY OWNER |
-| CIW-D05 | End-to-end encryption | Approved platform encryption in transit and at rest; E2EE excluded from first slice | PROPOSED — OWNER RATIFICATION REQUIRED |
+| CIW-D05 | End-to-end encryption | Approved platform encryption in transit and at rest; E2EE excluded from first slice | APPROVED BY OWNER — 2026-11-08 |
 | CIW-D06 | Model provider | Synthetic data only until provider and data-handling terms are separately approved | APPROVED BY OWNER |
-| CIW-D07 | Initial tool scope | No tool execution; answer-only text slice | PROPOSED — OWNER RATIFICATION REQUIRED |
-| CIW-D08 | Session behavior | G01 credential remains identity authority; bounded, revocable application sessions; recheck on requests and active streams | PROPOSED — OWNER RATIFICATION REQUIRED |
-| CIW-D09 | Amharic default | Amharic-first default; English selectable; mixed-language input and automatic detection supported | PROPOSED — OWNER RATIFICATION REQUIRED |
-| CIW-D10 | Budget/rate limits | Configurable hard limits per subject and tenant for input/output, concurrency, rate, time, retries and spend; safe defaults fail closed | PROPOSED — OWNER RATIFICATION REQUIRED |
+| CIW-D07 | Initial tool scope | No tool execution; answer-only text slice | APPROVED BY OWNER — 2026-11-08 |
+| CIW-D08 | Session behavior | G01 credential remains identity authority; bounded, revocable application sessions; recheck on requests and active streams | APPROVED BY OWNER — 2026-11-08 |
+| CIW-D09 | Amharic default | Amharic-first default; English selectable; mixed-language input and automatic detection supported | APPROVED BY OWNER — 2026-11-08 |
+| CIW-D10 | Budget/rate limits | Configurable hard limits per subject and tenant for input/output, concurrency, rate, time, retries and spend; safe defaults fail closed | APPROVED BY OWNER — 2026-11-08 |
 
 **Owner decision record (2026-11-08):** The Owner explicitly approved CIW-D03 = configurable retention, CIW-D04 = immediate access revocation followed by scheduled purge subject to retention obligations, and CIW-D06 = synthetic data only until separate provider approval. These three decisions are resolved for the A2 proposal. The other seven decisions remain open; recommendations above are not approvals.
 
@@ -516,7 +516,7 @@ The approved decisions constrain A3 design but do not activate a provider, defin
 
 ## 13.1 Proposed dispositions for the seven remaining Owner decisions
 
-The following are the recommended A2 dispositions, based on least privilege, the existing CIW mandate and the inspected Kernel boundaries. They are **proposals for Owner ratification**, not approvals. They do not authorize implementation.
+The following seven A2 dispositions were recommended based on least privilege, the existing CIW mandate and the inspected Kernel boundaries. The Owner explicitly approved all seven on 2026-11-08. These approvals settle the A2 design decisions; they do not authorize implementation.
 
 | Decision | Recommended disposition | Rationale / binding consequence |
 |---|---|---|
@@ -570,12 +570,40 @@ The required A3 integration contract is therefore:
 | Tenant membership and session authority | CONTRACT DEFINED / IMPLEMENTATION MISSING | This document §13.3; no trusted resolver or session lifecycle found |
 | Conversation ownership and isolation | PASS (contract) / IMPLEMENTATION MISSING | Owner-only and immutable tenant binding proposed; no runtime persistence |
 | API, streaming, G03 and G08 boundaries | PASS (proposal) | Schemas and boundaries specified; G08 PR #18 is unmerged and not a chat runtime |
-| Seven pending Owner decisions | PROPOSED — 7/7 READY FOR RATIFICATION | Values recommended above; not Owner-approved |
-| Previously approved D03/D04/D06 | PASS — 3/10 OWNER-APPROVED | Exact 2026-11-08 Owner record |
+| Seven additional Owner decisions | PASS — 7/7 APPROVED BY OWNER | D01, D02, D05, D07, D08, D09 and D10 explicitly approved on 2026-11-08 |
+| Owner decision register | PASS — 10/10 APPROVED BY OWNER | D01–D10 all approved; approvals dated 2026-11-08 |
 | A4 acceptance/verification plan | PASS (plan only) | No runtime tests run because implementation is not authorized/not present |
-| A2 closure | **NOT YET CLOSED — OWNER RATIFICATION AND BASELINE DEPENDENCIES REMAIN** | Requires Owner disposition of D01/D02/D05/D07–D10 and explicit selection of the Kernel/policy/tenant baseline before A3 |
+| A2 closure | **VERIFIED-CLOSED — DESIGN/CONTRACT GATE ONLY** | All A2 decisions approved; read-only reconciliation and integration contracts complete. Runtime dependencies remain explicit A3 entry criteria, not claims of implementation or production readiness. |
 
-**Recommendation:** approve the seven proposed dispositions as written, subject to the stated conditions; record the policy and tenant contracts as the mandatory A3 integration boundary; then close A2 as a design/contract gate with the unmerged Kernel adoption, policy trust source and tenant/session adapter recorded as explicit A3 entry blockers. Do not claim the runtime is implemented, verified or production-ready.
+**Closure determination:** A2 is closed as a design/contract and read-only reconciliation gate. The unmerged Kernel candidate, trusted policy source/lifecycle, tenant membership resolver, session adapter, and concrete policy-to-capability mapping remain explicit A3 entry dependencies. This closure does not assert that runtime code exists, has passed A4 verification, or is production-ready.
+
+
+## 13.5 Owner approval and A2 closure record — 2026-11-08
+
+**Owner approval:** The Owner explicitly approved all seven remaining CIW A2 decisions D01, D02, D05, D07, D08, D09 and D10 as written. Together with the previously approved D03, D04 and D06, the complete decision register is **10/10 APPROVED BY OWNER**.
+
+**Approval scope:** These approvals settle the CIW A2 product/security design decisions and authorize recording A2 closure. They do not authorize A3 implementation, code changes beyond this documentation closure record, merge, provider activation, production credentials, production data processing, pilot or deployment.
+
+**A2 closure basis:**
+- Read-only candidate Kernel interface reconciliation is documented, with exact source branch/commit and limitations.
+- The conversation/API/streaming/G03/G08 contracts and capability/resource boundaries are documented.
+- Trusted policy lifecycle and tenant/session integration contracts are documented with fail-closed requirements.
+- The seven remaining Owner decisions are approved; the full decision register is complete.
+- A4 acceptance and verification criteria are defined for future implementation.
+
+**A2 closure status:** **VERIFIED-CLOSED — DESIGN/CONTRACT GATE ONLY.** This is not an implementation or operational-readiness certification.
+
+**Mandatory A3 entry dependencies (not completed by A2 closure):**
+1. Select and separately authorize the Kernel baseline; PR #13 candidate remains unmerged and is not automatically adopted.
+2. Implement/verify the trusted policy source, signature/trust-root model, versioning, freshness, persistence and atomic refresh.
+3. Implement/verify authoritative tenant membership resolution and tenant/owner data isolation.
+4. Implement/verify bounded application session lifecycle, credential/membership/session revocation and active-stream cancellation.
+5. Define concrete policy-to-capability/resource mappings and safe numeric limits from measured constraints and the Owner-approved cost envelope.
+6. Preserve synthetic-only model data until a provider and its data-handling terms receive separate approval.
+
+**Separate gates remain binding:** A3 requires explicit authorization before implementation. A4 requires exact-HEAD verification. Merge requires separate approval. A5 deployment/pilot requires separate approval. No such actions are authorized by this closure record.
+
+**Verification performed for this record:** documentation readback and decision/closure-marker checks only. Runtime tests: NOT RUN. A4: NOT RUN. Production readiness: NOT ASSESSED.
 
 ## 14. Explicit exclusions and next gate
 
@@ -588,6 +616,6 @@ This document does not:
 - require independent witness enrollment for design or controlled non-production chat;
 - claim A4-03 closure, independent audit durability or production readiness.
 
-**Next gate:** resolve the seven pending Owner decisions and close technical dependencies: adopted Kernel baseline, trusted policy lifecycle, tenant-membership/session authority, and concrete policy-to-capability mapping. D03, D04 and D06 are already recorded as approved. A2 remains open. After the Kernel baseline and tenant/session/policy interfaces are confirmed, prepare a bounded A3 implementation plan for the answer-only Amharic-first text-chat vertical slice. A3 code, merge and deployment remain separately authorized gates.
+**Next gate:** prepare a bounded A3 implementation plan for the answer-only Amharic-first text-chat vertical slice, listing the mandatory dependencies in §13.5. A3 implementation, A4 verification, merge and A5 deployment remain separately authorized gates.
 
 **Constitutional rule:** Conversation expresses intent. Cognition proposes. Governance decides. Authorization permits. Execution acts. Assurance verifies.
