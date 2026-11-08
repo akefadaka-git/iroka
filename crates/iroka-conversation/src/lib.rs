@@ -440,26 +440,49 @@ impl ConversationStore {
         ).map_err(|_| ConversationError::StorageUnavailable)
     }
 
+    /// Apply the configured age threshold and purge content whose grace period elapsed.
+    /// This is a trusted maintenance operation, not an HTTP/API handler.
+    pub fn maintain_retention(
+        &self,
+        now: u64,
+        policy: RetentionPolicy,
+    ) -> Result<usize, ConversationError> {
+        let expired = self.expire_old(
+            now,
+            policy.content_retention_seconds,
+            policy.deletion_grace_seconds,
+        )?;
+        let purged = self.purge_due(now)?;
+        Ok(expired + purged)
+    }
+
     /// Purge due conversation content. Lifecycle events remain for audit review.
     pub fn purge_due(&self, now: u64) -> Result<usize, ConversationError> {
         let db = self.db.lock().map_err(|_| ConversationError::StorageUnavailable)?;
         let tx = db.unchecked_transaction().map_err(|_| ConversationError::StorageUnavailable)?;
-        let ids = {
+        let due = {
             let mut stmt = tx.prepare(
-                "SELECT id FROM conversations WHERE deleted_at IS NOT NULL AND purge_after<=?1"
+                "SELECT id,tenant_id FROM conversations WHERE deleted_at IS NOT NULL AND purge_after<=?1"
             ).map_err(|_| ConversationError::StorageUnavailable)?;
-            let rows = stmt.query_map(params![now as i64], |r| r.get::<_, String>(0))
-                .map_err(|_| ConversationError::StorageUnavailable)?;
+            let rows = stmt.query_map(params![now as i64], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            }).map_err(|_| ConversationError::StorageUnavailable)?;
             rows.collect::<Result<Vec<_>,_>>().map_err(|_| ConversationError::StorageUnavailable)?
         };
-        for id in &ids {
+        for (id, tenant) in &due {
+            tx.execute(
+                "INSERT OR IGNORE INTO conversation_events
+                 (event_id,tenant_id,conversation_id,turn_id,event_type,correlation_id,occurred_at)
+                 VALUES(?1,?2,?3,NULL,'conversation.content_purged','retention-job',?4)",
+                params![format!("retention:purge:{id}:{now}"), tenant, id, now as i64],
+            ).map_err(|_| ConversationError::StorageUnavailable)?;
             tx.execute("DELETE FROM turns WHERE conversation_id=?1",params![id])
                 .map_err(|_| ConversationError::StorageUnavailable)?;
             tx.execute("DELETE FROM conversations WHERE id=?1",params![id])
                 .map_err(|_| ConversationError::StorageUnavailable)?;
         }
         tx.commit().map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(ids.len())
+        Ok(due.len())
     }
 
     fn finish_turn(
