@@ -60,3 +60,5 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
+
+# Exact-head verification is triggered by pushes to the A3 implementation branch.
