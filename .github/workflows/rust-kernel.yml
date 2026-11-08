@@ -10,6 +10,7 @@ on:
       - "Cargo.lock"
       - "crates/**"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - "docs/architecture/A4-03-EXTERNAL-AUDIT-CHECKPOINT-PROTOCOL.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
     branches: [main, architecture/igacms-a2-ci-base, feat/igacms-a3-implementation]
@@ -19,6 +20,7 @@ on:
       - "crates/**"
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
+      - "docs/architecture/A4-03-EXTERNAL-AUDIT-CHECKPOINT-PROTOCOL.md"
       - ".github/workflows/rust-kernel.yml"
   workflow_dispatch:
 
