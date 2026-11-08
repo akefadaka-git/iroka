@@ -104,3 +104,16 @@ A production-capable HTTPS/mTLS client adapter is implemented in `crates/iroka-k
 Automated coverage now includes HTTPS endpoint policy, stream-path encoding and multi-identity quorum fan-out in addition to the protocol-level signature, replay, predecessor and quorum tests.
 
 **Important limitation:** the adapter is implemented and CI-verified, but no independent operator endpoints, mTLS credentials or production witness public keys have been supplied or provisioned. Therefore no live external witness publish/readback has been performed, and organizational independence, durable retention and restore behavior remain UNVERIFIED. A real deployment requires at least two separately administered operators and secure exchange of their endpoint URLs, client enrollment material and public-key fingerprints. No credentials should be committed to Git.
+
+### Adapter CI evidence — exact code HEAD
+
+The HTTPS/mTLS adapter and quorum fan-out were verified on commit `3b56509a9ee32949f1ffd5e17a75871dc2f241fc` by [GitHub Actions run #366](https://github.com/akefadaka-git/iroka/actions/runs/42475698908).
+
+- Rust formatting: PASS
+- Locked all-target compilation: PASS
+- No-default-features production compilation: PASS
+- Unit tests: 74 passed, 0 failed
+- Integration tests: 2 passed, 0 failed
+- Clippy with warnings denied: PASS
+
+The adapter-specific regression tests include HTTPS-only endpoint validation, stream path encoding and two-distinct-witness quorum fan-out. This establishes software-level adapter behavior, not successful communication with real independent operators. Live service verification remains **NOT RUN** pending operator endpoints and mTLS enrollment.
