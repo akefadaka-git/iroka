@@ -326,3 +326,52 @@ An earlier CI attempt at `755b35d0c2506a269314fc2d790d3a60a40de4e2` stopped at t
 - No merge or deployment was performed.
 
 **Overall A4 remains PARTIAL — NOT CLOSED.** This change closes the identified trust snapshot publication race and adds deterministic concurrency and failure-path regression coverage; it does not close the separately scoped external audit checkpoint or remaining database/process fault-injection work.
+
+
+## A4-04 database and process failure-injection verification (2026-11-08)
+
+**A4-04 targeted SQLite failure paths: VERIFIED for the scenarios below.** The tests exercise fail-closed behavior and transactional rollback; they do not imply hardware-level fault certification.
+
+### Added regression tests
+
+File: \`crates/iroka-kernel/src/security_store.rs\`
+
+1. \`busy_lock_exhaustion_fails_closed_without_partial_trust_write\`
+   - Holds a competing \`BEGIN IMMEDIATE\` transaction on a second SQLite connection until the configured five-second busy timeout is exhausted.
+   - The trust installation returns \`SecurityStoreError::Unavailable\`; no trust high-water mark or history row is committed.
+2. \`sqlite_page_limit_disk_full_fails_closed_without_advancing_trust_state\`
+   - Uses SQLite \`PRAGMA max_page_count\` to reach the engine's \`SQLITE_FULL\` condition while growing the trust history table.
+   - A subsequent trust installation fails closed; its state update is rolled back and the pre-existing history count remains unchanged.
+3. \`injected_storage_write_failure_rolls_back_all_trust_state\`
+   - An injected SQLite trigger aborts the history insert after the state-row write.
+   - The operation returns unavailable and the transaction leaves no partially advanced trust state.
+4. \`deferred_constraint_commit_failure_rolls_back_trust_state\`
+   - A deferred foreign-key violation is injected by a trigger and surfaces at transaction commit.
+   - Commit failure is mapped to unavailable and neither trust state nor history is partially committed.
+5. \`abrupt_process_exit_recovers_wal_without_uncommitted_trust_state\`
+   - A child test process exits immediately after writing trust state and history inside an uncommitted \`IMMEDIATE\` transaction.
+   - Reopening the database performs WAL recovery; the uncommitted version and history row are absent.
+
+### Exact-head verification
+
+- Test implementation commits: \`88b2133a550ef85d6ae427ebf300b91086452201\`, \`d24d00283a93c464954bfdf3252e3a2324510f62\`, \`845724cd26818f1001fa96265e03ada340f4e5bd\`, \`7bb57b13ee4b0927ce9124cd7553ac09c113c682\`, \`c4b5408618122fc868cd43b3bc127c8034e42d24\`.
+- Exact code/test SHA: \`c4b5408618122fc868cd43b3bc127c8034e42d24\`.
+- Workflow run [#42462303853](https://github.com/akefadaka-git/iroka/actions/runs/42462303853): **SUCCESS**; checked out the exact code/test SHA above.
+- PASS: \`cargo fmt --all -- --check\`.
+- PASS: \`cargo check --workspace --all-targets --locked\`.
+- PASS: \`cargo check --workspace --all-targets --no-default-features\`.
+- PASS: \`cargo test --workspace --all-targets --locked\` — **66 unit tests + 2 contract tests; zero failures**.
+- PASS: \`cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic\`.
+- The five new failure-path tests all passed, including SQLite busy timeout, \`SQLITE_FULL\`, injected write abort, deferred commit failure and abrupt child-process termination/WAL recovery.
+
+### Boundaries and disposition
+
+- A4-04 is **VERIFIED for the explicit SQLite busy/locked, SQLite page-limit disk-full, transactional write-abort, deferred commit-failure and abrupt-process/WAL-recovery scenarios tested above**.
+- This is deterministic SQLite-level fault injection. It is not evidence of physical storage-device failure, host power loss, filesystem corruption or every possible I/O error mode; those remain outside this test harness.
+- A4-01 approval/revocation atomicity remains **VERIFIED-CLOSED**.
+- A4-02 trust snapshot publication ordering remains **VERIFIED-CLOSED**.
+- A4-03 local audit-chain integrity remains **VERIFIED**. External signed checkpointing, witness publication and independent retention remain **NOT IMPLEMENTED / SEPARATELY GOVERNED**; no checkpoint implementation was added.
+- A4-05 operational custody, production trust-root provisioning, Genesis activation, runtime promotion and deployment remain **NOT RUN / SEPARATELY GATED**.
+- No merge or deployment was performed.
+
+**Overall A4 remains PARTIAL — NOT CLOSED.** The targeted A4-04 database/process fault scenarios are now covered and pass exact-head CI. The external checkpoint and operational activation work remain separate Owner-governed decisions.
