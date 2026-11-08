@@ -458,7 +458,16 @@ mod tests {
     fn quorum_requires_distinct_witnesses_and_threshold() {
         let s = signer();
         let w = TestWitness::new(&s);
-        let cp = create_checkpoint(&s, "audit-stream:quorum", 1, 1, [4; 32], None, 1_900).unwrap();
+        let cp = create_checkpoint(
+            &s,
+            "audit-stream:quorum",
+            1,
+            1,
+            [4; 32],
+            None,
+            1_900,
+        )
+        .unwrap();
         let receipt = w.publish(&cp).unwrap();
         let roots = trust(&w.key_id, &w.key);
         assert_eq!(
