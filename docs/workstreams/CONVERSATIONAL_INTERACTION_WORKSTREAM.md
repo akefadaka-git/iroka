@@ -192,4 +192,13 @@ The Owner approved the following CIW A2 decisions:
 - **CIW-D04 — Deletion:** revoke access immediately, then schedule purge subject to legal, security-audit and backup-retention obligations.
 - **CIW-D06 — Model provider:** synthetic data only until a provider and its data-handling terms receive separate approval.
 
-These decisions are recorded in the A2 integration contract. They do not authorize provider activation, production data processing, implementation, merge or deployment. The seven remaining Owner decisions now have explicit recommended dispositions in the A2 contract and are awaiting Owner ratification; they are not recorded as approved. Trusted policy and tenant/session integration contracts are specified, with implementation dependencies explicitly deferred to A3. A2 remains not closed pending Owner ratification and baseline selection.
+These decisions are recorded in the A2 integration contract. They do not authorize provider activation, production data processing, implementation, merge or deployment. On 2026-11-08, the Owner also explicitly approved D01, D02, D05, D07, D08, D09 and D10 as written. The complete CIW A2 decision register is now 10/10 Owner-approved. Trusted policy and tenant/session integration contracts are specified, with runtime implementation dependencies deferred to A3.
+
+ 
+## 11. A2 closure record — 2026-11-08
+
+**Status: VERIFIED-CLOSED — DESIGN/CONTRACT GATE ONLY.**
+
+The Owner approved all ten CIW A2 decisions (D01–D10). Read-only Kernel reconciliation, conversation/API/streaming/G03/G08 contracts, trusted policy and tenant/session integration contracts, threat boundaries and A4 acceptance criteria are recorded in [CIW-1 A2 — Conversational Integration and Domain Contracts](CIW-1-A2-INTEGRATION-CONTRACTS.md).
+
+This closure does not certify runtime implementation, A4 verification, independent witness assurance or production readiness. PR #13 Kernel candidate adoption, trusted policy lifecycle, authoritative tenant membership, bounded session lifecycle and concrete policy-to-capability mapping remain mandatory A3 entry dependencies. A3 implementation, A4 verification, merge and A5 deployment each remain separately gated and are not authorized by this record.
