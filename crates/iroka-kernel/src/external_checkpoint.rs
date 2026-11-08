@@ -162,6 +162,27 @@ pub enum Reconciliation {
     LocalAheadUnanchored,
 }
 
+
+/// Verify a configurable quorum of distinct witness identities for one exact envelope.
+/// Trust roots must be supplied by the caller from the applicable governance configuration.
+pub fn verify_witness_quorum(
+    checkpoint: &SignedCheckpoint,
+    receipts: &[WitnessReceipt],
+    trusted_witnesses: &BTreeMap<String, VerifyingKey>,
+    required: usize,
+) -> Result<usize, CheckpointError> {
+    if required == 0 { return Err(CheckpointError::Malformed); }
+    let mut identities = std::collections::BTreeSet::new();
+    for receipt in receipts {
+        receipt.verify(checkpoint, trusted_witnesses)?;
+        if !identities.insert(receipt.payload.witness_id.as_str()) {
+            return Err(CheckpointError::DuplicateWitness);
+        }
+    }
+    if identities.len() < required { return Err(CheckpointError::QuorumNotMet); }
+    Ok(identities.len())
+}
+
 /// Compare a locally verified head with a witness-verified external checkpoint.
 /// Local state behind the anchor or a same-position hash mismatch is a hard failure.
 pub fn reconcile_head(
