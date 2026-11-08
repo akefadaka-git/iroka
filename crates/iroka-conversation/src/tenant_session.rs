@@ -32,10 +32,7 @@ impl SqliteTenantDirectory {
           PRIMARY KEY(subject,tenant_id));",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self {
-            db: Mutex::new(db),
-            credential_status,
-        })
+        Ok(Self { db: Mutex::new(db) })
     }
     /// Provision/refresh from the authoritative membership source only.
     /// Never expose this operation to an HTTP request or model adapter.
