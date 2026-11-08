@@ -176,3 +176,10 @@ This workstream does not alter the status of existing PRs, A4-03, trust roots, o
 **Success definition:** a user can hold a secure, persistent, Amharic-first or English conversation with IROKA; IROKA can ground answers in governed knowledge; and any consequential action remains subject to the existing deterministic authority, approval, execution and assurance boundaries.
 
 **Constitutional rule:** Conversation expresses intent. Cognition proposes. Governance decides. Authorization permits. Execution acts. Assurance verifies.
+
+
+## 9. CIW-1 A2 technical contract
+
+The detailed A2 integration contract is maintained in [CIW-1 A2 — Conversational Integration and Domain Contracts](CIW-1-A2-INTEGRATION-CONTRACTS.md). It records the Kernel reuse/adapt/missing register, proposed conversation/session and persistence model, API/event schemas, capability/resource matrix, G03 model-gateway boundary, data lineage, G08 boundary, threat model, exact A4 verification plan and unresolved Owner decisions.
+
+The A2 contract is a proposal only. Its closure checklist explicitly distinguishes verified candidate Kernel behavior from unmerged feature-branch dependencies and unresolved tenant/session/policy decisions. It does not authorize A3 implementation, merge or deployment.
