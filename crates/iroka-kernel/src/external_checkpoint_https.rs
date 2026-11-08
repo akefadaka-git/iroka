@@ -259,6 +259,89 @@ fn hex_digest(digest: [u8; 32]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{create_checkpoint, CheckpointSigner, WitnessReceiptPayload};
+    use ed25519_dalek::{Signer, SigningKey};
+
+    struct TestCheckpointSigner(SigningKey);
+
+    impl CheckpointSigner for TestCheckpointSigner {
+        fn key_id(&self) -> &str {
+            "checkpoint:test"
+        }
+
+        fn sign(&self, bytes: &[u8]) -> Result<Vec<u8>, CheckpointError> {
+            Ok(self.0.sign(bytes).to_bytes().to_vec())
+        }
+    }
+
+    struct StaticWitness {
+        id: String,
+        key_id: String,
+        key: SigningKey,
+    }
+
+    impl CheckpointWitness for StaticWitness {
+        fn publish(&self, checkpoint: &SignedCheckpoint) -> Result<WitnessReceipt, CheckpointError> {
+            let payload = WitnessReceiptPayload {
+                protocol: "iroka.g11.witness-receipt".into(),
+                version: 1,
+                witness_id: self.id.clone(),
+                witness_key_id: self.key_id.clone(),
+                stream_id: checkpoint.payload.stream_id.clone(),
+                checkpoint_sequence: checkpoint.payload.checkpoint_sequence,
+                checkpoint_digest_sha256: hex_digest(checkpoint.digest()?),
+                previous_checkpoint_digest_sha256: checkpoint.payload.previous_checkpoint_sha256.clone(),
+                accepted_at: checkpoint.payload.issued_at,
+                algorithm: "Ed25519".into(),
+            };
+            let signature = self.key.sign(&WitnessReceipt::signing_bytes(&payload)?)
+                .to_bytes().to_vec();
+            Ok(WitnessReceipt { payload, signature })
+        }
+
+        fn latest(&self, _stream_id: &str) -> Result<Option<(SignedCheckpoint, WitnessReceipt)>, CheckpointError> {
+            Ok(None)
+        }
+    }
+
+    #[test]
+    fn quorum_publisher_requires_two_distinct_verified_remote_identities() {
+        let checkpoint_signer = TestCheckpointSigner(SigningKey::from_bytes(&[41; 32]));
+        let checkpoint = create_checkpoint(
+            &checkpoint_signer,
+            "audit-stream:remote-quorum",
+            1,
+            1,
+            [7; 32],
+            None,
+            2_000,
+        ).unwrap();
+        let first = StaticWitness {
+            id: "operator:one".into(),
+            key_id: "witness-key:one".into(),
+            key: SigningKey::from_bytes(&[51; 32]),
+        };
+        let second = StaticWitness {
+            id: "operator:two".into(),
+            key_id: "witness-key:two".into(),
+            key: SigningKey::from_bytes(&[52; 32]),
+        };
+        let roots = BTreeMap::from([
+            (first.key_id.clone(), first.key.verifying_key()),
+            (second.key_id.clone(), second.key.verifying_key()),
+        ]);
+        let receipts = publish_witness_quorum(
+            &checkpoint,
+            &[&first, &second],
+            &roots,
+            2,
+        ).unwrap();
+        assert_eq!(receipts.len(), 2);
+        assert_eq!(
+            publish_witness_quorum(&checkpoint, &[&first, &second], &roots, 3),
+            Err(CheckpointError::Malformed),
+        );
+    }
 
     #[test]
     fn endpoint_requires_https_and_rejects_credentials_and_fragments() {
