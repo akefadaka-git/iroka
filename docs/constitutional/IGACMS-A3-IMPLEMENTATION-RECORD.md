@@ -281,3 +281,48 @@ The test log explicitly confirms the audit-chain integrity tests, trust lifecycl
 | A4-05 operational custody / production activation | NOT RUN; separately gated |
 
 **Overall A4: PARTIAL — NOT CLOSED.** Closure requires resolving A4-02 with a deterministic regression test, implementing or explicitly deferring the externally anchored audit checkpoint through a separate Owner decision, completing the remaining failure-injection coverage, and rerunning the full verification suite against the exact resulting HEAD. No merge, deployment, production key provisioning or Genesis activation is authorized or performed.
+
+
+## A4-02 remediation and exact-head verification (2026-11-08)
+
+**Finding A4-02: VERIFIED-REMEDIATED.**
+
+### Root cause and correction
+
+The trust snapshot manager previously performed signed-bundle verification and durable anti-rollback persistence before acquiring the in-memory snapshot write lock. Two concurrent manager installations could therefore persist versions in one order and publish snapshots in the reverse order, leaving the durable high-water mark newer than the active in-memory trust snapshot.
+
+The correction adds a manager-wide installation mutex and holds it across the complete operation:
+1. Signed-bundle verification and durable monotonic-version persistence.
+2. Acquisition of the active snapshot write lock.
+3. Publication of the verified immutable snapshot.
+
+Both `install` and `install_with_roots` use the same serialized path. Lock poisoning fails closed with `TrustBundleError::StoreUnavailable`.
+
+### Regression tests added
+
+1. `concurrent_snapshot_installation_serializes_persistence_and_publication` — deterministically pauses the first installation after its durable version-2 write and before snapshot publication. A second installation is shown unable to enter its verification/persistence closure until the first publishes. The final durable high-water mark is version 3 and the active snapshot accepts the version-3 key while rejecting the version-2 key.
+2. `poisoned_installation_lock_fails_closed_without_persisting_or_publishing` — proves a poisoned installation mutex rejects a new install, leaves the durable version unchanged, and leaves the prior active snapshot intact.
+3. `rollback_rejection_leaves_active_snapshot_unchanged` — proves a lower-version bundle is rejected without replacing the active snapshot or changing the durable high-water mark.
+
+### Exact-head verification
+
+- Implementation commits: `39f671036c70f7ac1d43344b188264b6a76ecc48`, `755b35d0c2506a269314fc2d790d3a60a40de4e2`, `7caaf18211107b383728653b4699eb0352983f5f`.
+- Exact source SHA checked out by successful workflow: `7caaf18211107b383728653b4699eb0352983f5f`.
+- Workflow run [#42460964752](https://github.com/akefadaka-git/iroka/actions/runs/42460964752): **SUCCESS**.
+- PASS: `cargo fmt --all -- --check`.
+- PASS: `cargo check --workspace --all-targets --locked`.
+- PASS: `cargo check --workspace --all-targets --no-default-features`.
+- PASS: `cargo test --workspace --all-targets --locked` — 61 unit tests + 2 contract tests; zero failures.
+- PASS: `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic`.
+
+An earlier CI attempt at `755b35d0c2506a269314fc2d790d3a60a40de4e2` stopped at the formatting gate. Formatting was corrected in `7caaf18211107b383728653b4699eb0352983f5f`; the successful run above checked out that corrected exact SHA.
+
+### Scope boundary and A4 disposition
+
+- A4-02 is **VERIFIED-CLOSED**.
+- Local audit-chain integrity remains verified. External signed checkpointing, witness publication and independent retention remain **NOT IMPLEMENTED / SEPARATELY GOVERNED**, and were not introduced by this remediation.
+- SQLite busy/locked exhaustion, disk-full/I/O injection, commit failure and abrupt process/WAL recovery remain **NOT RUN**.
+- Production trust-root provisioning, Owner key custody, Genesis activation, runtime promotion and deployment remain **NOT RUN** and separately gated.
+- No merge or deployment was performed.
+
+**Overall A4 remains PARTIAL — NOT CLOSED.** This change closes the identified trust snapshot publication race and adds deterministic concurrency and failure-path regression coverage; it does not close the separately scoped external audit checkpoint or remaining database/process fault-injection work.
