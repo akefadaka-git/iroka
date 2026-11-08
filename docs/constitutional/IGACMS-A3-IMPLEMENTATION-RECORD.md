@@ -13,7 +13,7 @@
 5. A3.5 — M0–M5 evidence gates, Owner approval and independent review controls, M5 dual control.
 6. A3.6 — Kernel integration gate before Owner-approved authorization decisions.
 7. A3.7 — Historical digest-preserving migration evidence; DNA-045 remains extension-review and outside genesis.
-8. A3.8 — Positive/negative conformance tests; full A4 exact-SHA execution and independent review require recorded evidence.
+8. A3.8 — Positive/negative conformance tests and exact-SHA verification. Independent review is not an Owner-mandated closure prerequisite following the Owner's explicit waiver on 2026-11-08.
 
 ## Known limitations to close before A3 completion
 - Trust-root provenance metadata is not a production custody ceremony; operational custody, dual-control signing and production key provisioning remain separate gates.
@@ -47,9 +47,9 @@
 - **A3.5:** VERIFIED — M0–M5 evidence gates and fail-closed tests.
 - **A3.6:** VERIFIED — protected Owner-approval authorization requires a verified Genesis token and the pinned embedded Genome.
 - **A3.7:** PARTIAL — source commit prefix resolved to full SHA and four representative historical blob IDs matched the A2 register; full 48-artifact blob-by-blob reconciliation has not yet been completed. DNA-045 remains `EXTENSION-REVIEW` by the A2 disposition.
-- **A3.8:** PARTIAL — prior automated conformance tests PASS at `72296b5e3c78fa8c3cf3b782dd8caff22045ba27`; current hardening head `134ed29c087831fd81ea6f0ff07748133f45c3c9` has no fresh workflow result returned yet. Independent reviewer has not yet submitted a review.
+- **A3.8:** PARTIAL — prior automated conformance tests PASS at `72296b5e3c78fa8c3cf3b782dd8caff22045ba27`; current hardening head `43b180bf65fcb1e19c9d2f4ead18ca3111d2511e` has no fresh workflow result returned yet. Independent review requirement explicitly waived by Owner on 2026-11-08; no independent review is required for A3 closure under this waiver.
 
-**Overall A3 status: PARTIAL — historical commit reference resolved; implementation hardening applied. Fresh exact-head verification, full 48-artifact blob reconciliation and an independent security review remain open.**
+**Overall A3 status: PARTIAL — historical commit reference resolved; implementation hardening applied. Fresh exact-head verification and full 48-artifact blob reconciliation remain open. Independent review is waived by the Owner and is not a blocker.**
 
 ## Explicitly not performed
 
@@ -78,4 +78,14 @@ These are implementation remediations from an internal review pass. They do not 
 - Current branch head after hardening: `134ed29c087831fd81ea6f0ff07748133f45c3c9`.
 - No workflow run was returned for the current head by the available PR-run lookup. Current-head format, compile, test and Clippy status is therefore **NOT VERIFIED**.
 - PR #13 has no submitted reviews, review threads, requested reviewers, CODEOWNERS file or SECURITY.md review instructions.
-- A named, qualified external reviewer must be granted repository access and submit a review before A3.8 can close.
+- Independent security review is explicitly waived by the Owner on 2026-11-08. This is a governance waiver, not a claim that an independent review occurred.
+
+
+## Owner governance decision — independent review waiver
+
+On 2026-11-08, the Owner explicitly instructed: "No need for independent review." Accordingly:
+- Independent security review is waived as a prerequisite for A3.8 and A3 closure.
+- No external reviewer access or review request is required.
+- This waiver does not convert internal review into independent review and does not certify the implementation as independently audited.
+- Exact-head automated verification and the remaining historical reconciliation evidence are still required for an evidence-complete A3 closure.
+- Merge, deployment, production trust-root provisioning and Genesis activation remain separately unauthorized.
