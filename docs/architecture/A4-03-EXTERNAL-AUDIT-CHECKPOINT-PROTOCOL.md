@@ -1,7 +1,7 @@
 # A4-03 — External Audit Checkpoint and Independent Witness
-## A1 assessment and A2 protocol proposal
+## A1 assessment, A2 architecture freeze, and A3 implementation
 
-**Status:** A1 assessment complete; A2 proposal prepared for Owner freeze. No implementation, production key provisioning, witness registration, remote publication, or deployment is claimed.
+**Status:** A1 VERIFIED; A2 ARCHITECTURE FROZEN by Owner approval (2026-11-08); A3 IMPLEMENTATION IN PROGRESS. Provider-neutral protocol contracts and deterministic test-only witness are implemented. Production key provisioning, witness registration, remote publication, and deployment are not claimed.
 
 **Parent baseline:** `813b24cbf81f049f2675fbb5492bdc9f262a9d87`  
 **Workstream branch:** `feat/a4-03-external-audit-checkpoint`  
@@ -76,7 +76,7 @@ If the local chain is behind an accepted checkpoint, it must report truncation/r
 - **A3.5 Adversarial tests:** signature tampering, envelope mutation, replay, duplicate/conflicting sequence, predecessor mismatch, fork, stream substitution, truncation, stale witness, witness outage, partial publication and recovery/retry.
 - **A3.6 Documentation and exact-head CI:** threat model, protocol vectors, operational boundary, full Rust gates and exact SHA evidence.
 
-## 4. Owner decisions required before A3
+## 4. Owner decisions and frozen architecture
 
 These decisions are intentionally not guessed:
 
