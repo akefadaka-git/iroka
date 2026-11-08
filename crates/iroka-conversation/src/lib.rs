@@ -502,7 +502,10 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             return Err(ConversationError::InvalidInput);
         }
         let tenant = self.context(principal, session, now)?;
-        let resource = format!("tenant/{tenant}/conversation/{id}");
+        let resource = format!(
+            "tenant/{tenant}/subject/{}/conversation/new",
+            principal.subject()
+        );
         self.authorization
             .authorize(principal, Operation::Create, &resource, correlation, now)?;
         let c = Conversation {
@@ -587,10 +590,11 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             .store
             .owned_conversation(conversation_id, &tenant, principal.subject())?;
         let resource = format!("tenant/{tenant}/conversation/{}", c.id);
+        let turn_resource = format!("tenant/{tenant}/conversation/{}/turn/new", c.id);
         self.authorization.authorize(
             principal,
             Operation::SubmitTurn,
-            &resource,
+            &turn_resource,
             correlation,
             now,
         )?;
@@ -686,7 +690,7 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         self.authorization.authorize(
             principal,
             Operation::SubmitTurn,
-            &resource,
+            &turn_resource,
             correlation,
             now,
         )?;
@@ -743,7 +747,7 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         let conversation =
             self.store
                 .owned_conversation(conversation_id, &tenant, principal.subject())?;
-        let resource = format!("tenant/{tenant}/conversation/{}", conversation.id);
+        let resource = format!("tenant/{tenant}/generation/{assistant_turn_id}");
         self.authorization.authorize(
             principal,
             Operation::CancelTurn,
