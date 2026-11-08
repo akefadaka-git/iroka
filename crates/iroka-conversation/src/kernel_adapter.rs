@@ -1,10 +1,10 @@
 //! Narrow adapter to the adopted production IROKA Kernel authorization API.
 
-use iroka_kernel::{
-    authorize_authenticated_with_owner_approval, AuditSink, AuthorizationRequest,
-    DecisionCode, OwnerApprovalVerifier, RiskLevel, VerifiedGenesis, VerifiedPrincipal,
-};
 use crate::{ConversationError, KernelAuthorization, Operation, VerifiedPolicy};
+use iroka_kernel::{
+    authorize_authenticated_with_owner_approval, AuditSink, AuthorizationRequest, DecisionCode,
+    OwnerApprovalVerifier, RiskLevel, VerifiedGenesis, VerifiedPrincipal,
+};
 
 pub struct KernelConversationAuthorizer<'a, S: AuditSink> {
     policy: &'a VerifiedPolicy,
@@ -22,7 +22,12 @@ impl<'a, S: AuditSink> KernelConversationAuthorizer<'a, S> {
         owner_approvals: &'a OwnerApprovalVerifier,
         audit: &'a S,
     ) -> Self {
-        Self { policy, genesis, owner_approvals, audit }
+        Self {
+            policy,
+            genesis,
+            owner_approvals,
+            audit,
+        }
     }
 }
 
@@ -45,9 +50,8 @@ impl<S: AuditSink> KernelAuthorization for KernelConversationAuthorizer<'_, S> {
         if resource.trim().is_empty() || correlation_id.trim().is_empty() {
             return Err(ConversationError::AuthorizationDenied);
         }
-        let request = AuthorizationRequest::new(
-            principal.subject(), capability, resource, RiskLevel::Low,
-        );
+        let request =
+            AuthorizationRequest::new(principal.subject(), capability, resource, RiskLevel::Low);
         let event_id = format!("ciw:{correlation_id}:{capability}:{now}");
         let decision = authorize_authenticated_with_owner_approval(
             &request,
