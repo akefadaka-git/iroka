@@ -311,6 +311,7 @@ impl ConversationStore {
             .map_err(|_| ConversationError::StorageUnavailable)
     }
 
+    #[allow(clippy::too_many_arguments)] // Lifecycle audit fields are explicit at the persistence boundary.
     fn record_event(
         &self,
         event_id: &str,
@@ -343,6 +344,7 @@ impl ConversationStore {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)] // Turn identity, content, idempotency and timestamp are explicit.
     fn append_turn(
         &self,
         conversation_id: &str,
@@ -553,6 +555,7 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         self.store.turns(id)
     }
 
+    #[allow(clippy::too_many_arguments)] // Request, session, idempotency, correlation and cancellation are explicit.
     pub fn submit(
         &self,
         principal: &VerifiedPrincipal,
