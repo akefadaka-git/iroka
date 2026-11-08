@@ -201,6 +201,32 @@ impl ConversationStore {
          .ok_or(ConversationError::NotFound)
     }
 
+    fn list_owned(&self, tenant: &str, owner: &str) -> Result<Vec<Conversation>, ConversationError> {
+        let db = self.db.lock().map_err(|_| ConversationError::StorageUnavailable)?;
+        let mut stmt = db.prepare(
+            "SELECT id,tenant_id,owner_subject,locale,created_at FROM conversations
+             WHERE tenant_id=?1 AND owner_subject=?2 AND deleted_at IS NULL
+             ORDER BY created_at DESC LIMIT 50"
+        ).map_err(|_| ConversationError::StorageUnavailable)?;
+        let rows = stmt.query_map(params![tenant,owner], |r| Ok(Conversation {
+            id:r.get(0)?, tenant_id:r.get(1)?, owner_subject:r.get(2)?,
+            locale: if r.get::<_,String>(3)? == "en" {Locale::English} else {Locale::Amharic},
+            created_at:r.get::<_,i64>(4)? as u64
+        })).map_err(|_| ConversationError::StorageUnavailable)?;
+        rows.collect::<Result<Vec<_>,_>>().map_err(|_| ConversationError::StorageUnavailable)
+    }
+
+    fn record_event(&self, event_id:&str, tenant:&str, conversation:&str, turn:Option<&str>,
+                    event_type:&str, correlation:&str, now:u64)->Result<(),ConversationError> {
+        let db=self.db.lock().map_err(|_|ConversationError::StorageUnavailable)?;
+        db.execute("INSERT OR IGNORE INTO conversation_events
+          (event_id,tenant_id,conversation_id,turn_id,event_type,correlation_id,occurred_at)
+          VALUES(?1,?2,?3,?4,?5,?6,?7)",
+          params![event_id,tenant,conversation,turn,event_type,correlation,now as i64])
+          .map_err(|_|ConversationError::StorageUnavailable)?;
+        Ok(())
+    }
+
     fn append_turn(&self, conversation_id: &str, id: &str, role: &str, content: &str,
                    state: &str, idempotency: &str, now: u64) -> Result<u64, ConversationError> {
         let db = self.db.lock().map_err(|_| ConversationError::StorageUnavailable)?;
@@ -280,7 +306,17 @@ ConversationService<T,S,A,G> {
         let c = Conversation { id:id.into(),tenant_id:tenant,owner_subject:principal.subject().into(),
             locale:Locale::parse(locale),created_at:now };
         self.store.insert_conversation(&c)?;
+        self.store.record_event(&format!("ciw:{correlation}:created"),&tenant,id,None,
+            "conversation.created",correlation,now)?;
         Ok(c)
+    }
+
+    pub fn list(&self, principal:&VerifiedPrincipal, session:&str, correlation:&str,
+                now:u64)->Result<Vec<Conversation>,ConversationError> {
+        let tenant=self.context(principal,session,now)?;
+        self.authorization.authorize(principal,Operation::List,&format!("tenant/{tenant}/conversations"),
+            correlation,now)?;
+        self.store.list_owned(&tenant,principal.subject())
     }
 
     pub fn read(&self, principal: &VerifiedPrincipal, session: &str, id: &str,
@@ -304,6 +340,8 @@ ConversationService<T,S,A,G> {
         let resource = format!("tenant/{tenant}/conversation/{}",c.id);
         self.authorization.authorize(principal,Operation::SubmitTurn,&resource,correlation,now)?;
         let user_seq = self.store.append_turn(conversation_id,turn_id,"user",prompt,"completed",idempotency,now)?;
+        self.store.record_event(&format!("ciw:{correlation}:user-turn"),&tenant,conversation_id,
+            Some(turn_id),"turn.user.accepted",correlation,now)?;
         if cancel.is_cancelled() { return Err(ConversationError::Cancelled); }
         let assistant_id = format!("{turn_id}:assistant");
         let assistant_seq = self.store.append_turn(conversation_id,&assistant_id,"assistant","","generating",
@@ -313,11 +351,15 @@ ConversationService<T,S,A,G> {
             Ok(answer) if !cancel.is_cancelled() => answer,
             Ok(_) | Err(ConversationError::Cancelled) => {
                 self.store.finish_turn(&assistant_id,"cancelled",None)?;
+                self.store.record_event(&format!("ciw:{correlation}:cancelled"),&tenant,conversation_id,
+                    Some(&assistant_id),"turn.cancelled",correlation,now)?;
                 events.push(StreamEvent::Cancelled{turn_id:assistant_id,sequence:assistant_seq});
                 return Ok(events);
             }
             Err(_) => {
                 self.store.finish_turn(&assistant_id,"failed",None)?;
+                self.store.record_event(&format!("ciw:{correlation}:failed"),&tenant,conversation_id,
+                    Some(&assistant_id),"turn.failed",correlation,now)?;
                 events.push(StreamEvent::Failed{turn_id:assistant_id,sequence:assistant_seq});
                 return Ok(events);
             }
@@ -331,10 +373,23 @@ ConversationService<T,S,A,G> {
         }
         self.authorization.authorize(principal,Operation::SubmitTurn,&resource,correlation,now)?;
         self.store.finish_turn(&assistant_id,"completed",Some(&answer))?;
+        self.store.record_event(&format!("ciw:{correlation}:completed"),&tenant,conversation_id,
+            Some(&assistant_id),"turn.completed",correlation,now)?;
         events.push(StreamEvent::Delta{turn_id:assistant_id.clone(),sequence:assistant_seq,text:answer});
         events.push(StreamEvent::Completed{turn_id:assistant_id,sequence:assistant_seq});
         Ok(events)
     }
+    pub fn cancel_turn(&self, principal:&VerifiedPrincipal, session:&str, conversation_id:&str,
+                       assistant_turn_id:&str, correlation:&str, now:u64)->Result<(),ConversationError> {
+        let tenant=self.context(principal,session,now)?;
+        let conversation=self.store.owned_conversation(conversation_id,&tenant,principal.subject())?;
+        let resource=format!("tenant/{tenant}/conversation/{}",conversation.id);
+        self.authorization.authorize(principal,Operation::CancelTurn,&resource,correlation,now)?;
+        self.store.finish_turn(assistant_turn_id,"cancelled",None)?;
+        self.store.record_event(&format!("ciw:{correlation}:cancelled"),&tenant,conversation_id,
+            Some(assistant_turn_id),"turn.cancelled",correlation,now)
+    }
+
 }
 
 /// Deterministic test/development adapter. It never calls an external model.
