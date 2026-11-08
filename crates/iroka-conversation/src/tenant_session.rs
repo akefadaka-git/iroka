@@ -128,3 +128,27 @@ impl SessionGuard for SqliteSessionRegistry {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn tenant_resolution_requires_one_fresh_active_membership() {
+        let directory=SqliteTenantDirectory::open_in_memory().unwrap();
+        directory.provision_membership("subject:1","tenant:a","active",1,100).unwrap();
+        assert_eq!(directory.resolve_active_tenant("subject:1",200),Ok("tenant:a".into()));
+        assert_eq!(directory.resolve_active_tenant("subject:1",500),Err(ConversationError::TenantUnavailable));
+        directory.provision_membership("subject:1","tenant:b","active",2,200).unwrap();
+        assert_eq!(directory.resolve_active_tenant("subject:1",210),Err(ConversationError::MembershipDenied));
+    }
+    #[test]
+    fn sessions_are_bounded_and_revocable() {
+        let sessions=SqliteSessionRegistry::open_in_memory().unwrap();
+        assert_eq!(sessions.register("s1","subject:1","tenant:a","cred:1",100,1_900,1),Ok(()));
+        assert_eq!(sessions.validate("subject:1","tenant:a","s1",200),Ok(()));
+        assert_eq!(sessions.validate("subject:other","tenant:a","s1",200),Err(ConversationError::SessionInvalid));
+        assert_eq!(sessions.revoke("s1"),Ok(()));
+        assert_eq!(sessions.validate("subject:1","tenant:a","s1",200),Err(ConversationError::SessionInvalid));
+        assert_eq!(sessions.register("s2","subject:1","tenant:a","cred:1",100,5_000,1),Err(ConversationError::InvalidInput));
+    }
+}
