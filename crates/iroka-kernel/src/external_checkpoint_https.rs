@@ -60,6 +60,7 @@ impl HttpsCheckpointWitness {
     ) -> Result<Vec<u8>, CheckpointError> {
         let mut command = Command::new("curl");
         command
+            .arg("--disable")
             .arg("--silent")
             .arg("--show-error")
             .arg("--fail")
