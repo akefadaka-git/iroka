@@ -12,9 +12,11 @@ use std::sync::{
 use iroka_kernel::VerifiedPrincipal;
 use rusqlite::{params, Connection, OptionalExtension};
 
+mod budget;
 mod kernel_adapter;
 mod policy;
 mod tenant_session;
+pub use budget::BudgetGuard;
 pub use kernel_adapter::KernelConversationAuthorizer;
 pub use policy::{
     PolicyError, PolicyPayload, PolicyTrustRoot, PolicyVersionStore, SignedPolicyBundle,
@@ -33,6 +35,7 @@ pub enum ConversationError {
     NotFound,
     Conflict,
     GenerationFailed,
+    BudgetExceeded,
     Cancelled,
 }
 
@@ -450,6 +453,7 @@ pub struct ConversationService<T, S, A, G> {
     sessions: S,
     authorization: A,
     generator: G,
+    budget: BudgetGuard,
 }
 
 impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGenerator>
@@ -461,6 +465,7 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         sessions: S,
         authorization: A,
         generator: G,
+        budget: BudgetGuard,
     ) -> Self {
         Self {
             store,
@@ -468,6 +473,7 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             sessions,
             authorization,
             generator,
+            budget,
         }
     }
 
@@ -570,7 +576,6 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         cancel: &Cancellation,
     ) -> Result<Vec<StreamEvent>, ConversationError> {
         if prompt.trim().is_empty()
-            || prompt.len() > 16_384
             || turn_id.trim().is_empty()
             || idempotency.trim().is_empty()
             || correlation.trim().is_empty()
@@ -589,6 +594,9 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             correlation,
             now,
         )?;
+        let budget = self
+            .budget
+            .reserve(principal.subject(), &tenant, prompt.len() as u64, now)?;
         let user_seq = self.store.append_turn(
             conversation_id,
             turn_id,
@@ -682,6 +690,24 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             correlation,
             now,
         )?;
+        let output_tokens = answer.chars().count().div_ceil(4) as u32;
+        if budget.finish(output_tokens, 0).is_err() {
+            self.store.finish_turn(&assistant_id, "failed", None)?;
+            self.store.record_event(
+                &format!("ciw:{correlation}:budget-failed"),
+                &tenant,
+                conversation_id,
+                Some(&assistant_id),
+                "turn.failed",
+                correlation,
+                now,
+            )?;
+            events.push(StreamEvent::Failed {
+                turn_id: assistant_id,
+                sequence: assistant_seq,
+            });
+            return Ok(events);
+        }
         self.store
             .finish_turn(&assistant_id, "completed", Some(&answer))?;
         self.store.record_event(
