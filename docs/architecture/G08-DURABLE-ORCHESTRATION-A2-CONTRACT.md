@@ -316,3 +316,19 @@ A2 may be considered ready for closure when:
 - Any future G08 implementation must preserve the existing Kernel authority boundary and must not add an execution path around it.
 
 **Operating rule:** Intelligence may propose. Governance decides. Authorization permits. Execution acts. Assurance verifies.
+
+
+## 13. Read-only dependency reconciliation — 2026-11-08
+
+The G01 implementation on `feat/igacms-a3-implementation` was inspected at HEAD `813b24cbf81f049f2675fbb5492bdc9f262a9d87`. Its current `VerifiedPrincipal` binds subject, issuer and credential ID; it does not carry a tenant identifier or expose a trusted tenant-membership resolver. Therefore the tenant boundary required by Sections 3 and 7 is **not yet backed by an implemented trusted identity contract**.
+
+This is an explicit G08 A3 readiness dependency, not something the orchestrator may work around:
+
+1. Before multi-tenant G08 implementation, define and approve a G01 tenant-context contract that derives tenant scope from verified identity and authoritative membership state.
+2. The tenant context must be opaque/unforgeable to ordinary callers, bound to the authenticated principal, and revalidated or invalidated according to membership revocation semantics.
+3. A caller-supplied `tenant_id`, task payload field, model output or workflow parameter must never establish tenant authority.
+4. If a safe tenant-context contract is not yet available, G08 implementation must remain non-public/internal and must not be presented as multi-tenant-ready.
+
+**Updated A3 readiness:** NOT READY for a multi-tenant implementation until this G01 dependency is resolved. This does not block further A2 design, and it does not depend on live witness enrollment. No change to G01 or the trust model is made by this document.
+
+The PR #13 implementation branch is also four commits behind its current base branch and reports `mergeable=false`; this is an integration-lineage issue to reconcile before stacking executable G08 work on the Kernel. PR #15 remains the verified A4-03 software branch, but its existence does not authorize merging or production promotion.
