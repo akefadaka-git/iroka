@@ -3,9 +3,7 @@
 //! The adapter speaks the IROKA witness HTTP contract documented alongside A4-03.
 //! It does not create or own signer keys. Each instance must be configured with a
 //! distinct operator endpoint, client identity and witness trust root.
-use crate::external_checkpoint::{
-    CheckpointError, CheckpointSigner, CheckpointWitness, SignedCheckpoint, WitnessReceipt,
-};
+use crate::{CheckpointError, CheckpointWitness, SignedCheckpoint, WitnessReceipt};
 use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -176,7 +174,7 @@ pub fn publish_witness_quorum(
             receipts.push(receipt);
         }
     }
-    crate::external_checkpoint::verify_witness_quorum(
+    crate::verify_witness_quorum(
         checkpoint, &receipts, trusted_witnesses, required,
     )?;
     Ok(receipts)
