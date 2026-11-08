@@ -8,7 +8,7 @@ use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
-    io::Write,
+    io::{Read, Write},
     path::PathBuf,
     process::{Command, Stdio},
 };
@@ -106,20 +106,43 @@ impl HttpsCheckpointWitness {
             .spawn()
             .map_err(|_| CheckpointError::WitnessUnavailable)?;
         if let Some(bytes) = body {
-            child
+            let write_result = child
                 .stdin
                 .take()
                 .ok_or(CheckpointError::WitnessUnavailable)?
-                .write_all(bytes)
-                .map_err(|_| CheckpointError::WitnessUnavailable)?;
+                .write_all(bytes);
+            if write_result.is_err() {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(CheckpointError::WitnessUnavailable);
+            }
         }
-        let output = child
-            .wait_with_output()
-            .map_err(|_| CheckpointError::WitnessUnavailable)?;
-        if !output.status.success() || output.stdout.len() > MAX_RESPONSE_BYTES {
+        // Read at most limit + 1 bytes before allocating further memory. Checking
+        // after wait_with_output() would buffer an untrusted response without a
+        // hard client-side bound (notably for chunked/unknown-length responses).
+        let mut stdout = child
+            .stdout
+            .take()
+            .ok_or(CheckpointError::WitnessUnavailable)?;
+        let mut response = Vec::with_capacity(MAX_RESPONSE_BYTES.min(8192));
+        if stdout
+            .by_ref()
+            .take((MAX_RESPONSE_BYTES + 1) as u64)
+            .read_to_end(&mut response)
+            .is_err()
+        {
+            let _ = child.kill();
+            let _ = child.wait();
             return Err(CheckpointError::WitnessUnavailable);
         }
-        Ok(output.stdout)
+        drop(stdout);
+        let status = child
+            .wait()
+            .map_err(|_| CheckpointError::WitnessUnavailable)?;
+        if !status.success() || response.len() > MAX_RESPONSE_BYTES {
+            return Err(CheckpointError::WitnessUnavailable);
+        }
+        Ok(response)
     }
 
     fn url(&self, suffix: &str) -> String {
