@@ -637,6 +637,7 @@ mod tests {
                 approval_id: "approval:1",
                 payload_digest: &[3; 32],
                 owner_subject: "owner:test",
+                signer_issuer: "iroka:owner-authority",
                 signer_key_id: "owner-key",
                 request_subject: "principal:test",
                 capability: "records.read",
