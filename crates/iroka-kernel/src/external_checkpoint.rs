@@ -259,7 +259,7 @@ mod tests {
     }
     impl CheckpointWitness for TestWitness {
         fn publish(&self, cp: &SignedCheckpoint) -> Result<WitnessReceipt, CheckpointError> {
-            cp.verify(&BTreeMap::from([(self.signer_key_id.clone(), self.signer_key)]))?;
+            cp.verify(&BTreeMap::from([(self.signer_key_id.clone(), self.signer_key.clone())]))?;
             let mut map = self.accepted.lock().map_err(|_| CheckpointError::WitnessUnavailable)?;
             if let Some(prev) = map.get(&cp.payload.stream_id) {
                 if cp.payload.checkpoint_sequence <= prev.payload.checkpoint_sequence {
