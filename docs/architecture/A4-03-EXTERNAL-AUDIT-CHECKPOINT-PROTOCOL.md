@@ -89,3 +89,18 @@ Software protocol gates are green, but this is not evidence that a real independ
 6. **End-to-end A4 evidence:** integration tests against isolated witness instances, concurrency/race tests, network partition/retry/idempotency tests, restore drill and independent security review of the deployed adapter and trust model.
 
 Until these items are separately implemented and verified, classify the delivered work as **A4 software gates PASS / A4-03 closure PARTIAL**. A5 remains NOT AUTHORIZED / NOT RUN. PR #15 remains draft, open and unmerged. No production keys, external provider, paid service, top-up or deposit were used or requested.
+
+## Independent HTTPS witness adapter implementation — 2026-11-08
+
+A production-capable HTTPS/mTLS client adapter is implemented in `crates/iroka-kernel/src/external_checkpoint_https.rs` and exported by the kernel:
+
+- `HttpsCheckpointWitness` binds one endpoint to one configured witness identity/key, checkpoint signer trust roots, mTLS client certificate/private-key paths and a trusted CA bundle.
+- Requests use the system `curl` executable without a shell, disable ambient curl configuration, require HTTPS/TLS 1.2+, authenticate the server CA and client certificate, and enforce connect/total timeouts and a bounded response size.
+- Checkpoints are verified before publication. The checkpoint digest is sent as an idempotency key. Returned receipts are verified against the configured witness public key and exact expected identity/key ID.
+- Latest-checkpoint reads validate the signed checkpoint, receipt and requested stream binding.
+- `publish_witness_quorum` fans out across separately configured witness instances, collects valid receipts, rejects duplicate identities and fails closed if the required threshold is not met.
+- HTTP API, idempotency, durable transaction, replay/conflict, append-only retention and operator-side requirements are specified in `docs/architecture/A4-03-INDEPENDENT-HTTPS-WITNESS-ADAPTER.md`.
+
+Automated coverage now includes HTTPS endpoint policy, stream-path encoding and multi-identity quorum fan-out in addition to the protocol-level signature, replay, predecessor and quorum tests.
+
+**Important limitation:** the adapter is implemented and CI-verified, but no independent operator endpoints, mTLS credentials or production witness public keys have been supplied or provisioned. Therefore no live external witness publish/readback has been performed, and organizational independence, durable retention and restore behavior remain UNVERIFIED. A real deployment requires at least two separately administered operators and secure exchange of their endpoint URLs, client enrollment material and public-key fingerprints. No credentials should be committed to Git.
