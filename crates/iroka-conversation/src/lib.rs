@@ -723,7 +723,6 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         let c = self
             .store
             .owned_conversation(conversation_id, &tenant, principal.subject())?;
-        let resource = format!("tenant/{tenant}/conversation/{}", c.id);
         let turn_resource = format!("tenant/{tenant}/conversation/{}/turn/new", c.id);
         self.authorization.authorize(
             principal,
@@ -912,9 +911,8 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         now: u64,
     ) -> Result<(), ConversationError> {
         let tenant = self.context(principal, session, now)?;
-        let conversation =
-            self.store
-                .owned_conversation(conversation_id, &tenant, principal.subject())?;
+        self.store
+            .owned_conversation(conversation_id, &tenant, principal.subject())?;
         let resource = format!("tenant/{tenant}/generation/{assistant_turn_id}");
         self.authorization.authorize(
             principal,
