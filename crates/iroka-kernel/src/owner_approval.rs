@@ -7,7 +7,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::security_store::{ApprovalReceipt, RevocationTarget};
+use crate::security_store::{ApprovalConsumptionError, ApprovalReceipt, RevocationTarget};
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 
@@ -285,6 +285,7 @@ impl OwnerApprovalVerifier {
             approval_id: &p.approval_id,
             payload_digest: digest.as_slice(),
             owner_subject: &p.owner_subject,
+            signer_issuer: OWNER_ISSUER,
             signer_key_id: &p.key_id,
             request_subject: &p.request_subject,
             capability: &p.capability,
@@ -293,6 +294,9 @@ impl OwnerApprovalVerifier {
             issued_at: p.issued_at,
             expires_at: p.expires_at,
             consumed_at: now,
+        }).map_err(|error| match error {
+            ApprovalConsumptionError::SigningKeyRevoked | ApprovalConsumptionError::ApprovalRevoked => OwnerApprovalError::Revoked,
+            ApprovalConsumptionError::Store(store_error) => store_error.into(),
         })?;
         if !consumed {
             return Err(OwnerApprovalError::Replay);
