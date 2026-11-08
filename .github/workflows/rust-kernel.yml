@@ -20,8 +20,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
 
 concurrency:
   group: rust-kernel-${{ github.event.pull_request.number || github.ref }}
@@ -37,7 +36,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Install stable Rust toolchain
         run: |
@@ -46,25 +45,6 @@ jobs:
           rustc --version
           cargo --version
 
-
-      - name: Apply and commit Rust formatting on the A3 branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/igacms-a3-implementation'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cargo fmt --all
-          git add crates/iroka-kernel/src/igacms.rs crates/iroka-kernel/src/lib.rs crates/iroka-kernel/src/service.rs
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "style: format IGACMS Rust implementation"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-            curl --fail-with-body -X POST \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${GH_TOKEN}" \
-              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/rust-kernel.yml/dispatches" \
-              -d "{\"ref\":\"feat/igacms-a3-implementation\"}"
-          fi
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -80,5 +60,3 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
-
-# Exact-head verification is triggered by pushes to the A3 implementation branch.
