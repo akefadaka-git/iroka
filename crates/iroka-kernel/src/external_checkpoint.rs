@@ -26,6 +26,8 @@ pub enum CheckpointError {
     LocalBehindAnchor,
     LocalAheadOfAnchor,
     ForkDetected,
+    QuorumNotMet,
+    DuplicateWitness,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -315,7 +317,7 @@ mod tests {
 
     #[test]
     fn witness_rejects_replay_gap_and_wrong_predecessor() {
-        let s = signer(); let w = TestWitness::new();
+        let s = signer(); let w = TestWitness::new(&s);
         let one = create_checkpoint(&s, "audit-stream:alpha", 1, 7, [8; 32], None, 1_900).unwrap();
         w.publish(&one).unwrap();
         assert_eq!(w.publish(&one), Err(CheckpointError::SequenceConflict));
@@ -327,7 +329,7 @@ mod tests {
 
     #[test]
     fn witness_keeps_streams_separate_and_receipt_is_bound_to_digest() {
-        let s = signer(); let w = TestWitness::new();
+        let s = signer(); let w = TestWitness::new(&s);
         let a = create_checkpoint(&s, "audit-stream:a", 1, 1, [1; 32], None, 1_900).unwrap();
         let b = create_checkpoint(&s, "audit-stream:b", 1, 1, [2; 32], None, 1_900).unwrap();
         let ra = w.publish(&a).unwrap();
