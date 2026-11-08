@@ -224,8 +224,8 @@ mod tests {
 
     struct TestWitness { id: String, key_id: String, key: SigningKey, signer_key_id: String, signer_key: VerifyingKey, accepted: Mutex<BTreeMap<String, SignedCheckpoint>> }
     impl TestWitness {
-        fn new() -> Self { Self { id: "witness:test".into(), key_id: "witness-key:test".into(),
-            key: SigningKey::from_bytes(&[92; 32]), accepted: Mutex::new(BTreeMap::new()) } }
+        fn new(signer: &TestSigner) -> Self { Self { id: "witness:test".into(), key_id: "witness-key:test".into(),
+            key: SigningKey::from_bytes(&[92; 32]), signer_key_id: signer.id.clone(), signer_key: signer.key.verifying_key(), accepted: Mutex::new(BTreeMap::new()) } }
         fn receipt(&self, cp: &SignedCheckpoint) -> Result<WitnessReceipt, CheckpointError> {
             let payload = WitnessReceiptPayload { protocol: "iroka.g11.witness-receipt".into(), version: VERSION,
                 witness_id: self.id.clone(), witness_key_id: self.key_id.clone(), stream_id: cp.payload.stream_id.clone(),
@@ -238,6 +238,7 @@ mod tests {
     }
     impl CheckpointWitness for TestWitness {
         fn publish(&self, cp: &SignedCheckpoint) -> Result<WitnessReceipt, CheckpointError> {
+            cp.verify(&BTreeMap::from([(self.signer_key_id.clone(), self.signer_key)]))?;
             let mut map = self.accepted.lock().map_err(|_| CheckpointError::WitnessUnavailable)?;
             if let Some(prev) = map.get(&cp.payload.stream_id) {
                 if cp.payload.checkpoint_sequence <= prev.payload.checkpoint_sequence {
@@ -282,7 +283,7 @@ mod tests {
 
     #[test]
     fn rejects_tampered_checkpoint_and_receipt() {
-        let s = signer(); let w = TestWitness::new();
+        let s = signer(); let w = TestWitness::new(&s);
         let cp = create_checkpoint(&s, "audit-stream:alpha", 1, 7, [8; 32], None, 1_900).unwrap();
         let mut bad = cp.clone(); bad.payload.event_sequence = 8;
         assert_eq!(bad.verify(&trust(&s.id, &s.key)), Err(CheckpointError::InvalidSignature));
