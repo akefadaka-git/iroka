@@ -410,8 +410,7 @@ mod tests {
         use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 
         let header = URL_SAFE_NO_PAD.encode(
-            format!(r#"{{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"{key_id}"}}"#)
-                .as_bytes(),
+            format!(r#"{{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"{key_id}"}}"#).as_bytes(),
         );
         let claims = URL_SAFE_NO_PAD.encode(
             br#"{"iss":"issuer:iroka-test","sub":"principal:race","aud":"iroka-kernel","exp":4000,"nbf":1000,"iat":1000,"jti":"credential:race"}"#,
@@ -464,29 +463,25 @@ mod tests {
         let second = std::thread::spawn(move || {
             second_manager.install_using(3, || {
                 second_entered_tx.send(()).unwrap();
-                verify_and_install_trust_bundle(
-                    &newest_bundle,
-                    &second_root,
-                    &second_store,
-                    1_300,
-                )
+                verify_and_install_trust_bundle(&newest_bundle, &second_root, &second_store, 1_300)
             })
         });
 
         // This bounded wait is the assertion: the second install closure cannot
         // run while the first operation holds the publication-order mutex.
-        assert!(second_entered_rx.recv_timeout(Duration::from_millis(100)).is_err());
+        assert!(second_entered_rx
+            .recv_timeout(Duration::from_millis(100))
+            .is_err());
         release_tx.send(()).unwrap();
         assert_eq!(first.join().unwrap(), Ok(2));
         assert_eq!(second.join().unwrap(), Ok(3));
         assert_eq!(store.highest_trust_bundle_version(), Ok(Some(3)));
 
         let snapshot = manager.snapshot().unwrap();
-        let verifier =
-            crate::Ed25519CredentialVerifier::from_verified_trust_snapshot(
-                &snapshot,
-                crate::NoRevocations,
-            );
+        let verifier = crate::Ed25519CredentialVerifier::from_verified_trust_snapshot(
+            &snapshot,
+            crate::NoRevocations,
+        );
         let issuer_signer = SigningKey::from_bytes(&[41u8; 32]);
         assert!(verifier
             .authenticate(
@@ -528,11 +523,10 @@ mod tests {
         assert_eq!(store.highest_trust_bundle_version(), Ok(Some(1)));
 
         let snapshot = manager.snapshot().unwrap();
-        let verifier =
-            crate::Ed25519CredentialVerifier::from_verified_trust_snapshot(
-                &snapshot,
-                crate::NoRevocations,
-            );
+        let verifier = crate::Ed25519CredentialVerifier::from_verified_trust_snapshot(
+            &snapshot,
+            crate::NoRevocations,
+        );
         let issuer_signer = SigningKey::from_bytes(&[41u8; 32]);
         assert!(verifier
             .authenticate(
