@@ -350,7 +350,16 @@ mod tests {
         let sessions =
             SqliteSessionRegistry::open_in_memory(Arc::new(AllowTestCredential)).unwrap();
         assert_eq!(
-            sessions.register("s1", "subject:1", "tenant:a", "issuer:1", "cred:1", 100, 1_900, 1),
+            sessions.register(
+                "s1",
+                "subject:1",
+                "tenant:a",
+                "issuer:1",
+                "cred:1",
+                100,
+                1_900,
+                1
+            ),
             Ok(())
         );
         assert_eq!(
@@ -367,7 +376,16 @@ mod tests {
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(
-            sessions.register("s2", "subject:1", "tenant:a", "issuer:1", "cred:1", 100, 5_000, 1),
+            sessions.register(
+                "s2",
+                "subject:1",
+                "tenant:a",
+                "issuer:1",
+                "cred:1",
+                100,
+                5_000,
+                1
+            ),
             Err(ConversationError::InvalidInput)
         );
     }
