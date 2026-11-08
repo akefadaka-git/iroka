@@ -406,7 +406,6 @@ mod tests {
         );
     }
 
-
     fn credential_for(signing: &SigningKey, key_id: &str) -> String {
         use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 
@@ -424,7 +423,7 @@ mod tests {
 
     #[test]
     fn concurrent_snapshot_installation_serializes_persistence_and_publication() {
-        use std::sync::{mpsc, Barrier};
+        use std::sync::mpsc;
         use std::time::Duration;
 
         let (_, root, initial_bundle) = fixture(1);
@@ -545,6 +544,43 @@ mod tests {
         assert_eq!(
             verifier.authenticate(
                 &credential_for(&issuer_signer, "issuer-key-2"),
+                "iroka-kernel",
+                1_400,
+            ),
+            Err(crate::CredentialError::UnknownKey)
+        );
+    }
+
+    #[test]
+    fn rollback_rejection_leaves_active_snapshot_unchanged() {
+        let (_, root, newer) = fixture(2);
+        let (_, _, older) = fixture(1);
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let initial = verify_and_install_trust_bundle(&newer, &root, &store, 1_100).unwrap();
+        let manager = TrustSnapshotManager::new(initial);
+
+        assert_eq!(
+            manager.install(&older, &root, &store, 1_200),
+            Err(TrustBundleError::Rollback)
+        );
+        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(2)));
+
+        let snapshot = manager.snapshot().unwrap();
+        let verifier = crate::Ed25519CredentialVerifier::from_verified_trust_snapshot(
+            &snapshot,
+            crate::NoRevocations,
+        );
+        let issuer_signer = SigningKey::from_bytes(&[41u8; 32]);
+        assert!(verifier
+            .authenticate(
+                &credential_for(&issuer_signer, "issuer-key-2"),
+                "iroka-kernel",
+                1_400,
+            )
+            .is_ok());
+        assert_eq!(
+            verifier.authenticate(
+                &credential_for(&issuer_signer, "issuer-key-1"),
                 "iroka-kernel",
                 1_400,
             ),
