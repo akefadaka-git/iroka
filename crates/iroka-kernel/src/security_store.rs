@@ -806,4 +806,136 @@ mod tests {
         let _ = fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = fs::remove_file(path.with_extension("sqlite-shm"));
     }
+
+    #[test]
+    fn busy_lock_exhaustion_fails_closed_without_partial_trust_write() {
+        use std::fs;
+
+        let path = std::env::temp_dir().join(format!(
+            "iroka-security-busy-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        let store = SqliteSecurityStore::open(&path).unwrap();
+        let blocker = Connection::open(&path).unwrap();
+        blocker.execute_batch("BEGIN IMMEDIATE;").unwrap();
+
+        assert_eq!(
+            store.install_trust_bundle(1, &[7; 32], 10, 100, 11),
+            Err(SecurityStoreError::Unavailable)
+        );
+        assert_eq!(store.highest_trust_bundle_version(), Ok(None));
+        assert_eq!(store.trust_bundle_history_count(), Ok(0));
+
+        blocker.execute_batch("ROLLBACK;").unwrap();
+        drop(blocker);
+        drop(store);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
+    fn injected_storage_write_failure_rolls_back_all_trust_state() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        {
+            let connection = store.connection.lock().unwrap();
+            connection.execute_batch(
+                "CREATE TRIGGER reject_trust_history
+                 BEFORE INSERT ON trust_bundle_history
+                 BEGIN SELECT RAISE(ABORT, 'injected storage write failure'); END;"
+            ).unwrap();
+        }
+
+        assert_eq!(
+            store.install_trust_bundle(1, &[8; 32], 10, 100, 11),
+            Err(SecurityStoreError::Unavailable)
+        );
+        assert_eq!(store.highest_trust_bundle_version(), Ok(None));
+        assert_eq!(store.trust_bundle_history_count(), Ok(0));
+    }
+
+    #[test]
+    fn deferred_constraint_commit_failure_rolls_back_trust_state() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        {
+            let connection = store.connection.lock().unwrap();
+            connection.execute_batch(
+                "CREATE TABLE commit_guard_parent(id INTEGER PRIMARY KEY);
+                 CREATE TABLE commit_guard_child(
+                   parent_id INTEGER REFERENCES commit_guard_parent(id)
+                   DEFERRABLE INITIALLY DEFERRED
+                 );
+                 CREATE TRIGGER inject_deferred_commit_failure
+                 AFTER INSERT ON trust_bundle_history
+                 BEGIN
+                   INSERT INTO commit_guard_child(parent_id) VALUES(999);
+                 END;"
+            ).unwrap();
+        }
+
+        assert_eq!(
+            store.install_trust_bundle(1, &[9; 32], 10, 100, 11),
+            Err(SecurityStoreError::Unavailable)
+        );
+        assert_eq!(store.highest_trust_bundle_version(), Ok(None));
+        assert_eq!(store.trust_bundle_history_count(), Ok(0));
+    }
+
+    #[test]
+    fn abrupt_process_exit_recovers_wal_without_uncommitted_trust_state() {
+        use std::fs;
+        use std::process::Command;
+
+        const CHILD_PATH_ENV: &str = "IROKA_TEST_CRASH_DURING_TRUST_TX_PATH";
+        if let Ok(child_path) = std::env::var(CHILD_PATH_ENV) {
+            let store = SqliteSecurityStore::open(child_path).unwrap();
+            let mut connection = store.connection.lock().unwrap();
+            let tx = connection
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .unwrap();
+            tx.execute(
+                "INSERT INTO trust_bundle_state(singleton, version, digest, issued_at, expires_at)
+                 VALUES(1, 77, ?1, 10, 100)",
+                params![&[10u8; 32][..]],
+            ).unwrap();
+            tx.execute(
+                "INSERT INTO trust_bundle_history(version, digest, issued_at, expires_at, installed_at)
+                 VALUES(77, ?1, 10, 100, 11)",
+                params![&[10u8; 32][..]],
+            ).unwrap();
+            // Simulate abrupt process termination: no Rust destructors run and
+            // the SQLite transaction is left for WAL crash recovery.
+            std::process::exit(73);
+        }
+
+        let path = std::env::temp_dir().join(format!(
+            "iroka-security-crash-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        let output = Command::new(std::env::current_exe().unwrap())
+            .arg("--exact")
+            .arg("security_store::tests::abrupt_process_exit_recovers_wal_without_uncommitted_trust_state")
+            .arg("--nocapture")
+            .env(CHILD_PATH_ENV, &path)
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(73),
+            "child did not terminate at the injected transaction point; stdout: {}; stderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        let recovered = SqliteSecurityStore::open(&path).unwrap();
+        assert_eq!(recovered.highest_trust_bundle_version(), Ok(None));
+        assert_eq!(recovered.trust_bundle_history_count(), Ok(0));
+        drop(recovered);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
 }
