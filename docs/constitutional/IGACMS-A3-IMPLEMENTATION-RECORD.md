@@ -24,32 +24,34 @@
 
 ## Exact-SHA verification evidence
 
-**Verified implementation SHA:** `72296b5e3c78fa8c3cf3b782dd8caff22045ba27`  
-**Workflow run:** [#42390862217](https://github.com/akefadaka-git/iroka/actions/runs/42390862217)  
-**Result:** PASS  
+**Verified implementation commit:** `046656d602eddadf647895f0e7c9ef24b4bd6749`  
+**Workflow run:** [#42452827086](https://github.com/akefadaka-git/iroka/actions/runs/42452827086)  
+**Result:** PASS — all five automated gates passed on this exact commit.  
 **Pinned v1.0 Genome SHA-256:** `a89e2b5bdb3519201268cf087b84df676e34f932c33c888de00794362864351c`
 
 | Gate | Evidence |
 |---|---|
-| Rust formatting | PASS |
-| `cargo check --workspace --all-targets --locked` | PASS |
-| Production feature set without development bypasses | PASS |
-| `cargo test --workspace --all-targets --locked` | PASS — 52 unit tests and 2 documentation tests |
-| `cargo clippy --workspace --all-targets --locked -- -D warnings` | PASS |
-| Dependency lockfile | PASS — committed lockfile resolves `serde_jcs 0.2.0` and `sha1 0.10.6` |
+| Rust formatting | PASS — `cargo fmt --all -- --check` |
+| Workspace compilation | PASS — `cargo check --workspace --all-targets --locked` |
+| Production feature set | PASS — `cargo check --workspace --all-targets --no-default-features` |
+| Unit and contract tests | PASS — 55 unit tests and 2 documentation tests; zero failures |
+| Clippy | PASS — `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic` |
+| Dependency lockfile | PASS — locked build resolves `serde_jcs 0.2.0` and `sha1 0.10.6` |
+
+The Rust formatter corrections were committed in `acf09a5962803b7ec1b7876b4f8ff6cf71da27e0`. The validator was then corrected to preserve the distinct `MissingDomain` error for absent historical domains while rejecting duplicate and unknown domains as malformed; that correction is included in the verified commit above.
 
 ## A3 completion assessment
 
 - **A3.1:** VERIFIED — DNA, Genome, chromosome, gene, marker-definition, marker-assertion, Genesis, attestation, mutation-evidence and migration-evidence schemas committed.
-- **A3.2:** IMPLEMENTED — strict duplicate-key parser; exact eight-domain set; exact 12 chromosome IDs, 36 core genes and 27 marker IDs; dependency-cycle checks. The additional hardening changes have not yet been rerun through CI at the current head.
+- **A3.2:** VERIFIED — strict duplicate-key parser; exact eight-domain set with distinct missing-domain semantics; exact 12 chromosome IDs, 36 core genes and 27 marker IDs; dependency-cycle checks. All changes pass the exact-SHA verification run.
 - **A3.3:** VERIFIED — RFC 8785 JCS canonicalization and SHA-256 fingerprint pinned to the approved manifest.
 - **A3.4:** IMPLEMENTED — Ed25519 Genesis envelope signing/verification against the configured Owner-controlled trust-root set, with provenance, validity and revocation behavior. Production root provisioning and genesis activation are NOT RUN.
 - **A3.5:** VERIFIED — M0–M5 evidence gates and fail-closed tests.
 - **A3.6:** VERIFIED — protected Owner-approval authorization requires a verified Genesis token and the pinned embedded Genome.
 - **A3.7:** PARTIAL — source commit prefix resolved to full SHA and four representative historical blob IDs matched the A2 register; full 48-artifact blob-by-blob reconciliation has not yet been completed. DNA-045 remains `EXTENSION-REVIEW` by the A2 disposition.
-- **A3.8:** PARTIAL — prior automated conformance tests PASS at `72296b5e3c78fa8c3cf3b782dd8caff22045ba27`; current hardening head `43b180bf65fcb1e19c9d2f4ead18ca3111d2511e` has no fresh workflow result returned yet. Independent review requirement explicitly waived by Owner on 2026-11-08; no independent review is required for A3 closure under this waiver.
+- **A3.8:** VERIFIED — all five automated gates PASS on `046656d602eddadf647895f0e7c9ef24b4bd6749`, workflow run [#42452827086](https://github.com/akefadaka-git/iroka/actions/runs/42452827086), including 55 unit tests and 2 documentation tests. Independent review is waived by the Owner on 2026-11-08 and is not an A3 closure prerequisite.
 
-**Overall A3 status: PARTIAL — historical commit reference resolved; implementation hardening applied. Fresh exact-head verification and full 48-artifact blob reconciliation remain open. Independent review is waived by the Owner and is not a blocker.**
+**Overall A3 status: PARTIAL — implementation and all five automated gates are VERIFIED at the exact implementation SHA. Full 48-artifact historical blob reconciliation remains open. Independent review is waived by the Owner and is not a blocker.**
 
 ## Explicitly not performed
 
@@ -74,11 +76,13 @@ These are implementation remediations from an internal review pass. They do not 
 
 ## Current verification boundary
 
-- Last verified implementation SHA: `72296b5e3c78fa8c3cf3b782dd8caff22045ba27`, workflow run [#42390862217](https://github.com/akefadaka-git/iroka/actions/runs/42390862217) — PASS.
-- Current branch head after hardening: `134ed29c087831fd81ea6f0ff07748133f45c3c9`.
-- No workflow run was returned for the current head by the available PR-run lookup. Current-head format, compile, test and Clippy status is therefore **NOT VERIFIED**.
-- PR #13 has no submitted reviews, review threads, requested reviewers, CODEOWNERS file or SECURITY.md review instructions.
+- Latest verified implementation SHA: `046656d602eddadf647895f0e7c9ef24b4bd6749`.
+- Exact-SHA workflow run [#42452827086](https://github.com/akefadaka-git/iroka/actions/runs/42452827086) — SUCCESS; formatting, locked workspace compilation, production feature gate, 55 unit tests, 2 documentation tests and Clippy all passed.
+- The workflow was restored to read-only permissions after the one-time formatting correction. Its push path filter includes this A3 implementation record so subsequent record updates receive CI verification.
+- PR #13 remains open and draft; no merge or deployment.
+- Full 48-artifact historical blob reconciliation remains outstanding.
 - Independent security review is explicitly waived by the Owner on 2026-11-08. This is a governance waiver, not a claim that an independent review occurred.
+
 
 
 ## Owner governance decision — independent review waiver
