@@ -141,7 +141,10 @@
         })
       });
       state.turnId = data.turn?.id || null;
-      if (!data.events_url) throw new Error("MISSING_EVENTS_URL");
+      if (!data.events_url || !data.events_url.startsWith("/api/v1/generations/") || data.events_url.includes("..")) {
+        throw new Error("INVALID_EVENTS_URL");
+      }
+      el("cancel").disabled = false;
       await consumeEvents(data.events_url, state.aborter.signal);
       if (!statusText()) status("");
     } catch (error) {
@@ -156,7 +159,7 @@
   const statusText = () => el("status").textContent;
   const setBusy = (busy) => {
     el("send").disabled = busy;
-    el("cancel").disabled = !busy;
+    el("cancel").disabled = !busy || !state.turnId;
     el("prompt").disabled = busy;
   };
   const cancel = async () => {
@@ -193,4 +196,8 @@
   el("cancel").addEventListener("click", cancel);
   el("locale").addEventListener("change", applyLocale);
   applyLocale();
+  loadConversations().catch((error) => {
+    if (error.message === "AUTH_REQUIRED") status(words[locale()].auth);
+    else status(words[locale()].failed);
+  });
 })();
