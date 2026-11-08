@@ -78,10 +78,7 @@ impl BudgetGuard {
             requests.len()
         };
         let tenant_request_count = {
-            let requests = state
-                .requests_tenant
-                .entry(tenant.to_owned())
-                .or_default();
+            let requests = state.requests_tenant.entry(tenant.to_owned()).or_default();
             Self::prune_window(requests, now)?;
             requests.len()
         };
