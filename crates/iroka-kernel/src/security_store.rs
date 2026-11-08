@@ -940,4 +940,50 @@ mod tests {
         let _ = fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = fs::remove_file(path.with_extension("sqlite-shm"));
     }
+
+    #[test]
+    fn sqlite_page_limit_disk_full_fails_closed_without_advancing_trust_state() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let before_count;
+        {
+            let connection = store.connection.lock().unwrap();
+            let page_count: i64 = connection
+                .query_row("PRAGMA page_count", [], |row| row.get(0))
+                .unwrap();
+            let page_limit = page_count + 2;
+            connection
+                .execute_batch(&format!("PRAGMA max_page_count = {page_limit};"))
+                .unwrap();
+
+            let mut inserted = 0i64;
+            let mut reached_disk_full = false;
+            for version in 1..100_000i64 {
+                match connection.execute(
+                    "INSERT INTO trust_bundle_history(version, digest, issued_at, expires_at, installed_at)
+                     VALUES(?1, ?2, 10, 100, 11)",
+                    params![version, &[11u8; 32][..]],
+                ) {
+                    Ok(_) => inserted += 1,
+                    Err(rusqlite::Error::SqliteFailure(error, _))
+                        if error.code == rusqlite::ErrorCode::DiskFull =>
+                    {
+                        reached_disk_full = true;
+                        break;
+                    }
+                    Err(error) => panic!("unexpected page-limit injection error: {error}"),
+                }
+            }
+            assert!(reached_disk_full, "SQLite page limit did not produce SQLITE_FULL");
+            assert!(inserted > 0);
+            before_count = u64::try_from(inserted).unwrap();
+        }
+
+        assert_eq!(
+            store.install_trust_bundle(200_000, &[12; 32], 10, 100, 11),
+            Err(SecurityStoreError::Unavailable)
+        );
+        assert_eq!(store.highest_trust_bundle_version(), Ok(None));
+        assert_eq!(store.trust_bundle_history_count(), Ok(before_count));
+    }
+
 }
