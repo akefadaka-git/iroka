@@ -1,4 +1,5 @@
 name: Rust kernel verification
+# A4-03 checkpoint and witness protocol verification is included in the feature-branch gates.
 
 on:
   push:
