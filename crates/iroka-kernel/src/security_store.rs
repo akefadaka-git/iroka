@@ -477,29 +477,38 @@ impl SqliteSecurityStore {
         receipt: ApprovalReceipt<'_>,
     ) -> Result<bool, ApprovalConsumptionError> {
         if receipt.approval_id.trim().is_empty() || receipt.payload_digest.len() != 32 {
-            return Err(ApprovalConsumptionError::Store(SecurityStoreError::InvalidVersion));
+            return Err(ApprovalConsumptionError::Store(
+                SecurityStoreError::InvalidVersion,
+            ));
         }
-        let mut connection = self.connection.lock()
+        let mut connection = self
+            .connection
+            .lock()
             .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
-        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
 
         // Serialize final revocation checks with the single-use approval insert.
         // A racing revocation either commits first and blocks consumption, or
         // commits after this transaction has legitimately consumed the approval.
-        let signer_revoked: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
-            params![receipt.signer_issuer, receipt.signer_key_id],
-            |row| row.get(0),
-        ).map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
+        let signer_revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params![receipt.signer_issuer, receipt.signer_key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         if signer_revoked {
             return Err(ApprovalConsumptionError::SigningKeyRevoked);
         }
-        let approval_revoked: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM revoked_approvals WHERE approval_id=?1)",
-            [receipt.approval_id],
-            |row| row.get(0),
-        ).map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
+        let approval_revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_approvals WHERE approval_id=?1)",
+                [receipt.approval_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         if approval_revoked {
             return Err(ApprovalConsumptionError::ApprovalRevoked);
         }
@@ -525,10 +534,10 @@ impl SqliteSecurityStore {
                 issued_at, expires_at, consumed_at
             ]
         ).map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
-        tx.commit().map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
+        tx.commit()
+            .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         Ok(true)
     }
-
 }
 
 impl RevocationChecker for SqliteSecurityStore {
@@ -648,7 +657,9 @@ mod tests {
     #[test]
     fn approval_consumption_rechecks_signing_key_revocation_atomically() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        store.revoke_key("iroka:owner-authority", "owner-key", 19, "compromised").unwrap();
+        store
+            .revoke_key("iroka:owner-authority", "owner-key", 19, "compromised")
+            .unwrap();
         let result = store.consume_approval(ApprovalReceipt {
             approval_id: "approval:key-revoked",
             payload_digest: &[4; 32],
@@ -670,7 +681,9 @@ mod tests {
     #[test]
     fn approval_consumption_rechecks_approval_revocation_atomically() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        store.revoke_approval("approval:revoked", 19, "withdrawn").unwrap();
+        store
+            .revoke_approval("approval:revoked", 19, "withdrawn")
+            .unwrap();
         let result = store.consume_approval(ApprovalReceipt {
             approval_id: "approval:revoked",
             payload_digest: &[5; 32],
@@ -695,10 +708,8 @@ mod tests {
         use std::sync::{Arc, Barrier};
         use std::thread;
 
-        let path = std::env::temp_dir().join(format!(
-            "iroka-security-race-{}.sqlite",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("iroka-security-race-{}.sqlite", std::process::id()));
         let _ = fs::remove_file(&path);
         let revoker = SqliteSecurityStore::open(&path).unwrap();
         let consumer = SqliteSecurityStore::open(&path).unwrap();
