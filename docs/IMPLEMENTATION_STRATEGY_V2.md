@@ -1102,3 +1102,14 @@ This document is a strategic target, not a new status report. Existing A1/A2/A3/
 
 **Constitutional operating rule:**  
 **Intelligence may propose. Governance decides. Authorization permits. Execution acts. Assurance verifies.**
+
+
+---
+
+## First-class workstream: Conversational Interaction (CIW)
+
+Conversational interaction is a first-class, cross-phase product workstream—not a late UI layer. It spans G03 Cognitive, G04 Knowledge, G05 Memory, G06 Perception, G08 Orchestration and G11 Assurance, governed by G01 Identity and G02 Governance. Delivery begins with secure Amharic-first and English text chat, then adds governed context/memory, permissioned tools, multimodal interaction and specialized agents.
+
+The workstream has its own A1–A5 gates, acceptance criteria and security/privacy contract. Independent witness enrollment and live A4-03 verification are a separate assurance workstream and are **not prerequisites** for CIW architecture, read-only reconciliation, local/synthetic development, or a controlled non-production text-chat prototype. This does not close A4-03 or waive any audit, identity, authorization, approval, revocation, tenant-isolation or fail-closed requirement. Any action whose assurance case requires independent witness evidence remains unavailable until that evidence exists.
+
+The detailed scope, ownership, staged releases, controls and acceptance criteria are maintained in [Conversational Interaction Workstream](workstreams/CONVERSATIONAL_INTERACTION_WORKSTREAM.md). This addition establishes planning priority and A1/A2 work; it does not authorize production deployment, merge, paid service activation, trust-root changes or protected side effects.
