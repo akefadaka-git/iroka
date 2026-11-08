@@ -208,3 +208,76 @@ Added three tests:
 - PASS: `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic`.
 
 **A4-01 disposition: VERIFIED-CLOSED.** This closes the identified approval/revocation TOCTOU finding only. It does not constitute A4 overall closure. Remaining A4 work includes broader trust-lifecycle and adversarial review, audit-chain/external-checkpoint assessment, rollback/failure-path verification and operational boundary confirmation. Production trust-root provisioning and Genesis activation remain NOT RUN and separately gated. No merge or deployment was performed.
+
+
+## A4 verification assessment — trust lifecycle, audit chain, rollback and failure paths (2026-11-08)
+
+**Assessment baseline:** source tree at parent SHA `a1b92959011c88a7b732f81a40187f2e0667a868`; exact-head workflow run [#42459440729](https://github.com/akefadaka-git/iroka/actions/runs/42459440729) checked out that exact SHA and completed successfully. This assessment is a verification record, not a declaration that A4 is closed.
+
+### A4-01 — Owner approval/revocation atomicity
+
+**VERIFIED-CLOSED.** The SQLite `IMMEDIATE` transaction rechecks signing-key and approval revocation state in the same transaction that inserts the one-time consumption marker and receipt. Three focused regression tests cover both revoked cases and a two-connection key-revocation race. Exact-head CI passed.
+
+### A4-02 — Trust snapshot publication ordering
+
+**OPEN — remediation and regression test required.**
+
+Static review of `TrustSnapshotManager::install` and `install_with_roots` found that each method calls `verify_and_install_trust_bundle*` (including durable monotonic-version persistence) before acquiring the in-memory snapshot write lock. Two concurrent installers can therefore persist version N, then N+1, publish N+1, and subsequently publish the delayed N snapshot. The SQLite high-water mark remains N+1 while the active in-memory trust snapshot can regress to N. Existing tests cover sequential monotonic installation and explicit root overlap, but do not exercise concurrent snapshot publication.
+
+**Required correction:** serialize each manager installation across verification, durable anti-rollback persistence and snapshot replacement (or compare the persisted generation under the publication lock); add a deterministic concurrent regression test proving the active snapshot cannot move behind the durable high-water mark. Do not infer that current sequential tests cover this interleaving.
+
+### A4-03 — Audit-chain integrity and external checkpoint
+
+**LOCAL CHAIN VERIFIED; EXTERNAL ANCHOR NOT IMPLEMENTED.**
+
+`SqliteAuditSink` implements an append-only SQLite event table, SHA-256 hash chaining with domain separation and length-prefixed fields, duplicate event-ID rejection, and verification of previous-hash/event-hash continuity. Update/delete triggers protect ordinary application paths. Exact-head tests passed for append/verify, duplicate IDs, modified-row detection, deleted-row detection, and persistence/reopen.
+
+The source explicitly states that production must externally anchor signed checkpoints. The implemented API exposes only the local sequence/hash head; no signed checkpoint format, external witness/notary publication, remote retention or independent checkpoint verification is present in the inspected implementation. A local attacker able to replace the database or truncate its tail can reconstruct a self-consistent local chain unless a previously published checkpoint is checked.
+
+**Disposition:** local tamper-evidence is VERIFIED; tamper-evident external anchoring is **OPEN / NOT IMPLEMENTED**. Production audit claims must remain bounded until a separately governed checkpoint signer and independent external retention/verification path exist.
+
+### A4-04 — Rollback and failure-path verification
+
+**PARTIAL.**
+
+Verified in source and exact-head tests:
+- Trust-bundle installation uses an SQLite `IMMEDIATE` transaction and enforces monotonic versions.
+- Same-version/same-digest installation is idempotent; lower versions are rejected; conflicting same-version digests are rejected by the store contract.
+- Trust-bundle rollback is covered by `rejects_bundle_version_rollback`; epoch rollback/overflow is covered by the IGACMS conformance test.
+- Owner approval consumption is single-use; revoked key/approval is rejected; replay is rejected.
+- Signed Owner revocation command effect and command-log insert share one transaction; command replay is rejected.
+- Audit append failures prevent a positive authorization result; audit-chain tampering is detected on reopen/verification.
+- SQLite uses WAL, FULL synchronous mode, a five-second busy timeout and private file permissions in the file-store test.
+
+Not verified by a dedicated fault-injection test:
+- SQLite busy/locked exhaustion, disk-full/I/O failure, commit failure, process termination between transaction operations, WAL recovery under abrupt termination, and concurrent trust snapshot publication.
+- The SQLite security store documents itself as a single-node adapter; multi-node deployment requires a shared transactional adapter with equivalent guarantees.
+
+### A4-05 — Operational boundary
+
+**NOT RUN / SEPARATELY GATED.** No production root keys or Owner private keys were created or provisioned; no custody ceremony, production key rotation, Genesis activation, runtime promotion or deployment was performed. Test fixtures and in-memory keys are not production custody evidence. The Owner's independent-review waiver remains in force; no independent review is claimed or required by that waiver.
+
+### Exact-head automated verification evidence
+
+Workflow run [#42459440729](https://github.com/akefadaka-git/iroka/actions/runs/42459440729) checked out exact SHA `a1b92959011c88a7b732f81a40187f2e0667a868`; job `Format, compile, test and lint` completed **SUCCESS**. All steps passed:
+1. `cargo fmt --all -- --check`
+2. `cargo check --workspace --all-targets --locked`
+3. `cargo check --workspace --all-targets --no-default-features`
+4. `cargo test --workspace --all-targets --locked` — 58 unit tests + 2 integration/contract tests, zero failures.
+5. `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic`
+
+The test log explicitly confirms the audit-chain integrity tests, trust lifecycle tests, rollback tests, approval revocation tests and the two-connection revocation race all passed. These results do not cover the untested interleavings and fault-injection cases listed above.
+
+### A4 disposition at this assessment baseline
+
+| Work package | Status |
+|---|---|
+| A4-01 approval/revocation atomicity | VERIFIED-CLOSED |
+| A4-02 concurrent trust snapshot publication | OPEN |
+| A4-03 local audit-chain integrity | VERIFIED |
+| A4-03 external signed checkpoint / witness | NOT IMPLEMENTED |
+| A4-04 rollback controls | PARTIAL — listed rollback tests PASS |
+| A4-04 database/process failure injection | NOT RUN |
+| A4-05 operational custody / production activation | NOT RUN; separately gated |
+
+**Overall A4: PARTIAL — NOT CLOSED.** Closure requires resolving A4-02 with a deterministic regression test, implementing or explicitly deferring the externally anchored audit checkpoint through a separate Owner decision, completing the remaining failure-injection coverage, and rerunning the full verification suite against the exact resulting HEAD. No merge, deployment, production key provisioning or Genesis activation is authorized or performed.
