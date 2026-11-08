@@ -973,7 +973,10 @@ mod tests {
                     Err(error) => panic!("unexpected page-limit injection error: {error}"),
                 }
             }
-            assert!(reached_disk_full, "SQLite page limit did not produce SQLITE_FULL");
+            assert!(
+                reached_disk_full,
+                "SQLite page limit did not produce SQLITE_FULL"
+            );
             assert!(inserted > 0);
             before_count = u64::try_from(inserted).unwrap();
         }
@@ -985,5 +988,4 @@ mod tests {
         assert_eq!(store.highest_trust_bundle_version(), Ok(None));
         assert_eq!(store.trust_bundle_history_count(), Ok(before_count));
     }
-
 }
