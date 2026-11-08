@@ -690,6 +690,74 @@ mod tests {
     }
 
     #[test]
+    fn concurrent_key_revocation_and_approval_consumption_are_serializable() {
+        use std::fs;
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let path = std::env::temp_dir().join(format!(
+            "iroka-security-race-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        let revoker = SqliteSecurityStore::open(&path).unwrap();
+        let consumer = SqliteSecurityStore::open(&path).unwrap();
+        let barrier = Arc::new(Barrier::new(3));
+
+        let revoke_barrier = Arc::clone(&barrier);
+        let revoke_thread = thread::spawn(move || {
+            revoke_barrier.wait();
+            revoker.revoke_key(
+                "iroka:owner-authority",
+                "owner-key-race",
+                19,
+                "concurrent compromise",
+            )
+        });
+
+        let consume_barrier = Arc::clone(&barrier);
+        let consume_thread = thread::spawn(move || {
+            consume_barrier.wait();
+            consumer.consume_approval(ApprovalReceipt {
+                approval_id: "approval:concurrent-race",
+                payload_digest: &[6; 32],
+                owner_subject: "owner:test",
+                signer_issuer: "iroka:owner-authority",
+                signer_key_id: "owner-key-race",
+                request_subject: "principal:test",
+                capability: "records.read",
+                resource: "records:1",
+                policy_version: "policy:v1",
+                issued_at: 10,
+                expires_at: 100,
+                consumed_at: 20,
+            })
+        });
+
+        barrier.wait();
+        revoke_thread.join().unwrap().unwrap();
+        let consumption = consume_thread.join().unwrap();
+
+        let verifier = SqliteSecurityStore::open(&path).unwrap();
+        assert_eq!(
+            verifier.key_revoked("iroka:owner-authority", "owner-key-race"),
+            Ok(true)
+        );
+        match consumption {
+            Ok(true) => assert_eq!(verifier.approval_receipt_count(), Ok(1)),
+            Err(ApprovalConsumptionError::SigningKeyRevoked) => {
+                assert_eq!(verifier.approval_receipt_count(), Ok(0));
+            }
+            other => panic!("unexpected concurrent consumption result: {other:?}"),
+        }
+
+        drop(verifier);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
     fn file_store_reopens_with_revocations_and_private_permissions() {
         use std::fs;
         let path = std::env::temp_dir().join(format!(
