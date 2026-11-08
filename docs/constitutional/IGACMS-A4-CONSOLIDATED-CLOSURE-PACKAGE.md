@@ -302,3 +302,41 @@ The Owner's waiver of independent code/security review as an implementation prer
 PR #15 remains draft/open/unmerged at the time of this update. PR #13 and A2 PR #12 remain separate. No PR was merged, no deployment or runtime promotion was performed, and no production trust root, signer private key, or Genesis activation was created. No provider purchase, top-up, deposit, or payment was made or required.
 
 **Closure-readiness decision:** A4 is software-verification-ready but not closure-ready. The next executable gate is live enrollment and verification with two separately administered witness operators; after that, update this package with the live evidence and rerun the full exact-HEAD verification. Production custody and activation remain a separate Owner decision.
+
+
+---
+
+## 11. Owner decision — defer live witness enrollment; continue local A4 and IROKA work — 2026-11-08
+
+This section supersedes conflicting status wording in Section 10 where necessary.
+
+### 11.1 Operational decision
+
+Live independent-witness integration is **DEFERRED**, not a blocker to continued IROKA software development. No operator enrollment inputs are currently evidenced, so no live witness test is claimed. The witness adapter remains implemented but inactive. This deferral does not waive the requirement for independent witnesses before claiming independently verified remote audit durability or satisfying any production activation policy that explicitly requires external witness assurance.
+
+### 11.2 Exact integrated software verification — latest evidence
+
+The prior Section 10.2 exact-HEAD reference to `9fca98448c15b8c38c55cdc421d008d6f0ba817f` and workflow run #370 is superseded by the documentation-inclusive exact HEAD below:
+
+- Integrated PR #15 HEAD: `a032b078dd52ccbb2860fbd3583f8483028986c5`.
+- Workflow run [#371](https://github.com/akefadaka-git/iroka/actions/runs/42490315323): **SUCCESS**.
+- Job `128761032389`: formatting, locked all-target compilation, production/no-default-features check, complete unit/contract tests, and Clippy all succeeded.
+- Test results: 74 unit tests passed; 2 contract tests passed; zero failures.
+
+### 11.3 Updated A4 disposition
+
+| Work package | Current disposition |
+|---|---|
+| A4-01 approval/revocation atomicity | VERIFIED-CLOSED |
+| A4-02 trust snapshot publication ordering | VERIFIED-CLOSED |
+| A4-03 local audit chain and external checkpoint client software | IMPLEMENTED; EXACT-HEAD CI VERIFIED |
+| A4-03 live independent-witness enrollment, publish/readback, remote durability and restore | DEFERRED; NOT RUN / UNVERIFIED |
+| A4-04 enumerated deterministic rollback, replay and SQLite/process failure paths | VERIFIED for enumerated scenarios |
+| A4-04 physical storage/power-loss/filesystem-corruption envelope | NOT TESTED; not a blocker to continued software development |
+| A4-05 production custody, trust-root provisioning, Genesis activation and runtime promotion | NOT RUN; separately Owner-gated |
+
+**Software-verification disposition:** A4-01, A4-02, local A4-03 software, and enumerated A4-04 scenarios are verified at the recorded evidence levels. **Overall A4 remains PARTIAL — NOT CLOSED** because live external witness assurance and production operational custody/activation are not evidenced. This is not a production-readiness certification.
+
+### 11.4 Execution boundary
+
+Continue authorized local software development, regression testing, documentation and other approved IROKA work without waiting for witness operators. Keep the live witness adapter inactive and label all live assurance claims NOT RUN until the operators are enrolled and tested. Do not provision production trust roots, activate Genesis, merge PRs, deploy, or promote runtime without the applicable separate Owner authorization. No independent code review is required under the Owner's waiver; operational witness independence remains a distinct assurance requirement.
