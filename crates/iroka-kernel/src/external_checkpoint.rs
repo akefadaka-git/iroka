@@ -455,6 +455,27 @@ mod tests {
     }
 
     #[test]
+    fn quorum_requires_distinct_witnesses_and_threshold() {
+        let s = signer();
+        let w = TestWitness::new(&s);
+        let cp = create_checkpoint(&s, "audit-stream:quorum", 1, 1, [4; 32], None, 1_900).unwrap();
+        let receipt = w.publish(&cp).unwrap();
+        let roots = trust(&w.key_id, &w.key);
+        assert_eq!(
+            verify_witness_quorum(&cp, &[receipt.clone()], &roots, 1),
+            Ok(1)
+        );
+        assert_eq!(
+            verify_witness_quorum(&cp, &[receipt.clone()], &roots, 2),
+            Err(CheckpointError::QuorumNotMet)
+        );
+        assert_eq!(
+            verify_witness_quorum(&cp, &[receipt.clone(), receipt], &roots, 2),
+            Err(CheckpointError::DuplicateWitness)
+        );
+    }
+
+    #[test]
     fn witness_keeps_streams_separate_and_receipt_is_bound_to_digest() {
         let s = signer();
         let w = TestWitness::new(&s);
