@@ -375,3 +375,17 @@ File: \`crates/iroka-kernel/src/security_store.rs\`
 - No merge or deployment was performed.
 
 **Overall A4 remains PARTIAL — NOT CLOSED.** The targeted A4-04 database/process fault scenarios are now covered and pass exact-head CI. The external checkpoint and operational activation work remain separate Owner-governed decisions.
+
+
+## Consolidated A4 closure package index (2026-11-08)
+
+The authoritative consolidated assessment is now maintained in [IGACMS A4 Consolidated Closure Package](IGACMS-A4-CONSOLIDATED-CLOSURE-PACKAGE.md).
+
+- Package creation commit: `559710c4c9b8f963b340a8120b0ff2b5706a3bc8`.
+- A4-01 approval/revocation atomicity: VERIFIED-CLOSED.
+- A4-02 trust snapshot publication ordering: VERIFIED-CLOSED.
+- A4-03 local audit chain: VERIFIED; external signed checkpoint/witness/retention: NOT IMPLEMENTED and requires a separate Owner decision.
+- A4-04 enumerated SQLite busy-lock, disk-full, write-abort, deferred commit-failure and abrupt-process/WAL-recovery scenarios: VERIFIED at code/test SHA `c4b5408618122fc868cd43b3bc127c8034e42d24`, workflow [#42462303853](https://github.com/akefadaka-git/iroka/actions/runs/42462303853), 66 unit tests + 2 contract tests, zero failures.
+- A4-05 production custody, production trust-root provisioning, Genesis activation, runtime promotion and deployment: NOT RUN; separately Owner-gated.
+- Overall A4 remains **PARTIAL — NOT CLOSED**. The package is an evidence consolidation, not merge or deployment authorization.
+- Final package/index documentation HEAD requires its own exact-head workflow verification; no pass is claimed until that run succeeds.
