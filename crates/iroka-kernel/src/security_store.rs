@@ -811,10 +811,8 @@ mod tests {
     fn busy_lock_exhaustion_fails_closed_without_partial_trust_write() {
         use std::fs;
 
-        let path = std::env::temp_dir().join(format!(
-            "iroka-security-busy-{}.sqlite",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("iroka-security-busy-{}.sqlite", std::process::id()));
         let _ = fs::remove_file(&path);
         let store = SqliteSecurityStore::open(&path).unwrap();
         let blocker = Connection::open(&path).unwrap();
@@ -840,11 +838,13 @@ mod tests {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         {
             let connection = store.connection.lock().unwrap();
-            connection.execute_batch(
-                "CREATE TRIGGER reject_trust_history
+            connection
+                .execute_batch(
+                    "CREATE TRIGGER reject_trust_history
                  BEFORE INSERT ON trust_bundle_history
-                 BEGIN SELECT RAISE(ABORT, 'injected storage write failure'); END;"
-            ).unwrap();
+                 BEGIN SELECT RAISE(ABORT, 'injected storage write failure'); END;",
+                )
+                .unwrap();
         }
 
         assert_eq!(
@@ -860,8 +860,9 @@ mod tests {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         {
             let connection = store.connection.lock().unwrap();
-            connection.execute_batch(
-                "CREATE TABLE commit_guard_parent(id INTEGER PRIMARY KEY);
+            connection
+                .execute_batch(
+                    "CREATE TABLE commit_guard_parent(id INTEGER PRIMARY KEY);
                  CREATE TABLE commit_guard_child(
                    parent_id INTEGER REFERENCES commit_guard_parent(id)
                    DEFERRABLE INITIALLY DEFERRED
@@ -870,8 +871,9 @@ mod tests {
                  AFTER INSERT ON trust_bundle_history
                  BEGIN
                    INSERT INTO commit_guard_child(parent_id) VALUES(999);
-                 END;"
-            ).unwrap();
+                 END;",
+                )
+                .unwrap();
         }
 
         assert_eq!(
@@ -898,7 +900,8 @@ mod tests {
                 "INSERT INTO trust_bundle_state(singleton, version, digest, issued_at, expires_at)
                  VALUES(1, 77, ?1, 10, 100)",
                 params![&[10u8; 32][..]],
-            ).unwrap();
+            )
+            .unwrap();
             tx.execute(
                 "INSERT INTO trust_bundle_history(version, digest, issued_at, expires_at, installed_at)
                  VALUES(77, ?1, 10, 100, 11)",
