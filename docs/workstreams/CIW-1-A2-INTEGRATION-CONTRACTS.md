@@ -115,6 +115,27 @@ The concrete adapter must call the real public Kernel API from the adopted Kerne
 
 Do not expose cryptographic parsing details, key identifiers, internal policy diagnostics or other sensitive security metadata to clients.
 
+
+### 2.3 Exact public-API reconciliation — PR #13 candidate HEAD
+
+A second targeted source pass inspected `request.rs`, `policy.rs`, `decision.rs`, `identity.rs`, `service.rs`, `lib.rs`, and the credential verifier implementation at `813b24cbf81f049f2675fbb5492bdc9f262a9d87`. The following qualifications are material to the A3 design:
+
+| Source finding | Exact behavior | CIW consequence |
+|---|---|---|
+| Request identity | `AuthorizationRequest::new(subject, capability, resource, risk)` is public; all fields are caller-supplied strings; there is no tenant field or tenant accessor | The chat adapter must set subject from `VerifiedPrincipal::subject()`, never from request JSON. Tenant membership and conversation ACL are separate server-side checks before constructing the request. Tenant isolation is not supplied by this Kernel request type. |
+| Policy lifecycle | `Policy::new(...)` is public and constructs an in-memory policy from version, allowed capabilities, approval-required capabilities and maximum risk. Source comment explicitly says signing, approval and persistence are not implemented | Do not treat arbitrary runtime construction or a client/provider-selected policy as an authoritative production policy lifecycle. A3 must identify a trusted policy composition/refresh source and fail-closed behavior; this remains unresolved in the candidate Kernel. |
+| Decision surface | `Decision` fields are private; public accessors expose code, reason and policy version. `Decision::new` is crate-private | Downstream code cannot mint a Kernel decision through the public constructor; preserve this boundary. |
+| Low-level evaluation | `evaluate()` is public and performs deterministic policy checks only; it does not authenticate, verify approval or append audit | Conversation services must not use `evaluate()` as their complete authorization path. |
+| Production authorization | `authorize_authenticated_with_owner_approval()` is the only publicly exported production authorization pipeline in the inspected `lib.rs`; it validates the embedded baseline, principal/request subject match, policy, optional signed Owner approval and audit append | Candidate production integration point. Its exact dependency constructors and policy lifecycle still need a trusted application composition root. ALLOW is a decision, not an execution grant. |
+| Legacy authorization | Assertion-based `authorize()` and `authorize_authenticated()` are `cfg(test)` and crate-private; test-only identity assertions/verifiers are not production interfaces | Do not call or emulate these test helpers in a production chat adapter. |
+| Credential verifier | `authenticate()` is public; verifier construction is restricted to `from_signed_bundle`, `from_signed_bundle_with_roots` or `from_verified_trust_snapshot`; raw `TrustStore::new` and verifier `new` are crate-private | Use signed/verified trust snapshots and the real revocation checker. `NoRevocations` is compiled only for tests or the explicit `dev-no-revocations` feature and is prohibited in production. |
+| Principal | `VerifiedPrincipal` is publicly readable through subject/issuer/credential ID accessors, but its fields and constructor are not publicly writable | Treat it as opaque authenticated identity; never deserialize a client principal. |
+| Exports | `lib.rs` publicly exports the request, policy, decision, verifier, trust, audit, approval and authenticated Owner-approval authorization types/functions | Public export does not make an interface a stable adopted API while PR #13 remains unmerged. Pin/reconcile the exact adopted revision before A3. |
+
+**Critical A2 gaps confirmed:** the inspected Kernel does not provide tenant membership, tenant-scoped authorization fields, conversation ACLs, session lifecycle, signed/persisted policy lifecycle, conversation persistence, or streaming. These belong in explicit application/domain contracts and trusted adapters; they must not be claimed as existing Kernel features.
+
+The `authorize_authenticated_with_owner_approval` function takes a verified principal, a `VerifiedGenesis`, optional signed Owner approval, an `OwnerApprovalVerifier`, an `AuditSink`, a `Policy`, time, emergency-stop state and audit identifiers. For normal low-risk read/chat capabilities that do not require Owner approval, the approval argument may be absent; this does not waive authentication, policy evaluation, constitutional validation or audit append. The application must not interpret ALLOW as permission for G09 execution.
+
 ## 3. Tenant, principal, session and conversation contract
 
 ### 3.1 Identity and ownership
@@ -456,20 +477,22 @@ A4 report must include:
 
 The following are product/policy choices, not safe assumptions for implementation:
 
-| ID | Decision | Proposed default for initial text slice | Owner response required |
+| ID | Decision | Owner disposition | Status |
 |---|---|---|---|
-| CIW-D01 | Tenant model | Tenant membership resolved server-side; every conversation single-tenant | Confirm |
-| CIW-D02 | Conversation sharing | Owner-only; no shared threads in first slice | Confirm |
-| CIW-D03 | Retention | Configurable policy; do not hard-code period in code | Set policy before production data |
-| CIW-D04 | User deletion | Soft-delete request, immediate access revocation, scheduled purge subject to legal/audit retention | Confirm |
-| CIW-D05 | End-to-end encryption | Platform encryption at rest/in transit; E2EE out of first slice | Confirm |
-| CIW-D06 | Model provider | Provider-neutral interface; synthetic data only until provider and data handling approved | Select/approve provider separately |
-| CIW-D07 | Initial tool scope | No tool execution; answer-only text slice | Confirm |
-| CIW-D08 | Session behavior | Existing G01 credential remains identity authority; application session is revocable and bounded | Confirm session/refresh policy |
-| CIW-D09 | Amharic default | Amharic-first UI and auto locale detection; English selectable | Confirm default behavior |
-| CIW-D10 | Budget/rate limits | Strict configurable limits; numeric ceilings set from product/load test evidence | Set thresholds before pilot |
+| CIW-D01 | Tenant model | Server-resolved membership; every conversation single-tenant | PENDING OWNER APPROVAL |
+| CIW-D02 | Conversation sharing | Owner-only; no shared threads in first slice | PENDING OWNER APPROVAL |
+| CIW-D03 | Retention | Configurable; no indefinite-retention default; do not hard-code a period | APPROVED BY OWNER |
+| CIW-D04 | User deletion | Revoke access immediately; schedule purge subject to legal, security-audit and backup-retention obligations | APPROVED BY OWNER |
+| CIW-D05 | End-to-end encryption | Platform encryption at rest/in transit; E2EE out of first slice | PENDING OWNER APPROVAL |
+| CIW-D06 | Model provider | Synthetic data only until provider and data-handling terms are separately approved | APPROVED BY OWNER |
+| CIW-D07 | Initial tool scope | No tool execution; answer-only text slice | PENDING OWNER APPROVAL |
+| CIW-D08 | Session behavior | Existing G01 credential remains identity authority; application session is revocable and bounded | PENDING OWNER APPROVAL |
+| CIW-D09 | Amharic default | Amharic-first UI; English selectable; mixed-language input supported | PENDING OWNER APPROVAL |
+| CIW-D10 | Budget/rate limits | Strict configurable limits; numeric ceilings set from product/load-test evidence | PENDING OWNER APPROVAL |
 
-These defaults are recommendations for Owner review, not approved policy. A2 can document the contract while leaving the above decisions explicitly open; A3 must not silently turn them into irreversible production defaults.
+**Owner decision record (2026-11-08):** The Owner explicitly approved CIW-D03 = configurable retention, CIW-D04 = immediate access revocation followed by scheduled purge subject to retention obligations, and CIW-D06 = synthetic data only until separate provider approval. These three decisions are resolved for the A2 proposal. The other seven decisions remain open; recommendations above are not approvals.
+
+The approved decisions constrain A3 design but do not activate a provider, define a numeric retention period, or authorize production data processing.
 
 ## 13. A2 closure checklist
 
@@ -479,7 +502,7 @@ These defaults are recommendations for Owner review, not approved policy. A2 can
 | Reuse/adapt/missing register | PASS (proposal) | Section 1 |
 | Kernel adapter contract | PARTIAL | Verified behavior mapped; exact stable public API depends on adopted Kernel baseline |
 | Tenant/session contract | PARTIAL | Proposed invariants; tenant membership service and session lifecycle implementation not found in inspected source |
-| Conversation persistence contract | PARTIAL | Proposed records/ordering/idempotency; storage technology and retention policy not approved |
+| Conversation persistence contract | PARTIAL | Proposed records/ordering/idempotency; configurable retention approved but storage technology, exact retention schedules and deletion mechanics remain to be designed |
 | Conversation API schemas | PASS (proposal) | Section 4 |
 | Capability/resource matrix | PASS (proposal) | Section 5; concrete policy schema mapping pending |
 | G03 gateway contract | PASS (proposal) | Section 6; no provider selected/activated |
@@ -487,8 +510,8 @@ These defaults are recommendations for Owner review, not approved policy. A2 can
 | Audit/correlation contract | PASS (proposal) | Section 8 |
 | G08 dependency boundary | PASS (proposal) | Section 9; PR #18 remains proposed/unmerged |
 | Threat model and acceptance | PASS (proposal) | Sections 10–11 |
-| Owner decisions | UNRESOLVED | Section 12 |
-| A2 closure | NOT CLOSED | Requires adoption/reconciliation of Kernel baseline, tenant/session owner, policy mapping and Owner decisions |
+| Owner decisions | PARTIAL — 3/10 RESOLVED | D03, D04 and D06 approved by Owner on 2026-11-08; D01, D02, D05, D07–D10 remain pending |
+| A2 closure | NOT CLOSED | Requires adopted Kernel baseline, trusted policy lifecycle, tenant/session authority and resolution of the seven pending Owner decisions |
 
 ## 14. Explicit exclusions and next gate
 
@@ -501,6 +524,6 @@ This document does not:
 - require independent witness enrollment for design or controlled non-production chat;
 - claim A4-03 closure, independent audit durability or production readiness.
 
-**Next gate:** Owner review of CIW-D01–D10 and the A2 closure conditions. After the Kernel baseline and tenant/session/policy interfaces are confirmed, prepare a bounded A3 implementation plan for the answer-only Amharic-first text-chat vertical slice. A3 code, merge and deployment remain separately authorized gates.
+**Next gate:** resolve the seven pending Owner decisions and close technical dependencies: adopted Kernel baseline, trusted policy lifecycle, tenant-membership/session authority, and concrete policy-to-capability mapping. D03, D04 and D06 are already recorded as approved. A2 remains open. After the Kernel baseline and tenant/session/policy interfaces are confirmed, prepare a bounded A3 implementation plan for the answer-only Amharic-first text-chat vertical slice. A3 code, merge and deployment remain separately authorized gates.
 
 **Constitutional rule:** Conversation expresses intent. Cognition proposes. Governance decides. Authorization permits. Execution acts. Assurance verifies.
