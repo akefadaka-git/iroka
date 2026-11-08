@@ -1,0 +1,14 @@
+[package]
+name = "iroka-conversation"
+version = "0.1.0"
+description = "Tenant-isolated, answer-only conversational domain for IROKA"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+iroka-kernel = { path = "../iroka-kernel" }
+rusqlite = { version = "=0.32.1", features = ["bundled"] }
+
+[lints]
+workspace = true
