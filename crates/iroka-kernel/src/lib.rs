@@ -6,6 +6,7 @@
 mod assurance;
 mod audit_store;
 mod decision;
+mod external_checkpoint;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -21,6 +22,7 @@ mod trust_lifecycle;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use external_checkpoint::{create_checkpoint, reconcile_head, CheckpointError, CheckpointPayload, CheckpointSigner, CheckpointWitness, Reconciliation, SignedCheckpoint, WitnessReceipt, WitnessReceiptPayload};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
