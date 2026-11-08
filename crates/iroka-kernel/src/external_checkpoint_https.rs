@@ -51,43 +51,70 @@ impl HttpsCheckpointWitness {
         Ok(Self { config })
     }
 
-    fn request(&self, method: &str, url: &str, body: Option<&[u8]>, idempotency: Option<&str>)
-        -> Result<Vec<u8>, CheckpointError>
-    {
+    fn request(
+        &self,
+        method: &str,
+        url: &str,
+        body: Option<&[u8]>,
+        idempotency: Option<&str>,
+    ) -> Result<Vec<u8>, CheckpointError> {
         let mut command = Command::new("curl");
         command
             .arg("--silent")
             .arg("--show-error")
             .arg("--fail")
-            .arg("--max-time").arg("20")
-            .arg("--connect-timeout").arg("5")
-            .arg("--max-filesize").arg(MAX_RESPONSE_BYTES.to_string())
-            .arg("--proto").arg("=https")
+            .arg("--max-time")
+            .arg("20")
+            .arg("--connect-timeout")
+            .arg("5")
+            .arg("--max-filesize")
+            .arg(MAX_RESPONSE_BYTES.to_string())
+            .arg("--proto")
+            .arg("=https")
             .arg("--tlsv1.2")
-            .arg("--cert").arg(&self.config.client_certificate)
-            .arg("--key").arg(&self.config.client_private_key)
-            .arg("--cacert").arg(&self.config.trusted_ca_bundle)
-            .arg("--request").arg(method)
-            .arg("--header").arg("Accept: application/json")
-            .arg("--header").arg("Content-Type: application/json");
+            .arg("--cert")
+            .arg(&self.config.client_certificate)
+            .arg("--key")
+            .arg(&self.config.client_private_key)
+            .arg("--cacert")
+            .arg(&self.config.trusted_ca_bundle)
+            .arg("--request")
+            .arg(method)
+            .arg("--header")
+            .arg("Accept: application/json")
+            .arg("--header")
+            .arg("Content-Type: application/json");
         if let Some(key) = idempotency {
-            command.arg("--header").arg(format!("Idempotency-Key: {key}"));
+            command
+                .arg("--header")
+                .arg(format!("Idempotency-Key: {key}"));
         }
         if body.is_some() {
             command.arg("--data-binary").arg("@-");
         }
         let mut child = command
-            .arg("--url").arg(url)
-            .stdin(if body.is_some() { Stdio::piped() } else { Stdio::null() })
+            .arg("--url")
+            .arg(url)
+            .stdin(if body.is_some() {
+                Stdio::piped()
+            } else {
+                Stdio::null()
+            })
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
             .map_err(|_| CheckpointError::WitnessUnavailable)?;
         if let Some(bytes) = body {
-            child.stdin.take().ok_or(CheckpointError::WitnessUnavailable)?
-                .write_all(bytes).map_err(|_| CheckpointError::WitnessUnavailable)?;
+            child
+                .stdin
+                .take()
+                .ok_or(CheckpointError::WitnessUnavailable)?
+                .write_all(bytes)
+                .map_err(|_| CheckpointError::WitnessUnavailable)?;
         }
-        let output = child.wait_with_output().map_err(|_| CheckpointError::WitnessUnavailable)?;
+        let output = child
+            .wait_with_output()
+            .map_err(|_| CheckpointError::WitnessUnavailable)?;
         if !output.status.success() || output.stdout.len() > MAX_RESPONSE_BYTES {
             return Err(CheckpointError::WitnessUnavailable);
         }
@@ -95,20 +122,30 @@ impl HttpsCheckpointWitness {
     }
 
     fn url(&self, suffix: &str) -> String {
-        format!("{}/{}", self.config.endpoint.trim_end_matches('/'), suffix.trim_start_matches('/'))
+        format!(
+            "{}/{}",
+            self.config.endpoint.trim_end_matches('/'),
+            suffix.trim_start_matches('/')
+        )
     }
 
-    fn verify_receipt(&self, checkpoint: &SignedCheckpoint, receipt: &WitnessReceipt)
-        -> Result<(), CheckpointError>
-    {
+    fn verify_receipt(
+        &self,
+        checkpoint: &SignedCheckpoint,
+        receipt: &WitnessReceipt,
+    ) -> Result<(), CheckpointError> {
         if receipt.payload.witness_id != self.config.witness_id
             || receipt.payload.witness_key_id != self.config.witness_key_id
         {
             return Err(CheckpointError::WitnessIdentityMismatch);
         }
-        receipt.verify(checkpoint, &BTreeMap::from([(
-            self.config.witness_key_id.clone(), self.config.witness_trust_root,
-        )]))
+        receipt.verify(
+            checkpoint,
+            &BTreeMap::from([(
+                self.config.witness_key_id.clone(),
+                self.config.witness_trust_root,
+            )]),
+        )
     }
 }
 
@@ -117,23 +154,29 @@ impl CheckpointWitness for HttpsCheckpointWitness {
         checkpoint.verify(&self.config.checkpoint_signer_roots)?;
         let digest = checkpoint.digest().map(hex_digest)?;
         let body = serde_json::to_vec(checkpoint).map_err(|_| CheckpointError::Malformed)?;
-        let bytes = self.request("POST", &self.url("v1/checkpoints"), Some(&body), Some(&digest))?;
-        let receipt: WitnessReceipt = serde_json::from_slice(&bytes)
-            .map_err(|_| CheckpointError::InvalidWitnessResponse)?;
+        let bytes = self.request(
+            "POST",
+            &self.url("v1/checkpoints"),
+            Some(&body),
+            Some(&digest),
+        )?;
+        let receipt: WitnessReceipt =
+            serde_json::from_slice(&bytes).map_err(|_| CheckpointError::InvalidWitnessResponse)?;
         self.verify_receipt(checkpoint, &receipt)?;
         Ok(receipt)
     }
 
-    fn latest(&self, stream_id: &str)
-        -> Result<Option<(SignedCheckpoint, WitnessReceipt)>, CheckpointError>
-    {
+    fn latest(
+        &self,
+        stream_id: &str,
+    ) -> Result<Option<(SignedCheckpoint, WitnessReceipt)>, CheckpointError> {
         if stream_id.trim().is_empty() {
             return Err(CheckpointError::Malformed);
         }
         let path = format!("v1/streams/{}/latest", percent_encode(stream_id.as_bytes()));
         let bytes = self.request("GET", &self.url(&path), None, None)?;
-        let response: LatestResponse = serde_json::from_slice(&bytes)
-            .map_err(|_| CheckpointError::InvalidWitnessResponse)?;
+        let response: LatestResponse =
+            serde_json::from_slice(&bytes).map_err(|_| CheckpointError::InvalidWitnessResponse)?;
         match (response.checkpoint, response.receipt) {
             (None, None) => Ok(None),
             (Some(checkpoint), Some(receipt)) => {
@@ -174,9 +217,7 @@ pub fn publish_witness_quorum(
             receipts.push(receipt);
         }
     }
-    crate::verify_witness_quorum(
-        checkpoint, &receipts, trusted_witnesses, required,
-    )?;
+    crate::verify_witness_quorum(checkpoint, &receipts, trusted_witnesses, required)?;
     Ok(receipts)
 }
 
@@ -189,7 +230,9 @@ fn validate_endpoint(endpoint: &str) -> Result<(), CheckpointError> {
         || host.contains('@')
         || endpoint.contains('?')
         || endpoint.contains('#')
-        || endpoint.bytes().any(|b| b.is_ascii_whitespace() || b.is_ascii_control())
+        || endpoint
+            .bytes()
+            .any(|b| b.is_ascii_whitespace() || b.is_ascii_control())
     {
         return Err(CheckpointError::InvalidWitnessEndpoint);
     }
