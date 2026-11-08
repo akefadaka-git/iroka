@@ -281,7 +281,10 @@ mod tests {
     }
 
     impl CheckpointWitness for StaticWitness {
-        fn publish(&self, checkpoint: &SignedCheckpoint) -> Result<WitnessReceipt, CheckpointError> {
+        fn publish(
+            &self,
+            checkpoint: &SignedCheckpoint,
+        ) -> Result<WitnessReceipt, CheckpointError> {
             let payload = WitnessReceiptPayload {
                 protocol: "iroka.g11.witness-receipt".into(),
                 version: 1,
@@ -290,16 +293,25 @@ mod tests {
                 stream_id: checkpoint.payload.stream_id.clone(),
                 checkpoint_sequence: checkpoint.payload.checkpoint_sequence,
                 checkpoint_digest_sha256: hex_digest(checkpoint.digest()?),
-                previous_checkpoint_digest_sha256: checkpoint.payload.previous_checkpoint_sha256.clone(),
+                previous_checkpoint_digest_sha256: checkpoint
+                    .payload
+                    .previous_checkpoint_sha256
+                    .clone(),
                 accepted_at: checkpoint.payload.issued_at,
                 algorithm: "Ed25519".into(),
             };
-            let signature = self.key.sign(&WitnessReceipt::signing_bytes(&payload)?)
-                .to_bytes().to_vec();
+            let signature = self
+                .key
+                .sign(&WitnessReceipt::signing_bytes(&payload)?)
+                .to_bytes()
+                .to_vec();
             Ok(WitnessReceipt { payload, signature })
         }
 
-        fn latest(&self, _stream_id: &str) -> Result<Option<(SignedCheckpoint, WitnessReceipt)>, CheckpointError> {
+        fn latest(
+            &self,
+            _stream_id: &str,
+        ) -> Result<Option<(SignedCheckpoint, WitnessReceipt)>, CheckpointError> {
             Ok(None)
         }
     }
@@ -315,7 +327,8 @@ mod tests {
             [7; 32],
             None,
             2_000,
-        ).unwrap();
+        )
+        .unwrap();
         let first = StaticWitness {
             id: "operator:one".into(),
             key_id: "witness-key:one".into(),
@@ -330,12 +343,7 @@ mod tests {
             (first.key_id.clone(), first.key.verifying_key()),
             (second.key_id.clone(), second.key.verifying_key()),
         ]);
-        let receipts = publish_witness_quorum(
-            &checkpoint,
-            &[&first, &second],
-            &roots,
-            2,
-        ).unwrap();
+        let receipts = publish_witness_quorum(&checkpoint, &[&first, &second], &roots, 2).unwrap();
         assert_eq!(receipts.len(), 2);
         assert_eq!(
             publish_witness_quorum(&checkpoint, &[&first, &second], &roots, 3),
