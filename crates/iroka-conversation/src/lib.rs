@@ -22,7 +22,9 @@ pub use policy::{
     BudgetLimits, PolicyError, PolicyPayload, PolicyTrustRoot, PolicyVersionStore,
     SignedPolicyBundle, VerifiedPolicy,
 };
-pub use tenant_session::{CredentialStatus, KernelCredentialStatus, SqliteSessionRegistry, SqliteTenantDirectory};
+pub use tenant_session::{
+    CredentialStatus, KernelCredentialStatus, SqliteSessionRegistry, SqliteTenantDirectory,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConversationError {
@@ -621,15 +623,14 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
     ) -> Result<String, ConversationError> {
         let subject = principal.subject();
         let tenant = self.tenants.resolve_active_tenant(subject, now)?;
-        self.sessions
-            .validate(
-                subject,
-                principal.issuer(),
-                principal.credential_id(),
-                &tenant,
-                session,
-                now,
-            )?;
+        self.sessions.validate(
+            subject,
+            principal.issuer(),
+            principal.credential_id(),
+            &tenant,
+            session,
+            now,
+        )?;
         Ok(tenant)
     }
 
