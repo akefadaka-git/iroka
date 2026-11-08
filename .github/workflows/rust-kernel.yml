@@ -11,6 +11,7 @@ on:
       - "crates/**"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - "docs/architecture/A4-03-EXTERNAL-AUDIT-CHECKPOINT-PROTOCOL.md"
+      - "docs/architecture/A4-03-INDEPENDENT-HTTPS-WITNESS-ADAPTER.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
     branches: [main, architecture/igacms-a2-ci-base, feat/igacms-a3-implementation]
