@@ -9,6 +9,13 @@ use std::sync::{atomic::{AtomicBool, Ordering}, Mutex};
 use iroka_kernel::VerifiedPrincipal;
 use rusqlite::{params, Connection, OptionalExtension};
 
+mod kernel_adapter;
+mod policy;
+mod tenant_session;
+pub use kernel_adapter::KernelConversationAuthorizer;
+pub use policy::{PolicyError, PolicyPayload, PolicyTrustRoot, PolicyVersionStore, SignedPolicyBundle, VerifiedPolicy};
+pub use tenant_session::{SqliteSessionRegistry, SqliteTenantDirectory};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConversationError {
     StorageUnavailable,
@@ -48,7 +55,7 @@ pub enum Operation {
 /// Adapter must construct the Kernel AuthorizationRequest itself using the
 /// verified subject, constant capability, canonical resource and trusted policy.
 /// Only a positive, audited Kernel decision may return Ok.
-pub trait KernelAuthorization: Send + Sync {
+pub trait KernelAuthorization {
     fn authorize(
         &self,
         principal: &VerifiedPrincipal,
