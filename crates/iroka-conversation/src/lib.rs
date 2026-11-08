@@ -408,12 +408,17 @@ impl ConversationStore {
         now: u64,
         purge_after: u64,
     ) -> Result<(), ConversationError> {
-        let db = self.db.lock().map_err(|_| ConversationError::StorageUnavailable)?;
-        let changed = db.execute(
-            "UPDATE conversations SET deleted_at=?4,purge_after=?5
+        let db = self
+            .db
+            .lock()
+            .map_err(|_| ConversationError::StorageUnavailable)?;
+        let changed = db
+            .execute(
+                "UPDATE conversations SET deleted_at=?4,purge_after=?5
              WHERE id=?1 AND tenant_id=?2 AND owner_subject=?3 AND deleted_at IS NULL",
-            params![id, tenant, owner, now as i64, purge_after as i64],
-        ).map_err(|_| ConversationError::StorageUnavailable)?;
+                params![id, tenant, owner, now as i64, purge_after as i64],
+            )
+            .map_err(|_| ConversationError::StorageUnavailable)?;
         if changed == 0 {
             return Err(ConversationError::NotFound);
         }
@@ -432,12 +437,16 @@ impl ConversationStore {
         }
         let cutoff = now.saturating_sub(content_retention_seconds);
         let purge_after = now.saturating_add(deletion_grace_seconds);
-        let db = self.db.lock().map_err(|_| ConversationError::StorageUnavailable)?;
+        let db = self
+            .db
+            .lock()
+            .map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute(
             "UPDATE conversations SET deleted_at=?1,purge_after=?2
              WHERE deleted_at IS NULL AND created_at<=?3",
             params![now as i64, purge_after as i64, cutoff as i64],
-        ).map_err(|_| ConversationError::StorageUnavailable)
+        )
+        .map_err(|_| ConversationError::StorageUnavailable)
     }
 
     /// Apply the configured age threshold and purge content whose grace period elapsed.
@@ -458,30 +467,45 @@ impl ConversationStore {
 
     /// Purge due conversation content. Lifecycle events remain for audit review.
     pub fn purge_due(&self, now: u64) -> Result<usize, ConversationError> {
-        let db = self.db.lock().map_err(|_| ConversationError::StorageUnavailable)?;
-        let tx = db.unchecked_transaction().map_err(|_| ConversationError::StorageUnavailable)?;
+        let db = self
+            .db
+            .lock()
+            .map_err(|_| ConversationError::StorageUnavailable)?;
+        let tx = db
+            .unchecked_transaction()
+            .map_err(|_| ConversationError::StorageUnavailable)?;
         let due = {
             let mut stmt = tx.prepare(
                 "SELECT id,tenant_id FROM conversations WHERE deleted_at IS NOT NULL AND purge_after<=?1"
             ).map_err(|_| ConversationError::StorageUnavailable)?;
-            let rows = stmt.query_map(params![now as i64], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-            }).map_err(|_| ConversationError::StorageUnavailable)?;
-            rows.collect::<Result<Vec<_>,_>>().map_err(|_| ConversationError::StorageUnavailable)?
+            let rows = stmt
+                .query_map(params![now as i64], |r| {
+                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+                })
+                .map_err(|_| ConversationError::StorageUnavailable)?;
+            rows.collect::<Result<Vec<_>, _>>()
+                .map_err(|_| ConversationError::StorageUnavailable)?
         };
         for (id, tenant) in &due {
             tx.execute(
                 "INSERT OR IGNORE INTO conversation_events
                  (event_id,tenant_id,conversation_id,turn_id,event_type,correlation_id,occurred_at)
                  VALUES(?1,?2,?3,NULL,'conversation.content_purged','retention-job',?4)",
-                params![format!("retention:purge:{id}:{now}"), tenant, id, now as i64],
-            ).map_err(|_| ConversationError::StorageUnavailable)?;
-            tx.execute("DELETE FROM turns WHERE conversation_id=?1",params![id])
+                params![
+                    format!("retention:purge:{id}:{now}"),
+                    tenant,
+                    id,
+                    now as i64
+                ],
+            )
+            .map_err(|_| ConversationError::StorageUnavailable)?;
+            tx.execute("DELETE FROM turns WHERE conversation_id=?1", params![id])
                 .map_err(|_| ConversationError::StorageUnavailable)?;
-            tx.execute("DELETE FROM conversations WHERE id=?1",params![id])
+            tx.execute("DELETE FROM conversations WHERE id=?1", params![id])
                 .map_err(|_| ConversationError::StorageUnavailable)?;
         }
-        tx.commit().map_err(|_| ConversationError::StorageUnavailable)?;
+        tx.commit()
+            .map_err(|_| ConversationError::StorageUnavailable)?;
         Ok(due.len())
     }
 
@@ -547,7 +571,10 @@ impl RetentionPolicy {
         if content_retention_seconds == 0 || deletion_grace_seconds == 0 {
             return Err(ConversationError::InvalidInput);
         }
-        Ok(Self { content_retention_seconds, deletion_grace_seconds })
+        Ok(Self {
+            content_retention_seconds,
+            deletion_grace_seconds,
+        })
     }
 }
 
@@ -850,19 +877,12 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         now: u64,
     ) -> Result<(), ConversationError> {
         let tenant = self.context(principal, session, now)?;
-        let conversation = self.store.owned_conversation(
-            conversation_id,
-            &tenant,
-            principal.subject(),
-        )?;
+        let conversation =
+            self.store
+                .owned_conversation(conversation_id, &tenant, principal.subject())?;
         let resource = format!("tenant/{tenant}/conversation/{}", conversation.id);
-        self.authorization.authorize(
-            principal,
-            Operation::Delete,
-            &resource,
-            correlation,
-            now,
-        )?;
+        self.authorization
+            .authorize(principal, Operation::Delete, &resource, correlation, now)?;
         let purge_after = now.saturating_add(self.retention.deletion_grace_seconds);
         self.store.mark_deleted(
             conversation_id,
@@ -1001,11 +1021,20 @@ mod tests {
             created_at: 1,
         };
         store.insert_conversation(&conversation).unwrap();
-        store.record_event(
-            "evt-delete", "tenant-a", "delete-me", None,
-            "conversation.access_revoked", "corr-1", 10,
-        ).unwrap();
-        store.mark_deleted("delete-me", "tenant-a", "subject-a", 10, 100).unwrap();
+        store
+            .record_event(
+                "evt-delete",
+                "tenant-a",
+                "delete-me",
+                None,
+                "conversation.access_revoked",
+                "corr-1",
+                10,
+            )
+            .unwrap();
+        store
+            .mark_deleted("delete-me", "tenant-a", "subject-a", 10, 100)
+            .unwrap();
         assert_eq!(
             store.owned_conversation("delete-me", "tenant-a", "subject-a"),
             Err(ConversationError::NotFound)
@@ -1013,10 +1042,13 @@ mod tests {
         assert_eq!(store.purge_due(99), Ok(0));
         assert_eq!(store.purge_due(100), Ok(1));
         let db = store.db.lock().unwrap();
-        let count: i64 = db.query_row(
-            "SELECT COUNT(*) FROM conversation_events WHERE event_id='evt-delete'",
-            [], |r| r.get(0),
-        ).unwrap();
+        let count: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM conversation_events WHERE event_id='evt-delete'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(count, 1);
     }
 
