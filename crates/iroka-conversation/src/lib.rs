@@ -19,8 +19,8 @@ mod tenant_session;
 pub use budget::BudgetGuard;
 pub use kernel_adapter::KernelConversationAuthorizer;
 pub use policy::{
-    PolicyError, PolicyPayload, PolicyTrustRoot, PolicyVersionStore, SignedPolicyBundle,
-    VerifiedPolicy,
+    BudgetLimits, PolicyError, PolicyPayload, PolicyTrustRoot, PolicyVersionStore,
+    SignedPolicyBundle, VerifiedPolicy,
 };
 pub use tenant_session::{SqliteSessionRegistry, SqliteTenantDirectory};
 
