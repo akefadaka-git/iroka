@@ -12,7 +12,7 @@ pub struct SqliteTenantDirectory {
     db: Mutex<Connection>,
 }
 impl SqliteTenantDirectory {
-    pub fn open(path: &str, credential_status: Arc<dyn CredentialStatus>) -> Result<Self, ConversationError> {
+    pub fn open(path: &str) -> Result<Self, ConversationError> {
         let db = Connection::open(path).map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS tenant_memberships(
@@ -21,9 +21,9 @@ impl SqliteTenantDirectory {
           PRIMARY KEY(subject,tenant_id));",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self { db: Mutex::new(db), credential_status })
+        Ok(Self { db: Mutex::new(db) })
     }
-    pub fn open_in_memory(credential_status: Arc<dyn CredentialStatus>) -> Result<Self, ConversationError> {
+    pub fn open_in_memory() -> Result<Self, ConversationError> {
         let db = Connection::open_in_memory().map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute_batch(
             "CREATE TABLE tenant_memberships(
@@ -117,7 +117,7 @@ pub struct SqliteSessionRegistry {
     credential_status: Arc<dyn CredentialStatus>,
 }
 impl SqliteSessionRegistry {
-    pub fn open(path: &str) -> Result<Self, ConversationError> {
+    pub fn open(path: &str, credential_status: Arc<dyn CredentialStatus>) -> Result<Self, ConversationError> {
         let db = Connection::open(path).map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS app_sessions(
@@ -126,9 +126,9 @@ impl SqliteSessionRegistry {
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self { db: Mutex::new(db) })
+        Ok(Self { db: Mutex::new(db), credential_status })
     }
-    pub fn open_in_memory() -> Result<Self, ConversationError> {
+    pub fn open_in_memory(credential_status: Arc<dyn CredentialStatus>) -> Result<Self, ConversationError> {
         let db = Connection::open_in_memory().map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute_batch(
             "CREATE TABLE app_sessions(
@@ -211,11 +211,23 @@ impl SessionGuard for SqliteSessionRegistry {
             .db
             .lock()
             .map_err(|_| ConversationError::SessionInvalid)?;
-        let row:Option<(String,String,u64,u64,bool)>=db.query_row(
-          "SELECT subject,tenant_id,issued_at,expires_at,revoked FROM app_sessions WHERE session_id=?1",
-          params![session_id],|r|Ok((r.get(0)?,r.get(1)?,r.get::<_,i64>(2)? as u64,
-             r.get::<_,i64>(3)? as u64,r.get::<_,i64>(4)?!=0)))
-          .optional().map_err(|_|ConversationError::SessionInvalid)?;
+        let row: Option<(String, String, String, u64, u64, u64, bool)> = db
+            .query_row(
+                "SELECT subject,tenant_id,credential_id,issued_at,expires_at,revocation_version,revoked
+                 FROM app_sessions WHERE session_id=?1",
+                params![session_id],
+                |r| Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get::<_, i64>(3)? as u64,
+                    r.get::<_, i64>(4)? as u64,
+                    r.get::<_, i64>(5)? as u64,
+                    r.get::<_, i64>(6)? != 0,
+                )),
+            )
+            .optional()
+            .map_err(|_| ConversationError::SessionInvalid)?;
         drop(db);
         let Some((stored_subject, stored_tenant, stored_credential, issued, expires, version, revoked)) = row else {
             return Err(ConversationError::SessionInvalid);
@@ -295,7 +307,7 @@ mod tests {
         );
         assert_eq!(sessions.revoke("s1"), Ok(()));
         assert_eq!(
-            sessions.validate("subject:1", "tenant:a", "s1", 200),
+            sessions.validate("subject:1", "cred:1", "tenant:a", "s1", 200),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(
