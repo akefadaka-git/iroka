@@ -143,3 +143,60 @@ impl VerifiedPolicy {
     #[allow(dead_code)]
     fn _root_provenance_is_not_runtime_data(&self) {}
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::{Signer,SigningKey};
+
+    fn signed(epoch:u64,version:&str,signer:&SigningKey)->SignedPolicyBundle {
+        let payload=PolicyPayload {
+            schema_version:1,epoch,version:version.into(),issued_at:10,expires_at:500,
+            allowed_capabilities:vec!["conversation.create".into(),"conversation.read".into()],
+            approval_required:vec![],maximum_risk:"low".into()
+        };
+        let signature=signer.sign(&SignedPolicyBundle::signing_bytes(&payload).unwrap()).to_bytes().to_vec();
+        SignedPolicyBundle{root_key_id:"policy-root".into(),payload,signature}
+    }
+    fn root(signer:&SigningKey)->PolicyTrustRoot {
+        PolicyTrustRoot::provisioned("policy-root".into(),signer.verifying_key().to_bytes(),
+          1,1_000,"owner-authorized-test-root".into()).unwrap()
+    }
+    #[test]
+    fn accepts_signed_policy_and_pins_digest() {
+        let signer=SigningKey::from_bytes(&[7u8;32]);
+        let store=PolicyVersionStore::open_in_memory().unwrap();
+        let verified=VerifiedPolicy::load(&signed(1,"v1",&signer),&root(&signer),&store,100).unwrap();
+        assert_eq!(verified.epoch(),1);
+        assert_eq!(verified.version(),"v1");
+        assert_eq!(verified.policy().version(),"v1");
+        assert_eq!(verified.digest().len(),64);
+    }
+    #[test]
+    fn rejects_signature_tampering_and_epoch_rollback() {
+        let signer=SigningKey::from_bytes(&[8u8;32]);
+        let root=root(&signer);
+        let store=PolicyVersionStore::open_in_memory().unwrap();
+        let current=signed(2,"v2",&signer);
+        VerifiedPolicy::load(&current,&root,&store,100).unwrap();
+        let older=signed(1,"v1",&signer);
+        assert_eq!(VerifiedPolicy::load(&older,&root,&store,100).err(),Some(PolicyError::Rollback));
+        let mut tampered=signed(3,"v3",&signer);
+        tampered.payload.version="changed".into();
+        assert_eq!(VerifiedPolicy::load(&tampered,&root,&store,100).err(),Some(PolicyError::InvalidSignature));
+    }
+    #[test]
+    fn rejects_expired_and_ambiguous_policy_documents() {
+        let signer=SigningKey::from_bytes(&[9u8;32]);
+        let root=root(&signer);
+        let store=PolicyVersionStore::open_in_memory().unwrap();
+        let mut expired=signed(1,"v1",&signer);
+        expired.payload.expires_at=20;
+        expired.signature=signer.sign(&SignedPolicyBundle::signing_bytes(&expired.payload).unwrap()).to_bytes().to_vec();
+        assert_eq!(VerifiedPolicy::load(&expired,&root,&store,100).err(),Some(PolicyError::Expired));
+        let mut malformed=signed(1,"v1",&signer);
+        malformed.payload.allowed_capabilities.reverse();
+        malformed.signature=signer.sign(&SignedPolicyBundle::signing_bytes(&malformed.payload).unwrap()).to_bytes().to_vec();
+        assert_eq!(VerifiedPolicy::load(&malformed,&root,&store,100).err(),Some(PolicyError::Malformed));
+    }
+}
