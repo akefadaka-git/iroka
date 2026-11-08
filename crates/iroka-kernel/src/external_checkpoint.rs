@@ -329,7 +329,7 @@ mod tests {
         fn publish(&self, cp: &SignedCheckpoint) -> Result<WitnessReceipt, CheckpointError> {
             cp.verify(&BTreeMap::from([(
                 self.signer_key_id.clone(),
-                self.signer_key.clone(),
+                self.signer_key,
             )]))?;
             let mut map = self
                 .accepted
@@ -462,11 +462,11 @@ mod tests {
         let receipt = w.publish(&cp).unwrap();
         let roots = trust(&w.key_id, &w.key);
         assert_eq!(
-            verify_witness_quorum(&cp, &[receipt.clone()], &roots, 1),
+            verify_witness_quorum(&cp, std::slice::from_ref(&receipt), &roots, 1),
             Ok(1)
         );
         assert_eq!(
-            verify_witness_quorum(&cp, &[receipt.clone()], &roots, 2),
+            verify_witness_quorum(&cp, std::slice::from_ref(&receipt), &roots, 2),
             Err(CheckpointError::QuorumNotMet)
         );
         assert_eq!(
