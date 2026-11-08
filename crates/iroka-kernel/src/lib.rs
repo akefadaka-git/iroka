@@ -9,8 +9,8 @@ mod decision;
 #[cfg(test)]
 mod governance;
 mod identity;
-mod igacms;
 mod identity_crypto;
+mod igacms;
 mod owner_approval;
 mod policy;
 mod request;
@@ -26,7 +26,6 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use igacms::{authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical, sign_fingerprint, sign_genesis, validate_embedded_baseline, validate_genome, validate_marker_assertion, verify_attestation_with_trust_roots, verify_epoch_transition, verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact, IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence, ValidatedGenome, VerifiedGenesis};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
@@ -34,6 +33,14 @@ pub use identity_crypto::NoRevocations;
 pub use identity_crypto::{
     CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError, TrustStore,
     TrustedKey,
+};
+pub use igacms::{
+    authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical,
+    sign_fingerprint, sign_genesis, validate_embedded_baseline, validate_genome,
+    validate_marker_assertion, verify_attestation_with_trust_roots, verify_epoch_transition,
+    verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
+    IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
+    ValidatedGenome, VerifiedGenesis,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
@@ -391,19 +398,32 @@ mod tests {
             provenance_ref: "test-root-record".into(),
         };
         let mut genesis = Genesis {
-            dna_id: "iroka.dna".into(), dna_version: "1.0.0".into(),
-            genome_id: "IROKA_ZERO_GENOME".into(), genome_version: "1.0.0".into(),
-            digest: fingerprint.digest_hex.clone(), canonicalization: "RFC8785-JCS".into(),
-            hash_algorithm: "SHA-256".into(), epoch: 0, parent: None,
+            dna_id: "iroka.dna".into(),
+            dna_version: "1.0.0".into(),
+            genome_id: "IROKA_ZERO_GENOME".into(),
+            genome_version: "1.0.0".into(),
+            digest: fingerprint.digest_hex.clone(),
+            canonicalization: "RFC8785-JCS".into(),
+            hash_algorithm: "SHA-256".into(),
+            epoch: 0,
+            parent: None,
             owner_approval_ref: "owner-approval:test-genesis".into(),
             trust_root_key_ids: vec!["genesis-test-key".into()],
             trust_root_provenance_refs: vec!["test-root-record".into()],
-            attestation: Attestation{envelope_type:"iroka.igacms.attestation".into(),version:"1.0.0".into(),digest:String::new(),epoch:0,key_id:"genesis-test-key".into(),signature:Vec::new()},
+            attestation: Attestation {
+                envelope_type: "iroka.igacms.attestation".into(),
+                version: "1.0.0".into(),
+                digest: String::new(),
+                epoch: 0,
+                key_id: "genesis-test-key".into(),
+                signature: Vec::new(),
+            },
             audit_refs: vec!["audit:test-genesis".into()],
         };
         genesis.attestation = sign_genesis(&genesis, "genesis-test-key", &genesis_signer).unwrap();
         let roots = TrustRootSet::new(vec![genesis_root]).unwrap();
-        let verified_genesis = verify_genesis_with_trust_roots(&genesis, &fingerprint, &roots, 1_200).unwrap();
+        let verified_genesis =
+            verify_genesis_with_trust_roots(&genesis, &fingerprint, &roots, 1_200).unwrap();
         let first = authorize_authenticated_with_owner_approval(
             &request,
             &principal,

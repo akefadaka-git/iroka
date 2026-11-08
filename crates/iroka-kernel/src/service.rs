@@ -216,7 +216,11 @@ pub fn authorize_authenticated_with_owner_approval<S: AuditSink>(
     let decision = if baseline.as_ref().map_or(true, |fp| {
         fp.digest_hex != genesis.digest() || genesis.epoch() != 0
     }) {
-        Decision::new(DecisionCode::Escalate, DecisionReason::ConstitutionalValidationFailed, policy.version())
+        Decision::new(
+            DecisionCode::Escalate,
+            DecisionReason::ConstitutionalValidationFailed,
+            policy.version(),
+        )
     } else if principal.subject() != request.subject() {
         Decision::new(
             DecisionCode::Deny,
