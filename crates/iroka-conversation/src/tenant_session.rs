@@ -123,7 +123,7 @@ impl SessionGuard for SqliteSessionRegistry {
           .optional().map_err(|_|ConversationError::SessionInvalid)?;
         match row {
             Some((s,t,issued,expires,revoked)) if s==subject && t==tenant && !revoked
-                && now>=issued && now<expires && expires-issued<=MAX_SESSION_TTL => Ok(()),
+                && expires>issued && now>=issued && now<expires && expires-issued<=MAX_SESSION_TTL => Ok(()),
             _=>Err(ConversationError::SessionInvalid)
         }
     }
