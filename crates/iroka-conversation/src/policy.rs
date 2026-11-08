@@ -60,6 +60,31 @@ impl PolicyTrustRoot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct BudgetLimits {
+    pub max_input_bytes: u64,
+    pub max_output_tokens: u32,
+    pub max_concurrent_per_subject: u32,
+    pub max_concurrent_per_tenant: u32,
+    pub requests_per_minute: u32,
+    pub max_wall_clock_ms: u64,
+    pub max_retries: u32,
+    pub max_spend_micro_units_per_day: u64,
+}
+impl BudgetLimits {
+    fn is_valid(&self) -> bool {
+        self.max_input_bytes > 0
+            && self.max_output_tokens > 0
+            && self.max_concurrent_per_subject > 0
+            && self.max_concurrent_per_tenant > 0
+            && self.requests_per_minute > 0
+            && self.max_wall_clock_ms > 0
+            && self.max_retries > 0
+            && self.max_spend_micro_units_per_day > 0
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PolicyPayload {
     pub schema_version: u32,
     pub epoch: u64,
@@ -69,6 +94,7 @@ pub struct PolicyPayload {
     pub allowed_capabilities: Vec<String>,
     pub approval_required: Vec<String>,
     pub maximum_risk: String,
+    pub budget_limits: BudgetLimits,
 }
 
 #[derive(Debug, Clone)]
@@ -146,6 +172,7 @@ pub struct VerifiedPolicy {
     epoch: u64,
     digest: String,
     version: String,
+    budget_limits: BudgetLimits,
 }
 impl VerifiedPolicy {
     pub fn load(
@@ -209,6 +236,7 @@ impl VerifiedPolicy {
             epoch: p.epoch,
             digest,
             version: p.version.clone(),
+            budget_limits: p.budget_limits.clone(),
         })
     }
     pub fn policy(&self) -> &Policy {
@@ -222,6 +250,9 @@ impl VerifiedPolicy {
     }
     pub fn version(&self) -> &str {
         &self.version
+    }
+    pub fn budget_limits(&self) -> &BudgetLimits {
+        &self.budget_limits
     }
     #[allow(dead_code)]
     fn _root_provenance_is_not_runtime_data(&self) {}
