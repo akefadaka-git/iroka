@@ -22,7 +22,7 @@ pub use policy::{
     BudgetLimits, PolicyError, PolicyPayload, PolicyTrustRoot, PolicyVersionStore,
     SignedPolicyBundle, VerifiedPolicy,
 };
-pub use tenant_session::{SqliteSessionRegistry, SqliteTenantDirectory};
+pub use tenant_session::{CredentialStatus, SqliteSessionRegistry, SqliteTenantDirectory};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConversationError {
