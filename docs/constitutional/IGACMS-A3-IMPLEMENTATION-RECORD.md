@@ -93,3 +93,86 @@ On 2026-11-08, the Owner explicitly instructed: "No need for independent review.
 - This waiver does not convert internal review into independent review and does not certify the implementation as independently audited.
 - Exact-head automated verification and the remaining historical reconciliation evidence are still required for an evidence-complete A3 closure.
 - Merge, deployment, production trust-root provisioning and Genesis activation remain separately unauthorized.
+
+
+## A3.7 — Complete historical artifact blob reconciliation (2026-11-08)
+
+**Disposition: VERIFIED-CLOSED for the A3.7 byte-provenance reconciliation.**
+
+The A2 register was read from `architecture/igacms-a2-owner-approved`. Each of its 48 inventory entries was fetched individually from historical repository `akeayu/iroka` at exact commit `1224bb8298f9ef21d2590dd6e70273501281cd9c`. GitHub's returned Git blob SHA was compared to the corresponding registered blob SHA.
+
+**Result: 48/48 MATCH; 0 MISMATCH; 0 MISSING; 0 UNRESOLVED.** This verifies byte-level Git object identity for the inventoried files at that source commit. It does not assert that historical code is active, safe to promote, or suitable for direct reuse.
+
+| Historical ID | Historical path | A2 registered blob SHA | Observed blob SHA | Result |
+|---|---|---|---|---|
+| DNA-001 | `src/core/_legacy/dna/dna.ts` | `7206f07941455c976af889884ec873da73349737` | `7206f07941455c976af889884ec873da73349737` | MATCH |
+| DNA-002 | `src/core/_legacy/dna/identity-genome.ts` | `38f6b86151d8f85c7a32d9dfbd48c0795cbe4ee3` | `38f6b86151d8f85c7a32d9dfbd48c0795cbe4ee3` | MATCH |
+| DNA-003 | `src/core/_legacy/dna/principles.ts` | `1b358313b4d1c7612d9938a150f1b6061ababa1e` | `1b358313b4d1c7612d9938a150f1b6061ababa1e` | MATCH |
+| DNA-004 | `src/core/_legacy/dna/invariants.ts` | `012a25088b021036ff14288dc53913b01966ab01` | `012a25088b021036ff14288dc53913b01966ab01` | MATCH |
+| DNA-005 | `src/core/_legacy/dna/capabilities.ts` | `867dcc311604e717258e034ab3589b382ff02dce` | `867dcc311604e717258e034ab3589b382ff02dce` | MATCH |
+| DNA-006 | `src/core/_legacy/dna/authority.ts` | `a46aec19423a0b2abfc1e7fc6e5f0b36fabae2a5` | `a46aec19423a0b2abfc1e7fc6e5f0b36fabae2a5` | MATCH |
+| DNA-007 | `src/core/_legacy/dna/evidence.ts` | `a913d5bdb88c39a5ece6e29591dfd35cf329e862` | `a913d5bdb88c39a5ece6e29591dfd35cf329e862` | MATCH |
+| DNA-008 | `src/core/_legacy/dna/assurance.ts` | `3e622b9b5fc442efa6b71720fcf14ff394202614` | `3e622b9b5fc442efa6b71720fcf14ff394202614` | MATCH |
+| DNA-009 | `src/core/_legacy/dna/security.ts` | `dc9d7cedc99c5b0eb68d20cf6e458c911cd4996a` | `dc9d7cedc99c5b0eb68d20cf6e458c911cd4996a` | MATCH |
+| DNA-010 | `src/core/_legacy/dna/execution.ts` | `8f9db5db279f78b74af36c95a142935fd293bea4` | `8f9db5db279f78b74af36c95a142935fd293bea4` | MATCH |
+| DNA-011 | `src/core/_legacy/dna/evolution.ts` | `919e6cfc4f37b5196aac6a4ebfba3970c47e2994` | `919e6cfc4f37b5196aac6a4ebfba3970c47e2994` | MATCH |
+| DNA-012 | `src/core/_legacy/dna/validator.ts` | `a6446ea08890da3ea195b1d977d0a9aed0c4ba64` | `a6446ea08890da3ea195b1d977d0a9aed0c4ba64` | MATCH |
+| DNA-013 | `src/core/_legacy/dna/fingerprint.ts` | `d3fd1fcfaee32e3a13ca123c3f319ae8df750696` | `d3fd1fcfaee32e3a13ca123c3f319ae8df750696` | MATCH |
+| DNA-014 | `src/core/_legacy/dna/registry.ts` | `bed353b724e4adf82e3d707eb793fa880be83656` | `bed353b724e4adf82e3d707eb793fa880be83656` | MATCH |
+| DNA-015 | `src/core/_legacy/dna/runtime-guard.ts` | `08110f25282731af107ab11af2aaf4f6d4f4dec7` | `08110f25282731af107ab11af2aaf4f6d4f4dec7` | MATCH |
+| DNA-016 | `src/core/_legacy/dna/authorization.ts` | `714faec0d7bc5c704e72101feb069b1857365133` | `714faec0d7bc5c704e72101feb069b1857365133` | MATCH |
+| DNA-017 | `src/core/_legacy/dna/admission.ts` | `16bc3c5975950d23f3f0fde6e8b7afe367a613dc` | `16bc3c5975950d23f3f0fde6e8b7afe367a613dc` | MATCH |
+| DNA-018 | `src/core/_legacy/dna/audit.ts` | `ef22b347977d2cd0a7a4f30ac72a78a3c408682c` | `ef22b347977d2cd0a7a4f30ac72a78a3c408682c` | MATCH |
+| DNA-019 | `src/core/_legacy/dna/knowledge.ts` | `798de6c52a90f5b0ff4ade48cac59bb7aa57b89a` | `798de6c52a90f5b0ff4ade48cac59bb7aa57b89a` | MATCH |
+| DNA-020 | `src/core/_legacy/dna/reasoning.ts` | `c29a948508c113e609f5b4e254b540da374ae018` | `c29a948508c113e609f5b4e254b540da374ae018` | MATCH |
+| DNA-021 | `src/core/_legacy/dna/orchestration.ts` | `346a98560c0d21276dd2d1074c1e4bd9b789e87b` | `346a98560c0d21276dd2d1074c1e4bd9b789e87b` | MATCH |
+| DNA-022 | `src/core/_legacy/dna/subject.ts` | `40c23b5fd022d5bd947bfea6d2ebcd5b0af8112f` | `40c23b5fd022d5bd947bfea6d2ebcd5b0af8112f` | MATCH |
+| DNA-023 | `src/core/_legacy/dna/policy.ts` | `1a333e95ebda9701e25c6b489b05191097023087` | `1a333e95ebda9701e25c6b489b05191097023087` | MATCH |
+| DNA-024 | `src/core/_legacy/dna/goal.ts` | `47e6af6e9ff9134e451e0fd180eb8a656ad790f0` | `47e6af6e9ff9134e451e0fd180eb8a656ad790f0` | MATCH |
+| DNA-025 | `src/core/_legacy/dna/value.ts` | `6f08c8fcd2257587116f4c464a443f262e48f8e1` | `6f08c8fcd2257587116f4c464a443f262e48f8e1` | MATCH |
+| DNA-026 | `src/core/_legacy/dna/temporal.ts` | `b0fbdbdd6ecee21b964a580098bf97aec71340fe` | `b0fbdbdd6ecee21b964a580098bf97aec71340fe` | MATCH |
+| DNA-027 | `src/core/_legacy/dna/uncertainty.ts` | `44b84bc71f6735fe43c4acd115fc84b1b1b006f0` | `44b84bc71f6735fe43c4acd115fc84b1b1b006f0` | MATCH |
+| DNA-028 | `src/core/_legacy/dna/contradiction.ts` | `1587fb402f7a1c05227a4254dcf84dcbfe29dcf8` | `1587fb402f7a1c05227a4254dcf84dcbfe29dcf8` | MATCH |
+| DNA-029 | `src/core/_legacy/dna/oversight.ts` | `1d68376bfb2d36195238f459caf6dce50f32b389` | `1d68376bfb2d36195238f459caf6dce50f32b389` | MATCH |
+| DNA-030 | `src/core/_legacy/dna/memory.ts` | `8debe3de23b31281db7756e7fa7cace639931a39` | `8debe3de23b31281db7756e7fa7cace639931a39` | MATCH |
+| DNA-031 | `src/core/_legacy/dna/learning.ts` | `73eec3bb9ef1c31a0f22d3cc4b227713b89efa44` | `73eec3bb9ef1c31a0f22d3cc4b227713b89efa44` | MATCH |
+| DNA-032 | `src/core/_legacy/dna/model-governance.ts` | `220179935acc2ef63c28f4864978d84751482dfd` | `220179935acc2ef63c28f4864978d84751482dfd` | MATCH |
+| DNA-033 | `src/core/_legacy/dna/incident.ts` | `83d117c3d946369c46c0f86b6552e1a6106af9a6` | `83d117c3d946369c46c0f86b6552e1a6106af9a6` | MATCH |
+| DNA-034 | `src/core/_legacy/dna/amendment.ts` | `57b259ea5cb8a8b08e40647c3e007e8892b49e65` | `57b259ea5cb8a8b08e40647c3e007e8892b49e65` | MATCH |
+| DNA-035 | `src/core/_legacy/dna/privacy.ts` | `c8dd7456c20a1ec36715146dece32880fec23b5f` | `c8dd7456c20a1ec36715146dece32880fec23b5f` | MATCH |
+| DNA-036 | `src/core/_legacy/dna/notarization.ts` | `e8d16fbaaf6d1ed516ed4f1c87741e54612d1ebb` | `e8d16fbaaf6d1ed516ed4f1c87741e54612d1ebb` | MATCH |
+| DNA-037 | `src/core/_legacy/dna/attestation.ts` | `bdf4fd6dd11ca7678078a2b89d65145f482a6d21` | `bdf4fd6dd11ca7678078a2b89d65145f482a6d21` | MATCH |
+| DNA-038 | `src/core/_legacy/dna/replay.ts` | `b150c6f205da67fb9f144d706f042c79d3007455` | `b150c6f205da67fb9f144d706f042c79d3007455` | MATCH |
+| DNA-039 | `src/core/_legacy/dna/interoperability.ts` | `d42f562cad3e0d04efea0ce56e281e28147988e0` | `d42f562cad3e0d04efea0ce56e281e28147988e0` | MATCH |
+| DNA-040 | `src/core/_legacy/dna/sandbox.ts` | `1f25888ecc3088c835aa5db96e40a0bb2bb0bb10` | `1f25888ecc3088c835aa5db96e40a0bb2bb0bb10` | MATCH |
+| DNA-041 | `src/core/_legacy/dna/boundary.ts` | `5157d5f2ed1bfae3edb178cc58ef55efae957b72` | `5157d5f2ed1bfae3edb178cc58ef55efae957b72` | MATCH |
+| DNA-042 | `src/core/_legacy/dna/observability.ts` | `f521cbdb2098289599481081d3a8501c41d2b466` | `f521cbdb2098289599481081d3a8501c41d2b466` | MATCH |
+| DNA-043 | `src/core/_legacy/dna/errors.ts` | `b795dcbbee4533942a0d551ca20600be7551dc3e` | `b795dcbbee4533942a0d551ca20600be7551dc3e` | MATCH |
+| DNA-044 | `src/core/_legacy/dna/genesis.ts` | `3e16d2943889eca647a50b568f327261b94f1efd` | `3e16d2943889eca647a50b568f327261b94f1efd` | MATCH |
+| DNA-045 | `src/core/_legacy/dna/consensus.ts` | `edd58b38fb2f2098aeea9716d0eba0897a753811` | `edd58b38fb2f2098aeea9716d0eba0897a753811` | MATCH |
+| TEST | `src/core/_legacy/dna/dna.validation.spec.ts` | `e3727afb62fb646eb1d1610a85d54936e49e3ac3` | `e3727afb62fb646eb1d1610a85d54936e49e3ac3` | MATCH |
+| TEST | `src/core/_legacy/dna/smoke.spec.ts` | `a1c5b655d097be366dcea25fde0bb42e1c43ed1b` | `a1c5b655d097be366dcea25fde0bb42e1c43ed1b` | MATCH |
+| TEST | `src/core/_legacy/dna/validator.contract.spec.ts` | `d0e1d390bb2998ff7fdf586c9cfb9f9e81077cb5` | `d0e1d390bb2998ff7fdf586c9cfb9f9e81077cb5` | MATCH |
+
+### A3.7 interpretation and boundaries
+
+- DNA-001 through DNA-044: historical artifacts retained under the A2 dispositions; blob identity confirmed.
+- DNA-045: blob identity confirmed; remains `EXTENSION-REVIEW`, outside the DNA-044 genesis sequence. This reconciliation does not promote it into genesis.
+- Three historical test specifications: blob identity confirmed; remain `TEST-EVIDENCE-ONLY`, not current test-pass evidence.
+- The A2 disposition register was not modified. The historical repository was read only.
+- This closes the outstanding 48-artifact provenance comparison only. It does not close production trust-root custody, key provisioning, Genesis activation, runtime promotion, A4 assurance, merge or deployment.
+
+**Supersession:** This dated A3.7 reconciliation section supersedes earlier statements in this record and PR description that the full 48-artifact comparison remained outstanding. Earlier implementation and CI evidence remains subject to its own exact-SHA references.
+
+## A3 phase status after A3.7 reconciliation
+
+- A3.1 — VERIFIED
+- A3.2 — VERIFIED
+- A3.3 — VERIFIED
+- A3.4 — IMPLEMENTED; production trust-root provisioning and Genesis activation NOT RUN
+- A3.5 — VERIFIED
+- A3.6 — VERIFIED
+- A3.7 — VERIFIED-CLOSED for 48/48 Git blob reconciliation
+- A3.8 — VERIFIED at exact implementation SHA `bb50271544a04e3c00ee0987ac3237224b3812d1`, workflow run [#42453012427](https://github.com/akefadaka-git/iroka/actions/runs/42453012427), all five gates PASS.
+
+**Overall A3: IMPLEMENTATION WORK PACKAGES VERIFIED; operational trust-root/Genesis steps remain NOT RUN and separately gated.** A4 verification is the next phase. No merge, deployment, production key provisioning or Genesis activation is authorized or performed. The Owner's independent-review waiver dated 2026-11-08 remains in force; no independent review is claimed.
