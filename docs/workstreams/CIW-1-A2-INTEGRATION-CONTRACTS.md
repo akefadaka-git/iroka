@@ -1,10 +1,10 @@
 # CIW-1 A2 — Conversational Integration and Domain Contracts
 
-**Status:** A2 technical contract proposal; pending Owner review  
+**Status:** VERIFIED-CLOSED — A2 design/contract gate only (2026-11-08)  
 **Workstream:** Conversational Interaction Workstream (CIW)  
 **Scope:** Read-only reconciliation, interface contracts, security boundaries, data lineage and acceptance criteria  
 **Baseline references:** IROKA main `143311a655be68acea2700650b7f88c9fb085526`; IGACMS A3 candidate `813b24cbf81f049f2675fbb5492bdc9f262a9d87`; G08 A2 proposal `04c3bab0ba4de2e634ce28612c90ed7451ef9ceb`; CIW workstream `b53c36bb7e8446fbfc44b816fd55ecd4b9853271`  
-**Authorization:** Documentation and contract proposal only. No runtime implementation, schema migration, provider activation, merge, deployment, trust-root change or protected side effect is authorized.
+**Authorization:** A2 design/contract gate closed by Owner-approved decision record. No A3 runtime implementation, schema migration, provider activation, merge, deployment, trust-root change or protected side effect is authorized.
 
 ---
 
@@ -177,7 +177,7 @@ Content may be stored inline or in encrypted object storage according to size an
 
 Retention is a policy decision, not an implicit database default. Define separate schedules and deletion semantics for conversation messages, attachments, provider-side retention, operational telemetry, backups and legally required security evidence. User deletion cannot erase required security evidence or alter the immutable authorization audit chain. Exports must be authenticated, tenant-scoped, rate-limited and include provenance/metadata without exposing secrets or other tenant content. Deletion must revoke attachment access, remove searchable indexes and schedule backup expiry according to the approved retention policy.
 
-**Owner decision required before A3:** retention periods, deletion grace period, export format, shared-conversation policy, and whether end-to-end encryption is in scope for the first release.
+**Owner decisions resolved for A2:** retention is configurable; deletion revokes access immediately before scheduled purge subject to obligations; sharing is owner-only; E2EE is excluded from the first slice. Export format, detailed retention schedules and deletion mechanics remain implementation specifications to define within the approved constraints before A3/A4.
 
 ## 4. Conversation API contract (proposed, versioned)
 
@@ -473,7 +473,7 @@ A4 report must include:
 - unresolved risks and explicit exclusions;
 - no claim of production readiness or independent witness assurance unless separately evidenced and approved.
 
-## 12. Owner decisions required to close A2
+## 12. Owner decisions recorded — all approved
 
 The following are product/policy choices, not safe assumptions for implementation:
 
@@ -490,7 +490,7 @@ The following are product/policy choices, not safe assumptions for implementatio
 | CIW-D09 | Amharic default | Amharic-first default; English selectable; mixed-language input and automatic detection supported | APPROVED BY OWNER — 2026-11-08 |
 | CIW-D10 | Budget/rate limits | Configurable hard limits per subject and tenant for input/output, concurrency, rate, time, retries and spend; safe defaults fail closed | APPROVED BY OWNER — 2026-11-08 |
 
-**Owner decision record (2026-11-08):** The Owner explicitly approved CIW-D03 = configurable retention, CIW-D04 = immediate access revocation followed by scheduled purge subject to retention obligations, and CIW-D06 = synthetic data only until separate provider approval. These three decisions are resolved for the A2 proposal. The other seven decisions remain open; recommendations above are not approvals.
+**Owner decision record (2026-11-08):** The Owner approved D03 = configurable retention, D04 = immediate access revocation followed by scheduled purge subject to retention obligations, and D06 = synthetic data only until separate provider approval. In a subsequent explicit instruction on 2026-11-08, the Owner approved D01, D02, D05, D07, D08, D09 and D10 as written. All ten decisions are resolved and approved.
 
 The approved decisions constrain A3 design but do not activate a provider, define a numeric retention period, or authorize production data processing.
 
@@ -500,18 +500,18 @@ The approved decisions constrain A3 design but do not activate a provider, defin
 |---|---|---|
 | Candidate Kernel source inventory | PASS | Exact PR #13 files inspected at `813b24c...` |
 | Reuse/adapt/missing register | PASS (proposal) | Section 1 |
-| Kernel adapter contract | PARTIAL | Verified behavior mapped; exact stable public API depends on adopted Kernel baseline |
-| Tenant/session contract | PARTIAL | Proposed invariants; tenant membership service and session lifecycle implementation not found in inspected source |
-| Conversation persistence contract | PARTIAL | Proposed records/ordering/idempotency; configurable retention approved but storage technology, exact retention schedules and deletion mechanics remain to be designed |
+| Kernel adapter contract | PASS (A2 contract) / A3 DEPENDENCY | Verified behavior mapped; exact stable public API must be pinned to the separately selected/adopted Kernel baseline |
+| Tenant/session contract | PASS (A2 contract) / A3 IMPLEMENTATION MISSING | Authoritative membership and revocable bounded session contracts defined; runtime resolver/session lifecycle not found in inspected source |
+| Conversation persistence contract | PASS (A2 domain contract) / A3 IMPLEMENTATION MISSING | Records, ordering, idempotency and retention/deletion constraints specified; storage and operational mechanics remain implementation work |
 | Conversation API schemas | PASS (proposal) | Section 4 |
-| Capability/resource matrix | PASS (proposal) | Section 5; concrete policy schema mapping pending |
+| Capability/resource matrix | PASS (A2 contract) / A3 MAPPING REQUIRED | Section 5; concrete policy schema mapping and trusted policy lifecycle are A3 entry dependencies |
 | G03 gateway contract | PASS (proposal) | Section 6; no provider selected/activated |
 | Data lineage/trust boundaries | PASS (proposal) | Section 7 |
 | Audit/correlation contract | PASS (proposal) | Section 8 |
 | G08 dependency boundary | PASS (proposal) | Section 9; PR #18 remains proposed/unmerged |
 | Threat model and acceptance | PASS (proposal) | Sections 10–11 |
-| Owner decisions | PARTIAL — 3/10 RESOLVED | D03, D04 and D06 approved by Owner on 2026-11-08; D01, D02, D05, D07–D10 remain pending |
-| A2 closure | NOT CLOSED | Requires adopted Kernel baseline, trusted policy lifecycle, tenant/session authority and resolution of the seven pending Owner decisions |
+| Owner decisions | PASS — 10/10 APPROVED BY OWNER | D01–D10 approved by Owner on 2026-11-08; see §12 and §13.5 |
+| A2 closure | VERIFIED-CLOSED — DESIGN/CONTRACT GATE ONLY | Read-only reconciliation and all A2 decisions/contracts complete; Kernel adoption, policy runtime and tenant/session adapters are explicit A3 entry dependencies |
 
 
 ## 13.1 Proposed dispositions for the seven remaining Owner decisions
