@@ -202,17 +202,19 @@ pub fn validate_genome(bytes: &[u8]) -> Result<ValidatedGenome, IgacmsError> {
         .as_array()
         .ok_or(IgacmsError::Malformed)?;
     let domain_set: BTreeSet<&str> = domains.iter().filter_map(Value::as_str).collect();
+    if domain_set.len() != domains.len()
+        || domain_set
+            .iter()
+            .any(|domain| !DOMAINS.iter().any(|known| known == domain))
+    {
+        return Err(IgacmsError::Malformed);
+    }
     for required_domain in DOMAINS {
         if !domain_set.contains(required_domain) {
             return Err(IgacmsError::MissingDomain(required_domain.to_owned()));
         }
     }
-    if domains.len() != DOMAINS.len()
-        || domain_set.len() != domains.len()
-        || domain_set
-            .iter()
-            .any(|domain| !DOMAINS.iter().any(|known| known == domain))
-    {
+    if domains.len() != DOMAINS.len() {
         return Err(IgacmsError::Malformed);
     }
     let c = v["chromosomes"].as_array().ok_or(IgacmsError::Chromosome)?;
