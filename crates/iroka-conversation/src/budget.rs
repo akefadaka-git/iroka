@@ -69,20 +69,37 @@ impl BudgetGuard {
             return Err(ConversationError::BudgetExceeded);
         }
 
-        let subject_requests = state
-            .requests_subject
-            .entry(subject.to_owned())
-            .or_default();
-        Self::prune_window(subject_requests, now)?;
-        let tenant_requests = state.requests_tenant.entry(tenant.to_owned()).or_default();
-        Self::prune_window(tenant_requests, now)?;
-        if subject_requests.len() >= self.limits.requests_per_minute as usize
-            || tenant_requests.len() >= self.limits.requests_per_minute as usize
+        let subject_request_count = {
+            let requests = state
+                .requests_subject
+                .entry(subject.to_owned())
+                .or_default();
+            Self::prune_window(requests, now)?;
+            requests.len()
+        };
+        let tenant_request_count = {
+            let requests = state
+                .requests_tenant
+                .entry(tenant.to_owned())
+                .or_default();
+            Self::prune_window(requests, now)?;
+            requests.len()
+        };
+        if subject_request_count >= self.limits.requests_per_minute as usize
+            || tenant_request_count >= self.limits.requests_per_minute as usize
         {
             return Err(ConversationError::BudgetExceeded);
         }
-        subject_requests.push_back(now);
-        tenant_requests.push_back(now);
+        state
+            .requests_subject
+            .entry(subject.to_owned())
+            .or_default()
+            .push_back(now);
+        state
+            .requests_tenant
+            .entry(tenant.to_owned())
+            .or_default()
+            .push_back(now);
         *state.active_subject.entry(subject.to_owned()).or_default() += 1;
         *state.active_tenant.entry(tenant.to_owned()).or_default() += 1;
 
