@@ -345,7 +345,9 @@ mod tests {
                 if cp.payload.previous_checkpoint_sha256.as_deref() != Some(expected_previous.as_str()) {
                     return Err(CheckpointError::PredecessorMismatch);
                 }
-            } else if cp.payload.checkpoint_sequence != 1 || cp.payload.previous_checkpoint_sha256.is_some() {
+            } else if cp.payload.checkpoint_sequence != 1
+                || cp.payload.previous_checkpoint_sha256.is_some()
+            {
                 return Err(CheckpointError::PredecessorMismatch);
             }
             map.insert(cp.payload.stream_id.clone(), cp.clone());
@@ -355,8 +357,13 @@ mod tests {
             &self,
             stream: &str,
         ) -> Result<Option<(SignedCheckpoint, WitnessReceipt)>, CheckpointError> {
-            let map = self.accepted.lock().map_err(|_| CheckpointError::WitnessUnavailable)?;
-            map.get(stream).map(|cp| Ok((cp.clone(), self.receipt(cp)?))).transpose()
+            let map = self
+                .accepted
+                .lock()
+                .map_err(|_| CheckpointError::WitnessUnavailable)?;
+            map.get(stream)
+                .map(|cp| Ok((cp.clone(), self.receipt(cp)?)))
+                .transpose()
         }
     }
 
@@ -374,7 +381,16 @@ mod tests {
     fn signed_checkpoint_and_witness_receipt_verify_and_reconcile() {
         let s = signer();
         let w = TestWitness::new(&s);
-        let cp = create_checkpoint(&s, "audit-stream:alpha", 1, 7, [8; 32], None, 1_900).unwrap();
+        let cp = create_checkpoint(
+            &s,
+            "audit-stream:alpha",
+            1,
+            7,
+            [8; 32],
+            None,
+            1_900,
+        )
+        .unwrap();
         cp.verify(&trust(&s.id, &s.key)).unwrap();
         let receipt = w.publish(&cp).unwrap();
         receipt.verify(&cp, &trust(&w.key_id, &w.key)).unwrap();
@@ -395,8 +411,18 @@ mod tests {
 
     #[test]
     fn rejects_tampered_checkpoint_and_receipt() {
-        let s = signer(); let w = TestWitness::new(&s);
-        let cp = create_checkpoint(&s, "audit-stream:alpha", 1, 7, [8; 32], None, 1_900).unwrap();
+        let s = signer();
+        let w = TestWitness::new(&s);
+        let cp = create_checkpoint(
+            &s,
+            "audit-stream:alpha",
+            1,
+            7,
+            [8; 32],
+            None,
+            1_900,
+        )
+        .unwrap();
         let mut bad = cp.clone();
         bad.payload.event_sequence = 8;
         assert_eq!(
@@ -414,10 +440,23 @@ mod tests {
 
     #[test]
     fn witness_rejects_replay_gap_and_wrong_predecessor() {
-        let s = signer(); let w = TestWitness::new(&s);
-        let one = create_checkpoint(&s, "audit-stream:alpha", 1, 7, [8; 32], None, 1_900).unwrap();
+        let s = signer();
+        let w = TestWitness::new(&s);
+        let one = create_checkpoint(
+            &s,
+            "audit-stream:alpha",
+            1,
+            7,
+            [8; 32],
+            None,
+            1_900,
+        )
+        .unwrap();
         w.publish(&one).unwrap();
-        assert_eq!(w.publish(&one), Err(CheckpointError::SequenceConflict));
+        assert_eq!(
+            w.publish(&one),
+            Err(CheckpointError::SequenceConflict)
+        );
         let gap = create_checkpoint(
             &s,
             "audit-stream:alpha",
@@ -447,7 +486,8 @@ mod tests {
 
     #[test]
     fn witness_keeps_streams_separate_and_receipt_is_bound_to_digest() {
-        let s = signer(); let w = TestWitness::new(&s);
+        let s = signer();
+        let w = TestWitness::new(&s);
         let a = create_checkpoint(&s, "audit-stream:a", 1, 1, [1; 32], None, 1_900).unwrap();
         let b = create_checkpoint(&s, "audit-stream:b", 1, 1, [2; 32], None, 1_900).unwrap();
         let ra = w.publish(&a).unwrap();
