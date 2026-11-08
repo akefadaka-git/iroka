@@ -1,7 +1,7 @@
 //! Trusted server-side tenant directory and bounded application sessions.
 
 use rusqlite::{params, Connection, OptionalExtension};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::{ConversationError, SessionGuard, TenantMembership};
 
@@ -12,7 +12,7 @@ pub struct SqliteTenantDirectory {
     db: Mutex<Connection>,
 }
 impl SqliteTenantDirectory {
-    pub fn open(path: &str) -> Result<Self, ConversationError> {
+    pub fn open(path: &str, credential_status: Arc<dyn CredentialStatus>) -> Result<Self, ConversationError> {
         let db = Connection::open(path).map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS tenant_memberships(
@@ -21,9 +21,9 @@ impl SqliteTenantDirectory {
           PRIMARY KEY(subject,tenant_id));",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self { db: Mutex::new(db) })
+        Ok(Self { db: Mutex::new(db), credential_status })
     }
-    pub fn open_in_memory() -> Result<Self, ConversationError> {
+    pub fn open_in_memory(credential_status: Arc<dyn CredentialStatus>) -> Result<Self, ConversationError> {
         let db = Connection::open_in_memory().map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute_batch(
             "CREATE TABLE tenant_memberships(
@@ -32,7 +32,7 @@ impl SqliteTenantDirectory {
           PRIMARY KEY(subject,tenant_id));",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self { db: Mutex::new(db) })
+        Ok(Self { db: Mutex::new(db), credential_status })
     }
     /// Provision/refresh from the authoritative membership source only.
     /// Never expose this operation to an HTTP request or model adapter.
@@ -101,8 +101,20 @@ impl TenantMembership for SqliteTenantDirectory {
     }
 }
 
+pub trait CredentialStatus: Send + Sync {
+    /// Must consult the Kernel-backed revocation source and reject unavailable,
+    /// revoked or version-mismatched credential/session state.
+    fn ensure_active(
+        &self,
+        credential_id: &str,
+        revocation_version: u64,
+        now: u64,
+    ) -> Result<(), ConversationError>;
+}
+
 pub struct SqliteSessionRegistry {
     db: Mutex<Connection>,
+    credential_status: Arc<dyn CredentialStatus>,
 }
 impl SqliteSessionRegistry {
     pub fn open(path: &str) -> Result<Self, ConversationError> {
@@ -190,6 +202,7 @@ impl SessionGuard for SqliteSessionRegistry {
     fn validate(
         &self,
         subject: &str,
+        credential_id: &str,
         tenant: &str,
         session_id: &str,
         now: u64,
@@ -203,19 +216,39 @@ impl SessionGuard for SqliteSessionRegistry {
           params![session_id],|r|Ok((r.get(0)?,r.get(1)?,r.get::<_,i64>(2)? as u64,
              r.get::<_,i64>(3)? as u64,r.get::<_,i64>(4)?!=0)))
           .optional().map_err(|_|ConversationError::SessionInvalid)?;
-        match row {
-            Some((s, t, issued, expires, revoked))
-                if s == subject
-                    && t == tenant
-                    && !revoked
-                    && expires > issued
-                    && now >= issued
-                    && now < expires
-                    && expires - issued <= MAX_SESSION_TTL =>
-            {
-                Ok(())
-            }
-            _ => Err(ConversationError::SessionInvalid),
+        drop(db);
+        let Some((stored_subject, stored_tenant, stored_credential, issued, expires, version, revoked)) = row else {
+            return Err(ConversationError::SessionInvalid);
+        };
+        if stored_subject != subject
+            || stored_tenant != tenant
+            || stored_credential != credential_id
+            || revoked
+            || expires <= issued
+            || now < issued
+            || now >= expires
+            || expires - issued > MAX_SESSION_TTL
+        {
+            return Err(ConversationError::SessionInvalid);
+        }
+        self.credential_status.ensure_active(credential_id, version, now)
+    }
+}
+
+#[cfg(test)]
+struct AllowTestCredential;
+#[cfg(test)]
+impl CredentialStatus for AllowTestCredential {
+    fn ensure_active(
+        &self,
+        credential_id: &str,
+        revocation_version: u64,
+        _now: u64,
+    ) -> Result<(), ConversationError> {
+        if credential_id == "cred:1" && revocation_version == 1 {
+            Ok(())
+        } else {
+            Err(ConversationError::SessionInvalid)
         }
     }
 }
@@ -247,17 +280,17 @@ mod tests {
     }
     #[test]
     fn sessions_are_bounded_and_revocable() {
-        let sessions = SqliteSessionRegistry::open_in_memory().unwrap();
+        let sessions = SqliteSessionRegistry::open_in_memory(Arc::new(AllowTestCredential)).unwrap();
         assert_eq!(
             sessions.register("s1", "subject:1", "tenant:a", "cred:1", 100, 1_900, 1),
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:1", "tenant:a", "s1", 200),
+            sessions.validate("subject:1", "cred:1", "tenant:a", "s1", 200),
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:other", "tenant:a", "s1", 200),
+            sessions.validate("subject:other", "cred:1", "tenant:a", "s1", 200),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(sessions.revoke("s1"), Ok(()));
