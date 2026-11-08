@@ -176,3 +176,35 @@ The A2 register was read from `architecture/igacms-a2-owner-approved`. Each of i
 - A3.8 — VERIFIED at exact implementation SHA `bb50271544a04e3c00ee0987ac3237224b3812d1`, workflow run [#42453012427](https://github.com/akefadaka-git/iroka/actions/runs/42453012427), all five gates PASS.
 
 **Overall A3: IMPLEMENTATION WORK PACKAGES VERIFIED; operational trust-root/Genesis steps remain NOT RUN and separately gated.** A4 verification is the next phase. No merge, deployment, production key provisioning or Genesis activation is authorized or performed. The Owner's independent-review waiver dated 2026-11-08 remains in force; no independent review is claimed.
+
+
+## A4 remediation evidence — Owner approval/revocation atomicity (2026-11-08)
+
+**Finding A4-01: VERIFIED-REMEDIATED.** The previous verification identified a time-of-check/time-of-use gap between preliminary revocation reads and one-time Owner approval consumption.
+
+### Implemented correction
+
+- `SqliteSecurityStore::consume_approval` now opens an SQLite `IMMEDIATE` transaction before checking revocation state.
+- Within that same transaction it checks the Owner signing key in `revoked_keys`, checks the approval ID in `revoked_approvals`, inserts the one-time consumption marker, inserts the approval receipt, and commits.
+- A competing revocation serializes before or after the consumption transaction. If revocation commits first, consumption fails closed; if consumption commits first, the later revocation is ordered after that authorization decision.
+- Revoked-key and revoked-approval outcomes map to `OwnerApprovalError::Revoked`; database failures fail closed; duplicate use remains `OwnerApprovalError::Replay`.
+
+### Regression coverage
+
+Added three tests:
+1. `approval_consumption_rechecks_signing_key_revocation_atomically`
+2. `approval_consumption_rechecks_approval_revocation_atomically`
+3. `concurrent_key_revocation_and_approval_consumption_are_serializable` — uses two independent SQLite connections against one database and races key revocation against approval consumption, asserting only valid serial outcomes.
+
+### Exact-head verification
+
+- Source commits: `c4710a58cd5846bdedd46583ee8095970e1cfdc3`, `5c12ad868d4a9c50419a1cc67c452403b4c59299`, `36d900b76a77242479300c843872ef65e51656df`, `ffc9aafd36a71e4eea613e6bf7e4d51672264c8b`, `753e6fcdb629c6113b01cc428fa0f33a31920e0b`, `bb8ce3dec81dcbd2601658321bea6af9fbe4ffa9`.
+- Final code/test SHA: `bb8ce3dec81dcbd2601658321bea6af9fbe4ffa9`.
+- Workflow run [#42459388552](https://github.com/akefadaka-git/iroka/actions/runs/42459388552): **SUCCESS**.
+- PASS: `cargo fmt --all -- --check`.
+- PASS: `cargo check --workspace --all-targets --locked`.
+- PASS: `cargo check --workspace --all-targets --no-default-features`.
+- PASS: `cargo test --workspace --all-targets --locked` — 58 unit tests and 2 documentation tests; zero failures.
+- PASS: `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic`.
+
+**A4-01 disposition: VERIFIED-CLOSED.** This closes the identified approval/revocation TOCTOU finding only. It does not constitute A4 overall closure. Remaining A4 work includes broader trust-lifecycle and adversarial review, audit-chain/external-checkpoint assessment, rollback/failure-path verification and operational boundary confirmation. Production trust-root provisioning and Genesis activation remain NOT RUN and separately gated. No merge or deployment was performed.
