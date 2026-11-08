@@ -32,7 +32,10 @@ impl SqliteTenantDirectory {
           PRIMARY KEY(subject,tenant_id));",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self { db: Mutex::new(db), credential_status })
+        Ok(Self {
+            db: Mutex::new(db),
+            credential_status,
+        })
     }
     /// Provision/refresh from the authoritative membership source only.
     /// Never expose this operation to an HTTP request or model adapter.
@@ -117,7 +120,10 @@ pub struct SqliteSessionRegistry {
     credential_status: Arc<dyn CredentialStatus>,
 }
 impl SqliteSessionRegistry {
-    pub fn open(path: &str, credential_status: Arc<dyn CredentialStatus>) -> Result<Self, ConversationError> {
+    pub fn open(
+        path: &str,
+        credential_status: Arc<dyn CredentialStatus>,
+    ) -> Result<Self, ConversationError> {
         let db = Connection::open(path).map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS app_sessions(
@@ -126,9 +132,14 @@ impl SqliteSessionRegistry {
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self { db: Mutex::new(db), credential_status })
+        Ok(Self {
+            db: Mutex::new(db),
+            credential_status,
+        })
     }
-    pub fn open_in_memory(credential_status: Arc<dyn CredentialStatus>) -> Result<Self, ConversationError> {
+    pub fn open_in_memory(
+        credential_status: Arc<dyn CredentialStatus>,
+    ) -> Result<Self, ConversationError> {
         let db = Connection::open_in_memory().map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute_batch(
             "CREATE TABLE app_sessions(
@@ -137,7 +148,10 @@ impl SqliteSessionRegistry {
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self { db: Mutex::new(db), credential_status })
+        Ok(Self {
+            db: Mutex::new(db),
+            credential_status,
+        })
     }
     /// Register a session ID minted by a trusted cryptographic session issuer.
     /// The caller must not accept caller-chosen IDs or extend a session beyond this cap.
@@ -229,7 +243,16 @@ impl SessionGuard for SqliteSessionRegistry {
             .optional()
             .map_err(|_| ConversationError::SessionInvalid)?;
         drop(db);
-        let Some((stored_subject, stored_tenant, stored_credential, issued, expires, version, revoked)) = row else {
+        let Some((
+            stored_subject,
+            stored_tenant,
+            stored_credential,
+            issued,
+            expires,
+            version,
+            revoked,
+        )) = row
+        else {
             return Err(ConversationError::SessionInvalid);
         };
         if stored_subject != subject
@@ -243,7 +266,8 @@ impl SessionGuard for SqliteSessionRegistry {
         {
             return Err(ConversationError::SessionInvalid);
         }
-        self.credential_status.ensure_active(credential_id, version, now)
+        self.credential_status
+            .ensure_active(credential_id, version, now)
     }
 }
 
@@ -292,7 +316,8 @@ mod tests {
     }
     #[test]
     fn sessions_are_bounded_and_revocable() {
-        let sessions = SqliteSessionRegistry::open_in_memory(Arc::new(AllowTestCredential)).unwrap();
+        let sessions =
+            SqliteSessionRegistry::open_in_memory(Arc::new(AllowTestCredential)).unwrap();
         assert_eq!(
             sessions.register("s1", "subject:1", "tenant:a", "cred:1", 100, 1_900, 1),
             Ok(())
