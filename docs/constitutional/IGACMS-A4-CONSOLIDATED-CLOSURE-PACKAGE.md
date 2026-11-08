@@ -222,3 +222,83 @@ At package preparation:
 **OVERALL A4: PARTIAL — NOT CLOSED.**
 
 This is the consolidated evidence package and accurate closure-readiness disposition. It deliberately does not convert unimplemented external controls or unperformed production operations into PASS claims, and it does not authorize merge or deployment.
+
+
+---
+
+## 10. Superseding A4-03 implementation and exact-HEAD verification update — 2026-11-08
+
+This section supersedes the historical statements in Sections 1, 3, 4.3, 6, 7, and 9 that A4-03 external checkpoint software was not implemented or that implementation still awaited an Owner decision. The prior sections remain as a record of the earlier assessment.
+
+### 10.1 A4-03 implementation disposition
+
+**A4-03 protocol and client-adapter software: IMPLEMENTED.** The separately authorized implementation is recorded in [PR #15](https://github.com/akefadaka-git/iroka/pull/15), branch `feat/a4-03-external-audit-checkpoint`.
+
+Implemented components:
+- Versioned checkpoint and witness-receipt envelopes with canonical JCS serialization and domain-separated Ed25519 signatures.
+- Injected signer and witness contracts; configurable quorum requiring distinct verified witness identities.
+- Replay, sequence-gap, predecessor, stream-binding, digest-binding and fork/reconciliation protections.
+- HTTPS-only witness client with TLS validation, mTLS client identity, explicit witness and checkpoint-signer trust roots, idempotency key, bounded time/response handling and no shell invocation.
+- Signed latest-checkpoint readback and fail-closed quorum publication.
+- HTTP service contract documenting durable transactional acceptance, idempotency, append-only retention, conflict behavior and restore requirements.
+- Deterministic test-only witness remains distinct from the production HTTPS adapter.
+
+The client is a production-capable adapter implementation; this does not mean a production witness service has been selected, deployed, or activated.
+
+### 10.2 Exact-HEAD automated verification
+
+**Verified integrated HEAD:** `9fca98448c15b8c38c55cdc421d008d6f0ba817f`  
+**PR:** [#15](https://github.com/akefadaka-git/iroka/pull/15)  
+**Exact-HEAD workflow:** [run #42479252395](https://github.com/akefadaka-git/iroka/actions/runs/42479252395) — **SUCCESS**  
+**Job:** `128727376958`, “Format, compile, test and lint”.
+
+| Gate | Result |
+|---|---|
+| Rust formatting check | PASS |
+| Locked workspace compilation, all targets | PASS |
+| Production/no-default-features compilation | PASS |
+| Complete unit test suite | PASS — 74 passed, 0 failed |
+| Authorization contract/integration tests | PASS — 2 passed, 0 failed |
+| Clippy with warnings denied | PASS |
+
+The workflow logs at this exact SHA also show the checkpoint tamper/signature, witness receipt binding, stream separation, replay/gap/predecessor, distinct-identity quorum, HTTPS endpoint policy, safe stream-path encoding, bounded-response adapter, A4-01 approval/revocation atomicity, A4-02 concurrent snapshot publication, and A4-04 SQLite failure/recovery regression tests executing successfully.
+
+The earlier A3 implementation PR [#13](https://github.com/akefadaka-git/iroka/pull/13) was separately verified at exact HEAD `813b24cbf81f049f2675fbb5492bdc9f262a9d87`; workflow [run #42462470324](https://github.com/akefadaka-git/iroka/actions/runs/42462470324) succeeded. The current PR #15 exact-HEAD run is the consolidated verification of the integrated A3/A4 code path and supersedes the earlier test-count baseline for this assessment.
+
+### 10.3 Live independent-witness integration — NOT RUN
+
+**Status: BLOCKED ON OPERATOR ENROLLMENT INPUTS; NOT a software CI failure.**
+
+No live publish/readback or remote durability test is claimed. The repository's A4-03 adapter contract explicitly states that no endpoint URLs, mTLS client certificates/private keys, or production witness public keys are present or provisioned. The following prerequisites remain absent from the available evidence:
+1. At least two separately administered witness operators and their HTTPS endpoints.
+2. Dedicated mTLS client enrollment for each operator, provisioned outside source control.
+3. Each witness's Ed25519 public-key fingerprint and identity/key-ID enrollment.
+4. Owner-approved checkpoint signer trust roots and quorum threshold.
+5. Operator evidence of durable transactional acceptance, append-only retention, independent backups, and a restore procedure.
+
+Do not place private keys, client certificates containing private key material, passwords, or bearer credentials in chat or Git. Provision secrets through the approved secure channel/runtime secret store. Do not infer operator independence from separate URLs, accounts, or machines.
+
+Until these prerequisites are provided and a controlled live test is executed, the following remain **NOT RUN / UNVERIFIED**: real publish and readback; idempotent retry and replay/conflict behavior against real services; two-operator quorum under outage/failover; remote durable commit; independent retention; backup/restore; operator independence; and witness key rotation/revocation in the live environment.
+
+### 10.4 Consolidated A4 work-package disposition
+
+| Work package | Current disposition |
+|---|---|
+| A4-01 approval/revocation atomicity | VERIFIED-CLOSED |
+| A4-02 trust snapshot publication ordering | VERIFIED-CLOSED |
+| A4-03 local SQLite audit chain | VERIFIED |
+| A4-03 external checkpoint protocol and HTTPS/mTLS client software | IMPLEMENTED; exact-HEAD CI VERIFIED |
+| A4-03 live independent witness services, durable remote retention and restore | NOT RUN / UNVERIFIED — enrollment prerequisites absent |
+| A4-04 rollback/replay and enumerated SQLite/process failure paths | VERIFIED for the enumerated deterministic scenarios |
+| A4-04 physical storage, host power-loss and filesystem-corruption envelope | NOT TESTED |
+| A4-05 production custody, trust-root provisioning, Genesis activation and runtime promotion | NOT RUN — separately Owner-gated |
+
+**Overall A4 disposition: PARTIAL — NOT CLOSED.** The code and automated verification gates pass at the exact integrated HEAD, but live external witness assurance and production operational custody/activation are not evidenced. This is not a production-readiness certification.
+
+### 10.5 Governance and release boundary
+
+The Owner's waiver of independent code/security review as an implementation prerequisite remains in force; no independent review is claimed. That waiver does not waive real witness enrollment, operational independence, durable retention evidence, automated verification, or production custody controls.
+
+PR #15 remains draft/open/unmerged at the time of this update. PR #13 and A2 PR #12 remain separate. No PR was merged, no deployment or runtime promotion was performed, and no production trust root, signer private key, or Genesis activation was created. No provider purchase, top-up, deposit, or payment was made or required.
+
+**Closure-readiness decision:** A4 is software-verification-ready but not closure-ready. The next executable gate is live enrollment and verification with two separately administered witness operators; after that, update this package with the live evidence and rerun the full exact-HEAD verification. Production custody and activation remain a separate Owner decision.
