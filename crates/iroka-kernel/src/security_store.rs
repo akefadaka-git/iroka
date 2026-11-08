@@ -19,6 +19,13 @@ pub enum SecurityStoreError {
     InvalidVersion,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ApprovalConsumptionError {
+    Store(SecurityStoreError),
+    SigningKeyRevoked,
+    ApprovalRevoked,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum RevocationTarget {
     Credential {
@@ -41,6 +48,7 @@ pub(crate) struct ApprovalReceipt<'a> {
     pub approval_id: &'a str,
     pub payload_digest: &'a [u8],
     pub owner_subject: &'a str,
+    pub signer_issuer: &'a str,
     pub signer_key_id: &'a str,
     pub request_subject: &'a str,
     pub capability: &'a str,
@@ -467,23 +475,45 @@ impl SqliteSecurityStore {
     pub(crate) fn consume_approval(
         &self,
         receipt: ApprovalReceipt<'_>,
-    ) -> Result<bool, SecurityStoreError> {
+    ) -> Result<bool, ApprovalConsumptionError> {
         if receipt.approval_id.trim().is_empty() || receipt.payload_digest.len() != 32 {
-            return Err(SecurityStoreError::InvalidVersion);
+            return Err(ApprovalConsumptionError::Store(SecurityStoreError::InvalidVersion));
         }
-        let mut connection = self
-            .connection
-            .lock()
-            .map_err(|_| SecurityStoreError::Unavailable)?;
-        let tx = connection
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| SecurityStoreError::Unavailable)?;
-        let consumed_at =
-            i64::try_from(receipt.consumed_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock()
+            .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
+
+        // Serialize final revocation checks with the single-use approval insert.
+        // A racing revocation either commits first and blocks consumption, or
+        // commits after this transaction has legitimately consumed the approval.
+        let signer_revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+            params![receipt.signer_issuer, receipt.signer_key_id],
+            |row| row.get(0),
+        ).map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
+        if signer_revoked {
+            return Err(ApprovalConsumptionError::SigningKeyRevoked);
+        }
+        let approval_revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_approvals WHERE approval_id=?1)",
+            [receipt.approval_id],
+            |row| row.get(0),
+        ).map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
+        if approval_revoked {
+            return Err(ApprovalConsumptionError::ApprovalRevoked);
+        }
+
+        let consumed_at = i64::try_from(receipt.consumed_at)
+            .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::InvalidVersion))?;
+        let issued_at = i64::try_from(receipt.issued_at)
+            .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::InvalidVersion))?;
+        let expires_at = i64::try_from(receipt.expires_at)
+            .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::InvalidVersion))?;
         let changed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
             params![receipt.approval_id, receipt.payload_digest, consumed_at]
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        ).map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         if changed == 0 {
             return Ok(false);
         }
@@ -492,14 +522,13 @@ impl SqliteSecurityStore {
             params![
                 receipt.approval_id, receipt.payload_digest, receipt.owner_subject, receipt.signer_key_id,
                 receipt.request_subject, receipt.capability, receipt.resource, receipt.policy_version,
-                i64::try_from(receipt.issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                i64::try_from(receipt.expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                consumed_at
+                issued_at, expires_at, consumed_at
             ]
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
-        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+        ).map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
+        tx.commit().map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         Ok(true)
     }
+
 }
 
 impl RevocationChecker for SqliteSecurityStore {
@@ -582,6 +611,7 @@ mod tests {
                 approval_id: "approval:1",
                 payload_digest: &[3; 32],
                 owner_subject: "owner:test",
+                signer_issuer: "iroka:owner-authority",
                 signer_key_id: "owner-key",
                 request_subject: "principal:test",
                 capability: "records.read",
@@ -615,6 +645,50 @@ mod tests {
             .unwrap();
         assert_eq!(store.approval_is_revoked("approval:2"), Ok(true));
     }
+    #[test]
+    fn approval_consumption_rechecks_signing_key_revocation_atomically() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        store.revoke_key("iroka:owner-authority", "owner-key", 19, "compromised").unwrap();
+        let result = store.consume_approval(ApprovalReceipt {
+            approval_id: "approval:key-revoked",
+            payload_digest: &[4; 32],
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key",
+            request_subject: "principal:test",
+            capability: "records.read",
+            resource: "records:1",
+            policy_version: "policy:v1",
+            issued_at: 10,
+            expires_at: 100,
+            consumed_at: 20,
+        });
+        assert_eq!(result, Err(ApprovalConsumptionError::SigningKeyRevoked));
+        assert_eq!(store.approval_receipt_count(), Ok(0));
+    }
+
+    #[test]
+    fn approval_consumption_rechecks_approval_revocation_atomically() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        store.revoke_approval("approval:revoked", 19, "withdrawn").unwrap();
+        let result = store.consume_approval(ApprovalReceipt {
+            approval_id: "approval:revoked",
+            payload_digest: &[5; 32],
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key",
+            request_subject: "principal:test",
+            capability: "records.read",
+            resource: "records:1",
+            policy_version: "policy:v1",
+            issued_at: 10,
+            expires_at: 100,
+            consumed_at: 20,
+        });
+        assert_eq!(result, Err(ApprovalConsumptionError::ApprovalRevoked));
+        assert_eq!(store.approval_receipt_count(), Ok(0));
+    }
+
     #[test]
     fn file_store_reopens_with_revocations_and_private_permissions() {
         use std::fs;
