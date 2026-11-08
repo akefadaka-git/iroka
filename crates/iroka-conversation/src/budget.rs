@@ -8,7 +8,7 @@ use std::{
     time::Instant,
 };
 
-use crate::{ConversationError, BudgetLimits};
+use crate::{BudgetLimits, ConversationError};
 
 #[derive(Default)]
 struct BudgetState {
@@ -69,7 +69,10 @@ impl BudgetGuard {
             return Err(ConversationError::BudgetExceeded);
         }
 
-        let subject_requests = state.requests_subject.entry(subject.to_owned()).or_default();
+        let subject_requests = state
+            .requests_subject
+            .entry(subject.to_owned())
+            .or_default();
         Self::prune_window(subject_requests, now)?;
         let tenant_requests = state.requests_tenant.entry(tenant.to_owned()).or_default();
         Self::prune_window(tenant_requests, now)?;
@@ -96,7 +99,10 @@ impl BudgetGuard {
         if queue.back().is_some_and(|last| now < *last) {
             return Err(ConversationError::BudgetExceeded);
         }
-        while queue.front().is_some_and(|stamp| now.saturating_sub(*stamp) >= 60) {
+        while queue
+            .front()
+            .is_some_and(|stamp| now.saturating_sub(*stamp) >= 60)
+        {
             queue.pop_front();
         }
         Ok(())
@@ -112,7 +118,11 @@ pub struct BudgetReservation<'a> {
 }
 
 impl BudgetReservation<'_> {
-    pub fn finish(&self, output_tokens: u32, spend_micro_units: u64) -> Result<(), ConversationError> {
+    pub fn finish(
+        &self,
+        output_tokens: u32,
+        spend_micro_units: u64,
+    ) -> Result<(), ConversationError> {
         if output_tokens == 0
             || output_tokens > self.guard.limits.max_output_tokens
             || self.started.elapsed().as_millis() > self.guard.limits.max_wall_clock_ms as u128
