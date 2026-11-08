@@ -104,7 +104,7 @@ The initial implementation strategy defines staged gates:
 
 No stage is considered complete solely because code exists or a workflow passes.
 
-See [Implementation Strategy](docs/IMPLEMENTATION_STRATEGY.md) for the phased plan, dependency order, controls and exit criteria.
+See [Master Implementation Strategy v2.0](docs/IMPLEMENTATION_STRATEGY_V2.md) for the proposed complete roadmap, phase dependencies, work packages, benchmarks, controls and exit criteria. The [initial implementation strategy](docs/IMPLEMENTATION_STRATEGY.md) is retained as a historical baseline.
 
 ## Repository and contribution status
 
