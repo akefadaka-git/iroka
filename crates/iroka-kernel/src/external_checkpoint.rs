@@ -222,7 +222,7 @@ mod tests {
         }
     }
 
-    struct TestWitness { id: String, key_id: String, key: SigningKey, accepted: Mutex<BTreeMap<String, SignedCheckpoint>> }
+    struct TestWitness { id: String, key_id: String, key: SigningKey, signer_key_id: String, signer_key: VerifyingKey, accepted: Mutex<BTreeMap<String, SignedCheckpoint>> }
     impl TestWitness {
         fn new() -> Self { Self { id: "witness:test".into(), key_id: "witness-key:test".into(),
             key: SigningKey::from_bytes(&[92; 32]), accepted: Mutex::new(BTreeMap::new()) } }
@@ -246,7 +246,8 @@ mod tests {
                 if cp.payload.checkpoint_sequence != prev.payload.checkpoint_sequence + 1 {
                     return Err(CheckpointError::SequenceGap);
                 }
-                if cp.payload.previous_checkpoint_sha256.as_deref() != Some(&hex(&prev.digest()?)) {
+                let expected_previous = hex(&prev.digest()?);
+                if cp.payload.previous_checkpoint_sha256.as_deref() != Some(expected_previous.as_str()) {
                     return Err(CheckpointError::PredecessorMismatch);
                 }
             } else if cp.payload.checkpoint_sequence != 1 || cp.payload.previous_checkpoint_sha256.is_some() {
@@ -268,7 +269,7 @@ mod tests {
 
     #[test]
     fn signed_checkpoint_and_witness_receipt_verify_and_reconcile() {
-        let s = signer(); let w = TestWitness::new();
+        let s = signer(); let w = TestWitness::new(&s);
         let cp = create_checkpoint(&s, "audit-stream:alpha", 1, 7, [8; 32], None, 1_900).unwrap();
         cp.verify(&trust(&s.id, &s.key)).unwrap();
         let receipt = w.publish(&cp).unwrap();
