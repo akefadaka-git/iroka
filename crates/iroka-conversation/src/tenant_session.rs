@@ -8,6 +8,7 @@ use iroka_kernel::RevocationChecker;
 
 const MAX_MEMBERSHIP_AGE: u64 = 300;
 const MAX_SESSION_TTL: u64 = 1_800;
+type SessionRow = (String, String, String, String, u64, u64, u64, bool);
 
 pub struct SqliteTenantDirectory {
     db: Mutex<Connection>,
@@ -253,7 +254,7 @@ impl SessionGuard for SqliteSessionRegistry {
             .db
             .lock()
             .map_err(|_| ConversationError::SessionInvalid)?;
-        let row: Option<(String, String, String, String, u64, u64, u64, bool)> = db
+        let row: Option<SessionRow> = db
             .query_row(
                 "SELECT subject,tenant_id,issuer,credential_id,issued_at,expires_at,revocation_version,revoked
                  FROM app_sessions WHERE session_id=?1",
