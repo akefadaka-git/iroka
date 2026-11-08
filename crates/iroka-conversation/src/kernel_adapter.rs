@@ -44,8 +44,8 @@ impl<S: AuditSink> KernelAuthorization for KernelConversationAuthorizer<'_, S> {
             Operation::Create => "conversation.create",
             Operation::List => "conversation.list",
             Operation::Read => "conversation.read",
-            Operation::SubmitTurn => "conversation.turn.submit",
-            Operation::CancelTurn => "conversation.turn.cancel",
+            Operation::SubmitTurn => "turn.create",
+            Operation::CancelTurn => "generation.cancel",
         };
         if resource.trim().is_empty() || correlation_id.trim().is_empty() {
             return Err(ConversationError::AuthorizationDenied);
