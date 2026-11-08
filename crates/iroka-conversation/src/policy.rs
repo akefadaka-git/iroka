@@ -71,7 +71,7 @@ pub struct BudgetLimits {
     pub max_spend_micro_units_per_day: u64,
 }
 impl BudgetLimits {
-    fn is_valid(&self) -> bool {
+    pub(crate) fn is_valid(&self) -> bool {
         self.max_input_bytes > 0
             && self.max_output_tokens > 0
             && self.max_concurrent_per_subject > 0
