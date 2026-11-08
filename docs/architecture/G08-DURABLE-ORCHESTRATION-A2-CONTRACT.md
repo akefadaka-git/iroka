@@ -1,7 +1,7 @@
 # G08 Durable Orchestration — A2 Contract and Readiness Specification
 
 **Document ID:** IROKA-G08-A2-001  
-**Version:** 0.1.0  
+**Version:** 0.1.1  
 **Status:** A2 contract draft for Owner disposition  
 **Domain:** G08 — Orchestration  
 **Architecture authority:** `docs/IMPLEMENTATION_STRATEGY.md` (initial approved strategy)  
