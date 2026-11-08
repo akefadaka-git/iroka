@@ -273,6 +273,16 @@ mod tests {
             allowed_capabilities: vec!["conversation.create".into(), "conversation.read".into()],
             approval_required: vec![],
             maximum_risk: "low".into(),
+            budget_limits: BudgetLimits {
+                max_input_bytes: 16_384,
+                max_output_tokens: 2_048,
+                max_concurrent_per_subject: 2,
+                max_concurrent_per_tenant: 10,
+                requests_per_minute: 20,
+                max_wall_clock_ms: 30_000,
+                max_retries: 1,
+                max_spend_micro_units_per_day: 1_000_000,
+            },
         };
         let signature = signer
             .sign(&SignedPolicyBundle::signing_bytes(&payload).unwrap())
