@@ -126,7 +126,6 @@ impl<R: RevocationChecker> CredentialStatus for KernelCredentialStatus<R> {
     fn ensure_active(
         &self,
         issuer: &str,
-        issuer: &str,
         credential_id: &str,
         revocation_version: u64,
         _now: u64,
@@ -276,6 +275,7 @@ impl SessionGuard for SqliteSessionRegistry {
         let Some((
             stored_subject,
             stored_tenant,
+            stored_issuer,
             stored_credential,
             issued,
             expires,
@@ -298,7 +298,7 @@ impl SessionGuard for SqliteSessionRegistry {
             return Err(ConversationError::SessionInvalid);
         }
         self.credential_status
-            .ensure_active(credential_id, version, now)
+            .ensure_active(issuer, credential_id, version, now)
     }
 }
 
@@ -308,6 +308,7 @@ struct AllowTestCredential;
 impl CredentialStatus for AllowTestCredential {
     fn ensure_active(
         &self,
+        issuer: &str,
         credential_id: &str,
         revocation_version: u64,
         _now: u64,
@@ -372,7 +373,7 @@ mod tests {
         );
         assert_eq!(sessions.revoke("s1"), Ok(()));
         assert_eq!(
-            sessions.validate("subject:1", "cred:1", "tenant:a", "s1", 200),
+            sessions.validate("subject:1", "issuer:1", "cred:1", "tenant:a", "s1", 200),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(
