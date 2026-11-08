@@ -137,7 +137,7 @@ impl SqliteSessionRegistry {
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        Ok(Self { db: Mutex::new(db) })
+        Ok(Self { db: Mutex::new(db), credential_status })
     }
     /// Register a session ID minted by a trusted cryptographic session issuer.
     /// The caller must not accept caller-chosen IDs or extend a session beyond this cap.
