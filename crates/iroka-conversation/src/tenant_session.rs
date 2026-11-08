@@ -4,6 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use std::sync::{Arc, Mutex};
 
 use crate::{ConversationError, SessionGuard, TenantMembership};
+use iroka_kernel::RevocationChecker;
 
 const MAX_MEMBERSHIP_AGE: u64 = 300;
 const MAX_SESSION_TTL: u64 = 1_800;
@@ -106,10 +107,38 @@ pub trait CredentialStatus: Send + Sync {
     /// revoked or version-mismatched credential/session state.
     fn ensure_active(
         &self,
+        issuer: &str,
         credential_id: &str,
         revocation_version: u64,
         now: u64,
     ) -> Result<(), ConversationError>;
+}
+
+pub struct KernelCredentialStatus<R: RevocationChecker> {
+    checker: R,
+}
+impl<R: RevocationChecker> KernelCredentialStatus<R> {
+    pub fn new(checker: R) -> Self {
+        Self { checker }
+    }
+}
+impl<R: RevocationChecker> CredentialStatus for KernelCredentialStatus<R> {
+    fn ensure_active(
+        &self,
+        issuer: &str,
+        issuer: &str,
+        credential_id: &str,
+        revocation_version: u64,
+        _now: u64,
+    ) -> Result<(), ConversationError> {
+        if issuer.trim().is_empty() || credential_id.trim().is_empty() || revocation_version == 0 {
+            return Err(ConversationError::SessionInvalid);
+        }
+        match self.checker.credential_revoked(issuer, credential_id) {
+            Ok(false) => Ok(()),
+            Ok(true) | Err(_) => Err(ConversationError::SessionInvalid),
+        }
+    }
 }
 
 pub struct SqliteSessionRegistry {
@@ -125,7 +154,7 @@ impl SqliteSessionRegistry {
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS app_sessions(
           session_id TEXT PRIMARY KEY NOT NULL,subject TEXT NOT NULL,tenant_id TEXT NOT NULL,
-          credential_id TEXT NOT NULL,issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
+          issuer TEXT NOT NULL,credential_id TEXT NOT NULL,issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
@@ -158,6 +187,7 @@ impl SqliteSessionRegistry {
         session_id: &str,
         subject: &str,
         tenant: &str,
+        issuer: &str,
         credential_id: &str,
         issued_at: u64,
         expires_at: u64,
@@ -177,12 +207,13 @@ impl SqliteSessionRegistry {
             .lock()
             .map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute(
-            "INSERT INTO app_sessions(session_id,subject,tenant_id,credential_id,
-          issued_at,expires_at,revocation_version,revoked) VALUES(?1,?2,?3,?4,?5,?6,?7,0)",
+            "INSERT INTO app_sessions(session_id,subject,tenant_id,issuer,credential_id,
+          issued_at,expires_at,revocation_version,revoked) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,0)",
             params![
                 session_id,
                 subject,
                 tenant,
+                issuer,
                 credential_id,
                 issued_at as i64,
                 expires_at as i64,
@@ -213,6 +244,7 @@ impl SessionGuard for SqliteSessionRegistry {
     fn validate(
         &self,
         subject: &str,
+        issuer: &str,
         credential_id: &str,
         tenant: &str,
         session_id: &str,
@@ -222,19 +254,20 @@ impl SessionGuard for SqliteSessionRegistry {
             .db
             .lock()
             .map_err(|_| ConversationError::SessionInvalid)?;
-        let row: Option<(String, String, String, u64, u64, u64, bool)> = db
+        let row: Option<(String, String, String, String, u64, u64, u64, bool)> = db
             .query_row(
-                "SELECT subject,tenant_id,credential_id,issued_at,expires_at,revocation_version,revoked
+                "SELECT subject,tenant_id,issuer,credential_id,issued_at,expires_at,revocation_version,revoked
                  FROM app_sessions WHERE session_id=?1",
                 params![session_id],
                 |r| Ok((
                     r.get(0)?,
                     r.get(1)?,
                     r.get(2)?,
-                    r.get::<_, i64>(3)? as u64,
+                    r.get(3)?,
                     r.get::<_, i64>(4)? as u64,
                     r.get::<_, i64>(5)? as u64,
-                    r.get::<_, i64>(6)? != 0,
+                    r.get::<_, i64>(6)? as u64,
+                    r.get::<_, i64>(7)? != 0,
                 )),
             )
             .optional()
@@ -254,6 +287,7 @@ impl SessionGuard for SqliteSessionRegistry {
         };
         if stored_subject != subject
             || stored_tenant != tenant
+            || stored_issuer != issuer
             || stored_credential != credential_id
             || revoked
             || expires <= issued
@@ -278,7 +312,7 @@ impl CredentialStatus for AllowTestCredential {
         revocation_version: u64,
         _now: u64,
     ) -> Result<(), ConversationError> {
-        if credential_id == "cred:1" && revocation_version == 1 {
+        if issuer == "issuer:1" && credential_id == "cred:1" && revocation_version == 1 {
             Ok(())
         } else {
             Err(ConversationError::SessionInvalid)
@@ -316,15 +350,15 @@ mod tests {
         let sessions =
             SqliteSessionRegistry::open_in_memory(Arc::new(AllowTestCredential)).unwrap();
         assert_eq!(
-            sessions.register("s1", "subject:1", "tenant:a", "cred:1", 100, 1_900, 1),
+            sessions.register("s1", "subject:1", "tenant:a", "issuer:1", "cred:1", 100, 1_900, 1),
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:1", "cred:1", "tenant:a", "s1", 200),
+            sessions.validate("subject:1", "issuer:1", "cred:1", "tenant:a", "s1", 200),
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:other", "cred:1", "tenant:a", "s1", 200),
+            sessions.validate("subject:other", "issuer:1", "cred:1", "tenant:a", "s1", 200),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(sessions.revoke("s1"), Ok(()));
@@ -333,7 +367,7 @@ mod tests {
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(
-            sessions.register("s2", "subject:1", "tenant:a", "cred:1", 100, 5_000, 1),
+            sessions.register("s2", "subject:1", "tenant:a", "issuer:1", "cred:1", 100, 5_000, 1),
             Err(ConversationError::InvalidInput)
         );
     }
