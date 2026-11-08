@@ -192,4 +192,4 @@ The Owner approved the following CIW A2 decisions:
 - **CIW-D04 — Deletion:** revoke access immediately, then schedule purge subject to legal, security-audit and backup-retention obligations.
 - **CIW-D06 — Model provider:** synthetic data only until a provider and its data-handling terms receive separate approval.
 
-These decisions are recorded in the A2 integration contract. They do not authorize provider activation, production data processing, implementation, merge or deployment. The remaining seven Owner decisions and technical reconciliation items remain open; A2 is not closed.
+These decisions are recorded in the A2 integration contract. They do not authorize provider activation, production data processing, implementation, merge or deployment. The seven remaining Owner decisions now have explicit recommended dispositions in the A2 contract and are awaiting Owner ratification; they are not recorded as approved. Trusted policy and tenant/session integration contracts are specified, with implementation dependencies explicitly deferred to A3. A2 remains not closed pending Owner ratification and baseline selection.
