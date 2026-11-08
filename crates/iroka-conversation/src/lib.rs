@@ -55,6 +55,7 @@ pub trait SessionGuard: Send + Sync {
     fn validate(
         &self,
         verified_subject: &str,
+        credential_id: &str,
         tenant_id: &str,
         session_id: &str,
         now: u64,
@@ -619,7 +620,8 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
     ) -> Result<String, ConversationError> {
         let subject = principal.subject();
         let tenant = self.tenants.resolve_active_tenant(subject, now)?;
-        self.sessions.validate(subject, &tenant, session, now)?;
+        self.sessions
+            .validate(subject, principal.credential_id(), &tenant, session, now)?;
         Ok(tenant)
     }
 
