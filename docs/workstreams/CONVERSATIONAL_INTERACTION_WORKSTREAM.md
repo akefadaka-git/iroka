@@ -176,3 +176,29 @@ This workstream does not alter the status of existing PRs, A4-03, trust roots, o
 **Success definition:** a user can hold a secure, persistent, Amharic-first or English conversation with IROKA; IROKA can ground answers in governed knowledge; and any consequential action remains subject to the existing deterministic authority, approval, execution and assurance boundaries.
 
 **Constitutional rule:** Conversation expresses intent. Cognition proposes. Governance decides. Authorization permits. Execution acts. Assurance verifies.
+
+
+## 9. CIW-1 A2 technical contract
+
+The detailed A2 integration contract is maintained in [CIW-1 A2 — Conversational Integration and Domain Contracts](CIW-1-A2-INTEGRATION-CONTRACTS.md). It records the Kernel reuse/adapt/missing register, proposed conversation/session and persistence model, API/event schemas, capability/resource matrix, G03 model-gateway boundary, data lineage, G08 boundary, threat model, exact A4 verification plan and unresolved Owner decisions.
+
+The A2 design/contract gate is VERIFIED-CLOSED as of 2026-11-08 following explicit Owner approval of all ten decisions. Its closure checklist distinguishes verified candidate Kernel behavior from unmerged feature-branch dependencies and runtime work deferred to A3. A2 closure does not authorize A3 implementation, merge or deployment.
+
+
+## 10. Owner decisions recorded — 2026-11-08
+
+The Owner approved the following CIW A2 decisions:
+- **CIW-D03 — Retention:** configurable; no indefinite-retention default.
+- **CIW-D04 — Deletion:** revoke access immediately, then schedule purge subject to legal, security-audit and backup-retention obligations.
+- **CIW-D06 — Model provider:** synthetic data only until a provider and its data-handling terms receive separate approval.
+
+These decisions are recorded in the A2 integration contract. They do not authorize provider activation, production data processing, implementation, merge or deployment. On 2026-11-08, the Owner also explicitly approved D01, D02, D05, D07, D08, D09 and D10 as written. The complete CIW A2 decision register is now 10/10 Owner-approved. Trusted policy and tenant/session integration contracts are specified, with runtime implementation dependencies deferred to A3.
+
+ 
+## 11. A2 closure record — 2026-11-08
+
+**Status: VERIFIED-CLOSED — DESIGN/CONTRACT GATE ONLY.**
+
+The Owner approved all ten CIW A2 decisions (D01–D10). Read-only Kernel reconciliation, conversation/API/streaming/G03/G08 contracts, trusted policy and tenant/session integration contracts, threat boundaries and A4 acceptance criteria are recorded in [CIW-1 A2 — Conversational Integration and Domain Contracts](CIW-1-A2-INTEGRATION-CONTRACTS.md).
+
+This closure does not certify runtime implementation, A4 verification, independent witness assurance or production readiness. PR #13 Kernel candidate adoption, trusted policy lifecycle, authoritative tenant membership, bounded session lifecycle and concrete policy-to-capability mapping remain mandatory A3 entry dependencies. A3 implementation, A4 verification, merge and A5 deployment each remain separately gated and are not authorized by this record.
