@@ -1,7 +1,7 @@
 //! Root-signed trust-bundle lifecycle: verification, expiry and rollback protection.
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
@@ -212,12 +212,17 @@ pub fn verify_and_install_trust_bundle_with_roots(
 /// Thread-safe in-process trust snapshot publisher. Validation and durable
 /// anti-rollback persistence complete before the active snapshot is replaced.
 pub struct TrustSnapshotManager {
+    // Serialize verification, durable anti-rollback persistence and publication
+    // as one manager operation. The database high-water mark and active snapshot
+    // must never be published in different orders.
+    installation: Mutex<()>,
     current: RwLock<Arc<TrustStore>>,
 }
 
 impl TrustSnapshotManager {
     pub fn new(initial: TrustStore) -> Self {
         Self {
+            installation: Mutex::new(()),
             current: RwLock::new(Arc::new(initial)),
         }
     }
@@ -229,15 +234,18 @@ impl TrustSnapshotManager {
             .map_err(|_| TrustBundleError::StoreUnavailable)
     }
 
-    pub fn install(
-        &self,
-        bundle: &SignedTrustBundle,
-        root: &TrustRoot,
-        store: &SqliteSecurityStore,
-        now: u64,
-    ) -> Result<u64, TrustBundleError> {
-        let next = verify_and_install_trust_bundle(bundle, root, store, now)?;
-        let version = bundle.payload.version;
+    fn install_using<F>(&self, version: u64, install: F) -> Result<u64, TrustBundleError>
+    where
+        F: FnOnce() -> Result<TrustStore, TrustBundleError>,
+    {
+        // Keep this guard through both the durable anti-rollback write and the
+        // in-memory swap. Releasing it between those operations permits stale
+        // installers to overwrite a newer snapshot.
+        let _installation = self
+            .installation
+            .lock()
+            .map_err(|_| TrustBundleError::StoreUnavailable)?;
+        let next = install()?;
         let mut current = self
             .current
             .write()
@@ -245,6 +253,19 @@ impl TrustSnapshotManager {
         *current = Arc::new(next);
         Ok(version)
     }
+
+    pub fn install(
+        &self,
+        bundle: &SignedTrustBundle,
+        root: &TrustRoot,
+        store: &SqliteSecurityStore,
+        now: u64,
+    ) -> Result<u64, TrustBundleError> {
+        self.install_using(bundle.payload.version, || {
+            verify_and_install_trust_bundle(bundle, root, store, now)
+        })
+    }
+
     pub fn install_with_roots(
         &self,
         bundle: &SignedTrustBundle,
@@ -252,14 +273,9 @@ impl TrustSnapshotManager {
         store: &SqliteSecurityStore,
         now: u64,
     ) -> Result<u64, TrustBundleError> {
-        let next = verify_and_install_trust_bundle_with_roots(bundle, roots, store, now)?;
-        let version = bundle.payload.version;
-        let mut current = self
-            .current
-            .write()
-            .map_err(|_| TrustBundleError::StoreUnavailable)?;
-        *current = Arc::new(next);
-        Ok(version)
+        self.install_using(bundle.payload.version, || {
+            verify_and_install_trust_bundle_with_roots(bundle, roots, store, now)
+        })
     }
 }
 
@@ -387,6 +403,152 @@ mod tests {
         assert_eq!(
             manager.install(&first, &root, &store, 1_200),
             Err(TrustBundleError::Rollback)
+        );
+    }
+
+
+    fn credential_for(signing: &SigningKey, key_id: &str) -> String {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+
+        let header = URL_SAFE_NO_PAD.encode(
+            format!(r#"{{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"{key_id}"}}"#)
+                .as_bytes(),
+        );
+        let claims = URL_SAFE_NO_PAD.encode(
+            br#"{"iss":"issuer:iroka-test","sub":"principal:race","aud":"iroka-kernel","exp":4000,"nbf":1000,"iat":1000,"jti":"credential:race"}"#,
+        );
+        let input = format!("{header}.{claims}");
+        let signature = signing.sign(input.as_bytes());
+        format!("{input}.{}", URL_SAFE_NO_PAD.encode(signature.to_bytes()))
+    }
+
+    #[test]
+    fn concurrent_snapshot_installation_serializes_persistence_and_publication() {
+        use std::sync::{mpsc, Barrier};
+        use std::time::Duration;
+
+        let (_, root, initial_bundle) = fixture(1);
+        let (_, _, middle_bundle) = fixture(2);
+        let (_, _, newest_bundle) = fixture(3);
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let initial =
+            verify_and_install_trust_bundle(&initial_bundle, &root, &store, 1_100).unwrap();
+        let manager = Arc::new(TrustSnapshotManager::new(initial));
+
+        // Pause the first installer after its durable version-2 write but before
+        // publication. A second installer must not enter its verification/write
+        // closure until the first installer publishes version 2.
+        let (persisted_tx, persisted_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let first_manager = Arc::clone(&manager);
+        let first_store = Arc::clone(&store);
+        let first_root = root.clone();
+        let first = std::thread::spawn(move || {
+            first_manager.install_using(2, || {
+                let trust = verify_and_install_trust_bundle(
+                    &middle_bundle,
+                    &first_root,
+                    &first_store,
+                    1_200,
+                )?;
+                persisted_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                Ok(trust)
+            })
+        });
+        persisted_rx.recv().unwrap();
+
+        let (second_entered_tx, second_entered_rx) = mpsc::channel();
+        let second_manager = Arc::clone(&manager);
+        let second_store = Arc::clone(&store);
+        let second_root = root.clone();
+        let second = std::thread::spawn(move || {
+            second_manager.install_using(3, || {
+                second_entered_tx.send(()).unwrap();
+                verify_and_install_trust_bundle(
+                    &newest_bundle,
+                    &second_root,
+                    &second_store,
+                    1_300,
+                )
+            })
+        });
+
+        // This bounded wait is the assertion: the second install closure cannot
+        // run while the first operation holds the publication-order mutex.
+        assert!(second_entered_rx.recv_timeout(Duration::from_millis(100)).is_err());
+        release_tx.send(()).unwrap();
+        assert_eq!(first.join().unwrap(), Ok(2));
+        assert_eq!(second.join().unwrap(), Ok(3));
+        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(3)));
+
+        let snapshot = manager.snapshot().unwrap();
+        let verifier =
+            crate::Ed25519CredentialVerifier::from_verified_trust_snapshot(
+                &snapshot,
+                crate::NoRevocations,
+            );
+        let issuer_signer = SigningKey::from_bytes(&[41u8; 32]);
+        assert!(verifier
+            .authenticate(
+                &credential_for(&issuer_signer, "issuer-key-3"),
+                "iroka-kernel",
+                1_400,
+            )
+            .is_ok());
+        assert_eq!(
+            verifier.authenticate(
+                &credential_for(&issuer_signer, "issuer-key-2"),
+                "iroka-kernel",
+                1_400,
+            ),
+            Err(crate::CredentialError::UnknownKey)
+        );
+    }
+
+    #[test]
+    fn poisoned_installation_lock_fails_closed_without_persisting_or_publishing() {
+        let (_, root, initial_bundle) = fixture(1);
+        let (_, _, next_bundle) = fixture(2);
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let initial =
+            verify_and_install_trust_bundle(&initial_bundle, &root, &store, 1_100).unwrap();
+        let manager = Arc::new(TrustSnapshotManager::new(initial));
+
+        let poison_manager = Arc::clone(&manager);
+        let poisoned = std::thread::spawn(move || {
+            let _guard = poison_manager.installation.lock().unwrap();
+            panic!("intentional test-only installation lock poisoning");
+        });
+        assert!(poisoned.join().is_err());
+
+        assert_eq!(
+            manager.install(&next_bundle, &root, &store, 1_200),
+            Err(TrustBundleError::StoreUnavailable)
+        );
+        assert_eq!(store.highest_trust_bundle_version(), Ok(Some(1)));
+
+        let snapshot = manager.snapshot().unwrap();
+        let verifier =
+            crate::Ed25519CredentialVerifier::from_verified_trust_snapshot(
+                &snapshot,
+                crate::NoRevocations,
+            );
+        let issuer_signer = SigningKey::from_bytes(&[41u8; 32]);
+        assert!(verifier
+            .authenticate(
+                &credential_for(&issuer_signer, "issuer-key-1"),
+                "iroka-kernel",
+                1_400,
+            )
+            .is_ok());
+        assert_eq!(
+            verifier.authenticate(
+                &credential_for(&issuer_signer, "issuer-key-2"),
+                "iroka-kernel",
+                1_400,
+            ),
+            Err(crate::CredentialError::UnknownKey)
         );
     }
 
