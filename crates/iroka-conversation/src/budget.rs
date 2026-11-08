@@ -159,3 +159,53 @@ impl Drop for BudgetReservation<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn limits() -> BudgetLimits {
+        BudgetLimits {
+            max_input_bytes: 100,
+            max_output_tokens: 20,
+            max_concurrent_per_subject: 1,
+            max_concurrent_per_tenant: 2,
+            requests_per_minute: 2,
+            max_wall_clock_ms: 5_000,
+            max_retries: 1,
+            max_spend_micro_units_per_day: 10,
+        }
+    }
+
+    #[test]
+    fn rejects_input_and_missing_or_invalid_limits() {
+        let mut invalid = limits();
+        invalid.max_output_tokens = 0;
+        assert!(BudgetGuard::from_verified_limits(&invalid).is_err());
+        let guard = BudgetGuard::from_verified_limits(&limits()).unwrap();
+        assert!(guard.reserve("s1", "t1", 101, 100).is_err());
+    }
+
+    #[test]
+    fn enforces_concurrency_rate_output_and_daily_spend() {
+        let mut config = limits();
+        config.requests_per_minute = 1;
+        let guard = BudgetGuard::from_verified_limits(&config).unwrap();
+        let permit = guard.reserve("s1", "t1", 10, 100).unwrap();
+        assert!(guard.reserve("s1", "t1", 10, 100).is_err());
+        assert!(permit.finish(21, 0).is_err());
+        assert!(permit.finish(10, 11).is_err());
+        permit.finish(10, 5).unwrap();
+        drop(permit);
+        assert!(guard.reserve("s1", "t1", 10, 120).is_err());
+        let next = guard.reserve("s1", "t1", 10, 160).unwrap();
+        next.finish(10, 5).unwrap();
+    }
+
+    #[test]
+    fn retry_count_is_bounded_by_signed_configuration() {
+        let guard = BudgetGuard::from_verified_limits(&limits()).unwrap();
+        assert!(guard.validate_retry_attempt(1).is_ok());
+        assert!(guard.validate_retry_attempt(2).is_err());
+    }
+}
