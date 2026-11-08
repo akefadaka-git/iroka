@@ -182,7 +182,7 @@ This workstream does not alter the status of existing PRs, A4-03, trust roots, o
 
 The detailed A2 integration contract is maintained in [CIW-1 A2 — Conversational Integration and Domain Contracts](CIW-1-A2-INTEGRATION-CONTRACTS.md). It records the Kernel reuse/adapt/missing register, proposed conversation/session and persistence model, API/event schemas, capability/resource matrix, G03 model-gateway boundary, data lineage, G08 boundary, threat model, exact A4 verification plan and unresolved Owner decisions.
 
-The A2 contract is a proposal only. Its closure checklist explicitly distinguishes verified candidate Kernel behavior from unmerged feature-branch dependencies and unresolved tenant/session/policy decisions. It does not authorize A3 implementation, merge or deployment.
+The A2 design/contract gate is VERIFIED-CLOSED as of 2026-11-08 following explicit Owner approval of all ten decisions. Its closure checklist distinguishes verified candidate Kernel behavior from unmerged feature-branch dependencies and runtime work deferred to A3. A2 closure does not authorize A3 implementation, merge or deployment.
 
 
 ## 10. Owner decisions recorded — 2026-11-08
