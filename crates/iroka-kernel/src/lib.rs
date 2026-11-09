@@ -6,6 +6,7 @@
 mod assurance;
 mod audit_store;
 mod decision;
+mod execution_grant;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -20,7 +21,12 @@ mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
-pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use decision::{Decision, DecisionCode, DecisionReason, GovernedDecisionEvidence};
+pub use execution_grant::{
+    ConsumedExecutionGrant, ExecutionGrant, ExecutionGrantError, ExecutionGrantIssuer,
+    ExecutionGrantScope, ExecutionGrantVerifier, MAX_DECISION_EVIDENCE_AGE_SECONDS,
+    MAX_EXECUTION_GRANT_TTL_SECONDS,
+};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
@@ -50,7 +56,10 @@ pub use owner_approval::{
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
-pub use service::authorize_authenticated_with_owner_approval;
+pub use service::{
+    authorize_authenticated_with_owner_approval,
+    authorize_authenticated_with_owner_approval_evidence,
+};
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
 pub use trust_lifecycle::{
