@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 mod registry;
-pub use registry::{G01ReviewerProofAuthority, ReviewerDesignation, RegistryDesignatedReviewerAuthority, SqliteG05AuthorityRegistry};
+pub use registry::{G01ReviewerProofAuthority, KernelG02AuthorizationAdapter, ReviewerDesignation, RegistryDesignatedReviewerAuthority, SqliteG05AuthorityRegistry};
 
 mod authority;
 pub use authority::{DesignatedReviewerAuthority, EpisodicConsentAuthority, G02AuthorizationAuthority, G11MemoryAuditAuthority, TrustedGovernanceAdapter};
