@@ -66,7 +66,10 @@ impl ExecutionGrantScope {
             || !matches!(scope.risk, RiskLevel::High | RiskLevel::Critical)
             || scope.policy_version.trim().is_empty()
             || scope.policy_version.len() > 128
-            || scope.policy_version.bytes().any(|byte| byte.is_ascii_control())
+            || scope
+                .policy_version
+                .bytes()
+                .any(|byte| byte.is_ascii_control())
         {
             return Err(ExecutionGrantError::InvalidScope);
         }
@@ -357,12 +360,7 @@ impl<'a> ExecutionGrantVerifier<'a> {
         }
         let token_hash = Sha256::digest(grant.token).to_vec();
         self.store
-            .consume_execution_grant(
-                &grant.grant_id,
-                &grant.scope_digest,
-                &token_hash,
-                now,
-            )
+            .consume_execution_grant(&grant.grant_id, &grant.scope_digest, &token_hash, now)
             .map_err(map_store_error)?;
         Ok(ConsumedExecutionGrant {
             grant_id: grant.grant_id.clone(),
@@ -377,11 +375,7 @@ impl<'a> ExecutionGrantVerifier<'a> {
         self.revoke_at(grant, unix_now()?)
     }
 
-    fn revoke_at(
-        &self,
-        grant: &ExecutionGrant,
-        now: u64,
-    ) -> Result<(), ExecutionGrantError> {
+    fn revoke_at(&self, grant: &ExecutionGrant, now: u64) -> Result<(), ExecutionGrantError> {
         if now < grant.issued_at || now > grant.expires_at {
             return Err(ExecutionGrantError::Expired);
         }
@@ -599,9 +593,8 @@ mod tests {
         genesis.attestation =
             sign_genesis(&genesis, "genesis-test-key", &genesis_signer).expect("sign genesis");
         let roots = TrustRootSet::new(vec![root]).expect("trust roots");
-        let verified_genesis =
-            verify_genesis_with_trust_roots(&genesis, &fingerprint, &roots, now)
-                .expect("verified genesis");
+        let verified_genesis = verify_genesis_with_trust_roots(&genesis, &fingerprint, &roots, now)
+            .expect("verified genesis");
         let policy = Policy::new(
             scope.policy_version(),
             vec![scope.capability().to_owned()],
@@ -629,7 +622,9 @@ mod tests {
     fn issues_and_consumes_exact_scope_once() {
         let (store, scope, evidence) = approved_evidence();
         let issuer = ExecutionGrantIssuer::new(&store);
-        let grant = issuer.issue_at(evidence, scope.clone(), 1_200, 30).expect("G09 grant");
+        let grant = issuer
+            .issue_at(evidence, scope.clone(), 1_200, 30)
+            .expect("G09 grant");
         assert_eq!(grant.expires_at(), 1_230);
         assert_eq!(grant.scope(), &scope);
 
@@ -637,7 +632,9 @@ mod tests {
         let grant_id = grant.grant_id.clone();
         let scope_digest = grant.scope_digest;
         let token_hash = Sha256::digest(grant.token).to_vec();
-        let consumed = consumer.consume_at(grant, &scope, 1_201).expect("consume grant");
+        let consumed = consumer
+            .consume_at(grant, &scope, 1_201)
+            .expect("consume grant");
         assert_eq!(consumed.scope(), &scope);
         assert_eq!(consumed.consumed_at(), 1_201);
         assert_eq!(
