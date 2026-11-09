@@ -755,7 +755,10 @@ mod tests {
         );
         request.constraints.allow_external_provider = false;
         request.constraints.allow_protected_effects = true;
-        assert_eq!(request.validate(), Err(ValidationError::ForbiddenCapabilityFlag));
+        assert_eq!(
+            request.validate(),
+            Err(ValidationError::ForbiddenCapabilityFlag)
+        );
     }
 
     #[test]
