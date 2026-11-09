@@ -491,8 +491,16 @@ mod tests {
         );
         assert_eq!(
             sessions.validate(
-                "subject:1", "issuer:1", "cred:1", "different-key", 1, 100, 3600,
-                "tenant:a", "s1", 200
+                "subject:1",
+                "issuer:1",
+                "cred:1",
+                "different-key",
+                1,
+                100,
+                3600,
+                "tenant:a",
+                "s1",
+                200
             ),
             Err(ConversationError::SessionInvalid)
         );
