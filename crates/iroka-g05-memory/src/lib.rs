@@ -363,6 +363,62 @@ pub fn validate_candidate(
     Ok(())
 }
 
+
+/// Prepare a new record after policy validation, G02 authorization and (for
+/// episodic capture) trusted opt-in verification. Durable records always enter
+/// review; working and episodic records become active only after their gates.
+pub fn prepare_candidate_record<G: GovernancePort>(
+    candidate: MemoryCandidate,
+    request: &AuthorizationRequest,
+    policy: &ValidationPolicy,
+    governance: &G,
+    now: u64,
+) -> Result<MemoryRecord, G05Error> {
+    validate_candidate(&candidate, now, policy)?;
+    let expected_operation = match candidate.memory_class {
+        MemoryClass::Working => Operation::CreateWorking,
+        MemoryClass::Episodic => Operation::CreateEpisodic,
+        MemoryClass::Durable => Operation::Propose,
+    };
+    if request.operation != expected_operation
+        || request.memory_id.as_deref() != Some(candidate.memory_id.as_str())
+        || request.tenant_ref != candidate.tenant_ref
+        || request.subject_ref != candidate.subject_ref
+        || request.principal_ref != candidate.actor_ref
+        || request.purpose != candidate.purpose
+        || request.classification != candidate.classification
+        || !valid_ref(&request.correlation_ref)
+    {
+        return Err(G05Error::MalformedRecord);
+    }
+    governance.authorize(request)?;
+    if candidate.memory_class == MemoryClass::Episodic {
+        let opt_in_ref = candidate
+            .episodic_opt_in_ref
+            .as_deref()
+            .ok_or(G05Error::EpisodicOptInRequired)?;
+        governance.verify_episodic_opt_in(
+            opt_in_ref,
+            &candidate.tenant_ref,
+            &candidate.subject_ref,
+            candidate.purpose,
+            now,
+        )?;
+    }
+    let lifecycle_state = match candidate.memory_class {
+        MemoryClass::Working | MemoryClass::Episodic => LifecycleState::Active,
+        MemoryClass::Durable => LifecycleState::PendingReview,
+    };
+    Ok(MemoryRecord {
+        candidate,
+        lifecycle_state,
+        approval_ref: None,
+        approved_by_ref: None,
+        approved_at: None,
+        updated_at: now,
+    })
+}
+
 /// Validate a record-bound durable approval receipt before delegating
 /// cryptographic and reviewer-authority verification to the trusted port.
 pub fn validate_approval_binding(
@@ -737,6 +793,52 @@ mod tests {
             .into_iter()
             .collect(),
         }
+    }
+
+    #[test]
+    fn durable_candidate_creation_enters_review_not_active() {
+        let item = candidate(MemoryClass::Durable, Classification::Internal);
+        let request = AuthorizationRequest {
+            operation: Operation::Propose,
+            principal_ref: "principal:1".to_owned(),
+            tenant_ref: "tenant:1".to_owned(),
+            subject_ref: "principal:1".to_owned(),
+            purpose: Purpose::TaskContinuity,
+            classification: Classification::Internal,
+            memory_id: Some("memory:1".to_owned()),
+            recipient_refs: vec![],
+            correlation_ref: "trace:1".to_owned(),
+        };
+        let record = prepare_candidate_record(item, &request, &policy(), &AllowGovernance, 110)
+            .unwrap();
+        assert_eq!(record.lifecycle_state, LifecycleState::PendingReview);
+        assert_eq!(record.approval_ref, None);
+    }
+
+    #[test]
+    fn working_candidate_creation_requires_g02_authorization() {
+        let item = candidate(MemoryClass::Working, Classification::Internal);
+        let request = AuthorizationRequest {
+            operation: Operation::CreateWorking,
+            principal_ref: "principal:1".to_owned(),
+            tenant_ref: "tenant:1".to_owned(),
+            subject_ref: "principal:1".to_owned(),
+            purpose: Purpose::TaskContinuity,
+            classification: Classification::Internal,
+            memory_id: Some("memory:1".to_owned()),
+            recipient_refs: vec![],
+            correlation_ref: "trace:1".to_owned(),
+        };
+        assert_eq!(
+            prepare_candidate_record(item.clone(), &request, &policy(), &AllowGovernance, 110)
+                .unwrap()
+                .lifecycle_state,
+            LifecycleState::Active
+        );
+        assert_eq!(
+            prepare_candidate_record(item, &request, &policy(), &DenyGovernance, 110),
+            Err(G05Error::AuthorizationDenied)
+        );
     }
 
     #[test]
