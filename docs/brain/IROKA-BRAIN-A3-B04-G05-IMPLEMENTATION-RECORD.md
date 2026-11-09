@@ -77,3 +77,32 @@ Therefore, the new G05 traits remain explicit integration ports. A concrete prod
 ## Safety statement
 
 This is a non-production domain core. It is not a memory service, secure database, consent authority, authorization engine, or deployment-ready capability. No real-user memory was ingested. No merge, signing, release, deployment, or production activation is authorized by this record.
+
+
+## Trusted consent and designated-reviewer authority integration
+
+The A3 authority boundary is now represented by `src/authority.rs` and exported by the G05 crate:
+
+- `G02AuthorizationAuthority`: delegates every G05 authorization to the canonical G01 -> tenant -> G02 composition. It may not trust caller-supplied identity or tenant context.
+- `EpisodicConsentAuthority`: resolves an opaque consent reference in the authoritative consent store and verifies exact tenant, subject, purpose, opt-in state, effective interval, revocation and integrity at operation time. Consent is purpose-specific. Missing, expired, withdrawn, revoked, mismatched or unavailable consent denies capture.
+- `DesignatedReviewerAuthority`: resolves the current reviewer designation for the organizational subject and verifies the approval proof against a separately provisioned trust root. It must bind reviewer, organization, tenant, subject, memory ID, content digest, issue/expiry interval, revocation and replay state. An Owner approval does not by itself establish organizational reviewer designation.
+- `G11MemoryAuditAuthority`: delegates versioned, content-free memory lifecycle events to G11. Atomicity with memory mutation remains the repository transaction/outbox responsibility.
+- `TrustedGovernanceAdapter<G,C,R,A>`: composes all four required providers into the existing G05 `GovernancePort`; it creates no local trust root, registry, policy or authority.
+
+The current durable receipt's `subject_ref` is treated as the organization scope passed to the reviewer authority. The reviewer provider must independently resolve and validate that scope; it must not accept the receipt's reviewer claim as designation evidence.
+
+### Integration status and blockers
+
+- The adapter and fail-closed unit tests are implemented.
+- The canonical Kernel exposes the G01/tenant/G02 composition, but its current composition function is not yet exposed as a reusable G05 authorization provider. A concrete adapter must be added at the Kernel composition boundary rather than duplicating authorization logic inside G05.
+- No authoritative episodic consent registry or opt-in/revocation API was found in the inspected base.
+- No authoritative organizational reviewer designation registry, signed reviewer-approval format, key lifecycle, or replay/revocation store was found in the inspected base.
+- No versioned G11 memory-lifecycle event contract/outbox implementation is yet available.
+- Therefore the new interfaces are integration-ready contracts, not live trusted providers. Production construction must remain unavailable until all provider implementations are backed by their canonical authorities and are independently tested. Test doubles are not production authorities.
+- No new trust root, production key, real consent record, reviewer identity, or user data was provisioned.
+
+### Acceptance evidence added
+
+- A missing/revoked episodic consent provider response is propagated as a denial.
+- An undesignated reviewer provider response is propagated as a denial.
+- Full exact-HEAD formatting, compilation, workspace tests, no-default-features checks and Clippy remain NOT RUN for the resulting commit until CI evidence is collected.
