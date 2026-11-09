@@ -32,7 +32,8 @@ The reconciliation supports a **new, bounded G03 cognitive workstream** that con
 | Repository ID | `1445234713` |
 | Visibility | Public |
 | Default branch | `main` |
-| Default branch head | `143311a655be68acea2700650b7f88c9fb085526` |
+| Default branch head at initial snapshot | `143311a655be68acea2700650b7f88c9fb085526` |
+| Default branch head at final recheck | `2304a793ce4a49464bc87f972c0e02fa07f75237` (merge commit for PR #13) |
 | README blob | `a85ee805e35481b20087e8f32e451eb1bd4eb4a7` |
 | Main strategy blob | `84f3f9ffddc8340132b76ab3161a6120e1817b58` |
 | Root contents on main | `README.md`, `docs/IMPLEMENTATION_STRATEGY.md` |
@@ -69,7 +70,7 @@ The initial strategy on main defines eight logical cognitive subsystems and A1â€
 - Head branch: `architecture/igacms-a2-owner-approved`
 - Exact head: `a709fc473b23494839417449e34bebf4cb8be77a`
 - Base branch: `architecture/a2-reconciliation-contracts`
-- Status: open, non-draft; merge not performed.
+- Initial snapshot: open, non-draft. Rechecked at 2026-11-09 06:38:47Z: GitHub records PR #12 merged by `akefadaka-git` into `architecture/a2-reconciliation-contracts`, merge commit `1746c0087eb324b4ae25266a6c321dd1614f2def`. The source branch remains at the approved head. This assistant did not perform that merge.
 - Scope includes DNA/Genome/chromosome/gene/marker contracts, 12 chromosomes, historical principles/invariants, marker inventory, trust boundaries, threat model, conformance, migration and rollback documentation.
 - A2 baseline records D01â€“D14 Owner decisions as approved.
 - This branch is the starting point for the Brain architecture proposal to preserve the approved A2 source without changing it.
@@ -80,13 +81,13 @@ The initial strategy on main defines eight logical cognitive subsystems and A1â€
 - Head branch: `feat/igacms-a3-implementation`
 - Exact current branch head: `bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a`
 - Base: `architecture/igacms-a2-ci-base`
-- Status: open, ready for review; unmerged.
+- Initial snapshot: open, ready for review. Rechecked at 2026-11-09 06:41:40Z: GitHub records PR #13 merged by `akefadaka-git` into `main`, merge commit `2304a793ce4a49464bc87f972c0e02fa07f75237`. This assistant did not perform that merge.
 - Implemented scope includes machine-readable Genome contracts, canonical validator, signed attestation/Genesis verification, trust/anti-rollback controls, Owner approval binding and conformance tests.
 - PR body records A3-R1 through A3-R5 remediation and exact-head workflow evidence.
 - Push workflow run #42566864113: completed, SUCCESS, exact head `bb8b9f0...`.
 - PR workflow run #42566869592: completed, SUCCESS, exact head `bb8b9f0...`.
 - The PR body records formatting, locked compilation, no-default-features compilation, tests and Clippy passing.
-- No merge, production trust-root provisioning, Genesis activation or deployment is recorded as performed.
+- The PR #13 merge is recorded above. No production trust-root provisioning, Genesis activation or deployment is recorded as performed. The merge SHA has no Actions workflow run returned by the exact-head query; PR #13's pre-merge exact-head push/PR workflows passed.
 
 **Brain disposition:** reuse the approved Genome and Kernel contracts. Do not copy or independently redefine Genome validation, identity, approval, trust or audit code. A3 branch is a separate unmerged candidate and is not silently adopted by this proposal.
 
@@ -233,7 +234,7 @@ Proposed order after A2 approval and separate A3 authorization:
 - [x] Existing CIW slice and current exact-head workflows reconciled.
 - [x] Existing G08 draft dependency finding recorded.
 - [x] Proposed roadmap documents distinguished from approved architecture.
-- [x] No existing branch, PR, main, workflow, trust root or runtime configuration modified during read-only inspection.
+- [x] No existing branch, PR, main, workflow, trust root or runtime configuration was modified by this assistant. GitHub records PR #12 and PR #13 merges during this assessment window; these external repository state changes are not attributed to this Brain work.
 - [ ] Owner decisions B-A2-01 through B-A2-10 recorded.
 - [ ] G04/G05/G06 interface contracts and versions confirmed.
 - [ ] G08 tenant-context and lineage dependencies resolved or explicitly deferred with accepted constraints.
@@ -241,6 +242,19 @@ Proposed order after A2 approval and separate A3 authorization:
 - [ ] A2 closure approved by Owner.
 
 **A2 status: PARTIAL â€” read-only repository and workstream reconciliation completed; contract decisions and dependencies remain open.**
+
+## 11. Final repository recheck â€” 2026-11-09
+
+The repository changed after the initial read-only snapshot:
+
+- PR #12 was merged into `architecture/a2-reconciliation-contracts` at `1746c0087eb324b4ae25266a6c321dd1614f2def` at 06:38:47Z, recorded as merged by `akefadaka-git`.
+- PR #13 was merged into `main` at `2304a793ce4a49464bc87f972c0e02fa07f75237` at 06:41:40Z, recorded as merged by `akefadaka-git`.
+- The new main merge commit has parents `143311a655be68acea2700650b7f88c9fb085526` and `bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a`.
+- Exact-head PR #13 push and PR workflows #42566864113 and #42566869592 both completed SUCCESS before merge. No Actions run was returned for the merge commit itself; no post-merge exact-main CI PASS is claimed.
+- The merges were not performed by this assistant. GitHub metadata identifies the owner account as merger; whether the separate approval requirement was satisfied outside this task is not established by this reconciliation.
+- The Brain proposal branch remains based on the unchanged Owner-approved A2 source branch at `a709fc473b23494839417449e34bebf4cb8be77a`. The Brain PR remains a documentation-only draft and has not been merged.
+
+This state change does not authorize any additional merge, deployment, production trust provisioning or Brain A3 implementation.
 
 ## 10. Governance boundary
 
