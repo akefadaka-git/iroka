@@ -2,7 +2,10 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{AuditEvent, DecisionCode, OwnerApprovalError, OwnerApprovalVerifier, Policy, RiskLevel, SqliteAuditSink, SqliteSecurityStore};
+use crate::{
+    AuditEvent, DecisionCode, OwnerApprovalError, OwnerApprovalVerifier, Policy, RiskLevel,
+    SqliteAuditSink, SqliteSecurityStore,
+};
 
 const DOMAIN: &[u8] = b"IROKA:G02:POLICY-SNAPSHOT:V1\0";
 const MAX_POLICY_TTL_SECS: u64 = 86_400;
@@ -59,9 +62,18 @@ impl PolicySnapshotPayload {
         }
         if !strictly_sorted_unique(&self.allowed_capabilities)
             || !strictly_sorted_unique(&self.approval_required)
-            || self.approval_required.iter().any(|v| !self.allowed_capabilities.contains(v))
-            || self.allowed_capabilities.iter().any(|v| v.trim().is_empty() || v.len() > 256)
-            || self.approval_required.iter().any(|v| v.trim().is_empty() || v.len() > 256)
+            || self
+                .approval_required
+                .iter()
+                .any(|v| !self.allowed_capabilities.contains(v))
+            || self
+                .allowed_capabilities
+                .iter()
+                .any(|v| v.trim().is_empty() || v.len() > 256)
+            || self
+                .approval_required
+                .iter()
+                .any(|v| v.trim().is_empty() || v.len() > 256)
         {
             return Err(PolicyLifecycleError::Malformed);
         }
@@ -127,9 +139,15 @@ pub struct VerifiedPolicySnapshot {
 }
 
 impl VerifiedPolicySnapshot {
-    pub fn epoch(&self) -> u64 { self.payload.policy_epoch }
-    pub fn version(&self) -> &str { &self.payload.policy_version }
-    pub fn emergency_stop_active(&self) -> bool { self.payload.emergency_stop_active }
+    pub fn epoch(&self) -> u64 {
+        self.payload.policy_epoch
+    }
+    pub fn version(&self) -> &str {
+        &self.payload.policy_version
+    }
+    pub fn emergency_stop_active(&self) -> bool {
+        self.payload.emergency_stop_active
+    }
     pub fn policy(&self) -> Policy {
         Policy::new(
             self.payload.policy_version.clone(),
@@ -159,33 +177,49 @@ impl PolicyActivationCoordinator {
         now: u64,
     ) -> Result<VerifiedPolicyContext, PolicyLifecycleError> {
         let verified = verifier.verify_policy_snapshot(signed, now)?;
-        let previous_epoch = store.stage_policy_snapshot(
-            verified.epoch(),
-            &verified.digest,
-            &verified.canonical_payload,
-            &verified.signature,
-            &verified.payload.owner_subject,
-            &verified.payload.key_id,
-            verified.version(),
-            verified.payload.issued_at,
-            verified.payload.expires_at,
-            verified.payload.emergency_stop_active,
-        ).map_err(map_store_error)?;
+        let previous_epoch = store
+            .stage_policy_snapshot(
+                verified.epoch(),
+                &verified.digest,
+                &verified.canonical_payload,
+                &verified.signature,
+                &verified.payload.owner_subject,
+                &verified.payload.key_id,
+                verified.version(),
+                verified.payload.issued_at,
+                verified.payload.expires_at,
+                verified.payload.emergency_stop_active,
+            )
+            .map_err(map_store_error)?;
 
-        let digest_hex = verified.digest.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let digest_hex = verified
+            .digest
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
         let event_id = format!("g02-policy-activate:{}:{digest_hex}", verified.epoch());
         let event = AuditEvent::new(
             event_id.clone(),
             event_id,
             &verified.payload.owner_subject,
             "g02.policy.activate",
-            format!("policy-epoch:{}:digest:{}:key:{}:previous:{}", verified.epoch(), digest_hex, verified.payload.key_id, previous_epoch.map_or_else(|| "none".to_owned(), |value| value.to_string())),
+            format!(
+                "policy-epoch:{}:digest:{}:key:{}:previous:{}",
+                verified.epoch(),
+                digest_hex,
+                verified.payload.key_id,
+                previous_epoch.map_or_else(|| "none".to_owned(), |value| value.to_string())
+            ),
             verified.version(),
             DecisionCode::Allow,
             verified.payload.issued_at,
         );
-        audit.append_event_idempotent(&event).map_err(|_| PolicyLifecycleError::AuditUnavailable)?;
-        store.activate_policy_snapshot(verified.epoch(), &verified.digest, now).map_err(map_store_error)?;
+        audit
+            .append_event_idempotent(&event)
+            .map_err(|_| PolicyLifecycleError::AuditUnavailable)?;
+        store
+            .activate_policy_snapshot(verified.epoch(), &verified.digest, now)
+            .map_err(map_store_error)?;
         Ok(VerifiedPolicyContext {
             epoch: verified.epoch(),
             digest: verified.digest,
@@ -199,7 +233,9 @@ impl PolicyActivationCoordinator {
         store: &SqliteSecurityStore,
         now: u64,
     ) -> Result<VerifiedPolicyContext, PolicyLifecycleError> {
-        let (epoch, signed) = store.active_policy_snapshot().map_err(map_store_error)?
+        let (epoch, signed) = store
+            .active_policy_snapshot()
+            .map_err(map_store_error)?
             .ok_or(PolicyLifecycleError::Inactive)?;
         let verified = verifier.verify_policy_snapshot(&signed, now)?;
         if verified.epoch() != epoch {
@@ -231,7 +267,6 @@ pub(crate) fn canonical_payload_and_digest(
     Ok((bytes, digest))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,16 +274,25 @@ mod tests {
     use ed25519_dalek::{Signer, SigningKey};
     use std::sync::Arc;
 
-    fn fixture() -> (SigningKey, OwnerApprovalVerifier, Arc<SqliteSecurityStore>, SqliteAuditSink) {
+    fn fixture() -> (
+        SigningKey,
+        OwnerApprovalVerifier,
+        Arc<SqliteSecurityStore>,
+        SqliteAuditSink,
+    ) {
         let signer = SigningKey::from_bytes(&[83u8; 32]);
         let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
-        let verifier = OwnerApprovalVerifier::new(vec![TrustedOwnerKey {
-            owner_subject: "owner:akefa".into(),
-            key_id: "owner-key-policy".into(),
-            public_key: signer.verifying_key().to_bytes(),
-            not_before: 900,
-            not_after: 10_000,
-        }], Arc::clone(&store)).unwrap();
+        let verifier = OwnerApprovalVerifier::new(
+            vec![TrustedOwnerKey {
+                owner_subject: "owner:akefa".into(),
+                key_id: "owner-key-policy".into(),
+                public_key: signer.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 10_000,
+            }],
+            Arc::clone(&store),
+        )
+        .unwrap();
         let audit = SqliteAuditSink::open_in_memory().unwrap();
         (signer, verifier, store, audit)
     }
@@ -272,7 +316,10 @@ mod tests {
 
     fn signed(signer: &SigningKey, epoch: u64, emergency: bool) -> SignedPolicySnapshot {
         let payload = payload(epoch, emergency);
-        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         SignedPolicySnapshot::from_signature(payload, signature)
     }
 
@@ -290,7 +337,9 @@ mod tests {
     fn owner_signed_policy_is_audited_before_activation_and_loads_verified() {
         let (signer, verifier, store, audit) = fixture();
         let signed = signed(&signer, 1, true);
-        let active = PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200).unwrap();
+        let active =
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200)
+                .unwrap();
         assert_eq!(active.epoch, 1);
         assert!(active.emergency_stop_active);
         assert!(active.policy.allows_capability("workspace.read"));
@@ -315,10 +364,23 @@ mod tests {
         let (signer, verifier, store, _audit) = fixture();
         let signed = signed(&signer, 1, false);
         let verified = verifier.verify_policy_snapshot(&signed, 1_200).unwrap();
-        assert_eq!(store.stage_policy_snapshot(
-            verified.epoch(), &verified.digest, &verified.canonical_payload, &verified.signature,
-            "owner:akefa", "owner-key-policy", "policy-1", 1_101, 2_001, false,
-        ).unwrap(), None);
+        assert_eq!(
+            store
+                .stage_policy_snapshot(
+                    verified.epoch(),
+                    &verified.digest,
+                    &verified.canonical_payload,
+                    &verified.signature,
+                    "owner:akefa",
+                    "owner-key-policy",
+                    "policy-1",
+                    1_101,
+                    2_001,
+                    false,
+                )
+                .unwrap(),
+            None
+        );
         assert_eq!(
             PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap_err(),
             PolicyLifecycleError::Inactive
@@ -331,7 +393,8 @@ mod tests {
         let signed = signed(&signer, 1, false);
         audit.force_append_failure(true).unwrap();
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200).unwrap_err(),
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200)
+                .unwrap_err(),
             PolicyLifecycleError::AuditUnavailable
         );
         assert_eq!(
@@ -347,13 +410,18 @@ mod tests {
     fn pending_owner_policy_revocation_blocks_policy_use_until_g11_recovers() {
         let (signer, verifier, store, audit) = fixture();
         let signed = signed(&signer, 1, false);
-        PolicyActivationCoordinator::activate(
-            &verifier, &store, &audit, &signed, 1_200,
-        ).unwrap();
-        store.stage_policy_revocation(
-            1, "pending-revoke", &[7u8; 32], "owner:akefa", "owner-key-policy",
-            "test pending revocation", 1_300,
-        ).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200).unwrap();
+        store
+            .stage_policy_revocation(
+                1,
+                "pending-revoke",
+                &[7u8; 32],
+                "owner:akefa",
+                "owner-key-policy",
+                "test pending revocation",
+                1_300,
+            )
+            .unwrap();
         assert_eq!(
             PolicyActivationCoordinator::load_active(&verifier, &store, 1_301).unwrap_err(),
             PolicyLifecycleError::Inactive
@@ -368,14 +436,19 @@ mod tests {
         let second = signed(&signer, 2, true);
         PolicyActivationCoordinator::activate(&verifier, &store, &audit, &second, 1_300).unwrap();
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &first, 1_301).unwrap_err(),
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &first, 1_301)
+                .unwrap_err(),
             PolicyLifecycleError::Rollback
         );
         let conflict_payload = payload(2, false);
-        let conflict_signature = signer.sign(&conflict_payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let conflict_signature = signer
+            .sign(&conflict_payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let conflict = SignedPolicySnapshot::from_signature(conflict_payload, conflict_signature);
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &conflict, 1_302).unwrap_err(),
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &conflict, 1_302)
+                .unwrap_err(),
             PolicyLifecycleError::ConflictingEpoch
         );
     }
@@ -391,13 +464,23 @@ mod tests {
         );
         let expired = signed(&signer, 2, false);
         assert_eq!(
-            verifier.verify_policy_snapshot(&expired, 3_000).unwrap_err(),
+            verifier
+                .verify_policy_snapshot(&expired, 3_000)
+                .unwrap_err(),
             OwnerApprovalError::Expired
         );
-        store.revoke_key("iroka:owner-authority", "owner-key-policy", 1_250, "test revocation").unwrap();
+        store
+            .revoke_key(
+                "iroka:owner-authority",
+                "owner-key-policy",
+                1_250,
+                "test revocation",
+            )
+            .unwrap();
         let valid = signed(&signer, 3, false);
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &valid, 1_300).unwrap_err(),
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &valid, 1_300)
+                .unwrap_err(),
             PolicyLifecycleError::Revoked
         );
     }
@@ -418,14 +501,21 @@ mod tests {
                 reason: "policy superseded by incident response".into(),
             },
         };
-        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         let command = crate::SignedOwnerSecurityCommand::from_signature(payload, signature);
-        verifier.revoke_policy_snapshot(&command, &audit, 1_350).unwrap();
+        verifier
+            .revoke_policy_snapshot(&command, &audit, 1_350)
+            .unwrap();
         assert_eq!(
             PolicyActivationCoordinator::load_active(&verifier, &store, 1_351).unwrap_err(),
             PolicyLifecycleError::Inactive
         );
-        verifier.revoke_policy_snapshot(&command, &audit, 1_352).unwrap();
+        verifier
+            .revoke_policy_snapshot(&command, &audit, 1_352)
+            .unwrap();
         assert_eq!(audit.head().unwrap().0, 2);
     }
 
@@ -433,9 +523,17 @@ mod tests {
     fn emergency_stop_can_only_be_cleared_by_a_new_owner_signed_epoch() {
         let (signer, verifier, store, audit) = fixture();
         let stopped = signed(&signer, 1, true);
-        assert!(PolicyActivationCoordinator::activate(&verifier, &store, &audit, &stopped, 1_200).unwrap().emergency_stop_active);
+        assert!(
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &stopped, 1_200)
+                .unwrap()
+                .emergency_stop_active
+        );
         let cleared = signed(&signer, 2, false);
-        assert!(!PolicyActivationCoordinator::activate(&verifier, &store, &audit, &cleared, 1_300).unwrap().emergency_stop_active);
+        assert!(
+            !PolicyActivationCoordinator::activate(&verifier, &store, &audit, &cleared, 1_300)
+                .unwrap()
+                .emergency_stop_active
+        );
         assert_eq!(audit.head().unwrap().0, 2);
     }
 
