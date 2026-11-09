@@ -103,10 +103,7 @@ pub struct ProviderFailure {
 }
 
 pub trait PlanningProvider: Send + Sync {
-    fn propose_plan(
-        &self,
-        request: &PlanningRequest<'_>,
-    ) -> Result<TaskPlan, ProviderFailure>;
+    fn propose_plan(&self, request: &PlanningRequest<'_>) -> Result<TaskPlan, ProviderFailure>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -251,7 +248,10 @@ fn validate_plan(
         return Err(PlanValidationError::LimitExceeded);
     }
     if plan.acceptance_criteria.is_empty()
-        || plan.acceptance_criteria.iter().any(|item| item.trim().is_empty())
+        || plan
+            .acceptance_criteria
+            .iter()
+            .any(|item| item.trim().is_empty())
     {
         return Err(PlanValidationError::MissingAcceptanceCriteria);
     }
@@ -306,9 +306,11 @@ fn validate_plan(
                 return Err(PlanValidationError::EvidenceNotSupplied);
             }
         }
-        if step.required_capabilities.iter().any(|capability| {
-            capability.trim().is_empty() || capability.len() > 128
-        }) {
+        if step
+            .required_capabilities
+            .iter()
+            .any(|capability| capability.trim().is_empty() || capability.len() > 128)
+        {
             return Err(PlanValidationError::InvalidCapability);
         }
         for capability in &step.required_capabilities {
@@ -353,7 +355,9 @@ fn has_dependency_cycle(steps: &[PlanStep]) -> bool {
     let mut children: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for step in steps {
         for dependency in &step.depends_on {
-            *indegree.get_mut(dependency.as_str()).expect("dependency checked") += 1;
+            *indegree
+                .get_mut(dependency.as_str())
+                .expect("dependency checked") += 1;
             children
                 .entry(dependency.as_str())
                 .or_default()
@@ -386,9 +390,7 @@ pub(crate) fn valid_identifier(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 64
         && value.bytes().all(|byte| {
-            byte.is_ascii_lowercase()
-                || byte.is_ascii_digit()
-                || matches!(byte, b'-' | b'_' | b'.')
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_' | b'.')
         })
 }
 
@@ -515,7 +517,9 @@ mod tests {
         let provider = FixtureProvider { plan: invalid };
         assert_eq!(
             TaskPlanner::new(PlannerLimits::default()).plan(&provider, &request),
-            Err(PlannerError::InvalidPlan(PlanValidationError::DependencyCycle))
+            Err(PlannerError::InvalidPlan(
+                PlanValidationError::DependencyCycle
+            ))
         );
     }
 
@@ -541,7 +545,9 @@ mod tests {
         let provider = FixtureProvider { plan: invalid };
         assert_eq!(
             TaskPlanner::new(PlannerLimits::default()).plan(&provider, &request),
-            Err(PlannerError::InvalidPlan(PlanValidationError::MissingOwnerApproval))
+            Err(PlannerError::InvalidPlan(
+                PlanValidationError::MissingOwnerApproval
+            ))
         );
     }
 
@@ -553,7 +559,9 @@ mod tests {
         let provider = FixtureProvider { plan: plan() };
         assert_eq!(
             TaskPlanner::new(PlannerLimits::default()).plan(&provider, &request),
-            Err(PlannerError::InvalidRequest(PlanValidationError::EvidenceNotInRepository))
+            Err(PlannerError::InvalidRequest(
+                PlanValidationError::EvidenceNotInRepository
+            ))
         );
     }
 }
