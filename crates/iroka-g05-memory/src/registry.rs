@@ -19,6 +19,23 @@ pub struct SqliteG05AuthorityRegistry { connection: Arc<Mutex<Connection>> }
 
 impl SqliteG05AuthorityRegistry {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, G05Error> {
+        let path = path.as_ref();
+        #[cfg(unix)]
+        {
+            use std::fs::{symlink_metadata, OpenOptions};
+            use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+            match symlink_metadata(path) {
+                Ok(metadata) if metadata.file_type().is_symlink()
+                    || metadata.permissions().mode() & 0o077 != 0 =>
+                    return Err(G05Error::AuthorityUnavailable),
+                Ok(_) => (),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    OpenOptions::new().write(true).create_new(true).mode(0o600)
+                        .open(path).map_err(|_| G05Error::AuthorityUnavailable)?;
+                }
+                Err(_) => return Err(G05Error::AuthorityUnavailable),
+            }
+        }
         let c = Connection::open(path).map_err(|_| G05Error::AuthorityUnavailable)?;
         Self::from_connection(c)
     }
@@ -516,7 +533,7 @@ mod tests{
   let a=RegistryDesignatedReviewerAuthority::new(r,G01);
   let receipt=DurableApprovalReceipt{approval_ref:"a-expired".into(),memory_id:"m".into(),
    tenant_ref:"t".into(),subject_ref:"org".into(),content_sha256:"c".repeat(64),
-   reviewer_ref:"reviewer:1".into(),issued_at:110,expires_at:130,proof_ref:"proof:bad".into()};
+   reviewer_ref:"reviewer:1".into(),issued_at:110,expires_at:200,proof_ref:"proof:valid".into()};
   assert_eq!(a.verify_designated_reviewer(&receipt,"org",150),Err(G05Error::ReviewerNotAuthorized));
  }
 
