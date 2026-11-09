@@ -731,6 +731,7 @@ mod tests {
                 "a".repeat(40),
                 "../host",
                 "b".repeat(64),
+                crate::RiskLevel::High,
                 "policy-v1"
             ),
             Err(ExecutionGrantError::InvalidScope)
