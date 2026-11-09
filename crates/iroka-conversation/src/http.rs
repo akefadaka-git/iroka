@@ -578,6 +578,7 @@ where
     Err(HttpError::NotFound)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn start_generation<T, S, A, G>(
     stream: &mut TcpStream,
     service: Arc<ConversationService<T, S, A, G>>,
@@ -700,6 +701,7 @@ fn sse_event(event: &StreamEvent) -> Value {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_sse<T, S, A, G>(
     stream: &mut TcpStream,
     service: &ConversationService<T, S, A, G>,
