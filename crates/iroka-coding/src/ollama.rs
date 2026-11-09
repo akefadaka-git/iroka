@@ -1,4 +1,4 @@
-//! Optional Ollama-compatible local model provider.
+//! Optional Ollama-compatible local model provider adapter.
 //!
 //! Transport is restricted to loopback TCP. It does not contact remote hosts,
 //! execute commands, or apply generated changes.
