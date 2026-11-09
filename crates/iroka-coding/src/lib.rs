@@ -105,10 +105,7 @@ impl LanguageRegistry {
         Self::default()
     }
 
-    pub fn register(
-        &mut self,
-        adapter: Box<dyn LanguageAdapter>,
-    ) -> Result<(), RegistryError> {
+    pub fn register(&mut self, adapter: Box<dyn LanguageAdapter>) -> Result<(), RegistryError> {
         let id = adapter.descriptor().id;
         if self.adapters.contains_key(&id) {
             return Err(RegistryError::DuplicateLanguage(id));
@@ -169,10 +166,11 @@ impl LanguageAdapter for ExtensionAdapter {
         let Some((_, extension)) = path.rsplit_once('.') else {
             return false;
         };
-        self.descriptor
-            .file_extensions
-            .iter()
-            .any(|candidate| candidate.trim_start_matches('.').eq_ignore_ascii_case(extension))
+        self.descriptor.file_extensions.iter().any(|candidate| {
+            candidate
+                .trim_start_matches('.')
+                .eq_ignore_ascii_case(extension)
+        })
     }
 }
 
@@ -201,7 +199,9 @@ mod tests {
     fn registry_accepts_new_languages_without_enum_changes() {
         let mut registry = LanguageRegistry::new();
         let future = ExtensionAdapter::new(descriptor("future-lang", "flg"));
-        registry.register(Box::new(future)).expect("registration succeeds");
+        registry
+            .register(Box::new(future))
+            .expect("registration succeeds");
         let id = LanguageId::new("future-lang").expect("valid identifier");
         assert!(registry.get(&id).is_some());
         assert_eq!(registry.detect_path("src/module.flg").len(), 1);
