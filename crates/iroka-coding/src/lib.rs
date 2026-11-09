@@ -3,8 +3,10 @@
 //! New and future languages are integrated through adapters. Repository
 //! analysis is bounded and static; it does not execute project content.
 
+pub mod codegen;
 pub mod index;
 pub mod lockfile;
+pub mod planner;
 pub mod snapshot;
 
 use std::collections::BTreeMap;
