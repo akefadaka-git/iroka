@@ -444,7 +444,10 @@ impl OwnerApprovalVerifier {
             event_id,
             &p.owner_subject,
             "g02.policy.revoke",
-            format!("policy-epoch:{policy_epoch}"),
+            format!(
+                "policy-epoch:{policy_epoch}:command-digest:{digest_hex}:key:{}:previous:{policy_epoch}",
+                p.key_id
+            ),
             format!("policy-epoch-{policy_epoch}"),
             crate::DecisionCode::Allow,
             p.issued_at,
