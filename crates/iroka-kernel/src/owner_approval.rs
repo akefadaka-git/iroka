@@ -414,7 +414,11 @@ impl OwnerApprovalVerifier {
                 }
             }
             OwnerSecurityAction::SetTenantMembership {
-                subject, tenant_id, active, version, reason,
+                subject,
+                tenant_id,
+                active,
+                version,
+                reason,
             } => {
                 if subject.trim().is_empty()
                     || tenant_id.trim().is_empty()
