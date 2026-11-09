@@ -600,6 +600,7 @@ impl SandboxRuntimeConfig {
                 || mount.sandbox_path.starts_with("/run")
                 || mount.sandbox_path.starts_with("/workspace")
                 || mount.sandbox_path == Path::new("/tmp")
+                || mount.sandbox_path == Path::new("/tmp")
                 || mount
                     .sandbox_path
                     .components()
@@ -619,7 +620,12 @@ impl SandboxRuntimeConfig {
         }
         let mut program_digests = BTreeMap::new();
         for (program_id, sandbox_program) in &programs {
-            if !valid_identifier(program_id) || !sandbox_program.is_absolute() {
+            if !valid_identifier(program_id)
+                || !sandbox_program.is_absolute()
+                || sandbox_program
+                    .components()
+                    .any(|part| matches!(part, Component::ParentDir | Component::CurDir))
+            {
                 return Err(SandboxError::ToolUnavailable);
             }
             let host_program = resolve_host_program(&canonical_mounts, sandbox_program)?;
@@ -901,7 +907,8 @@ fn verify_program_digests(config: &SandboxRuntimeConfig) -> Result<(), SandboxEr
     }
     for (program_id, sandbox_path) in &config.programs {
         let host_program = resolve_host_program(&config.mounts, sandbox_path)?;
-        if config.program_digests.get(program_id) != Some(&file_digest(&host_program)?) {
+        let current_digest = file_digest(&host_program)?;
+        if config.program_digests.get(program_id) != Some(&current_digest) {
             return Err(SandboxError::ToolUnavailable);
         }
     }
