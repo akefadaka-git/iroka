@@ -99,6 +99,32 @@ languages that do not yet exist.
 - No merge, signing, release, deployment or production activation without
   separate Owner authorization.
 
+## C1.2 — Repository indexing and project understanding
+
+The first static analysis implementation is in `crates/iroka-coding/src/index.rs`.
+It consumes a caller-provided repository snapshot and produces a deterministic
+file index, language classifications through registered adapters, project
+manifest records, dependency declarations and explicit analysis issues.
+
+Current manifest recognition covers Cargo, npm/package.json, Python
+pyproject/requirements, Go modules, Maven, Gradle, Composer, CMake and Ruby
+Gemfile. Initial dependency extraction is implemented for Cargo dependency
+tables, common package.json dependency blocks, basic Python dependency
+declarations, Go require statements and simple Gemfile gem declarations.
+Unsupported or ambiguous manifest syntax is marked partial rather than being
+reported as a complete dependency inventory.
+
+The index enforces configurable file-count, per-file and aggregate byte limits;
+rejects absolute, traversal, malformed and duplicate paths; and skips symlinks.
+It sorts output deterministically. It does not execute project scripts, resolve
+versions, install dependencies, invoke package managers or access the network.
+Lockfiles are identified as evidence but are not yet parsed into a resolved
+transitive dependency graph.
+
+The snapshot boundary is deliberate: filesystem traversal belongs to a later
+workspace-provider component, which must enforce root confinement, symlink
+policy, ignore rules and cancellation before passing data to this analyzer.
+
 ## Acceptance gates
 
 Each milestone requires an A1 frozen contract, A2 read-only reconciliation,
