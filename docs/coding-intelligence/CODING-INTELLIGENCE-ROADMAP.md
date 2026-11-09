@@ -121,9 +121,20 @@ versions, install dependencies, invoke package managers or access the network.
 Lockfiles are identified as evidence but are not yet parsed into a resolved
 transitive dependency graph.
 
-The snapshot boundary is deliberate: filesystem traversal belongs to a later
-workspace-provider component, which must enforce root confinement, symlink
-policy, ignore rules and cancellation before passing data to this analyzer.
+A bounded workspace collector now lives in `crates/iroka-coding/src/snapshot.rs`.
+It traverses a canonicalized root deterministically, skips symlinks and non-regular
+files, applies file-count/per-file/aggregate-size/depth limits, excludes common
+build/vendor directories, and honors literal root `.gitignore` entries. It exposes
+`collect_snapshot` and `analyze_workspace` so callers can collect and index a local
+workspace without executing repository content or invoking package managers.
+Glob, negation and nested `.gitignore` rules are reported as unsupported; they are
+not silently approximated. Non-UTF-8 files are skipped and reported. This is a
+read-only collector, not an OS sandbox or a race-free hostile-filesystem boundary.
+
+Dependency analysis remains static and declaration-oriented. Lockfiles are
+identified but not yet parsed into a complete resolved transitive graph, and
+Maven/Gradle/Composer/CMake parsing remains partial. No versions are resolved,
+packages installed, scripts executed or network requests made.
 
 ## Acceptance gates
 
