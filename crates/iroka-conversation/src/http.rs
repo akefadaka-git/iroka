@@ -15,7 +15,7 @@ use std::{
         Arc, Condvar, Mutex,
     },
     thread,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use iroka_kernel::{Ed25519CredentialVerifier, RevocationChecker};
