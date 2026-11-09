@@ -414,3 +414,8 @@ The authoritative consolidated assessment is now maintained in [IGACMS A4 Consol
 ### Verification status
 
 Exact-HEAD CI is pending for the resulting commit; no test PASS is claimed before the workflow completes. Production trust-root custody/provisioning remains separately gated.
+
+
+### A3-R5 documentation-only PR trigger smoke test
+
+A documentation-only follow-up commit to this implementation record is used to exercise the pull-request workflow path filter independently of Rust source changes. The exact commit and associated PR workflow run are recorded in the final A3 remediation verification entry after the run completes.
