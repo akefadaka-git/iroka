@@ -977,6 +977,8 @@ mod tests {
         let mut v: Value = serde_json::from_slice(EMBEDDED).unwrap();
         v["dependency_graph"][0]["depends_on"] = serde_json::json!(["G02"]);
         v["dependency_graph"][1]["depends_on"] = serde_json::json!(["G01"]);
+        v["chromosomes"][0]["dependencies"] = serde_json::json!(["G02"]);
+        v["chromosomes"][1]["dependencies"] = serde_json::json!(["G01"]);
         assert_eq!(
             validate_genome(&serde_json::to_vec(&v).unwrap()).unwrap_err(),
             IgacmsError::DependencyCycle
