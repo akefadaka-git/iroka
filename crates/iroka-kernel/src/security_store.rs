@@ -26,6 +26,16 @@ pub(crate) enum ApprovalConsumptionError {
     ApprovalRevoked,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExecutionGrantStoreError {
+    Unavailable,
+    Invalid,
+    Duplicate,
+    Expired,
+    Replay,
+    Revoked,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum RevocationTarget {
     Credential {
@@ -144,6 +154,12 @@ impl SqliteSecurityStore {
              );
              CREATE TABLE IF NOT EXISTS approval_consumptions (
                approval_id TEXT PRIMARY KEY, scope_digest BLOB NOT NULL, consumed_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS execution_grants (
+               grant_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL UNIQUE,
+               scope_digest BLOB NOT NULL, token_hash BLOB NOT NULL,
+               issued_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+               consumed_at INTEGER, revoked_at INTEGER
              );"
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(Self {
@@ -537,6 +553,150 @@ impl SqliteSecurityStore {
         tx.commit()
             .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         Ok(true)
+    }
+
+    /// Store a G09 grant. A decision ID can issue at most one grant.
+    pub(crate) fn store_execution_grant(
+        &self,
+        grant_id: &str,
+        decision_id: &str,
+        scope_digest: &[u8],
+        token_hash: &[u8],
+        issued_at: u64,
+        expires_at: u64,
+    ) -> Result<(), ExecutionGrantStoreError> {
+        if grant_id.trim().is_empty()
+            || decision_id.trim().is_empty()
+            || scope_digest.len() != 32
+            || token_hash.len() != 32
+            || issued_at >= expires_at
+        {
+            return Err(ExecutionGrantStoreError::Invalid);
+        }
+        let issued = i64::try_from(issued_at).map_err(|_| ExecutionGrantStoreError::Invalid)?;
+        let expires = i64::try_from(expires_at).map_err(|_| ExecutionGrantStoreError::Invalid)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        let changed = tx
+            .execute(
+                "INSERT OR IGNORE INTO execution_grants
+                 (grant_id, decision_id, scope_digest, token_hash, issued_at, expires_at)
+                 VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
+                params![grant_id, decision_id, scope_digest, token_hash, issued, expires],
+            )
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        if changed == 0 {
+            return Err(ExecutionGrantStoreError::Duplicate);
+        }
+        tx.commit()
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)
+    }
+
+    /// Atomically consume a G09 grant exactly once after checking its full scope.
+    pub(crate) fn consume_execution_grant(
+        &self,
+        grant_id: &str,
+        scope_digest: &[u8],
+        token_hash: &[u8],
+        now: u64,
+    ) -> Result<(), ExecutionGrantStoreError> {
+        if grant_id.trim().is_empty() || scope_digest.len() != 32 || token_hash.len() != 32 {
+            return Err(ExecutionGrantStoreError::Invalid);
+        }
+        let now_i = i64::try_from(now).map_err(|_| ExecutionGrantStoreError::Invalid)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        let row: Option<(Vec<u8>, Vec<u8>, i64, i64, Option<i64>, Option<i64>)> = tx
+            .query_row(
+                "SELECT scope_digest, token_hash, issued_at, expires_at, consumed_at, revoked_at
+                 FROM execution_grants WHERE grant_id=?1",
+                [grant_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                    ))
+                },
+            )
+            .optional()
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        let Some((stored_scope, stored_token, issued, expires, consumed, revoked)) = row else {
+            return Err(ExecutionGrantStoreError::Invalid);
+        };
+        if revoked.is_some() {
+            return Err(ExecutionGrantStoreError::Revoked);
+        }
+        if consumed.is_some() {
+            return Err(ExecutionGrantStoreError::Replay);
+        }
+        if now_i < issued || now_i > expires {
+            return Err(ExecutionGrantStoreError::Expired);
+        }
+        if stored_scope != scope_digest || stored_token != token_hash {
+            return Err(ExecutionGrantStoreError::Invalid);
+        }
+        let changed = tx
+            .execute(
+                "UPDATE execution_grants SET consumed_at=?1
+                 WHERE grant_id=?2 AND consumed_at IS NULL AND revoked_at IS NULL",
+                params![now_i, grant_id],
+            )
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        if changed != 1 {
+            return Err(ExecutionGrantStoreError::Replay);
+        }
+        tx.commit()
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)
+    }
+
+    pub(crate) fn revoke_execution_grant(
+        &self,
+        grant_id: &str,
+        revoked_at: u64,
+    ) -> Result<(), ExecutionGrantStoreError> {
+        let at = i64::try_from(revoked_at).map_err(|_| ExecutionGrantStoreError::Invalid)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        let changed = connection
+            .execute(
+                "UPDATE execution_grants SET revoked_at=?1
+                 WHERE grant_id=?2 AND consumed_at IS NULL AND revoked_at IS NULL",
+                params![at, grant_id],
+            )
+            .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
+        if changed == 1 {
+            Ok(())
+        } else {
+            Err(ExecutionGrantStoreError::Invalid)
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn execution_grant_count(&self) -> Result<u64, SecurityStoreError> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM execution_grants", [], |row| row.get(0))
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }
 }
 
