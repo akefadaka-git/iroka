@@ -662,7 +662,7 @@ impl SqliteSecurityStore {
         if now_i < issued || now_i > expires {
             return Err(ExecutionGrantStoreError::Expired);
         }
-        if stored_scope != scope_digest || stored_token != token_hash {
+        if stored_scope.as_slice() != scope_digest || stored_token.as_slice() != token_hash {
             return Err(ExecutionGrantStoreError::Invalid);
         }
         let changed = tx
