@@ -1221,4 +1221,21 @@ mod tests {
             .unwrap();
         assert!(answer.starts_with("ይህ የሙከራ መልስ"));
     }
+    #[test]
+    fn synthetic_stream_emits_multiple_utf8_safe_chunks_and_reconstructs_answer() {
+        let generator = SyntheticAnswerGenerator;
+        let cancel = Cancellation::new();
+        let prompt = "a long streaming test prompt with enough words to force multiple independent chunks";
+        let expected = generator.answer(prompt, Locale::English, &cancel).unwrap();
+        let mut chunks = Vec::new();
+        let actual = generator
+            .stream(prompt, Locale::English, &cancel, &mut |chunk| {
+                chunks.push(chunk.to_owned());
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(actual, expected);
+        assert!(chunks.len() > 1);
+        assert_eq!(chunks.concat(), expected);
+    }
 }
