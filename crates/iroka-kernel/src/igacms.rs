@@ -1224,6 +1224,4 @@ mod tests {
             validate_marker_transition(Some(&previous), &replacement),
             Err(IgacmsError::Marker)
         );
-    }
-
-}
+    }}
