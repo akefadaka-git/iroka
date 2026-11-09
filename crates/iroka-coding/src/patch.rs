@@ -360,7 +360,7 @@ pub enum PatchApprovalError {
     Owner(OwnerApprovalError),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct VerifiedPatchApproval {
     approval_id: String,
     owner_subject: String,
@@ -464,7 +464,7 @@ impl PatchApplier {
     pub fn apply_preview(
         snapshot: &WorkspaceSnapshot,
         reviewed: &ReviewedPatch,
-        approval: &VerifiedPatchApproval,
+        approval: VerifiedPatchApproval,
     ) -> Result<AppliedPatchSet, PatchApplyError> {
         if approval.repository != reviewed.repository
             || approval.source_revision != reviewed.source_revision
@@ -906,7 +906,7 @@ mod tests {
         let (verifier, key) = owner_verifier();
         let approval = approve(&review, &verifier, &key);
         let applied =
-            PatchApplier::apply_preview(&original, &review, &approval).expect("approved preview");
+            PatchApplier::apply_preview(&original, &review, approval).expect("approved preview");
         assert_eq!(
             applied
                 .preview()
@@ -1077,7 +1077,7 @@ mod tests {
         )
         .expect("stale snapshot");
         assert_eq!(
-            PatchApplier::apply_preview(&stale, &review, &approval),
+            PatchApplier::apply_preview(&stale, &review, approval),
             Err(PatchApplyError::StaleSnapshot)
         );
     }
@@ -1093,7 +1093,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unapproved_preview_application() {
+    fn rejects_approval_for_a_different_patch_digest() {
         let original = WorkspaceSnapshot::new(
             "akefadaka-git/iroka",
             "a".repeat(40),
@@ -1107,13 +1107,13 @@ mod tests {
             owner_subject: "owner-1".to_owned(),
             repository: review.repository.clone(),
             source_revision: review.source_revision.clone(),
-            patch_digest: review.patch_digest.clone(),
+            patch_digest: "different-patch-digest".to_owned(),
             approval_resource: review.approval_resource.clone(),
             policy_version: "policy-v1".to_owned(),
             verified_at: 1_000,
         };
         assert_eq!(
-            PatchApplier::apply_preview(&original, &review, &forged),
+            PatchApplier::apply_preview(&original, &review, forged),
             Err(PatchApplyError::ApprovalMismatch)
         );
     }
