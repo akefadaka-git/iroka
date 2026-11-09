@@ -263,6 +263,7 @@ fn now() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
+fn live_clock() -> u64 { now() }
 fn correlation() -> String {
     format!(
         "http-{}-{}",
@@ -644,7 +645,7 @@ where
     let conversation_id_for_worker = conversation_id.clone();
     thread::spawn(move || {
         let state_for_events = Arc::clone(&state);
-        let result = service.submit_streaming(
+        let result = service.submit_streaming_with_clock(
             &principal,
             &session_for_worker,
             &conversation_id_for_worker,
@@ -654,6 +655,7 @@ where
             locale.as_deref(),
             &correlation_for_worker,
             now,
+            &live_clock,
             &state.cancellation,
             &mut |event| state_for_events.publish(event),
         );
