@@ -630,16 +630,16 @@ mod tests {
     fn rejects_stale_evidence_and_ttl_above_sixty_seconds() {
         let (store, scope, evidence) = approved_evidence();
         let issuer = ExecutionGrantIssuer::new(&store);
-        assert_eq!(
+        assert!(matches!(
             issuer.issue(evidence, scope.clone(), 1_231, 10),
             Err(ExecutionGrantError::EvidenceStale)
-        );
+        ));
 
         let (store, scope, evidence) = approved_evidence();
-        assert_eq!(
+        assert!(matches!(
             ExecutionGrantIssuer::new(&store).issue(evidence, scope, 1_200, 61),
             Err(ExecutionGrantError::InvalidTtl)
-        );
+        ));
     }
 
     #[test]
