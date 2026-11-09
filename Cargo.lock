@@ -217,6 +217,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "iroka-g04-contract"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sha2",
+]
+
+[[package]]
 name = "iroka-kernel"
 version = "0.1.0"
 dependencies = [
@@ -227,14 +235,6 @@ dependencies = [
  "serde_jcs",
  "serde_json",
  "sha1",
- "sha2",
-]
-
-[[package]]
-name = "iroka-g04-contract"
-version = "0.1.0"
-dependencies = [
- "serde",
  "sha2",
 ]
 
