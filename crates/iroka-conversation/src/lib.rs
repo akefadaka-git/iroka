@@ -844,9 +844,6 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             correlation,
             now,
         )?;
-        if cancel.is_cancelled() {
-            return Err(ConversationError::Cancelled);
-        }
         let assistant_id = format!("{turn_id}:assistant");
         let assistant_seq = self.store.append_turn(
             conversation_id,
@@ -861,6 +858,23 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             turn_id: turn_id.into(),
             sequence: user_seq,
         })?;
+        if cancel.is_cancelled() {
+            self.store.finish_turn(&assistant_id, "cancelled", None)?;
+            self.store.record_event(
+                &format!("ciw:{correlation}:cancelled"),
+                &tenant,
+                conversation_id,
+                Some(&assistant_id),
+                "turn.cancelled",
+                correlation,
+                now,
+            )?;
+            emit_event(StreamEvent::Cancelled {
+                turn_id: assistant_id,
+                sequence: assistant_seq,
+            })?;
+            return Ok(());
+        }
 
         let mut answer = String::new();
         let stream_result = self.generator.stream(
