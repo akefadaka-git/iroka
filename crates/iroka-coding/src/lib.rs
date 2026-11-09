@@ -4,6 +4,7 @@
 //! analysis is bounded and static; it does not execute project content.
 
 pub mod index;
+pub mod lockfile;
 pub mod snapshot;
 
 use std::collections::BTreeMap;
