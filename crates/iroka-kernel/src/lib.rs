@@ -4,8 +4,8 @@
 //! reviewed trust-boundary components.
 
 mod assurance;
-mod composition;
 mod audit_store;
+mod composition;
 mod decision;
 #[cfg(test)]
 mod governance;
