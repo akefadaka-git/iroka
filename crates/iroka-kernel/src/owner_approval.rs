@@ -225,6 +225,10 @@ impl OwnerApprovalVerifier {
         })
     }
 
+    pub(crate) fn security_store(&self) -> &SqliteSecurityStore {
+        &self.store
+    }
+
     /// Verify an immutable G02 policy snapshot using the same provisioned Owner
     /// keys and revocation authority as signed approvals and security commands.
     pub fn verify_policy_snapshot(
