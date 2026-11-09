@@ -9,6 +9,7 @@ pub mod lockfile;
 pub mod ollama;
 pub mod patch;
 pub mod planner;
+pub mod sandbox;
 pub mod snapshot;
 
 use std::collections::BTreeMap;
