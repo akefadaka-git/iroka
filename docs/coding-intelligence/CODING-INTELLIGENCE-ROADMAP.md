@@ -131,10 +131,14 @@ Glob, negation and nested `.gitignore` rules are reported as unsupported; they a
 not silently approximated. Non-UTF-8 files are skipped and reported. This is a
 read-only collector, not an OS sandbox or a race-free hostile-filesystem boundary.
 
-Dependency analysis remains static and declaration-oriented. Lockfiles are
-identified but not yet parsed into a complete resolved transitive graph, and
-Maven/Gradle/Composer/CMake parsing remains partial. No versions are resolved,
-packages installed, scripts executed or network requests made.
+Dependency analysis remains static and local-only. Resolved package records
+and lockfile dependency references are extracted from Cargo.lock,
+package-lock.json/npm-shrinkwrap.json and composer.lock, including available
+source/checksum metadata. Other recognized lockfiles (including pnpm, Yarn,
+Poetry, Pipenv, Go and Ruby lockfiles) are explicitly marked partial until their
+format adapters are implemented. Maven/Gradle/CMake manifest parsing also remains
+partial. The analyzer does not query registries, audit vulnerabilities, install
+packages, execute scripts or make network requests.
 
 ## Acceptance gates
 
