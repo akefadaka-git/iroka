@@ -36,8 +36,8 @@ impl<S: AuditSink> AuditSink for TenantBoundAuditSink<'_, S> {
     }
 }
 
-fn audit_unresolved(
-    sink: &SqliteAuditSink,
+fn audit_unresolved<S: AuditSink>(
+    sink: &S,
     request: &AuthorizationRequest,
     policy_version: &str,
     decision: Decision,
