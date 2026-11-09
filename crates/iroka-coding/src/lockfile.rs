@@ -193,7 +193,9 @@ fn parse_npm_lock(path: &str, content: &str) -> LockfileAnalysis {
         });
     }
 
-    result.packages.sort_by(|left, right| left.package_id.cmp(&right.package_id));
+    result
+        .packages
+        .sort_by(|left, right| left.package_id.cmp(&right.package_id));
     result
 }
 
@@ -264,7 +266,9 @@ fn parse_composer_lock(path: &str, content: &str) -> LockfileAnalysis {
     if !found_package_array {
         result.analysis_partial = true;
     }
-    result.packages.sort_by(|left, right| left.package_id.cmp(&right.package_id));
+    result
+        .packages
+        .sort_by(|left, right| left.package_id.cmp(&right.package_id));
     result
 }
 
