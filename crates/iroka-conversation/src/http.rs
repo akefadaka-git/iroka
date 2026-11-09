@@ -41,7 +41,9 @@ impl GenerationState {
     fn publish(&self, event: StreamEvent) {
         let terminal = matches!(
             &event,
-            StreamEvent::Completed { .. } | StreamEvent::Cancelled { .. } | StreamEvent::Failed { .. }
+            StreamEvent::Completed { .. }
+                | StreamEvent::Cancelled { .. }
+                | StreamEvent::Failed { .. }
         );
         if let Ok(mut events) = self.events.lock() {
             events.push(event);
@@ -71,7 +73,11 @@ impl GenerationHub {
         });
         if let Ok(mut states) = self.states.lock() {
             if states.len() >= 512 {
-                if let Some(oldest) = states.iter().min_by_key(|(_, item)| item.created_at).map(|(key, _)| key.clone()) {
+                if let Some(oldest) = states
+                    .iter()
+                    .min_by_key(|(_, item)| item.created_at)
+                    .map(|(key, _)| key.clone())
+                {
                     states.remove(&oldest);
                 }
             }
@@ -440,18 +446,36 @@ where
         && request.path.ends_with("/turns")
     {
         return start_generation(
-            &mut stream, service, principal, session, &request,
-            &correlation_id, now, &generations,
+            &mut stream,
+            service,
+            principal,
+            session,
+            &request,
+            &correlation_id,
+            now,
+            &generations,
         );
     }
     if request.method == "GET" && request.path.starts_with("/api/v1/generations/") {
         return write_sse(
-            &mut stream, &service, &principal, &session, &request,
-            &correlation_id, now, &generations,
+            &mut stream,
+            &service,
+            &principal,
+            &session,
+            &request,
+            &correlation_id,
+            now,
+            &generations,
         );
     }
     let result = route(
-        &request, &service, &principal, &session, &correlation_id, now, &generations,
+        &request,
+        &service,
+        &principal,
+        &session,
+        &correlation_id,
+        now,
+        &generations,
     );
     match result {
         Ok((status, body)) => write_json(&mut stream, status, body),
@@ -566,8 +590,13 @@ where
     G: AnswerGenerator + 'static,
 {
     let parts: Vec<&str> = request.path.trim_matches('/').split('/').collect();
-    if parts.len() != 5 || parts[0] != "api" || parts[1] != "v1"
-        || parts[2] != "conversations" || parts[4] != "turns" || !valid_id(parts[3]) {
+    if parts.len() != 5
+        || parts[0] != "api"
+        || parts[1] != "v1"
+        || parts[2] != "conversations"
+        || parts[4] != "turns"
+        || !valid_id(parts[3])
+    {
         return fail(stream, HttpError::NotFound);
     }
     let body = match body_json(request) {
@@ -578,13 +607,20 @@ where
         Some(value) if !value.trim().is_empty() && value.len() <= 16 * 1024 => value.to_owned(),
         _ => return fail(stream, HttpError::BadRequest),
     };
-    let locale = body.get("locale").and_then(Value::as_str).map(str::to_owned);
+    let locale = body
+        .get("locale")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
     let idempotency = match header(&request.headers, "idempotency-key") {
         Some(value) if valid_id(value) => value.to_owned(),
         _ => return fail(stream, HttpError::BadRequest),
     };
     let conversation_id = parts[3].to_owned();
-    let turn_id = format!("t-{}-{}", now, REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed));
+    let turn_id = format!(
+        "t-{}-{}",
+        now,
+        REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    );
     let assistant_id = format!("{turn_id}:assistant");
     let state = generations.insert(&assistant_id, now);
     let service = Arc::clone(&service);
@@ -611,9 +647,15 @@ where
         );
         if let Err(error) = result {
             let event = if error == ConversationError::Cancelled {
-                StreamEvent::Cancelled { turn_id: assistant_id_for_worker.clone(), sequence: 0 }
+                StreamEvent::Cancelled {
+                    turn_id: assistant_id_for_worker.clone(),
+                    sequence: 0,
+                }
             } else {
-                StreamEvent::Failed { turn_id: assistant_id_for_worker.clone(), sequence: 0 }
+                StreamEvent::Failed {
+                    turn_id: assistant_id_for_worker.clone(),
+                    sequence: 0,
+                }
             };
             state.publish(event);
         }
@@ -630,11 +672,25 @@ where
 
 fn sse_event(event: &StreamEvent) -> Value {
     match event {
-        StreamEvent::Accepted { turn_id, sequence } => json!({"type":"generation.accepted","payload":{"turn_id":turn_id,"sequence":sequence}}),
-        StreamEvent::Delta { turn_id, sequence, text } => json!({"type":"message.delta","payload":{"turn_id":turn_id,"sequence":sequence,"text":text}}),
-        StreamEvent::Completed { turn_id, sequence } => json!({"type":"generation.completed","payload":{"turn_id":turn_id,"sequence":sequence}}),
-        StreamEvent::Cancelled { turn_id, sequence } => json!({"type":"generation.interrupted","payload":{"turn_id":turn_id,"sequence":sequence}}),
-        StreamEvent::Failed { turn_id, sequence } => json!({"type":"generation.failed","payload":{"turn_id":turn_id,"sequence":sequence}}),
+        StreamEvent::Accepted { turn_id, sequence } => {
+            json!({"type":"generation.accepted","payload":{"turn_id":turn_id,"sequence":sequence}})
+        }
+        StreamEvent::Delta {
+            turn_id,
+            sequence,
+            text,
+        } => {
+            json!({"type":"message.delta","payload":{"turn_id":turn_id,"sequence":sequence,"text":text}})
+        }
+        StreamEvent::Completed { turn_id, sequence } => {
+            json!({"type":"generation.completed","payload":{"turn_id":turn_id,"sequence":sequence}})
+        }
+        StreamEvent::Cancelled { turn_id, sequence } => {
+            json!({"type":"generation.interrupted","payload":{"turn_id":turn_id,"sequence":sequence}})
+        }
+        StreamEvent::Failed { turn_id, sequence } => {
+            json!({"type":"generation.failed","payload":{"turn_id":turn_id,"sequence":sequence}})
+        }
     }
 }
 
@@ -655,8 +711,13 @@ where
     G: AnswerGenerator,
 {
     let parts: Vec<&str> = request.path.trim_matches('/').split('/').collect();
-    if parts.len() != 5 || parts[0] != "api" || parts[1] != "v1"
-        || parts[2] != "generations" || parts[4] != "events" || !valid_id(parts[3]) {
+    if parts.len() != 5
+        || parts[0] != "api"
+        || parts[1] != "v1"
+        || parts[2] != "generations"
+        || parts[4] != "events"
+        || !valid_id(parts[3])
+    {
         return fail(stream, HttpError::NotFound);
     }
     let conversation_id = request.query.split('&').find_map(|pair| {
@@ -670,7 +731,10 @@ where
         Ok(value) => value,
         Err(error) => return fail(stream, HttpError::from(error)),
     };
-    if !turns.iter().any(|turn| turn.id == parts[3] && turn.role == "assistant") {
+    if !turns
+        .iter()
+        .any(|turn| turn.id == parts[3] && turn.role == "assistant")
+    {
         return fail(stream, HttpError::NotFound);
     }
     write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\nCache-Control: no-store, no-transform\r\nX-Content-Type-Options: nosniff\r\nX-Accel-Buffering: no\r\nConnection: close\r\n\r\n")?;
@@ -682,7 +746,9 @@ where
                 Err(_) => return Ok(()),
             };
             while index >= events.len() && !state.done.load(Ordering::Acquire) {
-                let waited = state.ready.wait_timeout(events, std::time::Duration::from_secs(15));
+                let waited = state
+                    .ready
+                    .wait_timeout(events, std::time::Duration::from_secs(15));
                 match waited {
                     Ok((guard, timeout)) => {
                         events = guard;
@@ -709,12 +775,28 @@ where
         }
     } else if let Some(turn) = turns.iter().find(|turn| turn.id == parts[3]) {
         if turn.state == "completed" {
-            writeln!(stream, "data: {}\n", json!({"type":"message.delta","payload":{"text":turn.content}}))?;
-            writeln!(stream, "data: {}\n", json!({"type":"generation.completed","payload":{"turn_id":turn.id}}))?;
+            writeln!(
+                stream,
+                "data: {}\n",
+                json!({"type":"message.delta","payload":{"text":turn.content}})
+            )?;
+            writeln!(
+                stream,
+                "data: {}\n",
+                json!({"type":"generation.completed","payload":{"turn_id":turn.id}})
+            )?;
         } else if turn.state == "cancelled" {
-            writeln!(stream, "data: {}\n", json!({"type":"generation.interrupted","payload":{"turn_id":turn.id}}))?;
+            writeln!(
+                stream,
+                "data: {}\n",
+                json!({"type":"generation.interrupted","payload":{"turn_id":turn.id}})
+            )?;
         } else {
-            writeln!(stream, "data: {}\n", json!({"type":"generation.failed","payload":{"turn_id":turn.id}}))?;
+            writeln!(
+                stream,
+                "data: {}\n",
+                json!({"type":"generation.failed","payload":{"turn_id":turn.id}})
+            )?;
         }
     }
     stream.flush()
