@@ -14,10 +14,12 @@ use rusqlite::{params, Connection, OptionalExtension};
 
 mod budget;
 mod kernel_adapter;
+mod http;
 mod policy;
 mod tenant_session;
 pub use budget::BudgetGuard;
 pub use kernel_adapter::KernelConversationAuthorizer;
+pub use http::{G01CookieAuthenticator, HttpError, HttpServer};
 pub use policy::{
     BudgetLimits, PolicyError, PolicyPayload, PolicyTrustRoot, PolicyVersionStore,
     SignedPolicyBundle, VerifiedPolicy,
