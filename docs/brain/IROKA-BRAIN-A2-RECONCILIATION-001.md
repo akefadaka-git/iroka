@@ -282,3 +282,43 @@ This report records findings; it does not:
 - authorize A4 closure, merge, signing, release, pilot or A5 deployment.
 
 A3 requires separate explicit Owner authorization after A1 freeze and A2 contract closure. A4 verifies exact implementation heads. A5 remains a separate release authorization.
+
+
+---
+
+## 11. Post-assessment Owner decision and current candidate reconciliation — 2026-11-09
+
+### 11.1 Owner disposition
+
+- **D1:** YES — separate authorization for PR #12 and #13 merges was confirmed. This does not authorize other merges.
+- **D2:** YES — A1 Brain architecture v1.0.0 approved and frozen.
+- **D3:** YES — A2 cognitive contracts proposal approved as v1.0.0. A2 is VERIFIED-CLOSED for design/contracts only.
+- **D4:** Broader cross-domain A3 scope direction accepted as the planning basis. This is not the separate explicit authorization to start A3 implementation.
+- Merge, deployment, signing, publication, production activation and paid-provider activation remain unauthorized.
+
+### 11.2 Current main and CIW candidate exactness
+
+The latest comparison query confirms current `main` at `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`.
+
+PR #23 (CIW answer-only implementation) remains OPEN / DRAFT / UNMERGED:
+- PR: https://github.com/akefadaka-git/iroka/pull/23
+- Head branch: `feat/ciw-amharic-answer-only-chat`
+- Current PR head SHA: `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1`
+- Base branch: `feat/igacms-a3-implementation`
+- Recorded base SHA: `813b24cbf81f049f2675fbb5492bdc9f262a9d87`
+- Comparison of PR head to current main: **DIVERGED**, 172 commits ahead / 22 behind, merge base `813b24cbf81f049f2675fbb5492bdc9f262a9d87`.
+- Current exact-head workflow lookup for `69f3c181...`: run `42562324737`, completed SUCCESS.
+- PR description's older claimed verification head `642792d55...` does not match the current PR head. The current run evidence above is the relevant exact-head signal; full job logs and A4 security review remain outstanding.
+- PR #23 changes 19 files, including Kernel identity/security-store code, new conversation domain, HTTP transport, tenant/session, policy/budget, browser UI and workflow configuration. It must not be transplanted wholesale or treated as a clean Brain baseline without file-level security review and selective ancestry reconciliation.
+
+**Disposition:** PR #23 is a potentially reusable implementation candidate, not an adopted dependency. No PR #23 merge, branch rewrite, rebase, or code cherry-pick is authorized by the Brain A2 decision.
+
+### 11.3 G08 and cross-domain integration gates
+
+PR #18 remains an open draft A2 G08 contract with tenant-context and stale-base lineage blockers. CIW PR #20 provides useful A2 conversation contracts but its ancestry and assumptions must be reconciled against current main and the current Kernel. G04/G05/G06 executable APIs remain unverified in this Brain reconciliation. No G03 implementation may fabricate these APIs or create substitute stores.
+
+### 11.4 A2 closeout interpretation
+
+A2 is **VERIFIED-CLOSED for the Brain architecture and cognitive interface contract** following Owner approval. A2-C01 through A2-C07 remain **OPEN integration dependencies** for their respective future work packages; A2-C08/C09 remain **DEFERRED** to licensed corpus and representative benchmark approval. A3 may not bypass these dependencies. The broader A3 plan is recorded separately in the implementation plan.
+
+No runtime Brain code was changed in this decision update. No merge or deployment occurred.
