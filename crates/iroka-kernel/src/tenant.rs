@@ -240,6 +240,41 @@ mod tests {
     }
 
     #[test]
+    fn revoked_owner_key_cannot_change_tenant_membership() {
+        let (signer, owner, resolver, principal) = fixture();
+        let payload = OwnerSecurityCommandPayload {
+            command_id: "revoke-owner-key".into(),
+            owner_subject: "owner:test".into(),
+            key_id: "owner-key".into(),
+            issued_at: 1_100,
+            expires_at: 1_400,
+            action: OwnerSecurityAction::RevokeSigningKey {
+                issuer: "iroka:owner-authority".into(),
+                key_id: "owner-key".into(),
+                reason: "test revocation".into(),
+            },
+        };
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        let revocation = SignedOwnerSecurityCommand::from_signature(payload, signature);
+        owner.apply_security_command(&revocation, 1_200).unwrap();
+
+        assert_eq!(
+            owner.apply_security_command(
+                &command(&signer, "membership-after-revocation", true, 1, 1_100),
+                1_200,
+            ),
+            Err(crate::OwnerApprovalError::Revoked)
+        );
+        assert_eq!(
+            resolver.resolve(&principal, "tenant:alpha", 1_200, 600),
+            Err(TenantResolutionError::MembershipMissing)
+        );
+    }
+
+    #[test]
     fn membership_commands_are_replay_protected() {
         let (signer, owner, _resolver, _principal) = fixture();
         let signed = command(&signer, "membership-1", true, 1, 1_100);
