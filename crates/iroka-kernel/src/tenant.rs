@@ -162,7 +162,10 @@ mod tests {
                 reason: "owner-authorized test fixture".into(),
             },
         };
-        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         SignedOwnerSecurityCommand::from_signature(payload, signature)
     }
 
@@ -173,8 +176,12 @@ mod tests {
             resolver.resolve(&principal, "tenant:alpha", 1_200, 600),
             Err(TenantResolutionError::MembershipMissing)
         );
-        owner.apply_security_command(&command(&signer, "membership-1", true, 1, 1_100), 1_200).unwrap();
-        let context = resolver.resolve(&principal, "tenant:alpha", 1_200, 600).unwrap();
+        owner
+            .apply_security_command(&command(&signer, "membership-1", true, 1, 1_100), 1_200)
+            .unwrap();
+        let context = resolver
+            .resolve(&principal, "tenant:alpha", 1_200, 600)
+            .unwrap();
         assert_eq!(context.subject(), "principal:alice");
         assert_eq!(context.tenant_id(), "tenant:alpha");
         assert_eq!(context.membership_version(), 1);
@@ -192,7 +199,9 @@ mod tests {
     #[test]
     fn inactive_membership_is_denied() {
         let (signer, owner, resolver, principal) = fixture();
-        owner.apply_security_command(&command(&signer, "membership-1", false, 1, 1_100), 1_200).unwrap();
+        owner
+            .apply_security_command(&command(&signer, "membership-1", false, 1, 1_100), 1_200)
+            .unwrap();
         assert_eq!(
             resolver.resolve(&principal, "tenant:alpha", 1_200, 600),
             Err(TenantResolutionError::MembershipInactive)
@@ -202,7 +211,9 @@ mod tests {
     #[test]
     fn stale_or_future_membership_is_denied() {
         let (signer, owner, resolver, principal) = fixture();
-        owner.apply_security_command(&command(&signer, "membership-1", true, 1, 1_100), 1_200).unwrap();
+        owner
+            .apply_security_command(&command(&signer, "membership-1", true, 1, 1_100), 1_200)
+            .unwrap();
         assert_eq!(
             resolver.resolve(&principal, "tenant:alpha", 1_801, 600),
             Err(TenantResolutionError::MembershipStale)
@@ -216,9 +227,15 @@ mod tests {
     #[test]
     fn owner_membership_versions_cannot_roll_back() {
         let (signer, owner, resolver, principal) = fixture();
-        owner.apply_security_command(&command(&signer, "membership-2", true, 2, 1_100), 1_200).unwrap();
-        assert!(owner.apply_security_command(&command(&signer, "membership-1", false, 1, 1_100), 1_200).is_err());
-        let context = resolver.resolve(&principal, "tenant:alpha", 1_200, 600).unwrap();
+        owner
+            .apply_security_command(&command(&signer, "membership-2", true, 2, 1_100), 1_200)
+            .unwrap();
+        assert!(owner
+            .apply_security_command(&command(&signer, "membership-1", false, 1, 1_100), 1_200)
+            .is_err());
+        let context = resolver
+            .resolve(&principal, "tenant:alpha", 1_200, 600)
+            .unwrap();
         assert_eq!(context.membership_version(), 2);
     }
 
