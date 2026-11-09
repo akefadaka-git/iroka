@@ -2,7 +2,7 @@
 
 **Document ID:** IROKA-BRAIN-A2-001  
 **Version:** 0.1.0-draft  
-**Status:** Reconciliation performed; Owner disposition and A2 closure pending  
+**Status:** Read-only reconciliation performed; partial Owner decisions recorded; A2 closure pending  
 **Assessment date:** 2026-11-09  
 **Repository:** `akefadaka-git/iroka`  
 **Reconciliation mode:** Read-only inspection of existing repository state and referenced branches/PRs  
@@ -213,8 +213,8 @@ Proposed order after A2 approval and separate A3 authorization:
 
 | ID | Decision required | Current status |
 |---|---|---|
-| B-A2-01 | Accept eight logical cognitive capability groups and their Genome mapping | PENDING OWNER |
-| B-A2-02 | Confirm G03 critic versus G11 independent assurance boundary | PENDING OWNER |
+| B-A2-01 | Accept eight logical cognitive capability groups and their Genome mapping | APPROVED — D2, 2026-11-09; A1 v1.0.0 frozen |
+| B-A2-02 | Confirm G03 critic versus G11 independent assurance boundary | APPROVED — D2, 2026-11-09; A1 v1.0.0 frozen |
 | B-A2-03 | Approve task/result/evidence envelope schemas | PENDING OWNER |
 | B-A2-04 | Approve initial deterministic/synthetic-only A3 vertical slice | PENDING OWNER |
 | B-A2-05 | Resolve G04/G05/G06 interface versions and owners | UNRESOLVED |
@@ -241,7 +241,7 @@ Proposed order after A2 approval and separate A3 authorization:
 - [ ] Dependency/provenance/license/data-flow assessment completed for the selected A3 increment.
 - [ ] A2 closure approved by Owner.
 
-**A2 status: PARTIAL — read-only repository and workstream reconciliation completed; contract decisions and dependencies remain open.**
+**A2 status: PARTIAL — read-only reconciliation complete; B-A2-01/02 approved, with formal schemas, domain interfaces, G08 dependencies, evaluation governance and first-increment scope still open.**
 
 ## 11. Final repository recheck — 2026-11-09
 
@@ -251,10 +251,17 @@ The repository changed after the initial read-only snapshot:
 - PR #13 was merged into `main` at `2304a793ce4a49464bc87f972c0e02fa07f75237` at 06:41:40Z, recorded as merged by `akefadaka-git`.
 - The new main merge commit has parents `143311a655be68acea2700650b7f88c9fb085526` and `bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a`.
 - Exact-head PR #13 push and PR workflows #42566864113 and #42566869592 both completed SUCCESS before merge. No Actions run was returned for the merge commit itself; no post-merge exact-main CI PASS is claimed.
-- The merges were not performed by this assistant. GitHub metadata identifies the owner account as merger; whether the separate approval requirement was satisfied outside this task is not established by this reconciliation.
-- The Brain proposal branch remains based on the unchanged Owner-approved A2 source branch at `a709fc473b23494839417449e34bebf4cb8be77a`. The Brain PR remains a documentation-only draft and has not been merged.
+- The merges were not performed by this assistant. Owner subsequently confirmed D1 = YES on 2026-11-09, explicitly confirming separate authorization for both PR #12 and PR #13 merges. D1 authorization is now recorded; the merged commits remain unchanged.
+- The Brain proposal branch remains based on the unchanged Owner-approved A2 source branch at `a709fc473b23494839417449e34bebf4cb8be77a`. Owner confirmed D2 = YES on 2026-11-09; A1 architecture v1.0.0 is now frozen on this proposal branch. The Brain PR remains documentation-only and unmerged.
 
 This state change does not authorize any additional merge, deployment, production trust provisioning or Brain A3 implementation.
+
+## 12. Owner decision record — 2026-11-09
+
+- **D1 = YES:** Owner confirmed separate authorization for the PR #12 and PR #13 merges. The historical authorization gap is resolved. No merge was performed by this assistant.
+- **D2 = YES:** Owner approved the IROKA BRAIN architecture proposal for A1 freeze. The A1 document is frozen as v1.0.0 on this branch.
+- A1 is VERIFIED-CLOSED. This does not close A2 and does not authorize A3.
+- B-A2-01 and B-A2-02 are approved by D2. Remaining A2 decisions require exact contract/dependency evidence and explicit disposition; approval of the architecture is not treated as blanket approval of implementation details.
 
 ## 10. Governance boundary
 
