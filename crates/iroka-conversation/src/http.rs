@@ -718,7 +718,7 @@ where
                     sequence: 0,
                 }
             };
-            let _ = state.publish(event);
+            let _ = state_for_worker.publish(event);
         }
     });
     if !state.wait_for_acceptance(std::time::Duration::from_secs(10)) {
