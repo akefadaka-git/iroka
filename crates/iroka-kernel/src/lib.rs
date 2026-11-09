@@ -23,8 +23,8 @@ mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
-pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use composition::authorize_compact_in_tenant;
+pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
