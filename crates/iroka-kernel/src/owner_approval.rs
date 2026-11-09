@@ -221,6 +221,54 @@ impl OwnerApprovalVerifier {
         })
     }
 
+    /// Verify an immutable G02 policy snapshot using the same provisioned Owner
+    /// keys and revocation authority as signed approvals and security commands.
+    pub fn verify_policy_snapshot(
+        &self,
+        signed: &crate::SignedPolicySnapshot,
+        now: u64,
+    ) -> Result<crate::VerifiedPolicySnapshot, OwnerApprovalError> {
+        let payload = &signed.payload;
+        payload.validate(now).map_err(|error| match error {
+            crate::PolicyLifecycleError::Expired => OwnerApprovalError::Expired,
+            crate::PolicyLifecycleError::NotYetValid => OwnerApprovalError::NotYetValid,
+            _ => OwnerApprovalError::Malformed,
+        })?;
+        let owner_key = self
+            .keys
+            .get(&payload.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if payload.owner_subject != owner_key.owner_subject {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || payload.issued_at < owner_key.not_before
+            || payload.issued_at >= owner_key.not_after
+        {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
+        if self.store.key_revoked(OWNER_ISSUER, &payload.key_id)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?
+        {
+            return Err(OwnerApprovalError::Revoked);
+        }
+        let signing_bytes = payload.signing_bytes()
+            .map_err(|_| OwnerApprovalError::Malformed)?;
+        let signature = Signature::from_slice(&signed.signature)
+            .map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key.verifying_key.verify(&signing_bytes, &signature)
+            .map_err(|_| OwnerApprovalError::InvalidSignature)?;
+        let (canonical_payload, digest) = crate::policy_lifecycle::canonical_payload_and_digest(payload)
+            .map_err(|_| OwnerApprovalError::Malformed)?;
+        Ok(crate::VerifiedPolicySnapshot {
+            payload: payload.clone(),
+            signature: signed.signature.clone(),
+            canonical_payload,
+            digest,
+        })
+    }
+
     pub fn verify_and_consume(
         &self,
         approval: &SignedOwnerApproval,
