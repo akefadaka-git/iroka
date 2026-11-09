@@ -300,7 +300,9 @@ fn decode_chunked(body: &[u8], max_bytes: usize) -> Result<Vec<u8>, ProviderFail
             .ok_or_else(|| failure("local model returned truncated chunk data"))?;
         decoded.extend_from_slice(chunk);
         if decoded.len() > max_bytes {
-            return Err(failure("local model response body exceeds configured limit"));
+            return Err(failure(
+                "local model response body exceeds configured limit",
+            ));
         }
         offset = end.saturating_add(2);
     }
