@@ -303,6 +303,8 @@ impl PatchReview {
             &request.request_id,
             &request.target_path,
             &format!("{:?}", request.operation),
+            before_hash.as_deref().unwrap_or("absent"),
+            after_hash.as_deref().unwrap_or("absent"),
             &change.unified_diff,
         ]);
         let approval_resource = format!(
