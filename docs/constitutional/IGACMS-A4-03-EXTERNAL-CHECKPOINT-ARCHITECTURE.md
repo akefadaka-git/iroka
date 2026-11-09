@@ -1,8 +1,8 @@
 # IGACMS A4-03-E — External Audit Checkpoint Architecture
 
 **Document ID:** IGACMS-A4-03-E-ARCH-001  
-**Version:** 0.1.0 (architecture proposal)  
-**Status:** DESIGN COMPLETE — IMPLEMENTATION NOT AUTHORIZED BY THIS DOCUMENT  
+**Version:** 1.0.0 (E1 frozen architecture baseline)  
+**Status:** **E1 FROZEN — E2 NOT AUTHORIZED**  
 **Design parent:** A2 Owner-approved baseline `a709fc473b23494839417449e34bebf4cb8be77a`  
 **Design source HEAD:** `bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a`  
 **Work branch:** `architecture/a4-03-external-checkpoint`  
@@ -102,7 +102,7 @@ Suggested context labels:
 - `IGACMS-AUDIT-WITNESS-RECEIPT-v1\0`
 - `IGACMS-AUDIT-RETENTION-RECEIPT-v1\0`
 
-The exact byte construction and test vectors MUST be frozen before implementation. The implementation MUST NOT sign a pretty-printed JSON string or an implementation-specific map serialization.
+The exact byte construction is frozen by this E1 baseline; executable cross-implementation test vectors are an E2 entry prerequisite and MUST be generated and independently cross-checked before protocol code is accepted. The implementation MUST NOT sign a pretty-printed JSON string or an implementation-specific map serialization. JCS applies to checkpoint, manifest, witness-receipt, retention-receipt and status payloads only; it MUST NOT replace or reinterpret the existing A3 event-hash algorithm.
 
 ### 4.2 Segment manifest
 
@@ -178,6 +178,32 @@ Each retention domain produces evidence binding:
 
 A storage API's success response alone is not sufficient. The coordinator or independent verifier MUST read back the exact object version and verify its digest and retention state.
 
+A retention confirmation MUST be cryptographically verifiable by the offline verifier. Each retention domain MUST either issue a signed retention receipt under a domain-specific attestation key, or have an independently administered retention attestor sign the receipt after read-back and lock-state verification. The attestation key and its trust metadata MUST be distinct from checkpoint-signer and witness keys. An unsigned provider API response, screenshot, console log or coordinator assertion is not a retention receipt. If the retention-lock state cannot be independently verified, the result is INDETERMINATE and the checkpoint MUST NOT be marked ANCHORED.
+
+
+### 4.6 Binding to the existing A3 audit-event hash contract
+
+The checkpoint protocol MUST preserve the exact A3 event-hash algorithm implemented by `crates/iroka-kernel/src/audit_store.rs` at design source HEAD `5bf5984c20b6effaf5e3e0b3ca4d07b18fabb7e6`. It MUST NOT re-hash the event payload as canonical JSON or silently migrate the event-chain algorithm.
+
+For each stored event, the exported record MUST include the SQLite sequence, event ID, correlation ID, subject, capability, resource, policy version, decision, occurred-at value, previous hash and event hash. The export preserves the stored string values as UTF-8 without normalization. The current A3 event hash is:
+
+1. Initialize SHA-256 with the exact domain prefix `IROKA:G11:AUDIT-EVENT:V1\0`.
+2. For each field, append an unsigned 64-bit big-endian byte length followed by the field bytes.
+3. Append fields in exactly this order: previous hash bytes; UTF-8 event ID; UTF-8 correlation ID; UTF-8 subject; UTF-8 capability; UTF-8 resource; UTF-8 policy version; UTF-8 decision literal (`ALLOW`, `DENY`, `REQUIRE_APPROVAL`, or `ESCALATE`); signed 64-bit big-endian occurred-at integer.
+4. SHA-256 the resulting byte stream. The result MUST equal the stored 32-byte event hash.
+
+**Important A3 compatibility constraint:** the SQLite sequence number is not included in the existing event-hash preimage. Therefore the checkpoint segment MUST explicitly bind each sequence number to its complete event record and event hash in the canonical segment package. The verifier MUST require strictly increasing, gap-free sequence numbers within each checkpoint segment and exact adjacency to the previous accepted checkpoint's last event sequence. It MUST verify both the existing event hash and the checkpoint-bound sequence mapping. A future change to the event-hash algorithm requires a separately versioned migration and MUST NOT be smuggled into this checkpoint protocol.
+
+The existing A3 event table does not provide a durable log ID or environment ID column. Those identifiers MUST be provisioned as immutable, externally governed log metadata and bound into the first checkpoint's Owner-approved bootstrap statement. They MUST NOT be derived from a mutable database row or supplied afresh by an untrusted coordinator for each checkpoint.
+
+### 4.7 Signer and witness independence from the producer
+
+The checkpoint signer and each witness MUST verify the complete exported segment independently; they MUST NOT accept the coordinator's chain-verification boolean or verification-report digest as a substitute for performing verification. The signer MUST retrieve the candidate segment through a read-only, authenticated interface or receive a content-addressed package and independently recompute every event hash, sequence mapping, manifest digest and checkpoint linkage.
+
+Each witness repeats the verification independently using its own implementation/build identity and trust snapshot. At least two witness verifiers MUST be separately built and operated such that a single shared parser defect is not the only verification path. The E2 design review MUST specify how implementation diversity is achieved and tested; merely running the same binary in three accounts is not diversity.
+
+The first checkpoint is a bootstrap trust ceremony for this audit log, not proof of any history before its declared first event. Its signed bootstrap statement MUST identify the source A3 HEAD, log/environment identity, first included sequence, observed local head, event count, chain-verification result, policy digest, Owner authorization reference and bootstrap time. The Owner-approved bootstrap reference is an evidence pointer, not a private key or a substitute for witness verification. The verifier's trust anchor for the first checkpoint MUST be configured out-of-band.
+
 ## 5. Components and protocol
 
 ### 5.1 Logical components
@@ -196,13 +222,13 @@ A storage API's success response alone is not sufficient. The coordinator or ind
 1. The local audit store commits events under its existing transaction and hash-chain rules.
 2. The coordinator selects the next contiguous unanchored range. It MUST NOT skip, reorder or silently overlap events.
 3. The exporter creates the canonical segment package and manifest. It records exact event count, range, final head and prior checkpoint digest.
-4. The checkpoint signer independently verifies the local chain over the entire proposed range and verifies continuity from the last accepted checkpoint. It rejects a changed, truncated, duplicated, missing or forked range.
+4. The checkpoint signer independently retrieves and verifies the complete exported segment using the exact A3 hash algorithm in §4.6, checks the checkpoint-bound sequence mapping and verifies continuity from the last accepted checkpoint. It rejects a changed, truncated, duplicated, missing, gapped or forked range. A coordinator-supplied verification report is supporting evidence only.
 5. The signer creates and signs the checkpoint envelope.
 6. The coordinator sends the exact envelope and segment package to W1, W2 and W3.
-7. Each witness independently fetches or receives the full segment, verifies every event and hash link, verifies the checkpoint signature and key status, checks its persisted sequence/high-water mark, and rejects replay or a competing checkpoint for the same sequence.
+7. Each witness independently fetches or receives the full segment, recomputes every event hash using the exact A3 algorithm in §4.6, verifies the sequence-to-event mapping and all hash links, verifies the checkpoint signature and key status, checks its persisted sequence/high-water mark, and rejects replay or a competing checkpoint for the same sequence.
 8. Each accepting witness persists its monotonic state and immutable evidence before signing its receipt. A witness that cannot durably retain the package MUST NOT issue a successful receipt.
 9. The coordinator collects at least two valid receipts from the three independent witnesses.
-10. The coordinator writes the checkpoint, segment, receipts and metadata to R1 and R2. Each domain MUST provide retention evidence; the coordinator reads back and verifies the exact object versions and digests.
+10. The coordinator writes the checkpoint, segment, receipts and metadata to R1 and R2. Each domain MUST provide a signed retention receipt under §4.5; the coordinator and offline verifier read back and verify the exact object versions, digests and retention-lock evidence.
 11. Only after witness quorum and both retention confirmations does the coordinator mark the checkpoint **ANCHORED**.
 12. The coordinator publishes a signed status statement containing the checkpoint digest, sequence, quorum and retention evidence references. The local audit database is updated only as a cache of this state; it is not the source of truth for external anchoring.
 
@@ -486,7 +512,7 @@ The architecture stage does not authorize E2–E7 implementation. Each implement
 
 A4-03-E may be considered implementation-verified only when all are true:
 
-1. Frozen schemas and byte-level test vectors exist.
+1. Frozen schemas and byte-level test vectors exist; E2 MUST produce and cross-check executable vectors for JCS envelopes, the exact A3 event hash, checkpoint signatures, witness receipts and retention receipts before protocol implementation is accepted.
 2. The checkpoint signer rejects any non-contiguous or locally invalid segment.
 3. Three independently administered witness identities are evidenced; 2-of-3 valid receipts are required.
 4. Each witness verifies the complete segment and persists its monotonic state before signing.
@@ -516,7 +542,8 @@ No defaults in this document are production commitments.
 
 ## 16. Current disposition
 
-- **Architecture content:** DESIGN COMPLETE — proposed for review.
+- **E1 architecture:** FROZEN as version 1.0.0 by explicit Owner direction; PR #24 remains open for traceability and review history.
+- **Architecture review comments:** none were present at review time; source-level compatibility findings were incorporated in this frozen revision.
 - **Implementation:** NOT STARTED.
 - **Production signer/witness keys:** NOT CREATED.
 - **Witness operators/providers:** NOT SELECTED.
@@ -527,3 +554,21 @@ No defaults in this document are production commitments.
 - **Merge/deployment/Genesis activation:** NOT AUTHORIZED.
 
 This document closes only the architecture drafting task. It does not close A4-03-E implementation or the broader A4 stage.
+
+
+## 17. E1 freeze record
+
+**Freeze decision:** Owner-directed E1 architecture freeze.  
+**Frozen version:** 1.0.0.  
+**Freeze source:** PR #24 review; no GitHub inline comments, issue comments or submitted reviews were present at the time of review.  
+**Self-review corrections incorporated before freeze:**
+- Normatively bind checkpoint export to the exact A3 length-prefixed SHA-256 event-hash algorithm and preserve the A3 event format.
+- Bind SQLite sequence numbers explicitly because the existing A3 event hash does not cover sequence.
+- Require independent signer and witness recomputation rather than trusting a coordinator's verification claim.
+- Require cryptographically verifiable retention receipts and independent read-back/lock verification.
+- Define immutable log/environment identity and an explicit first-checkpoint bootstrap trust statement.
+- Require E2 cross-implementation vectors and verifier diversity review before protocol acceptance.
+
+**E1 disposition:** **VERIFIED-CLOSED — ARCHITECTURE BASELINE FROZEN.** This is not implementation verification and does not close A4-03-E.
+
+**E2 authorization:** **NOT GRANTED.** No code, schema migration, runtime adapter, production key, provider, witness operator or retention service may be implemented or activated under this freeze alone. E2 requires a separate explicit Owner authorization after the frozen baseline is reviewed.
