@@ -413,7 +413,7 @@ mod tests {
             format!(r#"{{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"{key_id}"}}"#).as_bytes(),
         );
         let claims = URL_SAFE_NO_PAD.encode(
-            br#"{"iss":"issuer:iroka-test","sub":"principal:race","aud":"iroka-kernel","exp":4000,"nbf":1000,"iat":1000,"jti":"credential:race"}"#,
+            br#"{"iss":"issuer:iroka-test","sub":"principal:race","aud":"iroka-kernel","exp":4000,"nbf":1000,"iat":1000,"jti":"credential:race","rv":1}"#,
         );
         let input = format!("{header}.{claims}");
         let signature = signing.sign(input.as_bytes());

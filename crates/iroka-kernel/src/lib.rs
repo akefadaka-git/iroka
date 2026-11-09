@@ -217,6 +217,10 @@ mod tests {
             "principal:1".into(),
             "issuer:test".into(),
             "credential:1".into(),
+            "test-key".into(),
+            1,
+            100,
+            10_000,
         );
         let d = authorize_authenticated(
             &q,
@@ -371,6 +375,10 @@ mod tests {
             "principal:requester".into(),
             "issuer:test".into(),
             "credential:requester".into(),
+            "test-key".into(),
+            1,
+            100,
+            10_000,
         );
         let payload = OwnerApprovalPayload::new(
             "approval:service-test",

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/iroka-kernel"]
+members = ["crates/iroka-kernel", "crates/iroka-conversation"]
 
 [workspace.package]
 edition = "2021"

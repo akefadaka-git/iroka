@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="am">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>IROKA — ውይይት</title>
+  <link rel="stylesheet" href="./chat.css">
+  <script src="./chat.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="IROKA home">IROKA</a>
+      <div class="language">
+        <label for="locale">ቋንቋ / Language</label>
+        <select id="locale" name="locale">
+          <option value="am" selected>አማርኛ</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+    </header>
+    <main class="layout">
+      <aside class="sidebar" aria-label="Conversations">
+        <button id="new-conversation" class="new-button" type="button">＋ አዲስ ውይይት</button>
+        <p id="history-label" class="sidebar-label">የቀድሞ ውይይቶች</p>
+        <ol id="conversation-list" class="conversation-list"></ol>
+      </aside>
+      <section class="chat-panel" aria-label="IROKA text conversation">
+        <div id="welcome" class="welcome">
+          <h1 id="welcome-title">እንኳን ወደ IROKA በደህና መጡ</h1>
+          <p id="welcome-copy">ጥያቄዎን በአማርኛ ወይም በEnglish ይጻፉ።</p>
+        </div>
+        <div id="messages" class="messages" aria-live="polite" aria-relevant="additions text"></div>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <form id="composer" class="composer">
+          <label id="prompt-label" class="sr-only" for="prompt">መልዕክትዎ</label>
+          <textarea id="prompt" name="prompt" rows="2" maxlength="16384"
+            placeholder="መልዕክትዎን እዚህ ይጻፉ..." dir="auto" required></textarea>
+          <div class="composer-actions">
+            <span id="privacy-note">የጽሑፍ ውይይት · መሣሪያ አይፈጽምም</span>
+            <div class="action-buttons">
+              <button id="cancel" class="secondary-button" type="button" disabled>አቁም</button>
+              <button id="send" class="send-button" type="submit">ላክ</button>
+            </div>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

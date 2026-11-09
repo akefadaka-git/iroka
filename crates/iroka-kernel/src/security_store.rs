@@ -139,6 +139,9 @@ impl SqliteSecurityStore {
                revoked_at INTEGER NOT NULL, reason TEXT NOT NULL,
                PRIMARY KEY (issuer, key_id)
              );
+             CREATE TABLE IF NOT EXISTS issuer_revocation_epochs (
+               issuer TEXT PRIMARY KEY NOT NULL, version INTEGER NOT NULL CHECK(version > 0)
+             );
              CREATE TABLE IF NOT EXISTS revoked_approvals (
                approval_id TEXT PRIMARY KEY, revoked_at INTEGER NOT NULL, reason TEXT NOT NULL
              );
@@ -258,17 +261,21 @@ impl SqliteSecurityStore {
             .connection
             .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        c.execute(
-            "INSERT OR IGNORE INTO revoked_credentials VALUES(?1, ?2, ?3, ?4)",
-            params![
-                issuer,
-                credential_id,
-                i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                reason
-            ],
-        )
-        .map(|_| ())
-        .map_err(|_| SecurityStoreError::Unavailable)
+        let changed = c
+            .execute(
+                "INSERT OR IGNORE INTO revoked_credentials VALUES(?1, ?2, ?3, ?4)",
+                params![
+                    issuer,
+                    credential_id,
+                    i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
+                    reason
+                ],
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if changed > 0 {
+            bump_revocation_epoch(&c, issuer)?;
+        }
+        Ok(())
     }
 
     #[cfg(test)]
@@ -286,17 +293,21 @@ impl SqliteSecurityStore {
             .connection
             .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        c.execute(
-            "INSERT OR IGNORE INTO revoked_keys VALUES(?1, ?2, ?3, ?4)",
-            params![
-                issuer,
-                key_id,
-                i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                reason
-            ],
-        )
-        .map(|_| ())
-        .map_err(|_| SecurityStoreError::Unavailable)
+        let changed = c
+            .execute(
+                "INSERT OR IGNORE INTO revoked_keys VALUES(?1, ?2, ?3, ?4)",
+                params![
+                    issuer,
+                    key_id,
+                    i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
+                    reason
+                ],
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if changed > 0 {
+            bump_revocation_epoch(&c, issuer)?;
+        }
+        Ok(())
     }
 
     #[cfg(test)]
@@ -382,32 +393,40 @@ impl SqliteSecurityStore {
                 credential_id,
                 reason,
             } => {
-                tx.execute(
-                    "INSERT OR IGNORE INTO revoked_credentials VALUES(?1, ?2, ?3, ?4)",
-                    params![
-                        issuer,
-                        credential_id,
-                        i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                        reason
-                    ],
-                )
-                .map_err(|_| SecurityStoreError::Unavailable)?;
+                let changed = tx
+                    .execute(
+                        "INSERT OR IGNORE INTO revoked_credentials VALUES(?1, ?2, ?3, ?4)",
+                        params![
+                            issuer,
+                            credential_id,
+                            i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
+                            reason
+                        ],
+                    )
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
+                if changed > 0 {
+                    bump_revocation_epoch(&tx, &issuer)?;
+                }
             }
             RevocationTarget::Key {
                 issuer,
                 key_id,
                 reason,
             } => {
-                tx.execute(
-                    "INSERT OR IGNORE INTO revoked_keys VALUES(?1, ?2, ?3, ?4)",
-                    params![
-                        issuer,
-                        key_id,
-                        i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                        reason
-                    ],
-                )
-                .map_err(|_| SecurityStoreError::Unavailable)?;
+                let changed = tx
+                    .execute(
+                        "INSERT OR IGNORE INTO revoked_keys VALUES(?1, ?2, ?3, ?4)",
+                        params![
+                            issuer,
+                            key_id,
+                            i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
+                            reason
+                        ],
+                    )
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
+                if changed > 0 {
+                    bump_revocation_epoch(&tx, &issuer)?;
+                }
             }
             RevocationTarget::Approval {
                 approval_id,
@@ -540,6 +559,17 @@ impl SqliteSecurityStore {
     }
 }
 
+fn bump_revocation_epoch(connection: &Connection, issuer: &str) -> Result<(), SecurityStoreError> {
+    connection
+        .execute(
+            "INSERT INTO issuer_revocation_epochs(issuer,version) VALUES(?1,2)
+             ON CONFLICT(issuer) DO UPDATE SET version=version+1",
+            params![issuer],
+        )
+        .map(|_| ())
+        .map_err(|_| SecurityStoreError::Unavailable)
+}
+
 impl RevocationChecker for SqliteSecurityStore {
     fn credential_revoked(
         &self,
@@ -569,6 +599,25 @@ impl RevocationChecker for SqliteSecurityStore {
             |row| row.get(0),
         )
         .map_err(|_| RevocationError::Unavailable)
+    }
+
+    fn current_version(&self, issuer: &str) -> Result<u64, RevocationError> {
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| RevocationError::Unavailable)?;
+        let version: Option<i64> = c
+            .query_row(
+                "SELECT version FROM issuer_revocation_epochs WHERE issuer=?1",
+                params![issuer],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| RevocationError::Unavailable)?;
+        match version {
+            Some(value) => u64::try_from(value).map_err(|_| RevocationError::Unavailable),
+            None => Ok(1),
+        }
     }
 }
 
@@ -610,6 +659,8 @@ mod tests {
         assert_eq!(store.credential_revoked("issuer:a", "cred:1"), Ok(true));
         assert_eq!(store.credential_revoked("issuer:b", "cred:1"), Ok(false));
         assert_eq!(store.key_revoked("issuer:a", "key:1"), Ok(true));
+        assert_eq!(store.current_version("issuer:a"), Ok(3));
+        assert_eq!(store.current_version("issuer:b"), Ok(1));
     }
 
     #[test]

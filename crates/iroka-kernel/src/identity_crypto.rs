@@ -1,7 +1,10 @@
 //! Concrete G01 compact-JWS credential verification.
 //! Only Ed25519 (EdDSA) is accepted. Trust and revocation state are explicit inputs.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -129,6 +132,7 @@ pub enum CredentialError {
     RevokedCredential,
     RevokedKey,
     RevocationUnavailable,
+    RevocationVersionMismatch,
 }
 
 /// Implementations must read authoritative, current revocation state.
@@ -145,6 +149,24 @@ pub trait RevocationChecker: Send + Sync {
         credential_id: &str,
     ) -> Result<bool, RevocationError>;
     fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError>;
+    /// Current issuer-wide revocation epoch. A token issued under an older epoch is invalid.
+    fn current_version(&self, issuer: &str) -> Result<u64, RevocationError>;
+}
+
+impl<T: RevocationChecker + ?Sized> RevocationChecker for Arc<T> {
+    fn credential_revoked(
+        &self,
+        issuer: &str,
+        credential_id: &str,
+    ) -> Result<bool, RevocationError> {
+        (**self).credential_revoked(issuer, credential_id)
+    }
+    fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError> {
+        (**self).key_revoked(issuer, key_id)
+    }
+    fn current_version(&self, issuer: &str) -> Result<u64, RevocationError> {
+        (**self).current_version(issuer)
+    }
 }
 
 #[cfg(any(test, feature = "dev-no-revocations"))]
@@ -157,6 +179,9 @@ impl RevocationChecker for NoRevocations {
     }
     fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
         Ok(false)
+    }
+    fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+        Ok(1)
     }
 }
 
@@ -178,6 +203,7 @@ struct Claims {
     nbf: Option<u64>,
     iat: u64,
     jti: String,
+    rv: u64,
 }
 
 /// Concrete verifier for compact JWS credentials signed by trusted Ed25519 keys.
@@ -273,6 +299,7 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         if claims.iss.trim().is_empty()
             || claims.sub.trim().is_empty()
             || claims.jti.trim().is_empty()
+            || claims.rv == 0
         {
             return Err(CredentialError::Malformed);
         }
@@ -320,9 +347,16 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         {
             return Err(CredentialError::RevokedCredential);
         }
+        let current_version = self
+            .revocations
+            .current_version(&claims.iss)
+            .map_err(|_| CredentialError::RevocationUnavailable)?;
+        if current_version == 0 || claims.rv != current_version {
+            return Err(CredentialError::RevocationVersionMismatch);
+        }
 
         Ok(VerifiedPrincipal::from_verified_credential(
-            claims.sub, claims.iss, claims.jti,
+            claims.sub, claims.iss, claims.jti, header.kid, claims.rv, claims.iat, claims.exp,
         ))
     }
 }
@@ -341,6 +375,9 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
             Ok(false)
         }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+            Ok(1)
+        }
     }
 
     #[derive(Clone, Copy)]
@@ -352,6 +389,23 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
             Ok(true)
         }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+            Ok(1)
+        }
+    }
+
+    #[derive(Clone, Copy)]
+    struct RevocationEpochChanged;
+    impl RevocationChecker for RevocationEpochChanged {
+        fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            Ok(false)
+        }
+        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            Ok(false)
+        }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+            Ok(2)
+        }
     }
 
     #[derive(Clone, Copy)]
@@ -361,6 +415,9 @@ mod tests {
             Err(RevocationError::Unavailable)
         }
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            Err(RevocationError::Unavailable)
+        }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
             Err(RevocationError::Unavailable)
         }
     }
@@ -389,7 +446,7 @@ mod tests {
         let header_json = format!(r#"{{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"{kid}"}}"#);
         let header = URL_SAFE_NO_PAD.encode(header_json.as_bytes());
         let claims_json = format!(
-            r#"{{"iss":"issuer:iroka-test","sub":"principal:42","aud":"iroka-kernel","exp":{exp},"nbf":{issued_at},"iat":{issued_at},"jti":"cred-001"}}"#
+            r#"{{"iss":"issuer:iroka-test","sub":"principal:42","aud":"iroka-kernel","exp":{exp},"nbf":{issued_at},"iat":{issued_at},"jti":"cred-001","rv":1}}"#
         );
         let claims = URL_SAFE_NO_PAD.encode(claims_json.as_bytes());
         let input = format!("{header}.{claims}");
@@ -407,6 +464,10 @@ mod tests {
         assert_eq!(principal.subject(), "principal:42");
         assert_eq!(principal.issuer(), "issuer:iroka-test");
         assert_eq!(principal.credential_id(), "cred-001");
+        assert_eq!(principal.key_id(), "key-2026-a");
+        assert_eq!(principal.revocation_version(), 1);
+        assert_eq!(principal.issued_at(), 1_100);
+        assert_eq!(principal.expires_at(), 4_700);
     }
 
     #[test]
@@ -597,6 +658,15 @@ mod tests {
         assert_eq!(
             key_verifier.authenticate(&token(&signing, "key-2026-a", 4_700), "iroka-kernel", 1_200),
             Err(CredentialError::RevokedKey)
+        );
+    }
+    #[test]
+    fn rejects_credentials_from_a_stale_revocation_epoch() {
+        let (signing, trust) = fixture();
+        let verifier = Ed25519CredentialVerifier::new(trust, RevocationEpochChanged);
+        assert_eq!(
+            verifier.authenticate(&token(&signing, "key-2026-a", 4700), "iroka-kernel", 1200),
+            Err(CredentialError::RevocationVersionMismatch)
         );
     }
 }
