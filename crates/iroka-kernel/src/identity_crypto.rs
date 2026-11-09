@@ -1,7 +1,7 @@
 //! Concrete G01 compact-JWS credential verification.
 //! Only Ed25519 (EdDSA) is accepted. Trust and revocation state are explicit inputs.
 
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -148,6 +148,18 @@ pub trait RevocationChecker: Send + Sync {
     fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError>;
     /// Current issuer-wide revocation epoch. A token issued under an older epoch is invalid.
     fn current_version(&self, issuer: &str) -> Result<u64, RevocationError>;
+}
+
+impl<T: RevocationChecker + ?Sized> RevocationChecker for Arc<T> {
+    fn credential_revoked(&self, issuer: &str, credential_id: &str) -> Result<bool, RevocationError> {
+        (**self).credential_revoked(issuer, credential_id)
+    }
+    fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError> {
+        (**self).key_revoked(issuer, key_id)
+    }
+    fn current_version(&self, issuer: &str) -> Result<u64, RevocationError> {
+        (**self).current_version(issuer)
+    }
 }
 
 #[cfg(any(test, feature = "dev-no-revocations"))]
