@@ -391,3 +391,43 @@ B02 must remain disabled until all of the following are supplied and reconciled 
 A prior Owner-approved D01 decision establishes that IROKA itself owns identity, sessions, tenants, authorization and audit. Tenant membership is server-resolved; client-supplied tenant IDs are selectors only and never authority; tenant binding on a created resource is immutable. AbayFlow is a reference implementation only, not IROKA's source of truth.
 
 This resolves **ownership of the authoritative membership domain**: B02 must implement the tenant-membership authority inside IROKA's shared tenant-authorization layer, not adopt a standalone Conversation-owned directory or depend on AbayFlow. It does not yet supply the production membership lifecycle API, persistence semantics, administrative authorization, revocation behavior, multi-node store or atomic G11 audit integration. Those are B02 implementation requirements, not grounds to invent an external source.
+
+
+## 14. A3-B02 tenant-authority implementation record — 2026-11-09
+
+**Status: tenant-membership sub-slice IMPLEMENTED / exact-HEAD CI VERIFIED; overall B02 remains PARTIAL.**
+
+- PR: https://github.com/akefadaka-git/iroka/pull/28
+- Branch: `feat/brain-a3-b02-tenant-authority`
+- Exact HEAD: `254d46d47a2f221a95c5f6d18a665a336220ddca`
+- Base: `main` at `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`
+- Compare: 9 commits ahead / 0 behind main.
+- Exact-head CI: Rust kernel verification #650 / run ID `42578173071`: SUCCESS.
+
+### Implemented
+
+1. Added Owner-signed `SetTenantMembership` command using the existing G02 Owner-key verifier and replay-protected command envelope.
+2. Membership mutation and security-command ledger entry share one SQLite transaction.
+3. Per-subject/per-tenant versions must strictly increase; stale versions fail closed.
+4. `TenantMembershipResolver` accepts only G01 `VerifiedPrincipal` and resolves a requested tenant selector against the Kernel-owned membership ledger.
+5. Opaque `TenantContext` is constructed only after active membership and freshness checks. Client tenant selectors cannot grant authority.
+6. Negative and positive tests cover owner-signed provisioning, missing membership, tenant spoofing, inactive membership, stale/future timestamps, version rollback and command replay.
+
+### Exact-head verification
+
+- rustfmt: PASS
+- workspace compile (all targets, locked): PASS
+- no-default-features compile: PASS
+- workspace tests: PASS — 77 Kernel tests and 2 conformance tests, zero failures
+- Clippy with warnings denied: PASS
+
+### Remaining B02 blockers
+
+- Policy snapshots remain an in-memory `Policy`; signed policy publication, trusted policy lifecycle, monotonic activation/revocation, rollback protection and emergency-stop persistence are NOT IMPLEMENTED.
+- Membership administration and policy changes are not yet atomically integrated with the G11 append-only audit chain.
+- SQLite is single-node only; multi-node shared transactional authority is NOT IMPLEMENTED.
+- No production Owner key/trust-root provisioning has been performed; only synthetic keys are used in tests.
+- The single composition root binding verified principal → tenant context → active signed policy → Owner approval → G11 audit is NOT IMPLEMENTED.
+- Independent security review and formal A4 verification are NOT RUN.
+
+PR #28 remains OPEN / DRAFT / UNMERGED. No merge, deployment or production activation is authorized. B02 must not be marked closed until all remaining contracts, integration and A4 gates are satisfied.
