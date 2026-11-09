@@ -7,11 +7,12 @@
 //! reverse proxy; it does not terminate TLS itself.
 
 use std::{
+    collections::HashMap,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc,
+        Arc, Condvar, Mutex,
     },
     thread,
     time::{SystemTime, UNIX_EPOCH},
@@ -22,12 +23,74 @@ use serde_json::{json, Value};
 
 use crate::{
     AnswerGenerator, Cancellation, ConversationError, ConversationService, KernelAuthorization,
-    SessionGuard, TenantMembership,
+    SessionGuard, StreamEvent, TenantMembership,
 };
 
 const MAX_HEADER_BYTES: usize = 24 * 1024;
 const MAX_BODY_BYTES: usize = 32 * 1024;
 static REQUEST_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+
+struct GenerationState {
+    events: Mutex<Vec<StreamEvent>>,
+    ready: Condvar,
+    done: std::sync::atomic::AtomicBool,
+    cancellation: Cancellation,
+    created_at: u64,
+}
+impl GenerationState {
+    fn publish(&self, event: StreamEvent) {
+        let terminal = matches!(
+            event,
+            StreamEvent::Completed { .. } | StreamEvent::Cancelled { .. } | StreamEvent::Failed { .. }
+        );
+        if let Ok(mut events) = self.events.lock() {
+            events.push(event);
+            if terminal {
+                self.done.store(true, Ordering::Release);
+            }
+            self.ready.notify_all();
+        }
+    }
+    fn cancel(&self) {
+        self.cancellation.cancel();
+    }
+}
+
+#[derive(Default)]
+struct GenerationHub {
+    states: Mutex<HashMap<String, Arc<GenerationState>>>,
+}
+impl GenerationHub {
+    fn insert(&self, id: &str, created_at: u64) -> Arc<GenerationState> {
+        let state = Arc::new(GenerationState {
+            events: Mutex::new(Vec::new()),
+            ready: Condvar::new(),
+            done: std::sync::atomic::AtomicBool::new(false),
+            cancellation: Cancellation::new(),
+            created_at,
+        });
+        if let Ok(mut states) = self.states.lock() {
+            if states.len() >= 512 {
+                if let Some(oldest) = states.iter().min_by_key(|(_, item)| item.created_at).map(|(key, _)| key.clone()) {
+                    states.remove(&oldest);
+                }
+            }
+            states.insert(id.to_owned(), Arc::clone(&state));
+        }
+        state
+    }
+    fn get(&self, id: &str) -> Option<Arc<GenerationState>> {
+        self.states.lock().ok()?.get(id).cloned()
+    }
+    fn cancel(&self, id: &str) -> bool {
+        if let Some(state) = self.get(id) {
+            state.cancel();
+            true
+        } else {
+            false
+        }
+    }
+}
 
 pub struct G01CookieAuthenticator<R: RevocationChecker> {
     verifier: Ed25519CredentialVerifier<R>,
@@ -76,6 +139,7 @@ where
 {
     service: Arc<ConversationService<T, S, A, G>>,
     authenticator: Arc<G01CookieAuthenticator<R>>,
+    generations: Arc<GenerationHub>,
 }
 impl<T, S, A, G, R> HttpServer<T, S, A, G, R>
 where
@@ -92,6 +156,7 @@ where
         Self {
             service,
             authenticator,
+            generations: Arc::new(GenerationHub::default()),
         }
     }
 
@@ -100,12 +165,14 @@ where
     pub fn serve(self, listener: TcpListener) -> std::io::Result<()> {
         let service = self.service;
         let authenticator = self.authenticator;
+        let generations = self.generations;
         for stream in listener.incoming() {
             let stream = stream?;
             let service = Arc::clone(&service);
             let authenticator = Arc::clone(&authenticator);
+            let generations = Arc::clone(&generations);
             thread::spawn(move || {
-                let _ = handle_connection(stream, &service, &authenticator);
+                let _ = handle_connection(stream, service, authenticator, generations);
             });
         }
         Ok(())
@@ -339,15 +406,16 @@ fn enforce_same_origin(request: &Request) -> Result<(), HttpError> {
 }
 fn handle_connection<T, S, A, G, R>(
     mut stream: TcpStream,
-    service: &ConversationService<T, S, A, G>,
-    authenticator: &G01CookieAuthenticator<R>,
+    service: Arc<ConversationService<T, S, A, G>>,
+    authenticator: Arc<G01CookieAuthenticator<R>>,
+    generations: Arc<GenerationHub>,
 ) -> std::io::Result<()>
 where
-    T: TenantMembership,
-    S: SessionGuard,
-    A: KernelAuthorization,
-    G: AnswerGenerator,
-    R: RevocationChecker,
+    T: TenantMembership + 'static,
+    S: SessionGuard + 'static,
+    A: KernelAuthorization + Send + Sync + 'static,
+    G: AnswerGenerator + 'static,
+    R: RevocationChecker + 'static,
 {
     let request = match read_request(&mut stream) {
         Ok(r) => r,
@@ -367,30 +435,30 @@ where
         Err(error) => return fail(&mut stream, error),
     };
     let correlation_id = correlation();
+    if request.method == "POST"
+        && request.path.starts_with("/api/v1/conversations/")
+        && request.path.ends_with("/turns")
+    {
+        return start_generation(
+            &mut stream, service, principal, session, &request,
+            &correlation_id, now, &generations,
+        );
+    }
     if request.method == "GET" && request.path.starts_with("/api/v1/generations/") {
         return write_sse(
-            &mut stream,
-            service,
-            &principal,
-            &session,
-            &request,
-            &correlation_id,
-            now,
+            &mut stream, &service, &principal, &session, &request,
+            &correlation_id, now, &generations,
         );
     }
     let result = route(
-        &request,
-        service,
-        &principal,
-        &session,
-        &correlation_id,
-        now,
+        &request, &service, &principal, &session, &correlation_id, now, &generations,
     );
     match result {
         Ok((status, body)) => write_json(&mut stream, status, body),
         Err(error) => fail(&mut stream, error),
     }
 }
+
 fn route<T, S, A, G>(
     request: &Request,
     service: &ConversationService<T, S, A, G>,
@@ -398,6 +466,7 @@ fn route<T, S, A, G>(
     session: &str,
     correlation_id: &str,
     now: u64,
+    generations: &GenerationHub,
 ) -> Result<(u16, Value), HttpError>
 where
     T: TenantMembership,
@@ -450,61 +519,6 @@ where
             json!({"messages":turns.iter().map(|t| json!({"id":t.id,"role":t.role,"text":t.content,"state":t.state,"created_at":t.created_at})).collect::<Vec<_>>()}),
         ));
     }
-    if parts.len() == 5
-        && parts[0] == "api"
-        && parts[1] == "v1"
-        && parts[2] == "conversations"
-        && parts[4] == "turns"
-        && request.method == "POST"
-    {
-        let id = parts[3];
-        if !valid_id(id) {
-            return Err(HttpError::BadRequest);
-        }
-        let body = body_json(request)?;
-        let prompt = body
-            .pointer("/input/text")
-            .and_then(Value::as_str)
-            .ok_or(HttpError::BadRequest)?;
-        let locale = body.get("locale").and_then(Value::as_str);
-        let idempotency =
-            header(&request.headers, "idempotency-key").ok_or(HttpError::BadRequest)?;
-        if !valid_id(idempotency) {
-            return Err(HttpError::BadRequest);
-        }
-        let turn_id = format!(
-            "t-{}-{}",
-            now,
-            REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-        );
-        let cancellation = Cancellation::new();
-        let events = service
-            .submit(
-                principal,
-                session,
-                id,
-                &turn_id,
-                idempotency,
-                prompt,
-                locale,
-                correlation_id,
-                now,
-                &cancellation,
-            )
-            .map_err(HttpError::from)?;
-        let assistant_id = format!("{turn_id}:assistant");
-        let text = events
-            .iter()
-            .find_map(|event| match event {
-                crate::StreamEvent::Delta { text, .. } => Some(text.as_str()),
-                _ => None,
-            })
-            .unwrap_or("");
-        return Ok((
-            202,
-            json!({"turn":{"id":assistant_id},"events_url":format!("/api/v1/generations/{assistant_id}/events?conversation_id={id}"),"answer":text}),
-        ));
-    }
     if parts.len() == 7
         && parts[0] == "api"
         && parts[1] == "v1"
@@ -519,6 +533,7 @@ where
             return Err(HttpError::BadRequest);
         }
         let _ = body_json(request)?;
+        generations.cancel(turn_id);
         service
             .cancel_turn(
                 principal,
@@ -534,6 +549,95 @@ where
     Err(HttpError::NotFound)
 }
 
+fn start_generation<T, S, A, G, R>(
+    stream: &mut TcpStream,
+    service: Arc<ConversationService<T, S, A, G>>,
+    principal: iroka_kernel::VerifiedPrincipal,
+    session: String,
+    request: &Request,
+    correlation_id: &str,
+    now: u64,
+    generations: &GenerationHub,
+) -> std::io::Result<()>
+where
+    T: TenantMembership + 'static,
+    S: SessionGuard + 'static,
+    A: KernelAuthorization + Send + Sync + 'static,
+    G: AnswerGenerator + 'static,
+    R: RevocationChecker,
+{
+    let parts: Vec<&str> = request.path.trim_matches('/').split('/').collect();
+    if parts.len() != 5 || parts[0] != "api" || parts[1] != "v1"
+        || parts[2] != "conversations" || parts[4] != "turns" || !valid_id(parts[3]) {
+        return fail(stream, HttpError::NotFound);
+    }
+    let body = match body_json(request) {
+        Ok(value) => value,
+        Err(error) => return fail(stream, error),
+    };
+    let prompt = match body.pointer("/input/text").and_then(Value::as_str) {
+        Some(value) if !value.trim().is_empty() && value.len() <= 16 * 1024 => value.to_owned(),
+        _ => return fail(stream, HttpError::BadRequest),
+    };
+    let locale = body.get("locale").and_then(Value::as_str).map(str::to_owned);
+    let idempotency = match header(&request.headers, "idempotency-key") {
+        Some(value) if valid_id(value) => value.to_owned(),
+        _ => return fail(stream, HttpError::BadRequest),
+    };
+    let conversation_id = parts[3].to_owned();
+    let turn_id = format!("t-{}-{}", now, REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed));
+    let assistant_id = format!("{turn_id}:assistant");
+    let state = generations.insert(&assistant_id, now);
+    let service = Arc::clone(&service);
+    let session_for_worker = session.clone();
+    let correlation_for_worker = correlation_id.to_owned();
+    thread::spawn(move || {
+        let state_for_events = Arc::clone(&state);
+        let result = service.submit_streaming(
+            &principal,
+            &session_for_worker,
+            &conversation_id,
+            &turn_id,
+            &idempotency,
+            &prompt,
+            locale.as_deref(),
+            &correlation_for_worker,
+            now,
+            &state.cancellation,
+            &mut |event| {
+                state_for_events.publish(event);
+                Ok(())
+            },
+        );
+        if let Err(error) = result {
+            let event = if error == ConversationError::Cancelled {
+                StreamEvent::Cancelled { turn_id: assistant_id.clone(), sequence: 0 }
+            } else {
+                StreamEvent::Failed { turn_id: assistant_id.clone(), sequence: 0 }
+            };
+            state.publish(event);
+        }
+    });
+    write_json(
+        stream,
+        202,
+        json!({
+            "turn":{"id":assistant_id},
+            "events_url":format!("/api/v1/generations/{assistant_id}/events?conversation_id={conversation_id}")
+        }),
+    )
+}
+
+fn sse_event(event: &StreamEvent) -> Value {
+    match event {
+        StreamEvent::Accepted { turn_id, sequence } => json!({"type":"generation.accepted","payload":{"turn_id":turn_id,"sequence":sequence}}),
+        StreamEvent::Delta { turn_id, sequence, text } => json!({"type":"message.delta","payload":{"turn_id":turn_id,"sequence":sequence,"text":text}}),
+        StreamEvent::Completed { turn_id, sequence } => json!({"type":"generation.completed","payload":{"turn_id":turn_id,"sequence":sequence}}),
+        StreamEvent::Cancelled { turn_id, sequence } => json!({"type":"generation.interrupted","payload":{"turn_id":turn_id,"sequence":sequence}}),
+        StreamEvent::Failed { turn_id, sequence } => json!({"type":"generation.failed","payload":{"turn_id":turn_id,"sequence":sequence}}),
+    }
+}
+
 fn write_sse<T, S, A, G>(
     stream: &mut TcpStream,
     service: &ConversationService<T, S, A, G>,
@@ -542,6 +646,7 @@ fn write_sse<T, S, A, G>(
     request: &Request,
     correlation_id: &str,
     now: u64,
+    generations: &GenerationHub,
 ) -> std::io::Result<()>
 where
     T: TenantMembership,
@@ -550,13 +655,8 @@ where
     G: AnswerGenerator,
 {
     let parts: Vec<&str> = request.path.trim_matches('/').split('/').collect();
-    if parts.len() != 5
-        || parts[0] != "api"
-        || parts[1] != "v1"
-        || parts[2] != "generations"
-        || parts[4] != "events"
-        || !valid_id(parts[3])
-    {
+    if parts.len() != 5 || parts[0] != "api" || parts[1] != "v1"
+        || parts[2] != "generations" || parts[4] != "events" || !valid_id(parts[3]) {
         return fail(stream, HttpError::NotFound);
     }
     let conversation_id = request.query.split('&').find_map(|pair| {
@@ -570,24 +670,52 @@ where
         Ok(value) => value,
         Err(error) => return fail(stream, HttpError::from(error)),
     };
-    let Some(turn) = turns
-        .iter()
-        .find(|turn| turn.id == parts[3] && turn.role == "assistant")
-    else {
+    if !turns.iter().any(|turn| turn.id == parts[3] && turn.role == "assistant") {
         return fail(stream, HttpError::NotFound);
-    };
-    write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\nCache-Control: no-store, no-transform\r\nX-Content-Type-Options: nosniff\r\nX-Accel-Buffering: no\r\nConnection: close\r\n\r\n")?;
-    if turn.state == "completed" {
-        let delta = json!({"type":"message.delta","payload":{"text":turn.content}});
-        writeln!(stream, "data: {}\n", delta)?;
-        let done = json!({"type":"generation.completed","payload":{"turn_id":turn.id}});
-        writeln!(stream, "data: {}\n", done)?;
-    } else if turn.state == "cancelled" {
-        let stopped = json!({"type":"generation.interrupted","payload":{"turn_id":turn.id}});
-        writeln!(stream, "data: {}\n", stopped)?;
-    } else {
-        let failed = json!({"type":"generation.failed","payload":{"turn_id":turn.id}});
-        writeln!(stream, "data: {}\n", failed)?;
+    }
+    write!(stream, "HTTP/1.1 200 OK\\r\\nContent-Type: text/event-stream; charset=utf-8\\r\\nCache-Control: no-store, no-transform\\r\\nX-Content-Type-Options: nosniff\\r\\nX-Accel-Buffering: no\\r\\nConnection: close\\r\\n\\r\\n")?;
+    if let Some(state) = generations.get(parts[3]) {
+        let mut index = 0usize;
+        loop {
+            let mut events = match state.events.lock() {
+                Ok(value) => value,
+                Err(_) => return Ok(()),
+            };
+            while index >= events.len() && !state.done.load(Ordering::Acquire) {
+                let waited = state.ready.wait_timeout(events, std::time::Duration::from_secs(15));
+                match waited {
+                    Ok((guard, timeout)) => {
+                        events = guard;
+                        if timeout.timed_out() && index >= events.len() {
+                            drop(events);
+                            stream.write_all(b": keep-alive\\n\\n")?;
+                            continue;
+                        }
+                    }
+                    Err(_) => return Ok(()),
+                }
+            }
+            let batch = events[index..].to_vec();
+            index = events.len();
+            let done = state.done.load(Ordering::Acquire);
+            drop(events);
+            for event in &batch {
+                writeln!(stream, "data: {}\\n", sse_event(event))?;
+            }
+            stream.flush()?;
+            if done && index >= batch.len() {
+                break;
+            }
+        }
+    } else if let Some(turn) = turns.iter().find(|turn| turn.id == parts[3]) {
+        if turn.state == "completed" {
+            writeln!(stream, "data: {}\\n", json!({"type":"message.delta","payload":{"text":turn.content}}))?;
+            writeln!(stream, "data: {}\\n", json!({"type":"generation.completed","payload":{"turn_id":turn.id}}))?;
+        } else if turn.state == "cancelled" {
+            writeln!(stream, "data: {}\\n", json!({"type":"generation.interrupted","payload":{"turn_id":turn.id}}))?;
+        } else {
+            writeln!(stream, "data: {}\\n", json!({"type":"generation.failed","payload":{"turn_id":turn.id}}))?;
+        }
     }
     stream.flush()
 }
