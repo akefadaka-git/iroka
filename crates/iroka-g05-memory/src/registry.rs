@@ -155,14 +155,16 @@ impl SqliteG05AuthorityRegistry {
             || reviewer_key_ref.trim().is_empty() || reviewer_key_ref.len()>512
             || designation_ref.trim().is_empty() || designation_ref.len()>512 || version==0 || valid_from>now
             || valid_until<=now || valid_until<=valid_from {return Err(G05Error::MalformedRecord);}
-        g01.validate_reviewer_key_binding(reviewer_ref,reviewer_key_ref,now)?;
         let req=AuthorizationRequest{operation:Operation::DesignateReviewer,
             principal_ref:actor.subject().into(),tenant_ref:tenant.tenant_id().into(),
             subject_ref:organization_ref.into(),purpose:Purpose::OrganizationalContext,
             classification:Classification::Confidential,memory_id:None,
             recipient_refs:vec![reviewer_ref.into()],correlation_ref:designation_ref.into()};
+        // Authorize the actor and organization scope before resolving the target
+        // reviewer's identity/key binding; denied callers must not probe G01.
         g02.authorize_g05(&req)?;
         g02.authorize_organization_scope(&req, organization_ref)?;
+        g01.validate_reviewer_key_binding(reviewer_ref,reviewer_key_ref,now)?;
         let mut c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
         let high:Option<i64>=tx.query_row("SELECT MAX(version) FROM g05_reviewer_designations
