@@ -233,6 +233,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "ed25519-dalek",
+ "getrandom",
  "rusqlite",
  "serde",
  "serde_jcs",
