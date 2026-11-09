@@ -99,7 +99,9 @@ fn parse_cargo_lock(path: &str, content: &str) -> LockfileAnalysis {
     if result.packages.is_empty() {
         result.analysis_partial = true;
     }
-    result.packages.sort_by(|left, right| left.package_id.cmp(&right.package_id));
+    result
+        .packages
+        .sort_by(|left, right| left.package_id.cmp(&right.package_id));
     result
 }
 
@@ -365,7 +367,10 @@ version = "1.0.200"
         let result = analyze_lockfile("composer.lock", lock);
         assert!(!result.analysis_partial);
         assert_eq!(result.packages.len(), 1);
-        assert_eq!(result.packages[0].dependencies, vec!["php@^8.2", "vendor/other@^2.0"]);
+        assert_eq!(
+            result.packages[0].dependencies,
+            vec!["php@^8.2", "vendor/other@^2.0"]
+        );
     }
 
     #[test]
