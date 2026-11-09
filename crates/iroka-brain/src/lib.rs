@@ -334,6 +334,13 @@ impl TaskEnvelope {
         {
             return Err(ValidationError::TrustedContextUnavailable);
         }
+        if self
+            .input_refs
+            .iter()
+            .any(|item| item.reference.trim().is_empty() || item.purpose.trim().is_empty())
+        {
+            return Err(ValidationError::InvalidInputReference);
+        }
         if !self.input_refs.is_empty() {
             return Err(ValidationError::DomainAdapterUnavailable);
         }
@@ -348,13 +355,6 @@ impl TaskEnvelope {
             || limits.allow_protected_effects
         {
             return Err(ValidationError::ForbiddenCapabilityFlag);
-        }
-        if self
-            .input_refs
-            .iter()
-            .any(|item| item.reference.trim().is_empty() || item.purpose.trim().is_empty())
-        {
-            return Err(ValidationError::InvalidInputReference);
         }
         Ok(())
     }
