@@ -21,6 +21,8 @@ The new `iroka-g05-memory` Rust workspace crate provides:
 - A lifecycle transition matrix that does not permit direct or implicit durable activation.
 - Governance and repository adapter traits documenting G01/tenant/G02/reviewer/G11 boundaries and authorization-before-content-access requirements.
 - Durable activation preflight delegates cryptographic approval and designated-reviewer verification to the trusted governance port; reviewer authority is resolved by that adapter rather than a caller-supplied organizational flag.
+- Two-phase retrieval authorization: G02 preflight before metadata lookup, then authorization against stored tenant/subject/purpose/classification/state/expiry before content access.
+- Metadata-only repository return type excludes content; mutation repository methods require an atomic G11 outbox event.
 - Episodic capture preflight verifies opt-in through the trusted governance port; an opt-in reference alone is not treated as consent.
 - Synthetic unit tests for the core invariants.
 
@@ -46,7 +48,7 @@ The crate deliberately does not implement identity verification, tenant resoluti
 4. No atomic G11 outbox/transaction adapter. A G05 mutation cannot be reported complete until its required audit guarantee is met.
 5. Personal inspection, correction, deletion, retention holds, expiry workers, idempotency and recovery workflows are not yet implemented.
 6. No production source ingestion or real-user data is permitted in this stage.
-7. The code has not yet passed exact-HEAD CI; A4 security review is not run. The crate currently contains 12 synthetic unit tests.
+7. The code has not yet passed exact-HEAD CI; A4 security review is not run. The crate currently contains 13 synthetic unit tests.
 
 ## Required next work
 
