@@ -848,4 +848,37 @@ mod tests {
         assert!(!valid_id("a/b"));
         assert!(!valid_id(""));
     }
+    #[test]
+    fn generation_hub_publishes_terminal_state_and_propagates_cancel() {
+        let hub = GenerationHub::default();
+        let state = hub.insert("turn-1", 10).unwrap();
+        state
+            .publish(StreamEvent::Accepted {
+                turn_id: "turn-1".into(),
+                sequence: 1,
+            })
+            .unwrap();
+        assert!(!state.done.load(Ordering::Acquire));
+        assert!(hub.cancel("turn-1"));
+        assert!(state.cancellation.is_cancelled());
+        state
+            .publish(StreamEvent::Cancelled {
+                turn_id: "turn-1".into(),
+                sequence: 2,
+            })
+            .unwrap();
+        assert!(state.done.load(Ordering::Acquire));
+        assert!(!hub.cancel("turn-1"));
+    }
+
+    #[test]
+    fn sse_delta_preserves_utf8_payload_and_event_type() {
+        let value = sse_event(&StreamEvent::Delta {
+            turn_id: "turn-1:assistant".into(),
+            sequence: 2,
+            text: "ሰላም".into(),
+        });
+        assert_eq!(value["type"], "message.delta");
+        assert_eq!(value["payload"]["text"], "ሰላም");
+    }
 }
