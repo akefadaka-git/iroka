@@ -236,6 +236,8 @@ pub struct AuthorizationRequest {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AuditEvent {
+    /// Stable outbox identifier; G11 sinks must deduplicate on this value.
+    pub event_id: String,
     pub event_type: String,
     pub memory_id: String,
     pub tenant_ref: String,
@@ -1091,6 +1093,7 @@ mod tests {
     #[test]
     fn audit_event_has_no_content_field() {
         let event = AuditEvent {
+            event_id: "event:memory-created:1".to_owned(),
             event_type: "memory.created".to_owned(),
             memory_id: "memory:1".to_owned(),
             tenant_ref: "tenant:1".to_owned(),
