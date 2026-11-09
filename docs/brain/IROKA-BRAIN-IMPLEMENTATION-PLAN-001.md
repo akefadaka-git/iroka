@@ -172,3 +172,57 @@ A5 is not included in this work authorization. A future release proposal must in
 - Every new implementation increment must be isolated, reviewable and exact-SHA verifiable.
 
 **Disposition:** planning only. A1 is VERIFIED-CLOSED / FROZEN by D2. A2 remains PARTIAL; the A2 cognitive contract proposal is not yet Owner-approved. A3 implementation is NOT AUTHORIZED and requires separate explicit Owner authorization after A2 closure. A4 verification and A5 release remain separate gates.
+
+
+---
+
+## 10. Owner decision update — A2 approved; broader A3 proposed (2026-11-09)
+
+**A2:** Owner approved `IROKA-BRAIN-A2-COGNITIVE-CONTRACTS-001.md` v1.0.0. The A2 design/contract gate is VERIFIED-CLOSED. This does not close implementation readiness for adapters whose authoritative contracts or branch ancestry remain unresolved.
+
+**A3 direction:** broader cross-domain cognitive runtime integration, not a G03-only isolated demonstration. The following work packages are proposed in dependency order:
+
+| Work package | Scope | Mandatory entry condition / boundary |
+|---|---|---|
+| A3-B01 — Cognitive core | Rust G03 task/result envelopes, bounded reasoning loop, deterministic planner, critic, abstention, typed errors, correlation and resource accounting | Build against approved A2 contracts; synthetic fixtures and deterministic fake model only |
+| A3-B02 — Trusted composition | Integrate verified principal, tenant context, policy decision, revocation and audit through the authoritative Kernel | Exact Kernel baseline and G01/G02 interfaces pinned; no caller-derived tenant or policy authority |
+| A3-B03 — Knowledge/evidence | G04 retrieval/evidence adapter, provenance, freshness and conflict handling | Exact G04 contract and source provenance verified; no G03-owned knowledge store |
+| A3-B04 — Memory | G05 context retrieval/write-request adapter with consent, classification, retention and deletion semantics | Exact G05 API and policy lifecycle verified; no duplicate memory persistence |
+| A3-B05 — Perception | G06 normalized observation adapter and untrusted-content handling | Exact G06 interface and modality safety contracts verified; no G03-owned media pipeline |
+| A3-B06 — Conversation integration | Reconcile the existing CIW implementation as a candidate; integrate G03 gateway and browser/API surfaces only after security review and branch-lineage resolution | PR #23 is a candidate, not an adopted baseline; exact diff and ancestry must be reconciled against current main |
+| A3-B07 — Durable orchestration | G08 task/workflow adapter for long-running cognitive tasks, cancellation and recovery | G08 contract approval, tenant context and branch ancestry resolved; no G09 execution |
+| A3-B08 — Evaluation and assurance | G10 evaluation harness, Amharic/English synthetic conformance, G11 evidence export and independent-review handoff | Corpus licences and benchmark workload approved before real data or release thresholds; G03 critique is never independent assurance |
+| A3-B09 — Evolution boundary | G12 version/change proposal metadata and compatibility checks | G12 remains the sole evolution/release authority; G03 cannot self-approve or self-deploy |
+
+### 10.1 Global A3 restrictions
+
+- No duplicate identity, trust, tenant, policy, approval, audit, knowledge, memory, perception, orchestration, execution, assurance or evolution authority.
+- No G07 agent delegation, G09 protected effects, tool execution, autonomous external actions or production data in this A3 scope.
+- No external/paid model provider activation. Use deterministic fake adapters until a separately approved provider/data-flow/cost review.
+- No unlicensed or unverified Amharic corpus. Synthetic data only until source-by-source approval.
+- Every work package has its own exact base SHA, branch, acceptance tests, workflow evidence and rollback boundary.
+- Existing PRs/branches are read-only inputs unless separately authorized. No rebasing, force-push, merge, branch deletion or deployment under this plan.
+
+### 10.2 A3 sequencing and stop conditions
+
+1. **B01 first:** implement the isolated cognitive core only after separate A3 authorization.
+2. **B02 before authenticated integration:** if Kernel/tenant/policy contracts cannot be pinned, keep the core offline and deny authenticated execution.
+3. **B03–B05 adapters:** each adapter is independently blocked until its owner contract is exact and verified; unavailable domains produce typed abstention.
+4. **B06 CIW:** do not transplant the current PR #23 branch wholesale. Its head is 172 commits ahead and 22 commits behind current main, with a stale base; conduct file-level provenance/security review and create a clean integration branch only after Owner-approved baseline selection.
+5. **B07 orchestration:** no G08 composition until tenant-context and lineage blockers are resolved.
+6. **B08/B09:** quality, assurance and evolution evidence are mandatory before A4; they do not confer release authority.
+
+A failed dependency gate stops only the dependent work package; it does not justify bypassing or duplicating the authoritative domain.
+
+### 10.3 Current stage status
+
+| Gate | Status |
+|---|---|
+| A1 | VERIFIED-CLOSED / FROZEN |
+| A2 | VERIFIED-CLOSED — design/contracts only |
+| A3 scope | BROADER PROPOSAL RECORDED; implementation authorization still required |
+| A3 implementation | NOT STARTED / NOT AUTHORIZED |
+| A4 | NOT RUN |
+| A5 | NOT AUTHORIZED |
+
+**No merge, deployment, production activation, signing, publication or paid-service activation is authorized.**
