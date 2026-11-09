@@ -87,7 +87,9 @@ pub fn collect_snapshot(
     walk_directory(&root, &root, 0, &ignore_rules, limits, &mut collection);
     collection.files.sort_by(|left, right| left.path.cmp(&right.path));
     collection.issues.sort_by(|left, right| {
-        left.path.cmp(&right.path).then_with(|| format!("{:?}", left.kind).cmp(&format!("{:?}", right.kind)))
+        left.path
+            .cmp(&right.path)
+            .then_with(|| format!("{:?}", left.kind).cmp(&format!("{:?}", right.kind)))
     });
     Ok(collection)
 }
@@ -157,21 +159,26 @@ fn walk_directory(
             return;
         }
     };
-    let mut entries: Vec<_> = entries.filter_map(Result::ok).collect();
+    let mut entries: Vec<std::fs::DirEntry> = Vec::new();
+    for entry in entries {
+        match entry {
+            Ok(entry) => entries.push(entry),
+            Err(_) => collection.issues.push(SnapshotIssue {
+                path: relative_path(root, directory),
+                kind: SnapshotIssueKind::ReadError,
+            }),
+        }
+    }
     entries.sort_by_key(std::fs::DirEntry::file_name);
 
     for entry in entries {
         let path = entry.path();
         let Some(relative) = relative_path(root, &path) else {
-            collection.issues.push(SnapshotIssue { path: None, kind: SnapshotIssueKind::ReadError });
-            continue;
-        };
-        if collection.files.len() >= limits.max_files {
             collection.issues.push(SnapshotIssue {
-                path: Some(relative),
-                kind: SnapshotIssueKind::FileLimitExceeded,
+                path: None,
+                kind: SnapshotIssueKind::ReadError,
             });
-            return;
+            continue;
         }
         let metadata = match fs::symlink_metadata(&path) {
             Ok(metadata) => metadata,
@@ -214,6 +221,13 @@ fn walk_directory(
         }
         if is_ignored(&relative, ignore_rules) {
             continue;
+        }
+        if collection.files.len() >= limits.max_files {
+            collection.issues.push(SnapshotIssue {
+                path: Some(relative),
+                kind: SnapshotIssueKind::FileLimitExceeded,
+            });
+            return;
         }
         if metadata.len() > limits.max_file_bytes as u64 {
             collection.issues.push(SnapshotIssue {
