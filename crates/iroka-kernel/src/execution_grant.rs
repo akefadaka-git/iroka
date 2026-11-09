@@ -417,6 +417,7 @@ fn scope_digest(
     expires_at: u64,
 ) -> [u8; 32] {
     let resource = scope.resource();
+    let risk = format!("{:?}", scope.risk);
     let fields = [
         scope.subject.as_str(),
         scope.capability.as_str(),
@@ -424,7 +425,7 @@ fn scope_digest(
         scope.source_revision.as_str(),
         scope.sandbox_id.as_str(),
         scope.action_digest.as_str(),
-        format!("{:?}", scope.risk).as_str(),
+        risk.as_str(),
         scope.policy_version.as_str(),
         resource.as_str(),
         decision_id,
