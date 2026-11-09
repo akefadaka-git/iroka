@@ -748,7 +748,7 @@ require (
             vec![
                 SnapshotFile::new("a.rs", "1234"),
                 SnapshotFile::new("b.rs", "12345"),
-                SnapshotFile::new("c.rs", "1"),
+                SnapshotFile::new("c.rs", "123"),
             ],
             &registry(),
             limits,
