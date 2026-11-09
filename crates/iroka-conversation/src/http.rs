@@ -727,7 +727,7 @@ where
             &correlation_for_worker,
             now,
             &live_clock,
-            &state.cancellation,
+            &state_for_worker.cancellation,
             &mut |event| state_for_events.publish(event),
         );
         if let Err(error) = result {
