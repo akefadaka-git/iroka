@@ -495,6 +495,25 @@ mod tests {
     }
 
     #[test]
+    fn active_policy_is_unavailable_after_its_owner_key_is_revoked() {
+        let (signer, verifier, store, audit) = fixture();
+        let active = signed(&signer, 1, false);
+        PolicyActivationCoordinator::activate(&verifier, &audit, &active, 1_200).unwrap();
+        store
+            .revoke_key(
+                "iroka:owner-authority",
+                "owner-key-policy",
+                1_250,
+                "incident response",
+            )
+            .unwrap();
+        assert_eq!(
+            PolicyActivationCoordinator::load_active(&verifier, 1_251).unwrap_err(),
+            PolicyLifecycleError::Revoked
+        );
+    }
+
+    #[test]
     fn owner_signed_revocation_is_audited_before_policy_is_disabled() {
         let (signer, verifier, _store, audit) = fixture();
         let active = signed(&signer, 1, false);
@@ -515,15 +534,25 @@ mod tests {
             .to_bytes()
             .to_vec();
         let command = crate::SignedOwnerSecurityCommand::from_signature(payload, signature);
-        verifier
-            .revoke_policy_snapshot(&command, &audit, 1_350)
-            .unwrap();
+        audit.force_append_failure(true).unwrap();
+        assert_eq!(
+            verifier.revoke_policy_snapshot(&command, &audit, 1_350),
+            Err(OwnerApprovalError::StoreUnavailable)
+        );
         assert_eq!(
             PolicyActivationCoordinator::load_active(&verifier, 1_351).unwrap_err(),
             PolicyLifecycleError::Inactive
         );
+        audit.force_append_failure(false).unwrap();
         verifier
             .revoke_policy_snapshot(&command, &audit, 1_352)
+            .unwrap();
+        assert_eq!(
+            PolicyActivationCoordinator::load_active(&verifier, 1_353).unwrap_err(),
+            PolicyLifecycleError::Inactive
+        );
+        verifier
+            .revoke_policy_snapshot(&command, &audit, 1_354)
             .unwrap();
         assert_eq!(audit.head().unwrap().0, 2);
     }
