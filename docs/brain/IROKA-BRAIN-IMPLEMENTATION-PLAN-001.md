@@ -486,3 +486,44 @@ A follow-up review found that the pre-existing Owner-key revocation check in `ap
 - Independent security review and formal A4 acceptance are NOT RUN. Passing CI is not A4 assurance.
 
 PR #29 remains OPEN / DRAFT / UNMERGED and depends on PR #28. No merge, deployment, production key provisioning or production policy activation is authorized.
+
+
+## 14.3 A3-B02 end-to-end tenant authorization composition — exact-HEAD CI verified
+
+**Status: composition increment IMPLEMENTED / exact-HEAD CI VERIFIED; overall B02 remains PARTIAL.**
+
+- PR: https://github.com/akefadaka-git/iroka/pull/30
+- Branch: `feat/brain-a3-b02-authorization-composition`
+- Base: `feat/brain-a3-b02-signed-policy-lifecycle` (PR #29 head `7e925e49383864944ecad3eea7b790e3f3bc031d`)
+- Exact HEAD: `d5d519ee8b29e9cf8c618b3b357825e7740fe86a`
+- Exact-head workflow: [Rust kernel verification #702](https://github.com/akefadaka-git/iroka/actions/runs/42604550515), run ID `42604550515`: SUCCESS.
+
+### Implemented
+
+1. Added the public `authorize_compact_in_tenant` composition entry point: compact G01 credential verification → opaque principal → IROKA-owned tenant membership resolution → active Owner-signed G02 policy → optional one-time Owner approval → G11 decision audit.
+2. The composition obtains its `TenantMembershipResolver` from the same security store owned by the `OwnerApprovalVerifier`; it does not accept a caller-selected membership store.
+3. Client-supplied tenant ID remains a selector only. No caller-provided principal, tenant context or policy is accepted.
+4. Invalid credentials, subject mismatch, malformed/missing/inactive/stale membership, tenant-store unavailability and unavailable active policy produce explicit fail-closed decisions.
+5. Post-resolution audit correlation binds the resolved tenant ID and membership version into the existing G11 hash-chained event envelope.
+6. Tenant-specific policy partitioning is not claimed: this increment deliberately uses the single global active policy defined by PR #29.
+7. G09 remains separate. ALLOW is a decision only and cannot be used as a protected-effect execution grant.
+
+### Exact-head verification
+
+- rustfmt: PASS.
+- `cargo check --workspace --all-targets --locked`: PASS.
+- `cargo check --workspace --all-targets --no-default-features`: PASS.
+- `cargo test --workspace --all-targets --locked`: PASS — 92 Kernel tests + 2 conformance tests, zero failures.
+- Clippy with warnings denied: PASS.
+
+The repository CI workflow did not include nested stacked-PR base branches in its pull-request trigger. PR #30 was temporarily targeted at `main` solely to run the workflow against the exact PR head; the workflow checked out `d5d519ee8b29e9cf8c618b3b357825e7740fe86a`. Its base was then restored to PR #29's branch. No merge or change to `main` occurred.
+
+### Remaining B02 blockers
+
+- Tenant resolution and decision evaluation are not one cross-domain transaction. G09 must revalidate the membership version and active policy immediately before a protected effect.
+- Tenant-specific policy selection/partitioning remains undefined.
+- SQLite remains single-node; shared multi-node transactional persistence and cross-node recovery are NOT IMPLEMENTED.
+- Production Owner-key ceremony/provisioning, live policy activation, external G11 checkpoint anchoring and production recovery drills are NOT DONE.
+- Independent security review and formal A4 acceptance are NOT RUN. CI is not A4 assurance.
+
+PR #30 remains OPEN / DRAFT / UNMERGED and depends on PR #29, which depends on PR #28. B02 remains PARTIAL. No merge, deployment, production key provisioning or production activation is authorized.
