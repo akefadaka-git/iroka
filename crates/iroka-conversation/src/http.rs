@@ -70,7 +70,7 @@ impl<T, S, A, G, R> HttpServer<T, S, A, G, R>
 where
     T: TenantMembership + 'static,
     S: SessionGuard + 'static,
-    A: KernelAuthorization + 'static,
+    A: KernelAuthorization + Send + Sync + 'static,
     G: AnswerGenerator + 'static,
     R: RevocationChecker + 'static,
 {
@@ -323,7 +323,7 @@ where
         let events = service.submit(principal, session, id, &turn_id, idempotency, prompt, locale, correlation_id, now, &cancellation).map_err(HttpError::from)?;
         let assistant_id = format!("{turn_id}:assistant");
         let text = events.iter().find_map(|event| match event { crate::StreamEvent::Delta { text, .. } => Some(text.as_str()), _ => None }).unwrap_or("");
-        Ok((202, json!({"turn":{"id":assistant_id},"events_url":format!("/api/v1/generations/{assistant_id}/events"),"answer":text})))
+        Ok((202, json!({"turn":{"id":assistant_id},"events_url":format!("/api/v1/generations/{assistant_id}/events?conversation_id={id}"),"answer":text})))
     }
     if parts.len() == 7 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "conversations" && parts[4] == "turns" && parts[6] == "cancel" && request.method == "POST" {
         let conversation_id = parts[3]; let turn_id = parts[5];
@@ -366,18 +366,18 @@ where
     let Some(turn) = turns.iter().find(|turn| turn.id == parts[3] && turn.role == "assistant") else {
         return fail(stream, HttpError::NotFound);
     };
-    write!(stream, "HTTP/1.1 200 OK\\r\\nContent-Type: text/event-stream; charset=utf-8\\r\\nCache-Control: no-store, no-transform\\r\\nX-Content-Type-Options: nosniff\\r\\nX-Accel-Buffering: no\\r\\nConnection: close\\r\\n\\r\\n")?;
+    write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\nCache-Control: no-store, no-transform\r\nX-Content-Type-Options: nosniff\r\nX-Accel-Buffering: no\r\nConnection: close\r\n\r\n")?;
     if turn.state == "completed" {
         let delta = json!({"type":"message.delta","payload":{"text":turn.content}});
-        writeln!(stream, "data: {}\\n", delta)?;
+        writeln!(stream, "data: {}\n", delta)?;
         let done = json!({"type":"generation.completed","payload":{"turn_id":turn.id}});
-        writeln!(stream, "data: {}\\n", done)?;
+        writeln!(stream, "data: {}\n", done)?;
     } else if turn.state == "cancelled" {
         let stopped = json!({"type":"generation.interrupted","payload":{"turn_id":turn.id}});
-        writeln!(stream, "data: {}\\n", stopped)?;
+        writeln!(stream, "data: {}\n", stopped)?;
     } else {
         let failed = json!({"type":"generation.failed","payload":{"turn_id":turn.id}});
-        writeln!(stream, "data: {}\\n", failed)?;
+        writeln!(stream, "data: {}\n", failed)?;
     }
     stream.flush()
 }
