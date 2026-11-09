@@ -352,6 +352,8 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
             claims.jti,
             header.kid,
             claims.rv,
+            claims.iat,
+            claims.exp,
         ))
     }
 }
