@@ -179,7 +179,7 @@ impl PolicyActivationCoordinator {
             format!("policy-epoch:{}", verified.epoch()),
             verified.version(),
             DecisionCode::Allow,
-            now,
+            verified.payload.issued_at,
         );
         audit.append_event_idempotent(&event).map_err(|_| PolicyLifecycleError::AuditUnavailable)?;
         store.activate_policy_snapshot(verified.epoch(), &verified.digest, now).map_err(map_store_error)?;
@@ -226,4 +226,153 @@ pub(crate) fn canonical_payload_and_digest(
     let bytes = serde_jcs::to_vec(payload).map_err(|_| PolicyLifecycleError::Malformed)?;
     let digest = Sha256::digest(&bytes).into();
     Ok((bytes, digest))
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{OwnerApprovalError, TrustedOwnerKey};
+    use ed25519_dalek::{Signer, SigningKey};
+    use std::sync::Arc;
+
+    fn fixture() -> (SigningKey, OwnerApprovalVerifier, Arc<SqliteSecurityStore>, SqliteAuditSink) {
+        let signer = SigningKey::from_bytes(&[83u8; 32]);
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let verifier = OwnerApprovalVerifier::new(vec![TrustedOwnerKey {
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-policy".into(),
+            public_key: signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 10_000,
+        }], Arc::clone(&store)).unwrap();
+        let audit = SqliteAuditSink::open_in_memory().unwrap();
+        (signer, verifier, store, audit)
+    }
+
+    fn payload(epoch: u64, emergency_stop_active: bool) -> PolicySnapshotPayload {
+        PolicySnapshotPayload {
+            schema_id: "iroka.g02.policy-snapshot".into(),
+            contract_version: "1.0".into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-policy".into(),
+            policy_epoch: epoch,
+            policy_version: format!("policy-{epoch}"),
+            allowed_capabilities: vec!["finance.read".into(), "workspace.read".into()],
+            approval_required: vec!["finance.read".into()],
+            maximum_risk: RiskLevel::High,
+            emergency_stop_active,
+            issued_at: 1_100 + epoch,
+            expires_at: 2_000 + epoch,
+        }
+    }
+
+    fn signed(signer: &SigningKey, epoch: u64, emergency: bool) -> SignedPolicySnapshot {
+        let payload = payload(epoch, emergency);
+        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        SignedPolicySnapshot::from_signature(payload, signature)
+    }
+
+    #[test]
+    fn policy_signatures_use_jcs_and_domain_separation() {
+        let p = payload(1, false);
+        let canonical = serde_jcs::to_vec(&p).unwrap();
+        let signing = p.signing_bytes().unwrap();
+        assert!(signing.starts_with(DOMAIN));
+        assert_eq!(&signing[DOMAIN.len()..], canonical.as_slice());
+        assert_ne!(signing, serde_json::to_vec(&p).unwrap());
+    }
+
+    #[test]
+    fn owner_signed_policy_is_audited_before_activation_and_loads_verified() {
+        let (signer, verifier, store, audit) = fixture();
+        let signed = signed(&signer, 1, true);
+        let active = PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200).unwrap();
+        assert_eq!(active.epoch, 1);
+        assert!(active.emergency_stop_active);
+        assert!(active.policy.allows_capability("workspace.read"));
+        assert_eq!(audit.head().unwrap().0, 1);
+        let loaded = PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap();
+        assert_eq!(loaded.epoch, 1);
+        assert!(loaded.emergency_stop_active);
+        assert_eq!(loaded.digest, active.digest);
+    }
+
+    #[test]
+    fn identical_activation_retry_is_idempotent() {
+        let (signer, verifier, store, audit) = fixture();
+        let signed = signed(&signer, 1, false);
+        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_250).unwrap();
+        assert_eq!(audit.head().unwrap().0, 1);
+    }
+
+    #[test]
+    fn pending_snapshot_is_not_active_before_g11_confirmation() {
+        let (signer, verifier, store, _audit) = fixture();
+        let signed = signed(&signer, 1, false);
+        let verified = verifier.verify_policy_snapshot(&signed, 1_200).unwrap();
+        store.stage_policy_snapshot(
+            verified.epoch(), &verified.digest, &verified.canonical_payload, &verified.signature,
+            "owner:akefa", "owner-key-policy", "policy-1", 1_101, 2_001, false, 1_200,
+        ).unwrap();
+        assert_eq!(
+            PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap_err(),
+            PolicyLifecycleError::Inactive
+        );
+    }
+
+    #[test]
+    fn policy_epochs_are_monotonic_and_same_epoch_conflicts_fail() {
+        let (signer, verifier, store, audit) = fixture();
+        let first = signed(&signer, 1, false);
+        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &first, 1_200).unwrap();
+        let second = signed(&signer, 2, true);
+        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &second, 1_300).unwrap();
+        assert_eq!(
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &first, 1_301).unwrap_err(),
+            PolicyLifecycleError::Rollback
+        );
+        let conflict_payload = payload(2, false);
+        let conflict_signature = signer.sign(&conflict_payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let conflict = SignedPolicySnapshot::from_signature(conflict_payload, conflict_signature);
+        assert_eq!(
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &conflict, 1_302).unwrap_err(),
+            PolicyLifecycleError::ConflictingEpoch
+        );
+    }
+
+    #[test]
+    fn invalid_signature_expiry_and_revoked_owner_key_fail_closed() {
+        let (signer, verifier, store, audit) = fixture();
+        let mut bad = signed(&signer, 1, false);
+        bad.signature[0] ^= 0x80;
+        assert_eq!(
+            verifier.verify_policy_snapshot(&bad, 1_200).unwrap_err(),
+            OwnerApprovalError::InvalidSignature
+        );
+        let expired = signed(&signer, 2, false);
+        assert_eq!(
+            verifier.verify_policy_snapshot(&expired, 3_000).unwrap_err(),
+            OwnerApprovalError::Expired
+        );
+        store.revoke_key("iroka:owner-authority", "owner-key-policy", 1_250, "test revocation").unwrap();
+        let valid = signed(&signer, 3, false);
+        assert_eq!(
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &valid, 1_300).unwrap_err(),
+            PolicyLifecycleError::Revoked
+        );
+    }
+
+    #[test]
+    fn malformed_capability_order_and_unknown_schema_are_rejected() {
+        let (_signer, verifier, _store, _audit) = fixture();
+        let mut p = payload(1, false);
+        p.allowed_capabilities.swap(0, 1);
+        assert_eq!(p.validate(1_200), Err(PolicyLifecycleError::Malformed));
+        let mut p = payload(1, false);
+        p.schema_id = "unknown.schema".into();
+        assert_eq!(p.validate(1_200), Err(PolicyLifecycleError::Malformed));
+        let _ = verifier;
+    }
 }
