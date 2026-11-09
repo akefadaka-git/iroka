@@ -143,13 +143,10 @@ impl ToolchainRegistry {
 
     /// Register an explicit profile. Duplicate language IDs fail closed.
     pub fn register(&mut self, profile: ToolchainProfile) -> Result<(), SandboxError> {
-        if self
-            .profiles
-            .insert(profile.language_id.clone(), profile)
-            .is_some()
-        {
+        if self.profiles.contains_key(&profile.language_id) {
             return Err(SandboxError::DuplicateToolchain);
         }
+        self.profiles.insert(profile.language_id.clone(), profile);
         Ok(())
     }
 
@@ -177,16 +174,6 @@ impl ToolchainRegistry {
                 env(&[("CARGO_NET_OFFLINE", "true"), ("CARGO_TERM_COLOR", "never")]),
             )
             .expect("static Rust test profile"),
-        );
-        rust.insert(
-            ToolchainAction::Debug,
-            ToolCommand::new(
-                "rust-gdb",
-                strings(&["--batch", "--args"]),
-                ".",
-                env(&[("CARGO_NET_OFFLINE", "true"), ("NO_COLOR", "1")]),
-            )
-            .expect("static Rust debugger profile"),
         );
         registry
             .register(ToolchainProfile::new("rust", "1.0.0", rust).expect("Rust profile"))
@@ -217,7 +204,7 @@ impl ToolchainRegistry {
             ToolchainAction::Debug,
             ToolCommand::new(
                 "python3",
-                strings(&["-m", "pdb"]),
+                strings(&["-m", "pdb", "-c", "continue"]),
                 ".",
                 env(&[("PYTHONNOUSERSITE", "1"), ("NO_COLOR", "1")]),
             )
@@ -248,16 +235,6 @@ impl ToolchainRegistry {
             )
             .expect("static TypeScript test profile"),
         );
-        typescript.insert(
-            ToolchainAction::Debug,
-            ToolCommand::new(
-                "node",
-                strings(&["inspect"]),
-                ".",
-                env(&[("NO_COLOR", "1")]),
-            )
-            .expect("static TypeScript debugger profile"),
-        );
         registry
             .register(ToolchainProfile::new("typescript", "1.0.0", typescript).expect("TypeScript profile"))
             .expect("unique TypeScript profile");
@@ -277,11 +254,6 @@ impl ToolchainRegistry {
             ToolchainAction::Test,
             ToolCommand::new("go", strings(&["test", "./..."]), ".", env(&[("GOTOOLCHAIN", "local")]))
                 .expect("static Go test profile"),
-        );
-        go.insert(
-            ToolchainAction::Debug,
-            ToolCommand::new("dlv", strings(&["test"]), ".", env(&[("GOTOOLCHAIN", "local")]))
-                .expect("static Go debugger profile"),
         );
         registry
             .register(ToolchainProfile::new("go", "1.0.0", go).expect("Go profile"))
