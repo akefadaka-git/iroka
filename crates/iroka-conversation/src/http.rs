@@ -38,20 +38,23 @@ struct GenerationState {
     created_at: u64,
 }
 impl GenerationState {
-    fn publish(&self, event: StreamEvent) {
+    fn publish(&self, event: StreamEvent) -> Result<(), ConversationError> {
         let terminal = matches!(
             &event,
             StreamEvent::Completed { .. }
                 | StreamEvent::Cancelled { .. }
                 | StreamEvent::Failed { .. }
         );
-        if let Ok(mut events) = self.events.lock() {
-            events.push(event);
-            if terminal {
-                self.done.store(true, Ordering::Release);
-            }
-            self.ready.notify_all();
+        let mut events = self
+            .events
+            .lock()
+            .map_err(|_| ConversationError::StorageUnavailable)?;
+        events.push(event);
+        if terminal {
+            self.done.store(true, Ordering::Release);
         }
+        self.ready.notify_all();
+        Ok(())
     }
     fn cancel(&self) {
         self.cancellation.cancel();
@@ -63,7 +66,7 @@ struct GenerationHub {
     states: Mutex<HashMap<String, Arc<GenerationState>>>,
 }
 impl GenerationHub {
-    fn insert(&self, id: &str, created_at: u64) -> Arc<GenerationState> {
+    fn insert(&self, id: &str, created_at: u64) -> Result<Arc<GenerationState>, HttpError> {
         let state = Arc::new(GenerationState {
             events: Mutex::new(Vec::new()),
             ready: Condvar::new(),
@@ -71,19 +74,21 @@ impl GenerationHub {
             cancellation: Cancellation::new(),
             created_at,
         });
-        if let Ok(mut states) = self.states.lock() {
-            if states.len() >= 512 {
-                if let Some(oldest) = states
-                    .iter()
-                    .min_by_key(|(_, item)| item.created_at)
-                    .map(|(key, _)| key.clone())
-                {
-                    states.remove(&oldest);
-                }
+        let mut states = self.states.lock().map_err(|_| HttpError::Storage)?;
+        if states.len() >= 512 {
+            let oldest_completed = states
+                .iter()
+                .filter(|(_, item)| item.done.load(Ordering::Acquire))
+                .min_by_key(|(_, item)| item.created_at)
+                .map(|(key, _)| key.clone());
+            if let Some(oldest) = oldest_completed {
+                states.remove(&oldest);
+            } else {
+                return Err(HttpError::Conflict);
             }
-            states.insert(id.to_owned(), Arc::clone(&state));
         }
-        state
+        states.insert(id.to_owned(), Arc::clone(&state));
+        Ok(state)
     }
     fn get(&self, id: &str) -> Option<Arc<GenerationState>> {
         self.states.lock().ok()?.get(id).cloned()
@@ -628,7 +633,10 @@ where
         REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed)
     );
     let assistant_id = format!("{turn_id}:assistant");
-    let state = generations.insert(&assistant_id, now);
+    let state = match generations.insert(&assistant_id, now) {
+        Ok(value) => value,
+        Err(error) => return fail(stream, error),
+    };
     let service = Arc::clone(&service);
     let session_for_worker = session.clone();
     let correlation_for_worker = correlation_id.to_owned();
@@ -648,8 +656,7 @@ where
             now,
             &state.cancellation,
             &mut |event| {
-                state_for_events.publish(event);
-                Ok(())
+                state_for_events.publish(event)
             },
         );
         if let Err(error) = result {
@@ -664,7 +671,7 @@ where
                     sequence: 0,
                 }
             };
-            state.publish(event);
+            let _ = state.publish(event);
         }
     });
     write_json(
