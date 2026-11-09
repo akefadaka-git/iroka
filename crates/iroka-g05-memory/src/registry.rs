@@ -62,8 +62,8 @@ impl SqliteG05AuthorityRegistry {
         consent_ref: &str, action_ref: &str, expires_at: u64, now: u64,
         max_ttl_secs: u64, g02: &G,
     ) -> Result<(), G05Error> {
-        if actor.subject()!=tenant.subject() || consent_ref.trim().is_empty()
-            || action_ref.trim().is_empty() || expires_at<=now || max_ttl_secs==0
+        if actor.subject()!=tenant.subject() || consent_ref.trim().is_empty() || consent_ref.len()>512
+            || action_ref.trim().is_empty() || action_ref.len()>512 || expires_at<=now || max_ttl_secs==0
             || expires_at.saturating_sub(now)>max_ttl_secs { return Err(G05Error::MalformedRecord); }
         let req = AuthorizationRequest { operation: Operation::GrantEpisodicConsent,
             principal_ref: actor.subject().into(), tenant_ref: tenant.tenant_id().into(),
@@ -88,22 +88,31 @@ impl SqliteG05AuthorityRegistry {
         &self, actor:&VerifiedPrincipal, tenant:&TenantContext, consent_ref:&str,
         action_ref:&str, now:u64, g02:&G,
     )->Result<(),G05Error>{
-        if actor.subject()!=tenant.subject() || consent_ref.trim().is_empty() || action_ref.trim().is_empty()
-            {return Err(G05Error::MalformedRecord);}
+        if actor.subject()!=tenant.subject() || consent_ref.trim().is_empty() || consent_ref.len()>512
+            || action_ref.trim().is_empty() || action_ref.len()>512 {return Err(G05Error::MalformedRecord);}
+        let purpose_text:String={
+            let c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
+            c.query_row("SELECT purpose FROM g05_episodic_consents
+              WHERE consent_ref=?1 AND tenant_ref=?2 AND subject_ref=?3 AND revoked_at IS NULL",
+              params![consent_ref,tenant.tenant_id(),actor.subject()],|r|r.get(0))
+              .optional().map_err(|_|G05Error::AuthorityUnavailable)?
+              .ok_or(G05Error::EpisodicOptInRequired)?
+        };
+        let purpose=purpose_from_key(&purpose_text)?;
         let req=AuthorizationRequest{operation:Operation::WithdrawEpisodicConsent,
             principal_ref:actor.subject().into(),tenant_ref:tenant.tenant_id().into(),
-            subject_ref:actor.subject().into(),purpose:Purpose::TaskContinuity,
+            subject_ref:actor.subject().into(),purpose,
             classification:Classification::Internal,memory_id:None,recipient_refs:Vec::new(),
             correlation_ref:action_ref.into()};
         g02.authorize_g05(&req)?;
         let mut c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
-        let purpose_text:String=tx.query_row("SELECT purpose FROM g05_episodic_consents
+        let current_purpose:String=tx.query_row("SELECT purpose FROM g05_episodic_consents
           WHERE consent_ref=?1 AND tenant_ref=?2 AND subject_ref=?3 AND revoked_at IS NULL",
           params![consent_ref,tenant.tenant_id(),actor.subject()],|r|r.get(0))
           .optional().map_err(|_|G05Error::AuthorityUnavailable)?
           .ok_or(G05Error::EpisodicOptInRequired)?;
-        let purpose=purpose_from_key(&purpose_text)?;
+        if current_purpose!=purpose_text{return Err(G05Error::VersionConflict);}
         let n=tx.execute("UPDATE g05_episodic_consents SET revoked_at=?1,version=version+1
           WHERE consent_ref=?2 AND tenant_ref=?3 AND subject_ref=?4 AND revoked_at IS NULL",
           params![to_i64(now)?,consent_ref,tenant.tenant_id(),actor.subject()])
@@ -122,9 +131,10 @@ impl SqliteG05AuthorityRegistry {
         version:u64, valid_from:u64, valid_until:u64, now:u64, g02:&G, g01:&I,
     )->Result<(),G05Error>
     where G:G02AuthorizationAuthority,I:G01ReviewerProofAuthority {
-        if actor.subject()!=tenant.subject() || organization_ref.trim().is_empty()
-            || reviewer_ref.trim().is_empty() || reviewer_key_ref.trim().is_empty()
-            || designation_ref.trim().is_empty() || version==0 || valid_from>now
+        if actor.subject()!=tenant.subject() || organization_ref.trim().is_empty() || organization_ref.len()>512
+            || reviewer_ref.trim().is_empty() || reviewer_ref.len()>512
+            || reviewer_key_ref.trim().is_empty() || reviewer_key_ref.len()>512
+            || designation_ref.trim().is_empty() || designation_ref.len()>512 || version==0 || valid_from>now
             || valid_until<=now || valid_until<=valid_from {return Err(G05Error::MalformedRecord);}
         g01.validate_reviewer_key_binding(reviewer_ref,reviewer_key_ref,now)?;
         let req=AuthorizationRequest{operation:Operation::DesignateReviewer,
@@ -156,9 +166,9 @@ impl SqliteG05AuthorityRegistry {
     pub fn revoke_reviewer_designation<G:G02AuthorizationAuthority>(&self,actor:&VerifiedPrincipal,
         tenant:&TenantContext,organization_ref:&str,designation_ref:&str,action_ref:&str,
         now:u64,g02:&G)->Result<(),G05Error>{
-        if actor.subject()!=tenant.subject() || organization_ref.trim().is_empty()
-            || designation_ref.trim().is_empty() || action_ref.trim().is_empty()
-            {return Err(G05Error::MalformedRecord);}
+        if actor.subject()!=tenant.subject() || organization_ref.trim().is_empty() || organization_ref.len()>512
+            || designation_ref.trim().is_empty() || designation_ref.len()>512
+            || action_ref.trim().is_empty() || action_ref.len()>512 {return Err(G05Error::MalformedRecord);}
         let req=AuthorizationRequest{operation:Operation::RevokeReviewerDesignation,
             principal_ref:actor.subject().into(),tenant_ref:tenant.tenant_id().into(),
             subject_ref:organization_ref.into(),purpose:Purpose::OrganizationalContext,
