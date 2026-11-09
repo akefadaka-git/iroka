@@ -121,4 +121,27 @@ mod tests {
         assert_eq!(adapter.verify_durable_approval(&receipt, 150),
             Err(G05Error::ReviewerNotAuthorized));
     }
+    #[test]
+    fn global_g02_capability_does_not_grant_organization_reviewer_authority() {
+        struct CapabilityOnly;
+        impl G02AuthorizationAuthority for CapabilityOnly {
+            fn authorize_g05(&self, _: &AuthorizationRequest) -> Result<(), G05Error> { Ok(()) }
+        }
+        let request = AuthorizationRequest {
+            operation: crate::Operation::DesignateReviewer,
+            principal_ref: "principal:actor".into(),
+            tenant_ref: "tenant:one".into(),
+            subject_ref: "org:one".into(),
+            purpose: Purpose::OrganizationalContext,
+            classification: crate::Classification::Confidential,
+            memory_id: None,
+            recipient_refs: vec!["principal:reviewer".into()],
+            correlation_ref: "designation:one".into(),
+        };
+        assert_eq!(
+            CapabilityOnly.authorize_organization_scope(&request, "org:one"),
+            Err(G05Error::ReviewerNotAuthorized)
+        );
+    }
+
 }
