@@ -54,7 +54,6 @@ impl PolicySnapshotPayload {
             || self.policy_version.len() > 128
             || self.issued_at >= self.expires_at
             || self.expires_at.saturating_sub(self.issued_at) > MAX_POLICY_TTL_SECS
-            || self.allowed_capabilities.is_empty()
             || self.allowed_capabilities.len() > MAX_CAPABILITIES
             || self.approval_required.len() > MAX_CAPABILITIES
         {
