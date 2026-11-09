@@ -9,7 +9,6 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use iroka_kernel::{TenantContext, VerifiedPrincipal};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
-use serde_json;
 use sha2::Digest;
 use crate::{AuthorizationRequest, Classification, DesignatedReviewerAuthority,
     DurableApprovalReceipt, EpisodicConsentAuthority, G02AuthorizationAuthority,
@@ -46,7 +45,13 @@ impl SqliteG05AuthorityRegistry {
             (tenant_ref,organization_ref,reviewer_ref,version);
           CREATE TABLE IF NOT EXISTS g05_consumed_reviewer_approvals(
             approval_ref TEXT PRIMARY KEY, receipt_digest BLOB NOT NULL CHECK(length(receipt_digest)=32),
-            designation_ref TEXT NOT NULL, designation_version INTEGER NOT NULL, consumed_at INTEGER NOT NULL);")
+            designation_ref TEXT NOT NULL, designation_version INTEGER NOT NULL, consumed_at INTEGER NOT NULL);
+          CREATE TABLE IF NOT EXISTS g05_authority_outbox(
+            event_id TEXT PRIMARY KEY, event_type TEXT NOT NULL, aggregate_ref TEXT NOT NULL,
+            tenant_ref TEXT NOT NULL, actor_ref TEXT NOT NULL, purpose TEXT NOT NULL,
+            record_version INTEGER NOT NULL, outcome TEXT NOT NULL, correlation_ref TEXT NOT NULL,
+            occurred_at INTEGER NOT NULL, content_sha256 TEXT NOT NULL,
+            delivered_at INTEGER);")
           .map_err(|_| G05Error::AuthorityUnavailable)?;
         Ok(Self { connection: Arc::new(Mutex::new(c)) })
     }
@@ -74,6 +79,8 @@ impl SqliteG05AuthorityRegistry {
           params![consent_ref,tenant.tenant_id(),actor.subject(),purpose_key(purpose),actor.issuer(),
             actor.credential_id(),to_i64(now)?,to_i64(expires_at)?,action_ref])
           .map_err(|_|G05Error::DuplicateRecord)?;
+        enqueue_authority_event(&tx, "memory.consent.granted", consent_ref,
+            tenant.tenant_id(), actor.subject(), purpose, 1, "granted", action_ref, now)?;
         tx.commit().map_err(|_|G05Error::AuthorityUnavailable)
     }
 
@@ -91,12 +98,22 @@ impl SqliteG05AuthorityRegistry {
             correlation_ref:action_ref.into()};
         g02.authorize_g05(&req)?;
         g02.authorize_organization_scope(&req, organization_ref)?;
-        let c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
-        let n=c.execute("UPDATE g05_episodic_consents SET revoked_at=?1,version=version+1
+        let mut c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
+        let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
+        let purpose_text:String=tx.query_row("SELECT purpose FROM g05_episodic_consents
+          WHERE consent_ref=?1 AND tenant_ref=?2 AND subject_ref=?3 AND revoked_at IS NULL",
+          params![consent_ref,tenant.tenant_id(),actor.subject()],|r|r.get(0))
+          .optional().map_err(|_|G05Error::AuthorityUnavailable)?
+          .ok_or(G05Error::EpisodicOptInRequired)?;
+        let purpose=purpose_from_key(&purpose_text)?;
+        let n=tx.execute("UPDATE g05_episodic_consents SET revoked_at=?1,version=version+1
           WHERE consent_ref=?2 AND tenant_ref=?3 AND subject_ref=?4 AND revoked_at IS NULL",
           params![to_i64(now)?,consent_ref,tenant.tenant_id(),actor.subject()])
           .map_err(|_|G05Error::AuthorityUnavailable)?;
-        if n!=1{return Err(G05Error::EpisodicOptInRequired);} Ok(())
+        if n!=1{return Err(G05Error::EpisodicOptInRequired);}
+        enqueue_authority_event(&tx,"memory.consent.withdrawn",consent_ref,tenant.tenant_id(),
+            actor.subject(),purpose,2,"withdrawn",action_ref,now)?;
+        tx.commit().map_err(|_|G05Error::AuthorityUnavailable)
     }
 
     /// G02 authorizes the organizational action; G01 verifies that the target
@@ -132,6 +149,9 @@ impl SqliteG05AuthorityRegistry {
           params![designation_ref,tenant.tenant_id(),organization_ref,reviewer_ref,reviewer_key_ref,
             actor.subject(),to_i64(version)?,to_i64(valid_from)?,to_i64(valid_until)?,to_i64(now)?])
           .map_err(|_|G05Error::DuplicateRecord)?;
+        enqueue_authority_event(&tx,"memory.reviewer.designated",designation_ref,
+            tenant.tenant_id(),actor.subject(),Purpose::OrganizationalContext,version,
+            "designated",designation_ref,now)?;
         tx.commit().map_err(|_|G05Error::AuthorityUnavailable)
     }
 
@@ -148,12 +168,21 @@ impl SqliteG05AuthorityRegistry {
             correlation_ref:action_ref.into()};
         g02.authorize_g05(&req)?;
         g02.authorize_organization_scope(&req, organization_ref)?;
-        let c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
-        let n=c.execute("UPDATE g05_reviewer_designations SET revoked_at=?1
+        let mut c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
+        let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
+        let version:i64=tx.query_row("SELECT version FROM g05_reviewer_designations
+          WHERE designation_ref=?1 AND tenant_ref=?2 AND organization_ref=?3 AND revoked_at IS NULL",
+          params![designation_ref,tenant.tenant_id(),organization_ref],|r|r.get(0))
+          .optional().map_err(|_|G05Error::AuthorityUnavailable)?
+          .ok_or(G05Error::ReviewerNotAuthorized)?;
+        let n=tx.execute("UPDATE g05_reviewer_designations SET revoked_at=?1
           WHERE designation_ref=?2 AND tenant_ref=?3 AND organization_ref=?4 AND revoked_at IS NULL",
           params![to_i64(now)?,designation_ref,tenant.tenant_id(),organization_ref])
           .map_err(|_|G05Error::AuthorityUnavailable)?;
-        if n!=1{return Err(G05Error::ReviewerNotAuthorized);} Ok(())
+        if n!=1{return Err(G05Error::ReviewerNotAuthorized);}
+        enqueue_authority_event(&tx,"memory.reviewer.revoked",designation_ref,tenant.tenant_id(),
+            actor.subject(),Purpose::OrganizationalContext,from_i64(version)?,"revoked",action_ref,now)?;
+        tx.commit().map_err(|_|G05Error::AuthorityUnavailable)
     }
 
     fn active_designation(&self,tenant:&str,org:&str,reviewer:&str,now:u64)->Result<ReviewerDesignation,G05Error>{
@@ -185,7 +214,45 @@ impl SqliteG05AuthorityRegistry {
           params![receipt.approval_ref,digest.as_slice(),d.designation_ref,to_i64(d.version)?,to_i64(now)?])
           .map_err(|_|G05Error::AuthorityUnavailable)?;
         if n!=1{return Err(G05Error::ApprovalReplay);}
+        enqueue_authority_event(&tx,"memory.reviewer.approval_consumed",&receipt.approval_ref,
+            &receipt.tenant_ref,&receipt.reviewer_ref,Purpose::OrganizationalContext,
+            designation.version,"consumed",&receipt.approval_ref,now)?;
         tx.commit().map_err(|_|G05Error::AuthorityUnavailable)
+    }
+
+    /// Deliver committed G05 authority events to G11. G11 must deduplicate by
+    /// event ID; a crash after append and before marking delivery causes retry.
+    pub fn drain_g11_outbox<A: crate::G11MemoryAuditAuthority>(
+        &self, g11:&A, now:u64, limit:usize,
+    )->Result<usize,G05Error>{
+        if limit==0{return Ok(0);}
+        let rows={
+            let c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
+            let mut stmt=c.prepare("SELECT event_id,event_type,aggregate_ref,tenant_ref,actor_ref,
+              purpose,record_version,outcome,correlation_ref,occurred_at,content_sha256
+              FROM g05_authority_outbox WHERE delivered_at IS NULL ORDER BY rowid LIMIT ?1")
+              .map_err(|_|G05Error::AuthorityUnavailable)?;
+            let mapped=stmt.query_map([i64::try_from(limit.min(500)).unwrap_or(500)],|r|Ok((
+              r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,
+              r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?,
+              r.get::<_,i64>(6)?,r.get::<_,String>(7)?,r.get::<_,String>(8)?,
+              r.get::<_,i64>(9)?,r.get::<_,String>(10)?)))
+              .map_err(|_|G05Error::AuthorityUnavailable)?;
+            mapped.collect::<Result<Vec<_>,_>>().map_err(|_|G05Error::AuthorityUnavailable)?
+        };
+        let mut delivered=0;
+        for row in rows{
+            let (id,kind,aggregate,tenant,actor,purpose,version,outcome,correlation,occurred,digest)=row;
+            let event=crate::AuditEvent{event_type:kind,memory_id:aggregate,tenant_ref:tenant,
+                actor_ref:actor,purpose:purpose_from_key(&purpose)?,record_version:from_i64(version)?,
+                outcome,correlation_ref:correlation,occurred_at:from_i64(occurred)?,content_sha256:digest};
+            g11.append_memory_event(&event)?;
+            let c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
+            c.execute("UPDATE g05_authority_outbox SET delivered_at=?1 WHERE event_id=?2 AND delivered_at IS NULL",
+                params![to_i64(now)?,id]).map_err(|_|G05Error::AuthorityUnavailable)?;
+            delivered+=1;
+        }
+        Ok(delivered)
     }
 }
 
@@ -323,7 +390,27 @@ fn g05_capability(operation: Operation) -> &'static str {
     }
 }
 
-fn purpose_key(p:Purpose)->&'static str{match p{
+
+fn enqueue_authority_event(tx:&rusqlite::Transaction<'_>,event_type:&str,aggregate_ref:&str,
+    tenant_ref:&str,actor_ref:&str,purpose:Purpose,version:u64,outcome:&str,
+    correlation_ref:&str,now:u64)->Result<(),G05Error>{
+    let event_id=format!("g05-authority:{}:{}:v{}",event_type,aggregate_ref,version);
+    tx.execute("INSERT INTO g05_authority_outbox
+      (event_id,event_type,aggregate_ref,tenant_ref,actor_ref,purpose,record_version,
+       outcome,correlation_ref,occurred_at,content_sha256,delivered_at)
+      VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,NULL)",
+      params![event_id,event_type,aggregate_ref,tenant_ref,actor_ref,purpose_key(purpose),
+        to_i64(version)?,outcome,correlation_ref,to_i64(now)?,"0".repeat(64)])
+      .map_err(|_|G05Error::AuthorityUnavailable)?;
+    Ok(())
+}
+fn purpose_from_key(value:&str)->Result<Purpose,G05Error>{match value{
+    "TASK_CONTINUITY"=>Ok(Purpose::TaskContinuity),"USER_PREFERENCE"=>Ok(Purpose::UserPreference),
+    "PROJECT_CONTEXT"=>Ok(Purpose::ProjectContext),"ORGANIZATIONAL_CONTEXT"=>Ok(Purpose::OrganizationalContext),
+    "OPERATIONAL_HISTORY"=>Ok(Purpose::OperationalHistory),
+    "AUTHORIZED_SYSTEM_ASSURANCE"=>Ok(Purpose::AuthorizedSystemAssurance),
+    _=>Err(G05Error::AuthorityUnavailable)}}
+\nfn purpose_key(p:Purpose)->&'static str{match p{
     Purpose::TaskContinuity=>"TASK_CONTINUITY",Purpose::UserPreference=>"USER_PREFERENCE",
     Purpose::ProjectContext=>"PROJECT_CONTEXT",Purpose::OrganizationalContext=>"ORGANIZATIONAL_CONTEXT",
     Purpose::OperationalHistory=>"OPERATIONAL_HISTORY",Purpose::AuthorizedSystemAssurance=>"AUTHORIZED_SYSTEM_ASSURANCE"}}
