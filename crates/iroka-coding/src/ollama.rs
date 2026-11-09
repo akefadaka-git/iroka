@@ -317,6 +317,7 @@ fn failure(message: &str) -> ProviderFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::index::RepositoryIndex;
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread;
