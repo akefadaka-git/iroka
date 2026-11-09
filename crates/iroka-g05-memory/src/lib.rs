@@ -513,6 +513,32 @@ pub fn authorize_durable_activation<G: GovernancePort>(
     Ok(())
 }
 
+
+/// Prepare an approved durable record transition. The returned value is not
+/// persisted; the caller MUST commit it with the G11 outbox using the G05
+/// repository transaction port. A replayed or stale version fails closed.
+pub fn prepare_durable_activation<G: GovernancePort>(
+    record: &MemoryRecord,
+    receipt: &DurableApprovalReceipt,
+    request: &AuthorizationRequest,
+    governance: &G,
+    now: u64,
+) -> Result<MemoryRecord, G05Error> {
+    authorize_durable_activation(record, receipt, request, governance, now)?;
+    let mut activated = record.clone();
+    activated.candidate.record_version = record
+        .candidate
+        .record_version
+        .checked_add(1)
+        .ok_or(G05Error::VersionConflict)?;
+    activated.lifecycle_state = LifecycleState::Active;
+    activated.approval_ref = Some(receipt.approval_ref.clone());
+    activated.approved_by_ref = Some(receipt.reviewer_ref.clone());
+    activated.approved_at = Some(now);
+    activated.updated_at = now;
+    Ok(activated)
+}
+
 /// Verify opt-in through the authoritative consent/governance adapter before
 /// episodic capture. A reference's presence alone is not proof of consent.
 pub fn authorize_episodic_capture<G: GovernancePort>(
@@ -810,6 +836,18 @@ mod tests {
             authorize_durable_activation(&record, &receipt, &request, &DenyGovernance, 110),
             Err(G05Error::AuthorizationDenied)
         );
+        let activated = prepare_durable_activation(
+            &record,
+            &receipt,
+            &request,
+            &AllowGovernance,
+            110,
+        )
+        .unwrap();
+        assert_eq!(activated.lifecycle_state, LifecycleState::Active);
+        assert_eq!(activated.approved_by_ref.as_deref(), Some("reviewer:1"));
+        assert_eq!(activated.candidate.record_version, 2);
+
         let mut tampered = receipt.clone();
         tampered.content_sha256 = "0".repeat(64);
         assert_eq!(
