@@ -12,11 +12,11 @@ use sha2::{Digest, Sha256};
 
 use crate::index::SnapshotFile;
 use crate::patch::WorkspaceSnapshot;
+use crate::planner::safe_relative_path;
 use iroka_kernel::{
     ConsumedExecutionGrant, ExecutionGrant, ExecutionGrantError, ExecutionGrantScope,
     ExecutionGrantVerifier,
 };
-use crate::planner::safe_relative_path;
 
 const ENVIRONMENT_ALLOWLIST: &[&str] = &[
     "CARGO_NET_OFFLINE",
@@ -76,9 +76,9 @@ impl ToolCommand {
                 && working_directory != "."
                 && !safe_relative_path(&working_directory))
             || args.len() > 256
-            || args.iter().any(|arg| {
-                arg.len() > 4096 || arg.bytes().any(|byte| byte.is_ascii_control())
-            })
+            || args
+                .iter()
+                .any(|arg| arg.len() > 4096 || arg.bytes().any(|byte| byte.is_ascii_control()))
         {
             return Err(SandboxError::InvalidInvocation);
         }
@@ -159,7 +159,13 @@ impl ToolchainRegistry {
             ToolchainAction::Compile,
             ToolCommand::new(
                 "cargo",
-                strings(&["check", "--workspace", "--all-targets", "--locked", "--offline"]),
+                strings(&[
+                    "check",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ]),
                 ".",
                 env(&[("CARGO_NET_OFFLINE", "true"), ("CARGO_TERM_COLOR", "never")]),
             )
@@ -169,7 +175,13 @@ impl ToolchainRegistry {
             ToolchainAction::Test,
             ToolCommand::new(
                 "cargo",
-                strings(&["test", "--workspace", "--all-targets", "--locked", "--offline"]),
+                strings(&[
+                    "test",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--offline",
+                ]),
                 ".",
                 env(&[("CARGO_NET_OFFLINE", "true"), ("CARGO_TERM_COLOR", "never")]),
             )
@@ -236,7 +248,10 @@ impl ToolchainRegistry {
             .expect("static TypeScript test profile"),
         );
         registry
-            .register(ToolchainProfile::new("typescript", "1.0.0", typescript).expect("TypeScript profile"))
+            .register(
+                ToolchainProfile::new("typescript", "1.0.0", typescript)
+                    .expect("TypeScript profile"),
+            )
             .expect("unique TypeScript profile");
 
         let mut go = BTreeMap::new();
@@ -252,8 +267,13 @@ impl ToolchainRegistry {
         );
         go.insert(
             ToolchainAction::Test,
-            ToolCommand::new("go", strings(&["test", "./..."]), ".", env(&[("GOTOOLCHAIN", "local")]))
-                .expect("static Go test profile"),
+            ToolCommand::new(
+                "go",
+                strings(&["test", "./..."]),
+                ".",
+                env(&[("GOTOOLCHAIN", "local")]),
+            )
+            .expect("static Go test profile"),
         );
         registry
             .register(ToolchainProfile::new("go", "1.0.0", go).expect("Go profile"))
@@ -545,8 +565,8 @@ impl SandboxRuntimeConfig {
             return Err(SandboxError::SandboxUnavailable);
         }
         std::fs::create_dir_all(&sandbox_root).map_err(|_| SandboxError::SandboxUnavailable)?;
-        let metadata =
-            std::fs::symlink_metadata(&sandbox_root).map_err(|_| SandboxError::SandboxUnavailable)?;
+        let metadata = std::fs::symlink_metadata(&sandbox_root)
+            .map_err(|_| SandboxError::SandboxUnavailable)?;
         if metadata.file_type().is_symlink() {
             return Err(SandboxError::SandboxUnavailable);
         }
@@ -571,8 +591,8 @@ impl SandboxRuntimeConfig {
         let mut canonical_mounts = Vec::new();
         let mut sandbox_targets = BTreeSet::new();
         for mount in mounts {
-            let host_path =
-                std::fs::canonicalize(&mount.host_path).map_err(|_| SandboxError::ToolUnavailable)?;
+            let host_path = std::fs::canonicalize(&mount.host_path)
+                .map_err(|_| SandboxError::ToolUnavailable)?;
             let metadata =
                 std::fs::metadata(&host_path).map_err(|_| SandboxError::ToolUnavailable)?;
             if !metadata.is_dir()
@@ -589,8 +609,7 @@ impl SandboxRuntimeConfig {
                 || !["/usr", "/opt", "/lib", "/lib64", "/bin", "/sbin"]
                     .iter()
                     .any(|root| {
-                        host_path == Path::new(root)
-                            || host_path.starts_with(format!("{root}/"))
+                        host_path == Path::new(root) || host_path.starts_with(format!("{root}/"))
                     })
                 || canonical_mounts.iter().any(|existing: &ReadOnlyMount| {
                     existing.host_path.starts_with(&host_path)
@@ -764,11 +783,7 @@ impl BubblewrapBackend {
             if !ENVIRONMENT_ALLOWLIST.contains(&key.as_str()) {
                 return Err(SandboxError::InvalidInvocation);
             }
-            args.extend([
-                "--setenv".to_owned(),
-                key.clone(),
-                value.clone(),
-            ]);
+            args.extend(["--setenv".to_owned(), key.clone(), value.clone()]);
         }
         args.push("--".to_owned());
         args.push(program.display().to_string());
@@ -860,7 +875,9 @@ impl SandboxWorkspace {
             .map_err(|_| SandboxError::WorkspaceRejected)?;
         for file in snapshot.files() {
             let destination = workspace.path.join(&file.path);
-            let parent = destination.parent().ok_or(SandboxError::WorkspaceRejected)?;
+            let parent = destination
+                .parent()
+                .ok_or(SandboxError::WorkspaceRejected)?;
             std::fs::create_dir_all(parent).map_err(|_| SandboxError::WorkspaceRejected)?;
             let mut output = std::fs::OpenOptions::new()
                 .write(true)
@@ -910,7 +927,9 @@ fn file_digest(path: &Path) -> Result<String, SandboxError> {
     let mut hasher = Sha256::new();
     let mut buffer = [0_u8; 64 * 1024];
     loop {
-        let count = file.read(&mut buffer).map_err(|_| SandboxError::ToolUnavailable)?;
+        let count = file
+            .read(&mut buffer)
+            .map_err(|_| SandboxError::ToolUnavailable)?;
         if count == 0 {
             break;
         }
