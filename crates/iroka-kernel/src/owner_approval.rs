@@ -103,6 +103,7 @@ impl From<SecurityStoreError> for OwnerApprovalError {
     fn from(error: SecurityStoreError) -> Self {
         match error {
             SecurityStoreError::InvalidVersion => Self::Malformed,
+            SecurityStoreError::Revoked => Self::Revoked,
             _ => Self::StoreUnavailable,
         }
     }
@@ -442,6 +443,7 @@ impl OwnerApprovalVerifier {
         let applied = self.store.apply_signed_revocation(
             &p.command_id,
             &p.owner_subject,
+            OWNER_ISSUER,
             &p.key_id,
             digest.as_slice(),
             now,
