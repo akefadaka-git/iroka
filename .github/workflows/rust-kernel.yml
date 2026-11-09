@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation]
+    branches: [feat/igacms-a3-implementation, feat/brain-a3-b02-signed-policy-lifecycle]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
