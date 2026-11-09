@@ -403,7 +403,7 @@ impl SessionGuard for SqliteSessionRegistry {
             return Err(ConversationError::SessionInvalid);
         }
         self.credential_status
-            .ensure_active(issuer, key_id, credential_id, version, now)
+            .ensure_active(issuer, credential_id, key_id, version, now)
     }
 }
 
