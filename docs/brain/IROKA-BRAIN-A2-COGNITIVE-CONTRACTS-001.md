@@ -1,8 +1,8 @@
 # IROKA BRAIN — A2 Cognitive Contracts Proposal
 
 **Document ID:** IROKA-BRAIN-A2-CONTRACTS-001  
-**Version:** 0.1.0-draft  
-**Status:** A2 proposal for Owner review; NOT APPROVED / NOT FROZEN  
+**Version:** 1.0.0  
+**Status:** OWNER-APPROVED — A2 DESIGN/CONTRACT GATE VERIFIED-CLOSED; integration readiness remains dependency-gated  
 **Parent:** IROKA-BRAIN-A1-001 v1.0.0 (Owner-approved / frozen)  
 **Scope:** G03 task, result, plan, critique, model capability and domain adapter contracts  
 **Implementation:** None. Design-only.
@@ -178,12 +178,28 @@ Distinguish invalid schema/version; unauthenticated/revoked principal; invalid/e
 - [x] A1 architecture v1.0.0 frozen by Owner D2.
 - [x] Repository/workstream inventory and relevant CIW/G08/Kernel contract review completed.
 - [x] Task/result/plan/critic/gateway contracts drafted.
-- [ ] Owner approves this A2 contract proposal.
-- [ ] G01/G02 authoritative context contracts accepted or excluded from first increment.
-- [ ] G04/G05/G06 interfaces versioned or explicitly deferred.
-- [ ] G08 and CIW lineage reconciled for any dependent integration.
-- [ ] Amharic corpus governance and benchmark methodology approved.
-- [ ] First A3 increment scope explicitly approved.
-- [ ] A2 closure recorded by Owner.
+- [x] Owner approves this A2 contract proposal (2026-11-09).
+- [x] G01/G02 contract boundaries accepted; executable integration remains blocked until exact authoritative APIs and trust/policy lifecycle are reconciled.
+- [x] G04/G05/G06 executable interfaces explicitly deferred; G03 may consume only verified versioned ports, never duplicate their authority.
+- [x] G08 and CIW integration explicitly gated on exact-base/ancestry reconciliation before any dependent composition.
+- [x] Synthetic-only fixtures approved for initial development; real corpus ingestion and numerical quality/performance thresholds deferred pending provenance, reviewer and representative workload approval.
+- [x] Broader A3 scope direction recorded; separate explicit A3 implementation authorization remains required.
+- [x] A2 design/contract closure recorded by Owner approval (2026-11-09).
 
-**Disposition:** A2 CONTRACT PROPOSAL — NOT CLOSED. No A3 implementation is authorized.
+**Disposition:** A2 DESIGN/CONTRACT GATE — VERIFIED-CLOSED by Owner approval on 2026-11-09. This closure is limited to architecture and interface contracts. Integration readiness is **PARTIAL**: A2-C01 through A2-C07 remain implementation-entry blockers for the affected adapters; A2-C08/C09 remain deferred to licensed-corpus and benchmark approval; no unresolved interface may be replaced by a guessed API.
+
+### 12. Owner approval and dependency disposition — 2026-11-09
+
+The Owner approved this proposal as the binding G03 cognitive contract v1.0.0 and selected a broader, cross-domain A3 direction. The approval accepts the ownership invariants, envelope semantics, plan/critic boundaries, model-gateway contract, error taxonomy and A2 acceptance suite.
+
+The following are explicit A3 integration gates, not permission to bypass missing domain authorities:
+
+- **G01/G02:** no Brain-owned identity, tenant resolver, policy engine, trust root, approval registry or audit store. Pin and reconcile the authoritative Kernel API and trusted composition root before enabling authenticated or tenant-scoped execution.
+- **G04/G05/G06:** define adapters against their owners' exact versioned contracts only. Until then, evidence, memory and perception adapters remain unavailable and tasks must abstain or return a typed unavailable result.
+- **G08/CIW:** no branch stacking or code adoption until exact commit ancestry, base compatibility and complete diff review are established. Existing candidate PRs are not implicitly approved or merged by this decision.
+- **Amharic data:** synthetic fixtures only. Any real corpus requires source-by-source provenance, licence/permission, integrity and qualified language review.
+- **Benchmarks:** establish a reproducible harness and measurement definitions first. Numeric release thresholds require representative workloads, hardware and Owner disposition; no target may be invented.
+- **G07/G09:** no agent delegation or protected effects in this A3 scope. G03 may emit proposals only; execution remains separately authorized through the existing governance boundary.
+- **A3 authorization:** this document records the broader proposed scope, not implementation authorization. A separate explicit Owner authorization is required after the A3 work packages and exact baseline are presented.
+
+No merge, deployment, production activation, signing, external provider activation or paid-service dependency is authorized.
