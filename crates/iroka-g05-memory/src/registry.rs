@@ -216,8 +216,10 @@ impl SqliteG05AuthorityRegistry {
     fn active_designation(&self,tenant:&str,org:&str,reviewer:&str,now:u64)->Result<ReviewerDesignation,G05Error>{
         let c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         c.query_row("SELECT designation_ref,tenant_ref,organization_ref,reviewer_ref,reviewer_key_ref,version,valid_from,valid_until
-          FROM g05_reviewer_designations WHERE tenant_ref=?1 AND organization_ref=?2 AND reviewer_ref=?3
-          AND revoked_at IS NULL AND valid_from<=?4 AND valid_until>?4 ORDER BY version DESC LIMIT 1",
+          FROM g05_reviewer_designations d WHERE tenant_ref=?1 AND organization_ref=?2 AND reviewer_ref=?3
+          AND version=(SELECT MAX(version) FROM g05_reviewer_designations
+            WHERE tenant_ref=?1 AND organization_ref=?2 AND reviewer_ref=?3)
+          AND revoked_at IS NULL AND valid_from<=?4 AND valid_until>?4 LIMIT 1",
           params![tenant,org,reviewer,to_i64(now)?],|r|Ok(ReviewerDesignation{
             designation_ref:r.get(0)?,tenant_ref:r.get(1)?,organization_ref:r.get(2)?,
             reviewer_ref:r.get(3)?,reviewer_key_ref:r.get(4)?,version:r.get::<_,u64>(5)?,
@@ -233,7 +235,9 @@ impl SqliteG05AuthorityRegistry {
         let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
         let active:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM g05_reviewer_designations
           WHERE designation_ref=?1 AND tenant_ref=?2 AND organization_ref=?3 AND reviewer_ref=?4
-          AND reviewer_key_ref=?5 AND version=?6 AND revoked_at IS NULL AND valid_from<=?7 AND valid_until>?7)",
+          AND reviewer_key_ref=?5 AND version=?6 AND version=(SELECT MAX(version)
+            FROM g05_reviewer_designations WHERE tenant_ref=?2 AND organization_ref=?3 AND reviewer_ref=?4)
+          AND revoked_at IS NULL AND valid_from<=?7 AND valid_until>?7)",
           params![d.designation_ref,d.tenant_ref,d.organization_ref,d.reviewer_ref,d.reviewer_key_ref,
             to_i64(d.version)?,to_i64(now)?],|r|r.get(0)).map_err(|_|G05Error::AuthorityUnavailable)?;
         if !active{return Err(G05Error::ReviewerNotAuthorized);}
@@ -317,6 +321,13 @@ impl<P> RegistryDesignatedReviewerAuthority<P>{
 }
 impl<P:G01ReviewerProofAuthority> DesignatedReviewerAuthority for RegistryDesignatedReviewerAuthority<P>{
     fn verify_designated_reviewer(&self,receipt:&DurableApprovalReceipt,org:&str,now:u64)->Result<(),G05Error>{
+        if receipt.approval_ref.trim().is_empty() || receipt.memory_id.trim().is_empty()
+            || receipt.reviewer_ref.trim().is_empty() || receipt.proof_ref.trim().is_empty() {
+            return Err(G05Error::InvalidReference);
+        }
+        if receipt.content_sha256.len()!=64 || !receipt.content_sha256.bytes().all(|b|b.is_ascii_hexdigit()) {
+            return Err(G05Error::DigestMismatch);
+        }
         if receipt.subject_ref!=org{return Err(G05Error::ApprovalBindingMismatch);}
         if receipt.expires_at<=now||receipt.issued_at>now
             ||receipt.expires_at<=receipt.issued_at{return Err(G05Error::ApprovalExpired);}
@@ -496,6 +507,13 @@ mod tests{
   assert_eq!(a.verify_designated_reviewer(&corrected_proof,"org1",152),Ok(()));
   let mut overlong=receipt.clone();overlong.approval_ref="a-window".into();overlong.expires_at=301;
   assert_eq!(a.verify_designated_reviewer(&overlong,"org1",152),Err(G05Error::ReviewerNotAuthorized));
+  {
+   let c=r.connection.lock().unwrap();
+   c.execute("INSERT INTO g05_reviewer_designations VALUES
+    ('d2','t1','org1','reviewer:1','key:2','admin',2,140,300,140,145)",[]).unwrap();
+  }
+  let prior=DurableApprovalReceipt{approval_ref:"a-prior".into(),..receipt.clone()};
+  assert_eq!(a.verify_designated_reviewer(&prior,"org1",150),Err(G05Error::ReviewerNotAuthorized));
   let c=r.connection.lock().unwrap();c.execute("UPDATE g05_reviewer_designations SET revoked_at=153 WHERE designation_ref='d1'",[]).unwrap();
   drop(c);let next=DurableApprovalReceipt{approval_ref:"a2".into(),..receipt};
   assert_eq!(a.verify_designated_reviewer(&next,"org1",154),Err(G05Error::ReviewerNotAuthorized));
