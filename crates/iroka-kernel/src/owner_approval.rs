@@ -133,6 +133,13 @@ pub enum OwnerSecurityAction {
         approval_id: String,
         reason: String,
     },
+    SetTenantMembership {
+        subject: String,
+        tenant_id: String,
+        active: bool,
+        version: u64,
+        reason: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -403,6 +410,27 @@ impl OwnerApprovalVerifier {
                 }
                 RevocationTarget::Approval {
                     approval_id: approval_id.clone(),
+                    reason: reason.clone(),
+                }
+            }
+            OwnerSecurityAction::SetTenantMembership {
+                subject, tenant_id, active, version, reason,
+            } => {
+                if subject.trim().is_empty()
+                    || tenant_id.trim().is_empty()
+                    || reason.trim().is_empty()
+                    || *version == 0
+                    || subject.len() > 256
+                    || tenant_id.len() > 256
+                    || reason.len() > 1024
+                {
+                    return Err(OwnerApprovalError::Malformed);
+                }
+                RevocationTarget::TenantMembership {
+                    subject: subject.clone(),
+                    tenant_id: tenant_id.clone(),
+                    active: *active,
+                    version: *version,
                     reason: reason.clone(),
                 }
             }
