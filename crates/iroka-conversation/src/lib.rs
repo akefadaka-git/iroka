@@ -1225,7 +1225,8 @@ mod tests {
     fn synthetic_stream_emits_multiple_utf8_safe_chunks_and_reconstructs_answer() {
         let generator = SyntheticAnswerGenerator;
         let cancel = Cancellation::new();
-        let prompt = "a long streaming test prompt with enough words to force multiple independent chunks";
+        let prompt =
+            "a long streaming test prompt with enough words to force multiple independent chunks";
         let expected = generator.answer(prompt, Locale::English, &cancel).unwrap();
         let mut chunks = Vec::new();
         let actual = generator
