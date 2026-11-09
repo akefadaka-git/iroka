@@ -330,3 +330,57 @@ B02 must remain disabled until all of the following are supplied and reconciled 
 6. G09 exclusion: G03 may receive a typed decision outcome, but cannot execute protected effects or treat ALLOW as an execution token.
 
 **Current B02 status:** design reconciliation PARTIAL; implementation NOT STARTED / BLOCKED. Do not create a Brain-owned tenant resolver, policy engine, approval store, trust store or audit store as a workaround.
+
+
+## 13. A3-B06 CIW candidate security and lineage review — 2026-11-09
+
+**Disposition: NOT ADOPTED — PR #23 remains a review candidate.** The following findings are based on read-only inspection of PR #23's current head `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1`. No source changes were made to that branch.
+
+### 13.1 High-severity authorization findings
+
+**B06-F01 — Cancellation occurs before authorization (HIGH).**
+- File: `crates/iroka-conversation/src/http.rs`, approximately lines 638–655.
+- The cancel route calls `generations.cancel(turn_id)` before `service.cancel_turn(...)`.
+- `service.cancel_turn` performs session, tenant, conversation ownership and Kernel authorization checks only after the in-memory cancellation signal has already been set.
+- Impact: a caller who can identify an active generation ID may cancel it even when subsequent authorization denies the request. This is an authorization-before-effect ordering defect.
+- Required remediation: authenticate, resolve tenant, verify conversation and turn ownership, and obtain the Kernel decision before signaling cancellation; preserve race-safe state transition and idempotent terminal handling.
+
+**B06-F02 — Turn state mutation is not scoped to the authorized conversation (HIGH).**
+- File: `crates/iroka-conversation/src/lib.rs`, approximately lines 575–600 and 1160–1188.
+- `cancel_turn` verifies ownership of the supplied conversation but then calls `finish_turn(assistant_turn_id,...)`; the SQL update selects by turn ID alone and does not bind `conversation_id`, tenant, owner or assistant role.
+- Impact: if a caller learns another conversation's turn ID, a request against a conversation they do own may mutate that other turn's state. The resource string passed to Kernel authorization does not repair the missing database predicate.
+- Required remediation: perform one atomic conditional update joining/binding turn ID, conversation ID, tenant, owner and assistant role; verify exactly one authorized row changed. Add cross-tenant and cross-conversation negative tests.
+
+### 13.2 Trust-authority and architecture findings
+
+**B06-F03 — Tenant membership source is not cryptographically or monotonically bound (HIGH / ARCHITECTURE BLOCKER).**
+- File: `crates/iroka-conversation/src/tenant_session.rs`, approximately lines 41–68 and 71–101.
+- Public `provision_membership` accepts subject, tenant, state, version and checked_at directly. It does not authenticate the authoritative source, enforce monotonic version progression, or reject stale-version replacement. The version is stored but not used by `resolve_active_tenant`.
+- Impact: the implementation relies on a comment and trusted host discipline for membership authority; stale or unauthorized provisioning can replace current membership. This is not yet the missing G01 tenant resolver contract.
+- Required remediation: define an authenticated server-side membership synchronization contract, monotonic version/rollback protection, revocation/freshness rules and a non-request-facing provisioning boundary; do not treat this SQLite table as authoritative until those gates are proven.
+
+**B06-F04 — Conversation crate introduces a second signed policy authority (HIGH / ARCHITECTURE BLOCKER).**
+- File: `crates/iroka-conversation/src/policy.rs`, approximately lines 35–58 and 177 onward; `kernel_adapter.rs`.
+- `PolicyTrustRoot::provisioned` accepts a public key and free-form provenance string; it does not itself verify Owner authorization for the policy root. The conversation crate defines its own signed policy bundle and epoch store, then constructs the Kernel's in-memory `Policy`.
+- Impact: this creates a parallel policy-signing/version authority outside G02. The asserted Owner provenance is not cryptographically established by this API. It must not be adopted as a substitute for a Kernel-owned G02 policy lifecycle.
+- Required remediation: move policy trust-root provisioning, signed policy verification, version/rollback controls and revocation into the authoritative G02/Kernel contract, or obtain a separately approved architecture amendment proving non-overlapping ownership. Do not simply accept the PR's `VerifiedPolicy` type as G02 authority.
+
+### 13.3 Additional A4 security and operational gates
+
+- **B06-F05 — Origin validation discards the scheme.** `http.rs` around lines 484–491 compares authority with Host but ignores the Origin scheme. Reconcile scheme/port against trusted ingress metadata and test HTTPS termination, non-default ports and malformed origins.
+- **B06-F06 — Listener exposure is host-controlled.** `HttpServer::serve` accepts an arbitrary listener; loopback-only binding is a comment/runbook requirement, not an enforced invariant. Production host composition must enforce trusted bind address and TLS termination.
+- **B06-F07 — Membership/session provisioning and policy-root provisioning need deployment-boundary controls.** No production membership synchronization source, Owner policy-root ceremony or live trust provisioning evidence is present in this PR.
+- **B06-F08 — Budget state is process-local.** `BudgetGuard` keeps concurrency, rate and spend counters in memory. Restart resets these controls; it is not a durable production quota authority.
+- **B06-F09 — G01 contract changes require reconciliation.** PR #23 modifies Kernel credential claims/session fields to add revocation-version semantics. Reconcile the changed wire contract, issuer migration, old-token behavior, key rotation and rollback against the canonical G01 contract before adoption.
+- **B06-F10 — Browser/HTTP A4 remains incomplete.** The manual HTTP transport, cookie issuer, trusted TLS proxy, browser mutation routes, cancellation race, SSE reconnect/replay, retention and deployment host are not production-verified by a successful compile/test workflow alone.
+
+### 13.4 Candidate CI and lineage
+
+- PR #23: https://github.com/akefadaka-git/iroka/pull/23
+- Current head: `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1`
+- Current main at review: `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`
+- Comparison: 172 commits ahead / 22 behind; merge base `813b24cbf81f049f2675fbb5492bdc9f262a9d87`.
+- Exact-head workflow run #614 / ID `42562324737`: SUCCESS, but does not close the findings above or the stale-lineage issue.
+- Candidate changes 19 files, including Kernel identity/security-store modifications, a new conversation domain, manual HTTP transport, session/membership/policy/budget code, browser UI and workflow changes.
+
+**Stop condition:** do not merge, rebase, cherry-pick or transplant PR #23. First resolve B06-F01/F02, settle B06-F03/F04 against G01/G02 authority, complete F05–F10, reconcile exact lineage, and rerun exact-HEAD CI plus route-level security tests on a clean branch from the current approved main. Independent A4 review remains a separate gate.
