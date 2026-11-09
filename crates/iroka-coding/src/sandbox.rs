@@ -10,12 +10,10 @@ use std::time::{Duration, Instant};
 
 use sha2::{Digest, Sha256};
 
-use crate::index::SnapshotFile;
 use crate::patch::WorkspaceSnapshot;
 use crate::planner::safe_relative_path;
 use iroka_kernel::{
-    ConsumedExecutionGrant, ExecutionGrant, ExecutionGrantError, ExecutionGrantScope,
-    ExecutionGrantVerifier,
+    ConsumedExecutionGrant, ExecutionGrant, ExecutionGrantError, ExecutionGrantVerifier,
 };
 
 const ENVIRONMENT_ALLOWLIST: &[&str] = &[
@@ -312,17 +310,17 @@ impl ToolchainRegistry {
             (_, Some(_)) => return Err(SandboxError::InvalidInvocation),
             (_, None) => {}
         }
-        let action_digest = digest_invocation(
+        let action_digest = digest_invocation(InvocationDigestInput {
             snapshot,
             language_id,
             action,
-            &command.program_id,
-            &args,
-            &command.working_directory,
-            &command.environment,
+            program_id: &command.program_id,
+            args: &args,
+            working_directory: &command.working_directory,
+            environment: &command.environment,
             sandbox_id,
-            &profile.profile_version,
-        );
+            profile_version: &profile.profile_version,
+        });
         Ok(SandboxInvocation {
             language_id: language_id.to_owned(),
             profile_version: profile.profile_version.clone(),
@@ -492,17 +490,17 @@ impl SandboxExecutor {
     ) -> Result<ExecutionResult, SandboxError> {
         limits.validate()?;
         let scope = grant.scope().clone();
-        let recomputed_digest = digest_invocation(
+        let recomputed_digest = digest_invocation(InvocationDigestInput {
             snapshot,
-            &invocation.language_id,
-            invocation.action,
-            &invocation.program_id,
-            &invocation.args,
-            &invocation.working_directory,
-            &invocation.environment,
-            &invocation.sandbox_id,
-            &invocation.profile_version,
-        );
+            language_id: &invocation.language_id,
+            action: invocation.action,
+            program_id: &invocation.program_id,
+            args: &invocation.args,
+            working_directory: &invocation.working_directory,
+            environment: &invocation.environment,
+            sandbox_id: &invocation.sandbox_id,
+            profile_version: &invocation.profile_version,
+        });
         if recomputed_digest != invocation.action_digest
             || scope.repository() != snapshot.repository()
             || scope.source_revision() != snapshot.revision()
@@ -1065,36 +1063,38 @@ fn read_capped<R: std::io::Read>(
     (output, overflow)
 }
 
-fn digest_invocation(
-    snapshot: &WorkspaceSnapshot,
-    language_id: &str,
+struct InvocationDigestInput<'a> {
+    snapshot: &'a WorkspaceSnapshot,
+    language_id: &'a str,
     action: ToolchainAction,
-    program_id: &str,
-    args: &[String],
-    working_directory: &str,
-    environment: &BTreeMap<String, String>,
-    sandbox_id: &str,
-    profile_version: &str,
-) -> String {
+    program_id: &'a str,
+    args: &'a [String],
+    working_directory: &'a str,
+    environment: &'a BTreeMap<String, String>,
+    sandbox_id: &'a str,
+    profile_version: &'a str,
+}
+
+fn digest_invocation(input: InvocationDigestInput<'_>) -> String {
     let mut hasher = Sha256::new();
     let mut add = |value: &[u8]| {
         hasher.update((value.len() as u64).to_be_bytes());
         hasher.update(value);
     };
-    add(language_id.as_bytes());
-    add(profile_version.as_bytes());
-    add(sandbox_id.as_bytes());
-    add(action.as_str().as_bytes());
-    add(program_id.as_bytes());
-    add(working_directory.as_bytes());
-    for arg in args {
+    add(input.language_id.as_bytes());
+    add(input.profile_version.as_bytes());
+    add(input.sandbox_id.as_bytes());
+    add(input.action.as_str().as_bytes());
+    add(input.program_id.as_bytes());
+    add(input.working_directory.as_bytes());
+    for arg in input.args {
         add(arg.as_bytes());
     }
-    for (key, value) in environment {
+    for (key, value) in input.environment {
         add(key.as_bytes());
         add(value.as_bytes());
     }
-    for file in snapshot.files() {
+    for file in input.snapshot.files() {
         add(file.path.as_bytes());
         add(file.content.as_bytes());
     }
@@ -1214,8 +1214,10 @@ mod tests {
             registry.prepare("unknown", ToolchainAction::Test, "sandbox-1", &source, None),
             Err(SandboxError::UnsupportedLanguage)
         );
-        let mut limits = SandboxLimits::default();
-        limits.wall_time = Duration::from_secs(301);
+        let limits = SandboxLimits {
+            wall_time: Duration::from_secs(301),
+            ..SandboxLimits::default()
+        };
         assert_eq!(limits.validate(), Err(SandboxError::InvalidLimits));
     }
 
