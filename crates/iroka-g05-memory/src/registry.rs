@@ -300,7 +300,8 @@ impl<P> RegistryDesignatedReviewerAuthority<P>{
 }
 impl<P:G01ReviewerProofAuthority> DesignatedReviewerAuthority for RegistryDesignatedReviewerAuthority<P>{
     fn verify_designated_reviewer(&self,receipt:&DurableApprovalReceipt,org:&str,now:u64)->Result<(),G05Error>{
-        if receipt.subject_ref!=org||receipt.expires_at<=now||receipt.issued_at>now
+        if receipt.subject_ref!=org{return Err(G05Error::ApprovalBindingMismatch);}
+        if receipt.expires_at<=now||receipt.issued_at>now
             ||receipt.expires_at<=receipt.issued_at{return Err(G05Error::ApprovalExpired);}
         let d=self.registry.active_designation(&receipt.tenant_ref,org,&receipt.reviewer_ref,now)?;
         if receipt.issued_at<d.valid_from||receipt.expires_at>d.valid_until{return Err(G05Error::ReviewerNotAuthorized);}
@@ -353,6 +354,10 @@ impl<R: iroka_kernel::RevocationChecker> G02AuthorizationAuthority
             request.principal_ref.clone(), capability, resource, risk);
         if request.tenant_ref != self.requested_tenant_id {
             return Err(G05Error::TenantScopeMismatch);
+        }
+        if request.principal_ref.trim().is_empty() || request.subject_ref.trim().is_empty()
+            || request.correlation_ref.trim().is_empty() || request.correlation_ref.len()>512 {
+            return Err(G05Error::MalformedRecord);
         }
         let correlation_digest = crate::sha256_hex(request.correlation_ref.as_bytes());
         let event_id = format!("g05-authz:{}:{}", operation_key(request.operation), correlation_digest);
@@ -465,11 +470,13 @@ mod tests{
   let mut wrong=receipt.clone();wrong.tenant_ref="t2".into();
   assert_eq!(a.verify_designated_reviewer(&wrong,"org1",152),Err(G05Error::ReviewerNotAuthorized));
   let mut wrong_org=receipt.clone();wrong_org.approval_ref="a-org".into();
-  assert_eq!(a.verify_designated_reviewer(&wrong_org,"other-org",152),Err(G05Error::ApprovalExpired));
+  assert_eq!(a.verify_designated_reviewer(&wrong_org,"other-org",152),Err(G05Error::ApprovalBindingMismatch));
   let mut wrong_reviewer=receipt.clone();wrong_reviewer.approval_ref="a-reviewer".into();wrong_reviewer.reviewer_ref="reviewer:other".into();
   assert_eq!(a.verify_designated_reviewer(&wrong_reviewer,"org1",152),Err(G05Error::ReviewerNotAuthorized));
   let mut bad_proof=receipt.clone();bad_proof.approval_ref="a-proof".into();bad_proof.proof_ref="proof:forged".into();
   assert_eq!(a.verify_designated_reviewer(&bad_proof,"org1",152),Err(G05Error::ReviewerNotAuthorized));
+  let mut corrected_proof=bad_proof.clone();corrected_proof.proof_ref="proof:valid".into();
+  assert_eq!(a.verify_designated_reviewer(&corrected_proof,"org1",152),Ok(()));
   let mut overlong=receipt.clone();overlong.approval_ref="a-window".into();overlong.expires_at=301;
   assert_eq!(a.verify_designated_reviewer(&overlong,"org1",152),Err(G05Error::ReviewerNotAuthorized));
   let c=r.connection.lock().unwrap();c.execute("UPDATE g05_reviewer_designations SET revoked_at=153 WHERE designation_ref='d1'",[]).unwrap();
