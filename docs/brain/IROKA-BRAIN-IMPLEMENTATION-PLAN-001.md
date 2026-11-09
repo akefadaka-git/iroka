@@ -1,8 +1,8 @@
 # IROKA BRAIN — Implementation Work Breakdown and Verification Plan
 
 **Document ID:** IROKA-BRAIN-PLAN-001  
-**Version:** 0.1.0-draft  
-**Status:** Planning artifact; A3 NOT AUTHORIZED  
+**Version:** 0.2.0  
+**Status:** Planning artifact; A1 FROZEN; A2 PARTIAL; A3 NOT AUTHORIZED  
 **Depends on:** IROKA-BRAIN-A1-001 and IROKA-BRAIN-A2-001  
 **Target:** `akefadaka-git/iroka`
 
@@ -153,22 +153,22 @@ A5 is not included in this work authorization. A future release proposal must in
 | Gate | Status | Evidence / next condition |
 |---|---|---|
 | A1 assessment | PASS | Destination, constitutional baseline and relevant workstreams inspected |
-| A1 Brain specification | PARTIAL | Draft IROKA-BRAIN-A1-001 created; Owner review and freeze required |
-| A2 read-only reconciliation | PARTIAL | IROKA-BRAIN-A2-001 records inspected branches/PRs and gaps |
-| A2 contracts | NOT CLOSED | B-A2-01 through B-A2-10 and domain interface dependencies remain |
+| A1 Brain specification | VERIFIED-CLOSED | Owner approved D2; IROKA-BRAIN-A1-001 v1.0.0 frozen on proposal branch |
+| A2 read-only reconciliation | PASS | IROKA-BRAIN-A2-001 records inspected branches/PRs, final repository state and D1/D2 decisions |
+| A2 contracts | PARTIAL | B-A2-01/02 approved; formal schemas, G04/G05/G06 interfaces, G08 tenant/lineage, corpus governance and A3 increment scope remain open |
 | A3 implementation | NOT AUTHORIZED | Requires A1 freeze, A2 closure and separate explicit authorization |
 | A4 verification | NOT RUN | No Brain runtime implementation exists in this workstream |
 | A5 release | NOT AUTHORIZED | Separate release gate |
 
 ## 10. Preservation and change-control rules
 
-- Do not modify `main` during A1/A2.
+- No Brain changes are to be made to `main` during A1/A2; all Brain work remains isolated on its proposal branch.
 - Do not modify existing PR branches or rewrite their history.
-- Do not merge PR #12, #13, #16, #17, #18, #19–#24 as part of this work.
+- PR #12 and #13 are already merged with Owner-confirmed D1 authorization; do not alter their merge commits. Do not merge PR #16, #17, #18, #19–#24 as part of this work.
 - Do not force-push, delete or rename existing branches.
 - Do not duplicate G01/G02/G04/G05/G06/G08/G09/G11/G12 state or authority.
 - Preserve existing CI and workflow permissions; no new workflow permissions without explicit review.
 - No production keys, secrets, personal data or paid provider dependencies.
 - Every new implementation increment must be isolated, reviewable and exact-SHA verifiable.
 
-**Disposition:** planning only. A1 freeze, A2 closure, A3 authorization, A4 verification and A5 release remain separate decisions.
+**Disposition:** planning only. A1 is VERIFIED-CLOSED / FROZEN by D2. A2 remains PARTIAL. A3 implementation is NOT AUTHORIZED and requires separate explicit Owner authorization after A2 closure. A4 verification and A5 release remain separate gates.
