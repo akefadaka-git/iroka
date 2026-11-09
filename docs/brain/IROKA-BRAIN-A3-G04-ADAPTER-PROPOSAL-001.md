@@ -2,7 +2,7 @@
 
 **Document ID:** IROKA-BRAIN-A3-G04-ADAPTER-001  
 **Version:** 0.1.0  
-**Status:** PROPOSED — NOT OWNER-APPROVED; NO IMPLEMENTATION AUTHORIZED BY THIS DOCUMENT  
+**Status:** OWNER-APPROVED BOUNDARY — A3 IMPLEMENTATION AUTHORIZED WITH DEPENDENCY LIMITS  
 **Parent:** IROKA-BRAIN-A2-COGNITIVE-CONTRACTS-001 v1.0.0 (Owner-approved)  
 **Work package:** A3-B03 — Knowledge/evidence  
 **Date:** 2026-11-09
@@ -17,7 +17,7 @@ The approved A2 Brain contract assigns:
 
 The pinned repository baseline used by B02 is main `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`. A repository-tree inspection found no G04 source crate, G04 API/contract document, knowledge-source registry, retrieval adapter, or provenance verification implementation. A2 provides generic opaque input/evidence references, but does not define the authoritative G04 API, source lifecycle or provenance semantics.
 
-**Disposition:** B03 implementation is BLOCKED pending Owner approval of the G04 boundary and identification of the authoritative G04 owner contract/source. This document is a proposal only; it does not assert that G04 is implemented or authorize a parallel G03 knowledge subsystem.
+**Disposition:** The Owner approved this boundary on 2026-11-09. The authoritative logical G04/KNOW contract is present in the Owner-approved A2 implementation contract (section 10) and A2 API/data contract (section 4.6). The repository still has no G04 provider/runtime or source registry. A3 may implement the typed adapter boundary only; provider/runtime implementation, production source access and source ingestion remain separate, explicitly gated work. No parallel G03 knowledge subsystem is permitted.
 
 ## 2. Non-negotiable ownership
 
@@ -118,13 +118,14 @@ G03 may not:
 ## 8. Implementation gates
 
 B03 code remains blocked until all are satisfied:
-- Owner approves this G04 boundary or an authoritative replacement contract.
-- The authoritative G04 repository, source path, exact SHA and owner are identified.
-- Source registry and provenance lifecycle semantics are verified against G04, not invented in G03.
-- G01 tenant context and G02 policy-context APIs are pinned to exact accepted revisions.
-- G11 audit contract and G10 evaluation interface are pinned.
-- Source licensing and permitted-use rules are documented; only synthetic fixtures are used until each real source is independently verified.
-- An isolated implementation branch and exact-head CI/security test matrix are established.
+- Owner approval of this boundary: SATISFIED (2026-11-09).
+- Normative logical G04/KNOW source: `docs/architecture/A2-IMPLEMENTATION-CONTRACTS.md` section 10 and `docs/architecture/A2-API-DATA-AND-EVENT-CONTRACTS.md` section 4.6, both pinned to the approved A2 baseline.
+- No G04 provider/runtime, source registry or production retrieval implementation exists on the pinned `main` baseline; the adapter must remain provider-agnostic and must not create a second source authority.
+- G01/G02 references remain opaque and must be resolved/enforced by the authoritative provider; this adapter does not authenticate or authorize them.
+- G11 retrieval-event integration requires a versioned G11 domain-event extension; the current G11 event schema is intentionally narrow and must not be overloaded.
+- G10 evaluation integration is deferred until its owner contract is available; it is not fabricated by B03.
+- Only synthetic fixtures are used. Each real source requires independent provenance, licence and permitted-use verification.
+- Isolated implementation branch and exact-head CI/security test matrix are required before B03 can be called verified.
 
 ## 9. Explicit non-goals
 
@@ -138,9 +139,18 @@ This proposal does not authorize:
 
 ## 10. Owner disposition
 
-Required decision: approve, reject or amend the proposed G04 boundary and identify the authoritative G04 source/contract.
+Owner decision: APPROVED on 2026-11-09. The A2 logical G04/KNOW contract is the normative upstream contract. The absence of a G04 runtime/provider is recorded as an implementation dependency, not a reason to invent a G03-owned source store.
 
-Until that decision and exact upstream contract verification are complete:
-- A3-B03 = BLOCKED / DESIGN PROPOSAL ONLY.
+Current disposition:
+- A3-B03 = IMPLEMENTATION IN PROGRESS / ADAPTER ONLY; provider/runtime and production retrieval remain NOT IMPLEMENTED.
 - A3-B04 (G05) and A3-B05 (G06) remain independently blocked by their missing owner contracts.
 - No G04 implementation is claimed.
+
+
+## 11. Owner approval record
+
+- Decision: APPROVE the proposed G04 ownership and G03↔G04 boundary.
+- Date: 2026-11-09.
+- Scope: typed adapter contract and validation implementation on an isolated branch.
+- Exclusions: no G03 knowledge store, no real-source ingestion, no production provider, no merge, no deployment, no production activation.
+- Authoritative logical contract: A2 implementation contract §10 and A2 API/data contract §4.6.
