@@ -170,7 +170,7 @@ impl<R: RevocationChecker> G01CookieAuthenticator<R> {
             cookie_value(cookie, "__Host-iroka_credential").ok_or(HttpError::Unauthenticated)?;
         let session =
             cookie_value(cookie, "__Host-iroka_session").ok_or(HttpError::Unauthenticated)?;
-        if credential.len() > 16 * 1024 || session.is_empty() || session.len() > 256 {
+        if credential.len() > 16 * 1024 || !valid_id(session) || session.len() > 256 {
             return Err(HttpError::Unauthenticated);
         }
         let principal = self
@@ -260,7 +260,7 @@ impl HttpError {
             Self::Conflict => 409,
             Self::TooLarge => 413,
             Self::UnsupportedMedia => 415,
-            Self::Storage | Self::Configuration => 503,
+            Self::Storage | Self::Configuration | Self::Overloaded => 503,
         }
     }
     fn code(self) -> &'static str {
@@ -324,13 +324,15 @@ fn header<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
         .map(|(_, value)| value.as_str())
 }
 fn cookie_value<'a>(cookie: &'a str, name: &str) -> Option<&'a str> {
-    cookie
-        .split(';')
-        .filter_map(|part| {
-            let (key, value) = part.trim().split_once('=')?;
-            (key == name).then_some(value)
-        })
-        .next()
+    let mut matches = cookie.split(';').filter_map(|part| {
+        let (key, value) = part.trim().split_once('=')?;
+        (key == name).then_some(value)
+    });
+    let value = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    Some(value)
 }
 fn read_request(stream: &mut TcpStream) -> Result<Request, HttpError> {
     stream
@@ -370,13 +372,21 @@ fn read_request(stream: &mut TcpStream) -> Result<Request, HttpError> {
     let query = target_parts.next().unwrap_or("").to_owned();
     let mut headers = Vec::new();
     for line in lines {
+        if line.starts_with(' ') || line.starts_with('\t') {
+            return Err(HttpError::BadRequest);
+        }
         let (key, value) = line.split_once(':').ok_or(HttpError::BadRequest)?;
-        if key.trim().is_empty() {
+        if key.trim().is_empty() || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
             return Err(HttpError::BadRequest);
         }
         headers.push((key.trim().to_owned(), value.trim().to_owned()));
     }
-    if header(&headers, "transfer-encoding").is_some() {
+    if header(&headers, "transfer-encoding").is_some()
+        || header(&headers, "host").is_none()
+        || ["host", "content-length", "cookie", "origin"]
+            .iter()
+            .any(|name| headers.iter().filter(|(key, _)| key.eq_ignore_ascii_case(name)).count() > 1)
+    {
         return Err(HttpError::BadRequest);
     }
     let length = header(&headers, "content-length")
@@ -449,8 +459,11 @@ fn body_json(request: &Request) -> Result<Value, HttpError> {
     }
     let content_type = header(&request.headers, "content-type").unwrap_or("");
     if !content_type
-        .to_ascii_lowercase()
-        .starts_with("application/json")
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .eq_ignore_ascii_case("application/json")
     {
         return Err(HttpError::UnsupportedMedia);
     }
@@ -931,5 +944,30 @@ mod tests {
         });
         assert_eq!(value["type"], "message.delta");
         assert_eq!(value["payload"]["text"], "ሰላም");
+    }
+    #[test]
+    fn cookie_parser_rejects_duplicate_security_cookie_names() {
+        assert_eq!(
+            cookie_value("__Host-iroka_session=first; __Host-iroka_session=second", "__Host-iroka_session"),
+            None
+        );
+    }
+
+    #[test]
+    fn state_changing_requests_require_an_exact_same_origin() {
+        let request = Request {
+            method: "POST".into(),
+            path: "/api/v1/conversations".into(),
+            query: String::new(),
+            headers: vec![
+                ("host".into(), "chat.example.test".into()),
+                ("origin".into(), "https://chat.example.test".into()),
+            ],
+            body: Vec::new(),
+        };
+        assert_eq!(enforce_same_origin(&request), Ok(()));
+        let mut cross_origin = request;
+        cross_origin.headers[1].1 = "https://evil.example".into();
+        assert_eq!(enforce_same_origin(&cross_origin), Err(HttpError::Forbidden));
     }
 }
