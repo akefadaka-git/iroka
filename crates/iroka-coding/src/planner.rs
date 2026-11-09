@@ -4,6 +4,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use serde::{Deserialize, Serialize};
+
 use crate::index::RepositoryIndex;
 
 const SCHEMA_VERSION: &str = "1.0.0";
@@ -27,7 +29,8 @@ impl Default for PlannerLimits {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct EvidenceSnippet {
     pub path: String,
     pub start_line: usize,
@@ -45,7 +48,8 @@ pub struct PlanningRequest<'a> {
     pub constraints: Vec<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PlanAction {
     Inspect,
     Analyze,
@@ -55,7 +59,8 @@ pub enum PlanAction {
     RequestApproval,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RiskLevel {
     Low,
     Medium,
@@ -63,14 +68,16 @@ pub enum RiskLevel {
     Critical,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct EvidenceReference {
     pub path: String,
     pub start_line: usize,
     pub end_line: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct PlanStep {
     pub id: String,
     pub action: PlanAction,
@@ -83,7 +90,8 @@ pub struct PlanStep {
     pub required_capabilities: Vec<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct TaskPlan {
     pub schema_version: String,
     pub plan_id: String,
