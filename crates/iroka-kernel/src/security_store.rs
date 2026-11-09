@@ -173,7 +173,13 @@ impl SqliteSecurityStore {
                highest_epoch INTEGER NOT NULL CHECK(highest_epoch >= 0),
                active_epoch INTEGER
              );
-             INSERT OR IGNORE INTO policy_lifecycle_state(singleton,highest_epoch,active_epoch) VALUES(1,0,NULL);"
+             INSERT OR IGNORE INTO policy_lifecycle_state(singleton,highest_epoch,active_epoch) VALUES(1,0,NULL);
+             CREATE TABLE IF NOT EXISTS policy_revocations (
+               policy_epoch INTEGER PRIMARY KEY, command_id TEXT NOT NULL UNIQUE,
+               digest BLOB NOT NULL CHECK(length(digest)=32), owner_subject TEXT NOT NULL,
+               key_id TEXT NOT NULL, reason TEXT NOT NULL, issued_at INTEGER NOT NULL,
+               state TEXT NOT NULL CHECK(state IN ('pending','complete'))
+             );"
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(Self {
             connection: Mutex::new(connection),
