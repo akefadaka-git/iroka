@@ -197,6 +197,11 @@ impl EvidenceBundle {
         let mut refs = HashSet::with_capacity(self.items.len());
         let mut total_bytes = 0usize;
         for item in &self.items {
+            if item.retrieved_at > self.retrieved_at
+                || item.source_updated_at.is_some_and(|updated| updated > self.retrieved_at)
+            {
+                return Err(G04Error::MalformedBundle);
+            }
             if !refs.insert(item.evidence_ref.as_str()) {
                 return Err(G04Error::DuplicateEvidenceReference);
             }
