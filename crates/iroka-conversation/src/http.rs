@@ -709,11 +709,15 @@ where
         if !existing.wait_for_acceptance(std::time::Duration::from_secs(10)) {
             return fail(stream, HttpError::Forbidden);
         }
-        let turns = match service.read(&principal, &session, &conversation_id, correlation_id, now) {
+        let turns = match service.read(&principal, &session, &conversation_id, correlation_id, now)
+        {
             Ok(value) => value,
             Err(error) => return fail(stream, HttpError::from(error)),
         };
-        if !turns.iter().any(|turn| turn.id == turn_id && turn.role == "user" && turn.content == prompt) {
+        if !turns
+            .iter()
+            .any(|turn| turn.id == turn_id && turn.role == "user" && turn.content == prompt)
+        {
             return fail(stream, HttpError::Conflict);
         }
         return write_json(
