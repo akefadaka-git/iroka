@@ -370,9 +370,11 @@ impl<R: iroka_kernel::RevocationChecker> G02AuthorizationAuthority
     for KernelG02AuthorizationAdapter<'_, R> {
     fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error> {
         let capability = g05_capability(request.operation);
-        let resource = format!("g05:{}:{}:{}:{}:{}", operation_key(request.operation),
-            request.tenant_ref, request.subject_ref, purpose_key(request.purpose),
-            request.memory_id.as_deref().unwrap_or("registry"));
+        let recipient_digest = crate::sha256_hex(request.recipient_refs.join("\\0").as_bytes());
+        let resource = format!("g05:{}:{}:{}:{}:{:?}:{}:{}",
+            operation_key(request.operation), request.tenant_ref, request.subject_ref,
+            purpose_key(request.purpose), request.classification,
+            request.memory_id.as_deref().unwrap_or("registry"), recipient_digest);
         let risk = match request.operation {
             Operation::DesignateReviewer | Operation::RevokeReviewerDesignation => iroka_kernel::RiskLevel::High,
             Operation::GrantEpisodicConsent | Operation::WithdrawEpisodicConsent => iroka_kernel::RiskLevel::Moderate,
