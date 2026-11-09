@@ -26,6 +26,12 @@ pub enum DecisionReason {
     ApprovalVerificationFailed,
     AuditUnavailable,
     ConstitutionalValidationFailed,
+    TenantSelectorMalformed,
+    TenantMembershipMissing,
+    TenantMembershipInactive,
+    TenantMembershipStale,
+    TenantAuthorityUnavailable,
+    PolicyUnavailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
