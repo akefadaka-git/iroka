@@ -785,7 +785,7 @@ where
                 break;
             }
         }
-     else if let Some(turn) = turns.iter().find(|turn| turn.id == parts[3]) {
+    } else if let Some(turn) = turns.iter().find(|turn| turn.id == parts[3]) {
         if turn.state == "completed" {
             writeln!(
                 stream,
