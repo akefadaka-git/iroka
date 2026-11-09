@@ -159,7 +159,7 @@ impl PolicyActivationCoordinator {
         now: u64,
     ) -> Result<VerifiedPolicyContext, PolicyLifecycleError> {
         let verified = verifier.verify_policy_snapshot(signed, now)?;
-        store.stage_policy_snapshot(
+        let previous_epoch = store.stage_policy_snapshot(
             verified.epoch(),
             &verified.digest,
             &verified.canonical_payload,
@@ -179,7 +179,7 @@ impl PolicyActivationCoordinator {
             event_id,
             &verified.payload.owner_subject,
             "g02.policy.activate",
-            format!("policy-epoch:{}", verified.epoch()),
+            format!("policy-epoch:{}:digest:{}:key:{}:previous:{}", verified.epoch(), digest_hex, verified.payload.key_id, previous_epoch.map_or_else(|| "none".to_owned(), |value| value.to_string())),
             verified.version(),
             DecisionCode::Allow,
             verified.payload.issued_at,
