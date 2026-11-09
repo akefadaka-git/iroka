@@ -133,16 +133,30 @@ impl<R: RevocationChecker> CredentialStatus for KernelCredentialStatus<R> {
         revocation_version: u64,
         _now: u64,
     ) -> Result<(), ConversationError> {
-        if issuer.trim().is_empty() || credential_id.trim().is_empty() || key_id.trim().is_empty() || revocation_version == 0 {
+        if issuer.trim().is_empty()
+            || credential_id.trim().is_empty()
+            || key_id.trim().is_empty()
+            || revocation_version == 0
+        {
             return Err(ConversationError::SessionInvalid);
         }
-        let key_revoked = self.checker.key_revoked(issuer, key_id)
+        let key_revoked = self
+            .checker
+            .key_revoked(issuer, key_id)
             .map_err(|_| ConversationError::SessionInvalid)?;
-        let credential_revoked = self.checker.credential_revoked(issuer, credential_id)
+        let credential_revoked = self
+            .checker
+            .credential_revoked(issuer, credential_id)
             .map_err(|_| ConversationError::SessionInvalid)?;
-        let current_version = self.checker.current_version(issuer)
+        let current_version = self
+            .checker
+            .current_version(issuer)
             .map_err(|_| ConversationError::SessionInvalid)?;
-        if key_revoked || credential_revoked || current_version == 0 || current_version != revocation_version {
+        if key_revoked
+            || credential_revoked
+            || current_version == 0
+            || current_version != revocation_version
+        {
             return Err(ConversationError::SessionInvalid);
         }
         Ok(())
@@ -150,9 +164,11 @@ impl<R: RevocationChecker> CredentialStatus for KernelCredentialStatus<R> {
 }
 
 fn ensure_session_key_column(db: &Connection) -> Result<(), ConversationError> {
-    let mut statement = db.prepare("PRAGMA table_info(app_sessions)")
+    let mut statement = db
+        .prepare("PRAGMA table_info(app_sessions)")
         .map_err(|_| ConversationError::StorageUnavailable)?;
-    let columns = statement.query_map([], |row| row.get::<_, String>(1))
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
         .map_err(|_| ConversationError::StorageUnavailable)?;
     let mut found = false;
     for column in columns {
@@ -196,14 +212,16 @@ impl SqliteSessionRegistry {
         path: &str,
         security_store: Arc<SqliteSecurityStore>,
     ) -> Result<Self, ConversationError> {
-        let status: Arc<dyn CredentialStatus> = Arc::new(KernelCredentialStatus::new(security_store));
+        let status: Arc<dyn CredentialStatus> =
+            Arc::new(KernelCredentialStatus::new(security_store));
         Self::open(path, status)
     }
 
     pub fn open_in_memory_with_kernel_store(
         security_store: Arc<SqliteSecurityStore>,
     ) -> Result<Self, ConversationError> {
-        let status: Arc<dyn CredentialStatus> = Arc::new(KernelCredentialStatus::new(security_store));
+        let status: Arc<dyn CredentialStatus> =
+            Arc::new(KernelCredentialStatus::new(security_store));
         Self::open_in_memory(status)
     }
 
@@ -401,7 +419,11 @@ impl CredentialStatus for AllowTestCredential {
         revocation_version: u64,
         _now: u64,
     ) -> Result<(), ConversationError> {
-        if issuer == "issuer:1" && credential_id == "cred:1" && key_id == "key:1" && revocation_version == 1 {
+        if issuer == "issuer:1"
+            && credential_id == "cred:1"
+            && key_id == "key:1"
+            && revocation_version == 1
+        {
             Ok(())
         } else {
             Err(ConversationError::SessionInvalid)
@@ -453,16 +475,47 @@ mod tests {
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:1", "issuer:1", "cred:1", "key:1", 1, 100, 3600, "tenant:a", "s1", 200),
+            sessions.validate(
+                "subject:1",
+                "issuer:1",
+                "cred:1",
+                "key:1",
+                1,
+                100,
+                3600,
+                "tenant:a",
+                "s1",
+                200
+            ),
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:other", "issuer:1", "cred:1", "key:1", 1, 100, 3600, "tenant:a", "s1", 200),
+            sessions.validate(
+                "subject:other",
+                "issuer:1",
+                "cred:1",
+                "key:1",
+                1,
+                100,
+                3600,
+                "tenant:a",
+                "s1",
+                200
+            ),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(sessions.revoke("s1"), Ok(()));
         assert_eq!(
-            sessions.validate("subject:1", "issuer:1", "cred:1", "key:1", 1, "tenant:a", "s1", 200),
+            sessions.validate(
+                "subject:1",
+                "issuer:1",
+                "cred:1",
+                "key:1",
+                1,
+                "tenant:a",
+                "s1",
+                200
+            ),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(
