@@ -226,3 +226,55 @@ A failed dependency gate stops only the dependent work package; it does not just
 | A5 | NOT AUTHORIZED |
 
 **No merge, deployment, production activation, signing, publication or paid-service activation is authorized.**
+
+
+---
+
+## 11. A3 execution record — B01 implementation and exact-HEAD CI (2026-11-09)
+
+**Owner authorization:** Explicit YES for A3 implementation of B01–B09 on isolated branches, with dependency gates. Merge and deployment remain separately unauthorized.
+
+### 11.1 B01 implementation record
+
+- PR: https://github.com/akefadaka-git/iroka/pull/27
+- Branch: `feat/brain-a3-b01-cognitive-core`
+- Base: `main` at `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`
+- Exact verified HEAD: `9d68b580e06bb8335a626524d64b345c3a5a38aa`
+- PR state: OPEN / DRAFT / UNMERGED.
+- Compare: branch is 6 commits ahead of main, 0 behind (verify against latest comparison before any later integration).
+- Added isolated `iroka-brain` workspace crate with serde/serde_json only; no new external dependency.
+- Implemented v1 task/result envelope structures, strict schema/version validation, full serialized-input byte budget, fail-closed iteration/output limits, offline context/domain-adapter denial, deterministic plan proposal and structural validator, critic recommendation and model-adapter trait.
+- Deterministic fake adapter is the only adapter. No network or model provider is contacted.
+- Caller-supplied principal/tenant/policy references are rejected; G04/G05/G06/CIW references are rejected until authoritative adapters exist.
+- External provider, persistence, agent delegation and protected-effect flags are rejected.
+- Evidence-required tasks abstain instead of fabricating citations.
+- Result attribution is explicit; no G03 critic can claim G11 independent assurance.
+- Locale tags are preserved, but language generation/translation quality is not implemented or asserted. Output bounds are conservative whitespace/byte guards, not tokenizer-exact token accounting.
+
+### 11.2 Exact-HEAD CI evidence
+
+Workflow: **Rust kernel verification**, run **#649**, run ID `42576912231`:
+https://github.com/akefadaka-git/iroka/actions/runs/42576912231
+
+Head SHA matched `9d68b580e06bb8335a626524d64b345c3a5a38aa`. Final conclusion: **SUCCESS**.
+
+| Check | Result |
+|---|---|
+| cargo fmt --all -- --check | PASS |
+| cargo check --workspace --all-targets --locked | PASS |
+| no-default-features compile | PASS |
+| cargo test --workspace --all-targets --locked | PASS |
+| iroka-brain unit tests | 15 passed, 0 failed |
+| iroka-kernel unit tests | 71 passed, 0 failed |
+| other conformance tests | 2 passed, 0 failed |
+| cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic | PASS |
+
+### 11.3 B01 disposition and next dependency gates
+
+**B01 code and CI verification: VERIFIED for the isolated synthetic increment.** This is not A4 security acceptance, independent assurance, merge approval, or production readiness. B01 remains an unmerged draft PR pending separate review and A4 evidence.
+
+**B02 trusted composition remains BLOCKED** until exact authoritative G01/G02 APIs, tenant membership/revocation semantics, policy decision lifecycle, and Kernel integration baseline are reconciled. Do not add local substitute identity, tenant, policy or audit authorities.
+
+B03–B05 remain gated on exact G04/G05/G06 contracts. B06 remains gated on PR #23's diverged ancestry and selective security review. B07 remains gated on G08 tenant-context and lineage closure. B08/B09 remain gated on G10/G11/G12 authoritative contracts, approved evaluation provenance and independent assurance.
+
+No other package is represented as implemented by this record. No existing PR was merged or rebased; `main` was not modified. No deployment, signing, publication, production data, external provider or paid service was activated.
