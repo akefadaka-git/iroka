@@ -455,6 +455,10 @@ mod tests {
         assert_eq!(principal.subject(), "principal:42");
         assert_eq!(principal.issuer(), "issuer:iroka-test");
         assert_eq!(principal.credential_id(), "cred-001");
+        assert_eq!(principal.key_id(), "key-2026-a");
+        assert_eq!(principal.revocation_version(), 1);
+        assert_eq!(principal.issued_at(), 1_100);
+        assert_eq!(principal.expires_at(), 4_700);
     }
 
     #[test]
