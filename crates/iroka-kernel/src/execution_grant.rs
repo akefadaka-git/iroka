@@ -30,6 +30,7 @@ pub struct ExecutionGrantScope {
     source_revision: String,
     sandbox_id: String,
     action_digest: String,
+    risk: RiskLevel,
     policy_version: String,
 }
 
@@ -41,6 +42,7 @@ impl ExecutionGrantScope {
         source_revision: impl Into<String>,
         sandbox_id: impl Into<String>,
         action_digest: impl Into<String>,
+        risk: RiskLevel,
         policy_version: impl Into<String>,
     ) -> Result<Self, ExecutionGrantError> {
         let scope = Self {
@@ -50,6 +52,7 @@ impl ExecutionGrantScope {
             source_revision: source_revision.into(),
             sandbox_id: sandbox_id.into(),
             action_digest: action_digest.into(),
+            risk,
             policy_version: policy_version.into(),
         };
         if scope.subject.trim().is_empty()
@@ -60,6 +63,7 @@ impl ExecutionGrantScope {
             || !valid_revision(&scope.source_revision)
             || !valid_identifier(&scope.sandbox_id)
             || !valid_digest(&scope.action_digest)
+            || !matches!(scope.risk, RiskLevel::High | RiskLevel::Critical)
             || scope.policy_version.trim().is_empty()
             || scope.policy_version.len() > 128
             || scope.policy_version.bytes().any(|byte| byte.is_ascii_control())
@@ -97,6 +101,11 @@ impl ExecutionGrantScope {
     #[must_use]
     pub fn action_digest(&self) -> &str {
         &self.action_digest
+    }
+
+    #[must_use]
+    pub fn risk(&self) -> RiskLevel {
+        self.risk
     }
 
     #[must_use]
@@ -199,7 +208,7 @@ impl<'a> ExecutionGrantIssuer<'a> {
             || evidence.capability() != scope.capability
             || evidence.resource() != scope.resource()
             || evidence.policy_version() != scope.policy_version
-            || !matches!(evidence.risk(), RiskLevel::High | RiskLevel::Critical)
+            || evidence.risk() != scope.risk
             || !valid_digest(evidence.genesis_digest())
         {
             return Err(ExecutionGrantError::InvalidEvidence);
@@ -415,6 +424,7 @@ fn scope_digest(
         scope.source_revision.as_str(),
         scope.sandbox_id.as_str(),
         scope.action_digest.as_str(),
+        format!("{:?}", scope.risk).as_str(),
         scope.policy_version.as_str(),
         resource.as_str(),
         decision_id,
@@ -521,6 +531,7 @@ mod tests {
             "a".repeat(40),
             "sandbox-1",
             "b".repeat(64),
+            crate::RiskLevel::High,
             "policy-g09-v1",
         )
         .expect("grant scope");
@@ -646,6 +657,7 @@ mod tests {
             scope.source_revision(),
             "sandbox-other",
             scope.action_digest(),
+            scope.risk(),
             scope.policy_version(),
         )
         .expect("alternate scope");
@@ -705,6 +717,7 @@ mod tests {
                 "a".repeat(40),
                 "sandbox-1",
                 "b".repeat(64),
+                crate::RiskLevel::High,
                 "policy-v1"
             ),
             Err(ExecutionGrantError::InvalidScope)
