@@ -590,16 +590,17 @@ where
     if request.path == "/api/v1/conversations" && request.method == "POST" {
         let body = body_json(request)?;
         let locale = body.get("locale").and_then(Value::as_str);
-        let id = format!(
-            "c-{}-{}",
-            now,
-            REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-        );
+        let client_request_id = body
+            .get("client_request_id")
+            .and_then(Value::as_str)
+            .filter(|value| valid_id(value))
+            .ok_or(HttpError::BadRequest)?;
+        let id = format!("c-{client_request_id}");
         let c = service
             .create(principal, session, &id, locale, correlation_id, now)
             .map_err(HttpError::from)?;
         return Ok((
-            201,
+            200,
             json!({"conversation":{"id":c.id,"locale":match c.locale { crate::Locale::Amharic => "am", crate::Locale::English => "en" }}}),
         ));
     }
@@ -704,6 +705,26 @@ where
         REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed)
     );
     let assistant_id = format!("{turn_id}:assistant");
+    if let Some(existing) = generations.get(&assistant_id) {
+        if !existing.wait_for_acceptance(std::time::Duration::from_secs(10)) {
+            return fail(stream, HttpError::Forbidden);
+        }
+        let turns = match service.read(&principal, &session, &conversation_id, correlation_id, now) {
+            Ok(value) => value,
+            Err(error) => return fail(stream, HttpError::from(error)),
+        };
+        if !turns.iter().any(|turn| turn.id == turn_id && turn.role == "user" && turn.content == prompt) {
+            return fail(stream, HttpError::Conflict);
+        }
+        return write_json(
+            stream,
+            202,
+            json!({
+                "turn":{"id":assistant_id},
+                "events_url":format!("/api/v1/generations/{assistant_id}/events?conversation_id={conversation_id}")
+            }),
+        );
+    }
     let state = match generations.insert(&assistant_id, now) {
         Ok(value) => value,
         Err(error) => return fail(stream, error),
