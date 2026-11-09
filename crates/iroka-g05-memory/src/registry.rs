@@ -563,7 +563,7 @@ mod tests{
   struct Accept;
   impl crate::G11MemoryAuditAuthority for Accept{
    fn append_memory_event(&self,e:&crate::AuditEvent)->Result<(),G05Error>{
-    assert_eq!(e.event_type,"memory.consent.granted");Ok(())
+    assert_eq!(e.event_id,"evt1");assert_eq!(e.event_type,"memory.consent.granted");Ok(())
    }
   }
   let r=SqliteG05AuthorityRegistry::open_in_memory().unwrap();
@@ -575,6 +575,13 @@ mod tests{
   assert_eq!(r.drain_g11_outbox(&Fail,110,10),Err(G05Error::AuditUnavailable));
   assert_eq!(r.drain_g11_outbox(&Accept,111,10),Ok(1));
   assert_eq!(r.drain_g11_outbox(&Accept,112,10),Ok(0));
+ }
+
+ #[test] fn g05_operations_map_to_distinct_g02_capabilities(){
+  assert_eq!(g05_capability(Operation::GrantEpisodicConsent),"g05.memory.consent.grant");
+  assert_eq!(g05_capability(Operation::WithdrawEpisodicConsent),"g05.memory.consent.withdraw");
+  assert_eq!(g05_capability(Operation::DesignateReviewer),"g05.memory.reviewer.designate");
+  assert_eq!(g05_capability(Operation::RevokeReviewerDesignation),"g05.memory.reviewer.revoke");
  }
 
 }
