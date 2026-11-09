@@ -6,7 +6,7 @@
 use crate::{
     record_decision, AuditEvent, AuditSink, AuthorizationRequest, CredentialError, Decision,
     DecisionCode, DecisionReason, Ed25519CredentialVerifier, OwnerApprovalVerifier,
-    RevocationChecker, SignedOwnerApproval, SqliteAuditSink, VerifiedGenesis,
+    RevocationChecker, SignedOwnerApproval, VerifiedGenesis,
 };
 
 struct TenantBoundAuditSink<'a, S> {
