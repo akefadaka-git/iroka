@@ -315,10 +315,10 @@ mod tests {
         let (signer, verifier, store, _audit) = fixture();
         let signed = signed(&signer, 1, false);
         let verified = verifier.verify_policy_snapshot(&signed, 1_200).unwrap();
-        store.stage_policy_snapshot(
+        assert_eq!(store.stage_policy_snapshot(
             verified.epoch(), &verified.digest, &verified.canonical_payload, &verified.signature,
             "owner:akefa", "owner-key-policy", "policy-1", 1_101, 2_001, false,
-        ).unwrap();
+        ).unwrap(), None);
         assert_eq!(
             PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap_err(),
             PolicyLifecycleError::Inactive
@@ -345,10 +345,10 @@ mod tests {
 
     #[test]
     fn pending_owner_policy_revocation_blocks_policy_use_until_g11_recovers() {
-        let (signer, verifier, store, _audit) = fixture();
+        let (signer, verifier, store, audit) = fixture();
         let signed = signed(&signer, 1, false);
         PolicyActivationCoordinator::activate(
-            &verifier, &store, &_audit, &signed, 1_200,
+            &verifier, &store, &audit, &signed, 1_200,
         ).unwrap();
         store.stage_policy_revocation(
             1, "pending-revoke", &[7u8; 32], "owner:akefa", "owner-key-policy",
