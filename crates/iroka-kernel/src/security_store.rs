@@ -529,7 +529,7 @@ impl SqliteSecurityStore {
     pub(crate) fn stage_policy_snapshot(
         &self, epoch: u64, digest: &[u8; 32], canonical_payload: &[u8], signature: &[u8],
         owner_subject: &str, key_id: &str, policy_version: &str,
-        issued_at: u64, expires_at: u64, emergency_stop_active: bool, now: u64,
+        issued_at: u64, expires_at: u64, emergency_stop_active: bool,
     ) -> Result<(), SecurityStoreError> {
         if epoch == 0 || canonical_payload.is_empty() || signature.len() != 64
             || owner_subject.trim().is_empty() || key_id.trim().is_empty()
@@ -582,11 +582,16 @@ impl SqliteSecurityStore {
         let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
         let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let existing: (Vec<u8>, String) = tx.query_row(
-            "SELECT digest,state FROM policy_snapshots WHERE epoch=?1", [epoch_i],
-            |row| Ok((row.get(0)?,row.get(1)?)),
+        let existing: (Vec<u8>, String, String) = tx.query_row(
+            "SELECT digest,state,key_id FROM policy_snapshots WHERE epoch=?1", [epoch_i],
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         if existing.0.as_slice() != digest { return Err(SecurityStoreError::ConflictingVersion); }
+        let revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer='iroka:owner-authority' AND key_id=?1)",
+            [&existing.2], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if revoked { return Err(SecurityStoreError::Revoked); }
         if existing.1 == "active" {
             tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
             return Ok(());
