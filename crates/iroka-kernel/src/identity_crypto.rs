@@ -374,6 +374,20 @@ mod tests {
     }
 
     #[derive(Clone, Copy)]
+    struct RevocationEpochChanged;
+    impl RevocationChecker for RevocationEpochChanged {
+        fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            Ok(false)
+        }
+        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            Ok(false)
+        }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+            Ok(2)
+        }
+    }
+
+    #[derive(Clone, Copy)]
     struct RevocationUnavailable;
     impl RevocationChecker for RevocationUnavailable {
         fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
@@ -409,7 +423,7 @@ mod tests {
         let header_json = format!(r#"{{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"{kid}"}}"#);
         let header = URL_SAFE_NO_PAD.encode(header_json.as_bytes());
         let claims_json = format!(
-            r#"{{"iss":"issuer:iroka-test","sub":"principal:42","aud":"iroka-kernel","exp":{exp},"nbf":{issued_at},"iat":{issued_at},"jti":"cred-001"}}"#
+            r#"{{"iss":"issuer:iroka-test","sub":"principal:42","aud":"iroka-kernel","exp":{exp},"nbf":{issued_at},"iat":{issued_at},"jti":"cred-001","rv":1}}"#
         );
         let claims = URL_SAFE_NO_PAD.encode(claims_json.as_bytes());
         let input = format!("{header}.{claims}");
@@ -617,6 +631,15 @@ mod tests {
         assert_eq!(
             key_verifier.authenticate(&token(&signing, "key-2026-a", 4_700), "iroka-kernel", 1_200),
             Err(CredentialError::RevokedKey)
+        );
+    }
+    #[test]
+    fn rejects_credentials_from_a_stale_revocation_epoch() {
+        let (signing, trust) = fixture();
+        let verifier = Ed25519CredentialVerifier::new(trust, RevocationEpochChanged);
+        assert_eq!(
+            verifier.authenticate(&token(&signing, "key-2026-a", 4700), "iroka-kernel", 1200),
+            Err(CredentialError::RevocationVersionMismatch)
         );
     }
 }
