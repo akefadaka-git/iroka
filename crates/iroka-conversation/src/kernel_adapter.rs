@@ -59,10 +59,10 @@ impl<S: AuditSink + Send + Sync + 'static> KernelAuthorization for KernelConvers
         let decision = authorize_authenticated_with_owner_approval(
             &request,
             principal,
-            self.genesis,
+            self.genesis.as_ref(),
             None,
-            self.owner_approvals,
-            self.audit,
+            self.owner_approvals.as_ref(),
+            self.audit.as_ref(),
             self.policy.policy(),
             now,
             false,
