@@ -52,6 +52,19 @@ The crate deliberately does not implement identity verification, tenant resoluti
 6. No production source ingestion or real-user data is permitted in this stage.
 7. The code has not yet passed exact-HEAD CI; A4 security review is not run. The crate currently contains 15 synthetic unit tests.
 
+
+## Existing Kernel integration reconciliation
+
+Read-only inspection of the stacked B03 base confirmed these integration constraints:
+
+- `iroka-kernel::authorize_compact_in_tenant` composes compact G01 credential verification, IROKA-owned tenant membership, the active global G02 policy, optional Owner approval and G11 decision audit. It returns a decision, not a reusable G05 authorization capability.
+- The Kernel `AuthorizationRequest` is a narrow subject/capability/resource/risk envelope. The G05 adapter must map each memory operation to an explicit capability and must not trust caller-supplied principal or tenant values.
+- The Kernel's current G11 `AuditSink` and `AuditEvent` represent authorization decisions. They do not yet define the versioned memory lifecycle event schema required by this contract. G05 memory events must not be misrepresented as authorization decisions.
+- The inspected Kernel API does not provide a G05 episodic opt-in registry or a designated organizational human-reviewer registry. These cannot be fabricated inside G05 or replaced with a boolean supplied by the caller.
+- The existing tenant membership resolver is backed by the Owner-governed security store and returns immutable tenant context. G05 must consume this authority rather than create a parallel membership table.
+
+Therefore, the new G05 traits remain explicit integration ports. A concrete production adapter is blocked until the G05 consent/reviewer authority and versioned G11 event extension are defined and wired to trusted services. This is an intentional fail-closed boundary, not a claim that production integration is complete.
+
 ## Required next work
 
 - Compile and test the exact branch head with the repository's locked workspace CI matrix.
