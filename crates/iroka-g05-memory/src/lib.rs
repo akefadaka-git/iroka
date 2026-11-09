@@ -672,7 +672,7 @@ mod tests {
             _purpose: Purpose, _now: u64,
         ) -> Result<(), G05Error> { Ok(()) }
         fn verify_durable_approval(
-            &self, _receipt: &DurableApprovalReceipt, _organizational: bool, _now: u64,
+            &self, _receipt: &DurableApprovalReceipt, _now: u64,
         ) -> Result<(), G05Error> { Ok(()) }
         fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> { Ok(()) }
     }
