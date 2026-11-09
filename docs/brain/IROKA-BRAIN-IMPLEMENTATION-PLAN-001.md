@@ -278,3 +278,55 @@ Head SHA matched `9d68b580e06bb8335a626524d64b345c3a5a38aa`. Final conclusion: *
 B03–B05 remain gated on exact G04/G05/G06 contracts. B06 remains gated on PR #23's diverged ancestry and selective security review. B07 remains gated on G08 tenant-context and lineage closure. B08/B09 remain gated on G10/G11/G12 authoritative contracts, approved evaluation provenance and independent assurance.
 
 No other package is represented as implemented by this record. No existing PR was merged or rebased; `main` was not modified. No deployment, signing, publication, production data, external provider or paid service was activated.
+
+
+## 12. A3-B02 trusted-composition read-only reconciliation — 2026-11-09
+
+**Disposition: BLOCKED — authoritative tenant context and complete policy lifecycle are not available in the current main baseline. No B02 runtime code is authorized for composition until these gaps are closed.**
+
+Exact inspected baseline: `main` at `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`.
+
+### 12.1 G01 identity findings
+
+- `Ed25519CredentialVerifier::authenticate` is a public concrete verifier and returns opaque `VerifiedPrincipal` only after Ed25519 signature, issuer/key trust, exact audience, time claims and revocation checks.
+- Trust-store construction is rooted in signed trust-bundle verification and anti-rollback storage. Revocation backend errors fail closed.
+- `NoRevocations` is test/development-only.
+- `docs/architecture/G01-IDENTITY-CONTRACT.md` explicitly states tenant trust administration is not implemented.
+- No tenant membership resolver, tenant-context object, membership revocation contract, or principal-to-tenant binding API exists in the inspected main tree.
+
+### 12.2 G02 governance findings
+
+- `authorize_authenticated_with_owner_approval` is the production authorization-decision entry point. It checks the IGACMS baseline, exact principal/request subject binding, policy evaluation, optional signed Owner approval, approval replay/revocation and audit append.
+- G02's signed Owner approval binds requester, capability, resource and exact policy version. Approval consumption is durable and replay-protected.
+- `Policy` is explicitly an in-memory policy input. No signed/versioned policy publication, persistence, rollback protection, policy-owner lifecycle or policy retrieval interface is exposed by the inspected API.
+- No live Owner public key or trust-root provisioning is recorded; the provisioning runbook says those ceremonies remain outstanding.
+- An ALLOW is a decision only, not an execution grant. G09 remains the separate protected-effect authority.
+
+### 12.3 Exact current API surface and limitations
+
+Verified public Kernel surface includes:
+- `Ed25519CredentialVerifier::authenticate(compact_token, expected_audience, now) -> VerifiedPrincipal`;
+- `Policy::new(...)` and `evaluate(...)` as a deterministic in-memory policy primitive;
+- `authorize_authenticated_with_owner_approval(...)` as the signed Owner-approval decision path;
+- `SqliteSecurityStore` for trust/revocation/approval state;
+- `SqliteAuditSink` as a local G11 audit adapter.
+
+Not present in the inspected main tree:
+- tenant membership resolver/context issuance and revocation;
+- server-side tenant membership source-of-truth contract;
+- signed/persisted policy lifecycle and policy snapshot loader;
+- production provisioning evidence for actual trust roots, issuer keys, Owner keys and revocation service;
+- approved Brain composition-root API that atomically binds principal, tenant, policy and audit context.
+
+### 12.4 B02 stop conditions and acceptance gates
+
+B02 must remain disabled until all of the following are supplied and reconciled against exact SHAs:
+
+1. G01 tenant membership contract: authoritative membership source, tenant resolution from verified principal, membership revocation, freshness/cache rules, cross-tenant denial and failure behavior.
+2. G02 policy lifecycle contract: signed immutable policy snapshots, signer authority, version monotonicity/rollback protection, activation/revocation, emergency-stop semantics and deterministic policy selection.
+3. Kernel integration contract: one trusted composition root that obtains verified principal, resolves tenant, selects current policy, calls the signed Owner-approval decision path and appends G11 evidence without exposing constructors or bypass paths.
+4. Production trust provisioning evidence: no secrets in repository; public key IDs/fingerprints, issuer/audience mapping, Owner subject/key validity and revocation backend operational evidence only.
+5. Negative tests: caller-supplied tenant spoofing, missing/expired/revoked membership, stale policy, rollback, wrong audience, revoked credentials, unavailable revocation, approval replay, audit failure and tenant-isolation attacks.
+6. G09 exclusion: G03 may receive a typed decision outcome, but cannot execute protected effects or treat ALLOW as an execution token.
+
+**Current B02 status:** design reconciliation PARTIAL; implementation NOT STARTED / BLOCKED. Do not create a Brain-owned tenant resolver, policy engine, approval store, trust store or audit store as a workaround.
