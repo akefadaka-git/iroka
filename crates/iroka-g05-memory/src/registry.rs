@@ -408,7 +408,8 @@ fn purpose_from_key(value:&str)->Result<Purpose,G05Error>{match value{
     "OPERATIONAL_HISTORY"=>Ok(Purpose::OperationalHistory),
     "AUTHORIZED_SYSTEM_ASSURANCE"=>Ok(Purpose::AuthorizedSystemAssurance),
     _=>Err(G05Error::AuthorityUnavailable)}}
-\nfn purpose_key(p:Purpose)->&'static str{match p{
+
+fn purpose_key(p:Purpose)->&'static str{match p{
     Purpose::TaskContinuity=>"TASK_CONTINUITY",Purpose::UserPreference=>"USER_PREFERENCE",
     Purpose::ProjectContext=>"PROJECT_CONTEXT",Purpose::OrganizationalContext=>"ORGANIZATIONAL_CONTEXT",
     Purpose::OperationalHistory=>"OPERATIONAL_HISTORY",Purpose::AuthorizedSystemAssurance=>"AUTHORIZED_SYSTEM_ASSURANCE"}}
@@ -487,6 +488,28 @@ mod tests{
    tenant_ref:"t".into(),subject_ref:"org".into(),content_sha256:"c".repeat(64),
    reviewer_ref:"reviewer:1".into(),issued_at:110,expires_at:130,proof_ref:"proof:bad".into()};
   assert_eq!(a.verify_designated_reviewer(&receipt,"org",150),Err(G05Error::ReviewerNotAuthorized));
+ }
+
+ #[test] fn g11_outbox_retries_after_sink_failure_and_marks_delivery(){
+  struct Fail;
+  impl crate::G11MemoryAuditAuthority for Fail{
+   fn append_memory_event(&self,_:&crate::AuditEvent)->Result<(),G05Error>{Err(G05Error::AuditUnavailable)}
+  }
+  struct Accept;
+  impl crate::G11MemoryAuditAuthority for Accept{
+   fn append_memory_event(&self,e:&crate::AuditEvent)->Result<(),G05Error>{
+    assert_eq!(e.event_type,"memory.consent.granted");Ok(())
+   }
+  }
+  let r=SqliteG05AuthorityRegistry::open_in_memory().unwrap();
+  {let c=r.connection.lock().unwrap();c.execute("INSERT INTO g05_authority_outbox
+   (event_id,event_type,aggregate_ref,tenant_ref,actor_ref,purpose,record_version,outcome,
+    correlation_ref,occurred_at,content_sha256,delivered_at)
+   VALUES('evt1','memory.consent.granted','consent:1','tenant:1','subject:1',
+    'TASK_CONTINUITY',1,'granted','trace:1',100,?1,NULL)",["0".repeat(64)]).unwrap();}
+  assert_eq!(r.drain_g11_outbox(&Fail,110,10),Err(G05Error::AuditUnavailable));
+  assert_eq!(r.drain_g11_outbox(&Accept,111,10),Ok(1));
+  assert_eq!(r.drain_g11_outbox(&Accept,112,10),Ok(0));
  }
 
 }
