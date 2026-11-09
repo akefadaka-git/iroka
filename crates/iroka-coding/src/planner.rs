@@ -241,6 +241,9 @@ fn validate_plan(
     if plan.objective.trim().is_empty() {
         return Err(PlanValidationError::EmptyDescription);
     }
+    if plan.objective.len() > limits.max_text_bytes {
+        return Err(PlanValidationError::LimitExceeded);
+    }
     if plan.steps.is_empty() {
         return Err(PlanValidationError::EmptyPlan);
     }
@@ -270,6 +273,7 @@ fn validate_plan(
             return Err(PlanValidationError::DuplicateStep);
         }
         total_bytes = total_bytes
+            .saturating_add(step.id.len())
             .saturating_add(step.summary.len())
             .saturating_add(step.detail.len());
         if step.summary.trim().is_empty()
@@ -322,6 +326,7 @@ fn validate_plan(
     for step in &plan.steps {
         let mut dependencies = BTreeSet::new();
         for dependency in &step.depends_on {
+            total_bytes = total_bytes.saturating_add(dependency.len());
             if dependency == &step.id || !step_map.contains_key(dependency.as_str()) {
                 return Err(PlanValidationError::UnknownDependency);
             }
@@ -385,9 +390,11 @@ fn has_dependency_cycle(steps: &[PlanStep]) -> bool {
 }
 
 pub(crate) fn valid_identifier(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 64
-        && value.bytes().all(|byte| {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 64
+        && (bytes[0].is_ascii_lowercase() || bytes[0].is_ascii_digit())
+        && bytes.iter().all(|byte| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_' | b'.')
         })
 }
@@ -401,11 +408,13 @@ pub(crate) fn safe_relative_path(path: &str) -> bool {
         && path.len() <= 4096
         && !path.starts_with('/')
         && !path.starts_with('\\')
+        && !path.starts_with('~')
         && !path.contains('\\')
+        && !path.contains(':')
         && !path.bytes().any(|byte| byte.is_ascii_control())
-        && path
-            .split('/')
-            .all(|part| !part.is_empty() && part != "." && part != "..")
+        && path.split('/').all(|part| {
+            !part.is_empty() && part != "." && part != ".." && part != ".git"
+        })
 }
 
 #[cfg(test)]
@@ -547,6 +556,13 @@ mod tests {
                 PlanValidationError::MissingOwnerApproval
             ))
         );
+    }
+
+    #[test]
+    fn rejects_windows_absolute_and_git_metadata_paths() {
+        assert!(!safe_relative_path("C:/outside.rs"));
+        assert!(!safe_relative_path(".git/config"));
+        assert!(!safe_relative_path("src/../outside.rs"));
     }
 
     #[test]
