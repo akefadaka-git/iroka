@@ -18,10 +18,16 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 mod registry;
-pub use registry::{G01ReviewerProofAuthority, KernelG02AuthorizationAdapter, ReviewerDesignation, RegistryDesignatedReviewerAuthority, SqliteG05AuthorityRegistry};
+pub use registry::{
+    G01ReviewerProofAuthority, KernelG02AuthorizationAdapter, RegistryDesignatedReviewerAuthority,
+    ReviewerDesignation, SqliteG05AuthorityRegistry,
+};
 
 mod authority;
-pub use authority::{DesignatedReviewerAuthority, EpisodicConsentAuthority, G02AuthorizationAuthority, G11MemoryAuditAuthority, TrustedGovernanceAdapter};
+pub use authority::{
+    DesignatedReviewerAuthority, EpisodicConsentAuthority, G02AuthorizationAuthority,
+    G11MemoryAuditAuthority, TrustedGovernanceAdapter,
+};
 
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
 pub const CONTRACT_VERSION: &str = "1.0.0";
@@ -269,9 +275,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 fn valid_ref(value: &str) -> bool {
-    !value.trim().is_empty()
-        && value.len() <= MAX_REF_BYTES
-        && !value.chars().any(char::is_control)
+    !value.trim().is_empty() && value.len() <= MAX_REF_BYTES && !value.chars().any(char::is_control)
 }
 
 fn valid_digest(value: &str) -> bool {
@@ -377,7 +381,6 @@ pub fn validate_candidate(
     }
     Ok(())
 }
-
 
 /// Prepare a new record after policy validation, G02 authorization and (for
 /// episodic capture) trusted opt-in verification. Durable records always enter
@@ -494,7 +497,6 @@ pub fn transition_allowed(from: LifecycleState, to: LifecycleState) -> bool {
     )
 }
 
-
 /// Activation is a privileged lifecycle transition. It is allowed only when
 /// the receipt is bound to this exact record and the trusted governance port
 /// has independently verified its signature and reviewer designation.
@@ -510,8 +512,6 @@ pub fn validate_durable_activation_binding(
     Ok(())
 }
 
-
-
 /// First retrieval authorization. A caller MUST invoke this before even
 /// looking up record metadata; the record ID is only a selector.
 pub fn authorize_retrieval_request<G: GovernancePort>(
@@ -519,7 +519,10 @@ pub fn authorize_retrieval_request<G: GovernancePort>(
     governance: &G,
 ) -> Result<(), G05Error> {
     if request.operation != Operation::Retrieve
-        || request.memory_id.as_deref().map_or(true, |id| !valid_ref(id))
+        || request
+            .memory_id
+            .as_deref()
+            .map_or(true, |id| !valid_ref(id))
         || !valid_ref(&request.principal_ref)
         || !valid_ref(&request.tenant_ref)
         || !valid_ref(&request.subject_ref)
@@ -583,7 +586,6 @@ pub fn authorize_durable_activation<G: GovernancePort>(
     governance.verify_durable_approval(receipt, now)?;
     Ok(())
 }
-
 
 /// Prepare an approved durable record transition. The returned value is not
 /// persisted; the caller MUST commit it with the G11 outbox using the G05
@@ -730,13 +732,25 @@ mod tests {
             Ok(())
         }
         fn verify_episodic_opt_in(
-            &self, _opt_in_ref: &str, _tenant_ref: &str, _subject_ref: &str,
-            _purpose: Purpose, _now: u64,
-        ) -> Result<(), G05Error> { Ok(()) }
+            &self,
+            _opt_in_ref: &str,
+            _tenant_ref: &str,
+            _subject_ref: &str,
+            _purpose: Purpose,
+            _now: u64,
+        ) -> Result<(), G05Error> {
+            Ok(())
+        }
         fn verify_durable_approval(
-            &self, _receipt: &DurableApprovalReceipt, _now: u64,
-        ) -> Result<(), G05Error> { Ok(()) }
-        fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> { Ok(()) }
+            &self,
+            _receipt: &DurableApprovalReceipt,
+            _now: u64,
+        ) -> Result<(), G05Error> {
+            Ok(())
+        }
+        fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> {
+            Ok(())
+        }
     }
 
     struct DenyGovernance;
@@ -745,13 +759,25 @@ mod tests {
             Err(G05Error::AuthorizationDenied)
         }
         fn verify_episodic_opt_in(
-            &self, _opt_in_ref: &str, _tenant_ref: &str, _subject_ref: &str,
-            _purpose: Purpose, _now: u64,
-        ) -> Result<(), G05Error> { Ok(()) }
+            &self,
+            _opt_in_ref: &str,
+            _tenant_ref: &str,
+            _subject_ref: &str,
+            _purpose: Purpose,
+            _now: u64,
+        ) -> Result<(), G05Error> {
+            Ok(())
+        }
         fn verify_durable_approval(
-            &self, _receipt: &DurableApprovalReceipt, _now: u64,
-        ) -> Result<(), G05Error> { Ok(()) }
-        fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> { Ok(()) }
+            &self,
+            _receipt: &DurableApprovalReceipt,
+            _now: u64,
+        ) -> Result<(), G05Error> {
+            Ok(())
+        }
+        fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> {
+            Ok(())
+        }
     }
 
     fn candidate(class: MemoryClass, classification: Classification) -> MemoryCandidate {
@@ -824,8 +850,8 @@ mod tests {
             recipient_refs: vec![],
             correlation_ref: "trace:1".to_owned(),
         };
-        let record = prepare_candidate_record(item, &request, &policy(), &AllowGovernance, 110)
-            .unwrap();
+        let record =
+            prepare_candidate_record(item, &request, &policy(), &AllowGovernance, 110).unwrap();
         assert_eq!(record.lifecycle_state, LifecycleState::PendingReview);
         assert_eq!(record.approval_ref, None);
     }
@@ -861,9 +887,15 @@ mod tests {
         let mut item = candidate(MemoryClass::Working, Classification::Internal);
         assert_eq!(validate_candidate(&item, 100, &policy()), Ok(()));
         item.expires_at = None;
-        assert_eq!(validate_candidate(&item, 100, &policy()), Err(G05Error::ExpiryRequired));
+        assert_eq!(
+            validate_candidate(&item, 100, &policy()),
+            Err(G05Error::ExpiryRequired)
+        );
         item.expires_at = Some(100 + 24 * 60 * 60 + 1);
-        assert_eq!(validate_candidate(&item, 100, &policy()), Err(G05Error::ExpiryInvalid));
+        assert_eq!(
+            validate_candidate(&item, 100, &policy()),
+            Err(G05Error::ExpiryInvalid)
+        );
     }
 
     #[test]
@@ -890,7 +922,10 @@ mod tests {
             recipient_refs: vec![],
             correlation_ref: "trace:1".to_owned(),
         };
-        assert_eq!(authorize_episodic_capture(&item, &request, &AllowGovernance, 110), Ok(()));
+        assert_eq!(
+            authorize_episodic_capture(&item, &request, &AllowGovernance, 110),
+            Ok(())
+        );
         assert_eq!(
             authorize_episodic_capture(&item, &request, &DenyGovernance, 110),
             Err(G05Error::AuthorizationDenied)
@@ -906,9 +941,18 @@ mod tests {
     fn durable_candidate_does_not_activate_by_default() {
         let item = candidate(MemoryClass::Durable, Classification::Confidential);
         assert_eq!(validate_candidate(&item, 100, &policy()), Ok(()));
-        assert!(!transition_allowed(LifecycleState::Proposed, LifecycleState::Active));
-        assert!(!transition_allowed(LifecycleState::PendingReview, LifecycleState::Active));
-        assert!(transition_allowed(LifecycleState::Proposed, LifecycleState::PendingReview));
+        assert!(!transition_allowed(
+            LifecycleState::Proposed,
+            LifecycleState::Active
+        ));
+        assert!(!transition_allowed(
+            LifecycleState::PendingReview,
+            LifecycleState::Active
+        ));
+        assert!(transition_allowed(
+            LifecycleState::Proposed,
+            LifecycleState::PendingReview
+        ));
     }
 
     #[test]
@@ -953,14 +997,8 @@ mod tests {
             authorize_durable_activation(&record, &receipt, &request, &DenyGovernance, 110),
             Err(G05Error::AuthorizationDenied)
         );
-        let activated = prepare_durable_activation(
-            &record,
-            &receipt,
-            &request,
-            &AllowGovernance,
-            110,
-        )
-        .unwrap();
+        let activated =
+            prepare_durable_activation(&record, &receipt, &request, &AllowGovernance, 110).unwrap();
         assert_eq!(activated.lifecycle_state, LifecycleState::Active);
         assert_eq!(activated.approved_by_ref.as_deref(), Some("reviewer:1"));
         assert_eq!(activated.candidate.record_version, 2);
@@ -1025,7 +1063,10 @@ mod tests {
     fn digest_mismatch_is_rejected() {
         let mut item = candidate(MemoryClass::Working, Classification::Internal);
         item.content_sha256 = "f".repeat(64);
-        assert_eq!(validate_candidate(&item, 100, &policy()), Err(G05Error::DigestMismatch));
+        assert_eq!(
+            validate_candidate(&item, 100, &policy()),
+            Err(G05Error::DigestMismatch)
+        );
     }
 
     #[test]
@@ -1033,12 +1074,18 @@ mod tests {
         let mut item = candidate(MemoryClass::Durable, Classification::Internal);
         item.provenance.kind = ProvenanceKind::ModelProposed;
         assert_eq!(validate_candidate(&item, 100, &policy()), Ok(()));
-        assert!(!transition_allowed(LifecycleState::PendingReview, LifecycleState::Active));
+        assert!(!transition_allowed(
+            LifecycleState::PendingReview,
+            LifecycleState::Active
+        ));
     }
 
     #[test]
     fn deleted_record_cannot_be_reactivated() {
-        assert!(!transition_allowed(LifecycleState::Deleted, LifecycleState::Active));
+        assert!(!transition_allowed(
+            LifecycleState::Deleted,
+            LifecycleState::Active
+        ));
     }
 
     #[test]
@@ -1067,7 +1114,10 @@ mod tests {
             record_version: 1,
             retention_policy_ref: "retention:v1".to_owned(),
         };
-        assert_eq!(authorize_retrieval_request(&request, &AllowGovernance), Ok(()));
+        assert_eq!(
+            authorize_retrieval_request(&request, &AllowGovernance),
+            Ok(())
+        );
         assert_eq!(
             authorize_retrieval_metadata(&metadata, &request, &AllowGovernance, 150),
             Ok(())
