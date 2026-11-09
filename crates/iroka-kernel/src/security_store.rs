@@ -159,7 +159,21 @@ impl SqliteSecurityStore {
                version INTEGER NOT NULL CHECK(version > 0),
                updated_at INTEGER NOT NULL, command_id TEXT NOT NULL,
                PRIMARY KEY(subject, tenant_id)
-             );"
+             );
+             CREATE TABLE IF NOT EXISTS policy_snapshots (
+               epoch INTEGER PRIMARY KEY CHECK(epoch > 0), digest BLOB NOT NULL CHECK(length(digest)=32),
+               canonical_payload BLOB NOT NULL, signature BLOB NOT NULL,
+               owner_subject TEXT NOT NULL, key_id TEXT NOT NULL, policy_version TEXT NOT NULL,
+               issued_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+               emergency_stop_active INTEGER NOT NULL CHECK(emergency_stop_active IN (0,1)),
+               state TEXT NOT NULL CHECK(state IN ('pending','active','superseded','revoked'))
+             );
+             CREATE TABLE IF NOT EXISTS policy_lifecycle_state (
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               highest_epoch INTEGER NOT NULL CHECK(highest_epoch >= 0),
+               active_epoch INTEGER
+             );
+             INSERT OR IGNORE INTO policy_lifecycle_state(singleton,highest_epoch,active_epoch) VALUES(1,0,NULL);"
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(Self {
             connection: Mutex::new(connection),
