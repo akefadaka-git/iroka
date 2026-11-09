@@ -20,6 +20,7 @@ use std::{
 
 use iroka_kernel::{Ed25519CredentialVerifier, RevocationChecker};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 use crate::{
     AnswerGenerator, Cancellation, ConversationError, ConversationService, KernelAuthorization,
@@ -655,6 +656,19 @@ where
     Err(HttpError::NotFound)
 }
 
+fn idempotent_turn_id(conversation_id: &str, idempotency_key: &str) -> String {
+    let mut digest = Sha256::new();
+    digest.update(conversation_id.as_bytes());
+    digest.update([0]);
+    digest.update(idempotency_key.as_bytes());
+    let encoded = digest
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    format!("t-{encoded}")
+}
+
 #[allow(clippy::too_many_arguments)]
 fn start_generation<T, S, A, G>(
     stream: &mut TcpStream,
@@ -699,11 +713,9 @@ where
         _ => return fail(stream, HttpError::BadRequest),
     };
     let conversation_id = parts[3].to_owned();
-    let turn_id = format!(
-        "t-{}-{}",
-        now,
-        REQUEST_SEQUENCE.fetch_add(1, Ordering::Relaxed)
-    );
+    // A retry with the same conversation and idempotency key must resolve
+    // to the same durable turn, including after a process restart.
+    let turn_id = idempotent_turn_id(&conversation_id, &idempotency);
     let assistant_id = format!("{turn_id}:assistant");
     if let Some(existing) = generations.get(&assistant_id) {
         if !existing.wait_for_acceptance(std::time::Duration::from_secs(10)) {
@@ -925,6 +937,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idempotent_turn_identity_is_stable_and_conversation_scoped() {
+        let first = idempotent_turn_id("conversation-a", "request-1");
+        assert_eq!(first, idempotent_turn_id("conversation-a", "request-1"));
+        assert_ne!(first, idempotent_turn_id("conversation-a", "request-2"));
+        assert_ne!(first, idempotent_turn_id("conversation-b", "request-1"));
+        assert!(first.starts_with("t-"));
+    }
 
     #[test]
     fn cookie_parser_requires_exact_cookie_name() {
