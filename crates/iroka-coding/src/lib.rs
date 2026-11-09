@@ -7,6 +7,7 @@ pub mod codegen;
 pub mod index;
 pub mod lockfile;
 pub mod ollama;
+pub mod patch;
 pub mod planner;
 pub mod snapshot;
 
