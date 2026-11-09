@@ -65,6 +65,7 @@ impl SqliteG05AuthorityRegistry {
             subject_ref: actor.subject().into(), purpose, classification: Classification::Internal,
             memory_id: None, recipient_refs: Vec::new(), correlation_ref: action_ref.into() };
         g02.authorize_g05(&req)?;
+        g02.authorize_organization_scope(&req, organization_ref)?;
         let mut c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
         tx.execute("INSERT INTO g05_episodic_consents
@@ -89,6 +90,7 @@ impl SqliteG05AuthorityRegistry {
             classification:Classification::Internal,memory_id:None,recipient_refs:Vec::new(),
             correlation_ref:action_ref.into()};
         g02.authorize_g05(&req)?;
+        g02.authorize_organization_scope(&req, organization_ref)?;
         let c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         let n=c.execute("UPDATE g05_episodic_consents SET revoked_at=?1,version=version+1
           WHERE consent_ref=?2 AND tenant_ref=?3 AND subject_ref=?4 AND revoked_at IS NULL",
@@ -259,8 +261,8 @@ impl<R: iroka_kernel::RevocationChecker> G02AuthorizationAuthority
     for KernelG02AuthorizationAdapter<'_, R> {
     fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error> {
         let capability = g05_capability(request.operation);
-        let resource = format!("g05:{}:{}:{}:{}", operation_key(request.operation),
-            request.tenant_ref, request.subject_ref,
+        let resource = format!("g05:{}:{}:{}:{}:{}", operation_key(request.operation),
+            request.tenant_ref, request.subject_ref, purpose_key(request.purpose),
             request.memory_id.as_deref().unwrap_or("registry"));
         let risk = match request.operation {
             Operation::DesignateReviewer | Operation::RevokeReviewerDesignation => iroka_kernel::RiskLevel::High,
@@ -269,7 +271,11 @@ impl<R: iroka_kernel::RevocationChecker> G02AuthorizationAuthority
         };
         let kernel_request = iroka_kernel::AuthorizationRequest::new(
             request.principal_ref.clone(), capability, resource, risk);
-        let event_id = format!("g05-authz:{}:{}", operation_key(request.operation), request.correlation_ref);
+        if request.tenant_ref != self.requested_tenant_id {
+            return Err(G05Error::TenantScopeMismatch);
+        }
+        let correlation_digest = crate::sha256_hex(request.correlation_ref.as_bytes());
+        let event_id = format!("g05-authz:{}:{}", operation_key(request.operation), correlation_digest);
         let decision = iroka_kernel::authorize_compact_in_tenant(
             self.compact_credential, self.expected_audience, self.requested_tenant_id,
             &kernel_request, self.genesis, None, self.credential_verifier,
