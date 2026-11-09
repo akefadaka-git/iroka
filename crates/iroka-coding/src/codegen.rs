@@ -277,18 +277,21 @@ fn valid_unified_diff(change: &GeneratedChange) -> bool {
     let expected_git_header = format!("diff --git a/{0} b/{0}", change.path);
     let git_headers: Vec<_> = lines
         .iter()
+        .copied()
         .filter(|line| line.starts_with("diff --git "))
         .collect();
     let old_headers: Vec<_> = lines
         .iter()
+        .copied()
         .filter(|line| line.starts_with("--- "))
         .collect();
     let new_headers: Vec<_> = lines
         .iter()
+        .copied()
         .filter(|line| line.starts_with("+++ "))
         .collect();
     if git_headers.len() != 1
-        || git_headers[0].as_str() != expected_git_header
+        || git_headers[0] != expected_git_header
         || old_headers.len() != 1
         || new_headers.len() != 1
         || change.unified_diff.contains('\0')
@@ -296,8 +299,8 @@ fn valid_unified_diff(change: &GeneratedChange) -> bool {
         return false;
     }
 
-    let old_header = old_headers[0].as_str();
-    let new_header = new_headers[0].as_str();
+    let old_header = old_headers[0];
+    let new_header = new_headers[0];
     let expected_old = match change.operation {
         ChangeOperation::Create => "--- /dev/null",
         ChangeOperation::Modify | ChangeOperation::Delete => {
