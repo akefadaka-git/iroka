@@ -54,7 +54,6 @@ impl Decision {
     }
 }
 
-
 /// Opaque evidence that the kernel completed an authenticated, Owner-approved
 /// authorization decision and durably recorded its audit event. Only the kernel
 /// authorization service can construct this value; a Decision alone is not enough.
