@@ -145,7 +145,7 @@ impl VerifiedPolicySnapshot {
         &self.payload.policy_version
     }
     pub fn emergency_stop_active(&self) -> bool {
-        self.payload.emergency_stop_active()
+        self.payload.emergency_stop_active
     }
     pub fn policy(&self) -> Policy {
         Policy::new(
