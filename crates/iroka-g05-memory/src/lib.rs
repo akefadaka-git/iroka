@@ -451,7 +451,6 @@ pub fn authorize_durable_activation<G: GovernancePort>(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
     request: &AuthorizationRequest,
-    organizational: bool,
     governance: &G,
     now: u64,
 ) -> Result<(), G05Error> {
@@ -461,12 +460,14 @@ pub fn authorize_durable_activation<G: GovernancePort>(
         || request.subject_ref != record.candidate.subject_ref
         || request.purpose != record.candidate.purpose
         || request.classification != record.candidate.classification
+        || request.principal_ref != receipt.reviewer_ref
+        || !valid_ref(&request.correlation_ref)
     {
         return Err(G05Error::ApprovalBindingMismatch);
     }
     validate_durable_activation_binding(record, receipt, now)?;
     governance.authorize(request)?;
-    governance.verify_durable_approval(receipt, organizational, now)?;
+    governance.verify_durable_approval(receipt, now)?;
     Ok(())
 }
 
@@ -541,7 +542,6 @@ pub trait GovernancePort {
     fn verify_durable_approval(
         &self,
         receipt: &DurableApprovalReceipt,
-        organizational: bool,
         now: u64,
     ) -> Result<(), G05Error>;
 
@@ -725,11 +725,11 @@ mod tests {
             correlation_ref: "trace:1".to_owned(),
         };
         assert_eq!(
-            authorize_durable_activation(&record, &receipt, &request, false, &AllowGovernance, 110),
+            authorize_durable_activation(&record, &receipt, &request, &AllowGovernance, 110),
             Ok(())
         );
         assert_eq!(
-            authorize_durable_activation(&record, &receipt, &request, false, &DenyGovernance, 110),
+            authorize_durable_activation(&record, &receipt, &request, &DenyGovernance, 110),
             Err(G05Error::AuthorizationDenied)
         );
         let mut tampered = receipt.clone();
