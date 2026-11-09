@@ -385,8 +385,12 @@ impl<R: iroka_kernel::RevocationChecker> G02AuthorizationAuthority
         if request.tenant_ref != self.requested_tenant_id {
             return Err(G05Error::TenantScopeMismatch);
         }
-        if request.principal_ref.trim().is_empty() || request.subject_ref.trim().is_empty()
-            || request.correlation_ref.trim().is_empty() || request.correlation_ref.len()>512 {
+        if request.principal_ref.trim().is_empty() || request.principal_ref.len()>512
+            || request.subject_ref.trim().is_empty() || request.subject_ref.len()>512
+            || request.tenant_ref.trim().is_empty() || request.tenant_ref.len()>512
+            || request.correlation_ref.trim().is_empty() || request.correlation_ref.len()>512
+            || request.recipient_refs.len()>crate::MAX_SOURCE_REFS
+            || request.recipient_refs.iter().any(|value|value.trim().is_empty()||value.len()>512) {
             return Err(G05Error::MalformedRecord);
         }
         let correlation_digest = crate::sha256_hex(request.correlation_ref.as_bytes());
