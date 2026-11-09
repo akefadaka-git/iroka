@@ -359,4 +359,41 @@ mod tests{
   drop(c);let next=DurableApprovalReceipt{approval_ref:"a2".into(),..receipt};
   assert_eq!(a.verify_designated_reviewer(&next,"org1",154),Err(G05Error::ReviewerNotAuthorized));
  }
+ #[test] fn trusted_governance_adapter_composes_sqlite_consent_and_reviewer_registries(){
+  struct AllowG02;
+  impl G02AuthorizationAuthority for AllowG02{
+   fn authorize_g05(&self,_:&AuthorizationRequest)->Result<(),G05Error>{Ok(())}
+  }
+  struct Audit;
+  impl crate::G11MemoryAuditAuthority for Audit{
+   fn append_memory_event(&self,_:&crate::AuditEvent)->Result<(),G05Error>{Ok(())}
+  }
+  let registry=SqliteG05AuthorityRegistry::open_in_memory().unwrap();
+  {
+   let c=registry.connection.lock().unwrap();
+   c.execute("INSERT INTO g05_episodic_consents VALUES
+    ('consent:one','tenant:one','subject:one','TASK_CONTINUITY','issuer','credential',100,300,NULL,1,'action:one')",[]).unwrap();
+   c.execute("INSERT INTO g05_reviewer_designations VALUES
+    ('designation:one','tenant:one','org:one','reviewer:1','key:1','governor:1',1,100,300,100,NULL)",[]).unwrap();
+  }
+  let reviewers=RegistryDesignatedReviewerAuthority::new(registry.clone(),G01);
+  let adapter=crate::TrustedGovernanceAdapter::new(AllowG02,registry,reviewers,Audit);
+  assert_eq!(crate::GovernancePort::verify_episodic_opt_in(&adapter,"consent:one","tenant:one","subject:one",
+    Purpose::TaskContinuity,150),Ok(()));
+  let receipt=DurableApprovalReceipt{approval_ref:"approval:one".into(),memory_id:"memory:one".into(),
+    tenant_ref:"tenant:one".into(),subject_ref:"org:one".into(),content_sha256:"b".repeat(64),
+    reviewer_ref:"reviewer:1".into(),issued_at:120,expires_at:200,proof_ref:"proof:valid".into()};
+  assert_eq!(crate::GovernancePort::verify_durable_approval(&adapter,&receipt,150),Ok(()));
+ }
+ #[test] fn reviewer_registry_rejects_expired_designation_and_untrusted_proof(){
+  let r=SqliteG05AuthorityRegistry::open_in_memory().unwrap();
+  {let c=r.connection.lock().unwrap();c.execute("INSERT INTO g05_reviewer_designations VALUES
+   ('d-expired','t','org','reviewer:1','key:1','admin',1,100,140,100,NULL)",[]).unwrap();}
+  let a=RegistryDesignatedReviewerAuthority::new(r,G01);
+  let receipt=DurableApprovalReceipt{approval_ref:"a-expired".into(),memory_id:"m".into(),
+   tenant_ref:"t".into(),subject_ref:"org".into(),content_sha256:"c".repeat(64),
+   reviewer_ref:"reviewer:1".into(),issued_at:110,expires_at:130,proof_ref:"proof:bad".into()};
+  assert_eq!(a.verify_designated_reviewer(&receipt,"org",150),Err(G05Error::ReviewerNotAuthorized));
+ }
+
 }
