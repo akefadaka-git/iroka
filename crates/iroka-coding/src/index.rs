@@ -241,9 +241,15 @@ impl RepositoryIndex {
             });
         }
 
-        index.files.sort_by(|left, right| left.path.cmp(&right.path));
-        index.projects.sort_by(|left, right| left.path.cmp(&right.path));
-        index.issues.sort_by(|left, right| left.path.cmp(&right.path));
+        index
+            .files
+            .sort_by(|left, right| left.path.cmp(&right.path));
+        index
+            .projects
+            .sort_by(|left, right| left.path.cmp(&right.path));
+        index
+            .issues
+            .sort_by(|left, right| left.path.cmp(&right.path));
         Ok(index)
     }
 
@@ -257,7 +263,11 @@ impl RepositoryIndex {
 
     #[must_use]
     pub fn project_kinds(&self) -> Vec<ProjectKind> {
-        let mut kinds = self.projects.iter().map(|project| project.kind).collect::<Vec<_>>();
+        let mut kinds = self
+            .projects
+            .iter()
+            .map(|project| project.kind)
+            .collect::<Vec<_>>();
         kinds.sort();
         kinds.dedup();
         kinds
@@ -275,7 +285,8 @@ fn is_safe_relative_path(path: &str) -> bool {
         return false;
     }
 
-    path.split('/').all(|part| !part.is_empty() && part != "." && part != "..")
+    path.split('/')
+        .all(|part| !part.is_empty() && part != "." && part != "..")
 }
 
 fn classify_role(path: &str) -> FileRole {
@@ -284,8 +295,15 @@ fn classify_role(path: &str) -> FileRole {
         FileRole::Manifest
     } else if matches!(
         name,
-        "Cargo.lock" | "package-lock.json" | "npm-shrinkwrap.json" | "pnpm-lock.yaml"
-            | "yarn.lock" | "poetry.lock" | "Pipfile.lock" | "go.sum" | "composer.lock"
+        "Cargo.lock"
+            | "package-lock.json"
+            | "npm-shrinkwrap.json"
+            | "pnpm-lock.yaml"
+            | "yarn.lock"
+            | "poetry.lock"
+            | "Pipfile.lock"
+            | "go.sum"
+            | "composer.lock"
             | "Gemfile.lock"
     ) {
         FileRole::Lockfile
@@ -341,7 +359,12 @@ fn analyze_manifest(
             path,
             content,
             &mut manifest,
-            &["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"],
+            &[
+                "dependencies",
+                "devDependencies",
+                "optionalDependencies",
+                "peerDependencies",
+            ],
         ),
         ProjectKind::PythonProject => parse_pyproject(path, content, &mut manifest),
         ProjectKind::PythonRequirements => parse_requirements(path, content, &mut manifest),
@@ -487,7 +510,11 @@ fn parse_pyproject(path: &str, content: &str, manifest: &mut ProjectManifest) {
                 });
             } else if section == "project" && key == "dependencies" && value.starts_with('[') {
                 let entries = value.trim_start_matches('[').trim_end_matches(']');
-                for entry in entries.split(',').map(str::trim).filter(|entry| !entry.is_empty()) {
+                for entry in entries
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|entry| !entry.is_empty())
+                {
                     manifest.declared_dependencies.push(DependencyDeclaration {
                         name: distribution_name(entry),
                         requirement: Some(unquote(entry).to_owned()),
@@ -513,7 +540,11 @@ fn distribution_name(requirement: &str) -> String {
 fn parse_requirements(path: &str, content: &str, manifest: &mut ProjectManifest) {
     for line in content.lines() {
         let trimmed = line.split('#').next().unwrap_or("").trim();
-        if trimmed.is_empty() || trimmed.starts_with('-') || trimmed.starts_with("http:") || trimmed.starts_with("https:") {
+        if trimmed.is_empty()
+            || trimmed.starts_with('-')
+            || trimmed.starts_with("http:")
+            || trimmed.starts_with("https:")
+        {
             manifest.analysis_partial = true;
             continue;
         }
@@ -624,25 +655,45 @@ serde = "1"
         )]);
         assert_eq!(index.projects[0].package_name.as_deref(), Some("sample"));
         assert_eq!(index.projects[0].declared_dependencies[0].name, "serde");
-        assert_eq!(index.projects[0].declared_dependencies[0].requirement.as_deref(), Some("1"));
+        assert_eq!(
+            index.projects[0].declared_dependencies[0]
+                .requirement
+                .as_deref(),
+            Some("1")
+        );
     }
 
     #[test]
     fn detects_node_and_python_manifests() {
         let index = build(vec![
-            SnapshotFile::new("package.json", r#"{
+            SnapshotFile::new(
+                "package.json",
+                r#"{
   "name": "web",
   "dependencies": {
     "react": "^19"
   }
-}"#),
+}"#,
+            ),
             SnapshotFile::new("requirements.txt", "requests>=2\n"),
         ]);
         assert_eq!(index.projects.len(), 2);
-        assert!(index.projects.iter().any(|project| project.kind == ProjectKind::NodePackage));
-        assert!(index.projects.iter().any(|project| project.kind == ProjectKind::PythonRequirements));
-        assert!(index.projects.iter().any(|project| project.declared_dependencies.iter().any(|dep| dep.name == "react")));
-        assert!(index.projects.iter().any(|project| project.declared_dependencies.iter().any(|dep| dep.name == "requests")));
+        assert!(index
+            .projects
+            .iter()
+            .any(|project| project.kind == ProjectKind::NodePackage));
+        assert!(index
+            .projects
+            .iter()
+            .any(|project| project.kind == ProjectKind::PythonRequirements));
+        assert!(index.projects.iter().any(|project| project
+            .declared_dependencies
+            .iter()
+            .any(|dep| dep.name == "react")));
+        assert!(index.projects.iter().any(|project| project
+            .declared_dependencies
+            .iter()
+            .any(|dep| dep.name == "requests")));
     }
 
     #[test]
@@ -655,8 +706,16 @@ require (
 )
 "#,
         )]);
-        assert_eq!(index.projects[0].package_name.as_deref(), Some("example.org/app"));
-        assert_eq!(index.projects[0].declared_dependencies[0].requirement.as_deref(), Some("v1.2.3"));
+        assert_eq!(
+            index.projects[0].package_name.as_deref(),
+            Some("example.org/app")
+        );
+        assert_eq!(
+            index.projects[0].declared_dependencies[0]
+                .requirement
+                .as_deref(),
+            Some("v1.2.3")
+        );
     }
 
     #[test]
@@ -668,13 +727,23 @@ require (
             SnapshotFile::new("safe.rs", "fn main() {}"),
         ]);
         assert_eq!(index.files.len(), 1);
-        assert!(index.issues.iter().any(|issue| issue.kind == IndexIssueKind::UnsafePath));
-        assert!(index.issues.iter().any(|issue| issue.kind == IndexIssueKind::SymlinkSkipped));
+        assert!(index
+            .issues
+            .iter()
+            .any(|issue| issue.kind == IndexIssueKind::UnsafePath));
+        assert!(index
+            .issues
+            .iter()
+            .any(|issue| issue.kind == IndexIssueKind::SymlinkSkipped));
     }
 
     #[test]
     fn enforces_file_and_total_size_limits() {
-        let limits = IndexLimits { max_files: 2, max_file_bytes: 4, max_total_bytes: 6 };
+        let limits = IndexLimits {
+            max_files: 2,
+            max_file_bytes: 4,
+            max_total_bytes: 6,
+        };
         let index = RepositoryIndex::build(
             vec![
                 SnapshotFile::new("a.rs", "1234"),
@@ -683,9 +752,16 @@ require (
             ],
             &registry(),
             limits,
-        ).expect("valid limits");
-        assert!(index.issues.iter().any(|issue| issue.kind == IndexIssueKind::FileTooLarge));
-        assert!(index.issues.iter().any(|issue| issue.kind == IndexIssueKind::TotalSizeLimitExceeded));
+        )
+        .expect("valid limits");
+        assert!(index
+            .issues
+            .iter()
+            .any(|issue| issue.kind == IndexIssueKind::FileTooLarge));
+        assert!(index
+            .issues
+            .iter()
+            .any(|issue| issue.kind == IndexIssueKind::TotalSizeLimitExceeded));
     }
 
     #[test]
@@ -695,13 +771,19 @@ require (
             SnapshotFile::new("src/lib.rs", "two"),
         ]);
         assert_eq!(index.files.len(), 1);
-        assert!(index.issues.iter().any(|issue| issue.kind == IndexIssueKind::DuplicatePath));
+        assert!(index
+            .issues
+            .iter()
+            .any(|issue| issue.kind == IndexIssueKind::DuplicatePath));
     }
 
     #[test]
     fn unsupported_manifest_formats_are_reported_as_partial() {
         let index = build(vec![SnapshotFile::new("pom.xml", "<project/>")]);
         assert!(index.projects[0].analysis_partial);
-        assert!(index.issues.iter().any(|issue| issue.kind == IndexIssueKind::UnsupportedManifestSyntax));
+        assert!(index
+            .issues
+            .iter()
+            .any(|issue| issue.kind == IndexIssueKind::UnsupportedManifestSyntax));
     }
 }
