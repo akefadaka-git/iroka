@@ -723,17 +723,29 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             locale: Locale::parse(locale),
             created_at: now,
         };
-        self.store.insert_conversation(&c)?;
-        self.store.record_event(
-            &format!("ciw:{correlation}:created"),
-            &c.tenant_id,
-            id,
-            None,
-            "conversation.created",
-            correlation,
-            now,
-        )?;
-        Ok(c)
+        match self.store.insert_conversation(&c) {
+            Ok(()) => {
+                self.store.record_event(
+                    &format!("ciw:{correlation}:created"),
+                    &c.tenant_id,
+                    id,
+                    None,
+                    "conversation.created",
+                    correlation,
+                    now,
+                )?;
+                Ok(c)
+            }
+            Err(ConversationError::Conflict) => {
+                let existing = self.store.owned_conversation(id, &c.tenant_id, principal.subject())?;
+                if existing.locale == c.locale {
+                    Ok(existing)
+                } else {
+                    Err(ConversationError::Conflict)
+                }
+            }
+            Err(error) => Err(error),
+        }
     }
 
     pub fn list(
@@ -872,6 +884,58 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             correlation,
             now,
         )?;
+        let existing_turns = self.store.turns(conversation_id)?;
+        if let Some(existing_user) = existing_turns.iter().find(|turn| turn.id == turn_id) {
+            if existing_user.role != "user" || existing_user.content != prompt {
+                return Err(ConversationError::Conflict);
+            }
+            let assistant_id = format!("{turn_id}:assistant");
+            if let Some(existing_assistant) = existing_turns.iter().find(|turn| turn.id == assistant_id) {
+                emit_event(StreamEvent::Accepted {
+                    turn_id: turn_id.to_owned(),
+                    sequence: existing_user.sequence,
+                })?;
+                match existing_assistant.state.as_str() {
+                    "completed" => {
+                        if !existing_assistant.content.is_empty() {
+                            emit_event(StreamEvent::Delta {
+                                turn_id: assistant_id.clone(),
+                                sequence: existing_assistant.sequence,
+                                text: existing_assistant.content.clone(),
+                            })?;
+                        }
+                        emit_event(StreamEvent::Completed {
+                            turn_id: assistant_id,
+                            sequence: existing_assistant.sequence,
+                        })?;
+                        return Ok(());
+                    }
+                    "cancelled" => {
+                        emit_event(StreamEvent::Cancelled {
+                            turn_id: assistant_id,
+                            sequence: existing_assistant.sequence,
+                        })?;
+                        return Ok(());
+                    }
+                    "failed" => {
+                        emit_event(StreamEvent::Failed {
+                            turn_id: assistant_id,
+                            sequence: existing_assistant.sequence,
+                        })?;
+                        return Ok(());
+                    }
+                    "generating" => {
+                        self.store.finish_turn(&assistant_id, "failed", None)?;
+                        emit_event(StreamEvent::Failed {
+                            turn_id: assistant_id,
+                            sequence: existing_assistant.sequence,
+                        })?;
+                        return Ok(());
+                    }
+                    _ => return Err(ConversationError::Conflict),
+                }
+            }
+        }
         let budget = self
             .budget
             .reserve(principal.subject(), &tenant, prompt.len() as u64, now)?;
