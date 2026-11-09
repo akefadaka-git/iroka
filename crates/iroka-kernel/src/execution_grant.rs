@@ -23,6 +23,18 @@ const CAPABILITIES: &[&str] = &[
 ];
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExecutionGrantScopeSpec {
+    pub subject: String,
+    pub capability: String,
+    pub repository: String,
+    pub source_revision: String,
+    pub sandbox_id: String,
+    pub action_digest: String,
+    pub risk: RiskLevel,
+    pub policy_version: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExecutionGrantScope {
     subject: String,
     capability: String,
@@ -35,25 +47,16 @@ pub struct ExecutionGrantScope {
 }
 
 impl ExecutionGrantScope {
-    pub fn new(
-        subject: impl Into<String>,
-        capability: impl Into<String>,
-        repository: impl Into<String>,
-        source_revision: impl Into<String>,
-        sandbox_id: impl Into<String>,
-        action_digest: impl Into<String>,
-        risk: RiskLevel,
-        policy_version: impl Into<String>,
-    ) -> Result<Self, ExecutionGrantError> {
+    pub fn new(spec: ExecutionGrantScopeSpec) -> Result<Self, ExecutionGrantError> {
         let scope = Self {
-            subject: subject.into(),
-            capability: capability.into(),
-            repository: repository.into(),
-            source_revision: source_revision.into(),
-            sandbox_id: sandbox_id.into(),
-            action_digest: action_digest.into(),
-            risk,
-            policy_version: policy_version.into(),
+            subject: spec.subject,
+            capability: spec.capability,
+            repository: spec.repository,
+            source_revision: spec.source_revision,
+            sandbox_id: spec.sandbox_id,
+            action_digest: spec.action_digest,
+            risk: spec.risk,
+            policy_version: spec.policy_version,
         };
         if scope.subject.trim().is_empty()
             || scope.subject.len() > 128
