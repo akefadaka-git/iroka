@@ -99,8 +99,12 @@ impl VerifiedPrincipal {
     pub fn revocation_version(&self) -> u64 {
         self.revocation_version
     }
-    pub fn issued_at(&self) -> u64 { self.issued_at }
-    pub fn expires_at(&self) -> u64 { self.expires_at }
+    pub fn issued_at(&self) -> u64 {
+        self.issued_at
+    }
+    pub fn expires_at(&self) -> u64 {
+        self.expires_at
+    }
 }
 
 /// Verify an assertion before producing the opaque principal used by the service.
