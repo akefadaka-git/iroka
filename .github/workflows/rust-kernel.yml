@@ -1,0 +1,64 @@
+name: Rust kernel verification
+
+on:
+  push:
+    branches: [feat/igacms-a3-implementation]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - ".github/workflows/rust-kernel.yml"
+  pull_request:
+    branches: [main, architecture/igacms-a2-ci-base]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
+      - "docs/architecture/G01-IDENTITY-CONTRACT.md"
+      - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - ".github/workflows/rust-kernel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-kernel-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Format, compile, test and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Install stable Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+          rustc --version
+          cargo --version
+
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Compile all targets
+        run: cargo check --workspace --all-targets --locked
+
+      - name: Verify production feature set excludes development bypasses
+        run: cargo check --workspace --all-targets --no-default-features
+
+      - name: Run complete unit and contract test suite
+        run: cargo test --workspace --all-targets --locked
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic

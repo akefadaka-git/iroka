@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IROKA Constitutional DNA v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "contract_version",
+    "motto"
+  ],
+  "properties": {
+    "id": {
+      "const": "iroka.dna"
+    },
+    "kind": {
+      "const": "IROKA_CONSTITUTIONAL_DNA_CONTRACT"
+    },
+    "contract_version": {
+      "const": "1.0.0"
+    },
+    "motto": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

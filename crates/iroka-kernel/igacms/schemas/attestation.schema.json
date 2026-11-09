@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IGACMS Ed25519 Attestation v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "envelope_type",
+    "version",
+    "digest",
+    "epoch",
+    "key_id",
+    "signature"
+  ],
+  "properties": {
+    "envelope_type": {
+      "const": "iroka.igacms.attestation"
+    },
+    "version": {
+      "const": "1.0.0"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "key_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signature": {
+      "type": "array",
+      "minItems": 64,
+      "maxItems": 64,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255
+      }
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.local/igacms/1.0.0/marker-assertion.schema.json",
+  "title": "IGACMS Marker Assertion v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assertion_id",
+    "marker_id",
+    "subject_id",
+    "genome_version",
+    "chromosome_version",
+    "asserted_state",
+    "issuer",
+    "issued_at",
+    "valid_from",
+    "evidence_refs",
+    "verifier",
+    "verification_method",
+    "signature_ref",
+    "supersedes_ref",
+    "status"
+  ],
+  "properties": {
+    "assertion_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "marker_id": {
+      "type": "string",
+      "pattern": "^(IDN|INT|PRV|EVD|AUT|AZN|SEC|ASN|LFC|EVO|CNF)-[0-9]{3}$"
+    },
+    "subject_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "genome_version": {
+      "type": "string"
+    },
+    "chromosome_version": {
+      "type": "string"
+    },
+    "asserted_state": {
+      "enum": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "issuer": {
+      "type": "string"
+    },
+    "issued_at": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "valid_from": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "valid_until": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verifier": {
+      "type": "string"
+    },
+    "verification_method": {
+      "type": "string"
+    },
+    "signature_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "supersedes_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INDETERMINATE",
+        "NOT_RUN",
+        "NOT_APPLICABLE"
+      ]
+    }
+  }
+}

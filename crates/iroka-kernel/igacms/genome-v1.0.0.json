@@ -1,0 +1,2213 @@
+{
+  "schema_version": "1.0.0",
+  "specification_id": "IGACMS",
+  "specification_version": "1.0.0",
+  "dna": {
+    "id": "iroka.dna",
+    "kind": "IROKA_CONSTITUTIONAL_DNA_CONTRACT",
+    "contract_version": "1.0.0",
+    "motto": "Intelligence Guided by Wisdom. Governed by Integrity."
+  },
+  "genome": {
+    "id": "IROKA_ZERO_GENOME",
+    "version": "1.0.0",
+    "compatibility_family": "iroka-zero",
+    "epoch": 0
+  },
+  "historical_domains": [
+    "identity",
+    "authority",
+    "evidence",
+    "assurance",
+    "reasoning",
+    "security",
+    "execution",
+    "evolution"
+  ],
+  "chromosomes": [
+    {
+      "id": "G01",
+      "name": "Identity",
+      "purpose": "System identity, lineage, compatibility and credential binding",
+      "version": "1.0.0",
+      "core_genes": [
+        "identity-root",
+        "lineage",
+        "compatibility"
+      ],
+      "dependencies": [],
+      "validation_scope": []
+    },
+    {
+      "id": "G02",
+      "name": "Governance",
+      "purpose": "Owner authority, constitutional decision records and approval policy",
+      "version": "1.0.0",
+      "core_genes": [
+        "authority-source",
+        "owner-governance",
+        "decision-register"
+      ],
+      "dependencies": [
+        "G01"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G03",
+      "name": "Cognitive",
+      "purpose": "Reasoning, inference, premise handling and uncertainty propagation",
+      "version": "1.0.0",
+      "core_genes": [
+        "premise-model",
+        "inference-rules",
+        "uncertainty-calculus"
+      ],
+      "dependencies": [
+        "G01",
+        "G04",
+        "G11"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G04",
+      "name": "Knowledge",
+      "purpose": "Knowledge structures, provenance, citations and conflict preservation",
+      "version": "1.0.0",
+      "core_genes": [
+        "knowledge-schema",
+        "provenance-chain",
+        "conflict-model"
+      ],
+      "dependencies": [
+        "G01",
+        "G06",
+        "G11"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G05",
+      "name": "Memory",
+      "purpose": "Memory classification, retention, integrity and controlled retrieval",
+      "version": "1.0.0",
+      "core_genes": [
+        "memory-classification",
+        "retention-control",
+        "integrity-checkpoint"
+      ],
+      "dependencies": [
+        "G01",
+        "G02",
+        "G04",
+        "G11"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G06",
+      "name": "Perception",
+      "purpose": "Input envelopes, source trust and provenance-preserving transformations",
+      "version": "1.0.0",
+      "core_genes": [
+        "input-envelope",
+        "source-trust",
+        "perception-transform"
+      ],
+      "dependencies": [
+        "G01",
+        "G11"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G07",
+      "name": "Agent",
+      "purpose": "Agent principals, capability profiles and delegation boundaries",
+      "version": "1.0.0",
+      "core_genes": [
+        "agent-principal",
+        "capability-profile",
+        "delegation-boundary"
+      ],
+      "dependencies": [
+        "G01",
+        "G02",
+        "G11"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G08",
+      "name": "Orchestration",
+      "purpose": "Workflow graphs, scheduling, coordination and state transitions",
+      "version": "1.0.0",
+      "core_genes": [
+        "workflow-graph",
+        "scheduler-policy",
+        "coordination-state"
+      ],
+      "dependencies": [
+        "G01",
+        "G02",
+        "G07",
+        "G11"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G09",
+      "name": "Execution",
+      "purpose": "Protected effects, admission, bounded execution and receipts",
+      "version": "1.0.0",
+      "core_genes": [
+        "effect-contract",
+        "admission-gate",
+        "execution-receipt"
+      ],
+      "dependencies": [
+        "G01",
+        "G02",
+        "G07",
+        "G08",
+        "G11"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G10",
+      "name": "Learning",
+      "purpose": "Learning inputs, change proposals and evaluated adaptations",
+      "version": "1.0.0",
+      "core_genes": [
+        "learning-input",
+        "change-proposal",
+        "evaluation-record"
+      ],
+      "dependencies": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G11",
+        "G12"
+      ],
+      "validation_scope": []
+    },
+    {
+      "id": "G11",
+      "name": "Assurance",
+      "purpose": "Constitutional validation, independent verification and conformance evidence",
+      "version": "1.0.0",
+      "core_genes": [
+        "validator",
+        "attestation",
+        "conformance-report"
+      ],
+      "dependencies": [
+        "G01"
+      ],
+      "validation_scope": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08",
+        "G09",
+        "G10",
+        "G12"
+      ]
+    },
+    {
+      "id": "G12",
+      "name": "Evolution",
+      "purpose": "Mutation governance, version lineage and anti-rollback",
+      "version": "1.0.0",
+      "core_genes": [
+        "mutation-policy",
+        "version-lineage",
+        "rollback-guard"
+      ],
+      "dependencies": [
+        "G01",
+        "G02",
+        "G11"
+      ],
+      "validation_scope": []
+    }
+  ],
+  "genes": [
+    {
+      "id": "g01.identity-root",
+      "chromosome_id": "G01",
+      "version": "1.0.0",
+      "purpose": "Identity: identity root responsibility.",
+      "input_schema": "schemas/genes/identity-root.input.schema.json",
+      "output_schema": "schemas/genes/identity-root.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G01-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g01.lineage",
+      "chromosome_id": "G01",
+      "version": "1.0.0",
+      "purpose": "Identity: lineage responsibility.",
+      "input_schema": "schemas/genes/lineage.input.schema.json",
+      "output_schema": "schemas/genes/lineage.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G01-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g01.compatibility",
+      "chromosome_id": "G01",
+      "version": "1.0.0",
+      "purpose": "Identity: compatibility responsibility.",
+      "input_schema": "schemas/genes/compatibility.input.schema.json",
+      "output_schema": "schemas/genes/compatibility.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G01-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g02.authority-source",
+      "chromosome_id": "G02",
+      "version": "1.0.0",
+      "purpose": "Governance: authority source responsibility.",
+      "input_schema": "schemas/genes/authority-source.input.schema.json",
+      "output_schema": "schemas/genes/authority-source.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G02-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g02.owner-governance",
+      "chromosome_id": "G02",
+      "version": "1.0.0",
+      "purpose": "Governance: owner governance responsibility.",
+      "input_schema": "schemas/genes/owner-governance.input.schema.json",
+      "output_schema": "schemas/genes/owner-governance.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G02-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g02.decision-register",
+      "chromosome_id": "G02",
+      "version": "1.0.0",
+      "purpose": "Governance: decision register responsibility.",
+      "input_schema": "schemas/genes/decision-register.input.schema.json",
+      "output_schema": "schemas/genes/decision-register.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G02-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g03.premise-model",
+      "chromosome_id": "G03",
+      "version": "1.0.0",
+      "purpose": "Cognitive: premise model responsibility.",
+      "input_schema": "schemas/genes/premise-model.input.schema.json",
+      "output_schema": "schemas/genes/premise-model.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G03-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g03.inference-rules",
+      "chromosome_id": "G03",
+      "version": "1.0.0",
+      "purpose": "Cognitive: inference rules responsibility.",
+      "input_schema": "schemas/genes/inference-rules.input.schema.json",
+      "output_schema": "schemas/genes/inference-rules.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G03-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g03.uncertainty-calculus",
+      "chromosome_id": "G03",
+      "version": "1.0.0",
+      "purpose": "Cognitive: uncertainty calculus responsibility.",
+      "input_schema": "schemas/genes/uncertainty-calculus.input.schema.json",
+      "output_schema": "schemas/genes/uncertainty-calculus.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G03-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g04.knowledge-schema",
+      "chromosome_id": "G04",
+      "version": "1.0.0",
+      "purpose": "Knowledge: knowledge schema responsibility.",
+      "input_schema": "schemas/genes/knowledge-schema.input.schema.json",
+      "output_schema": "schemas/genes/knowledge-schema.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G04-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g04.provenance-chain",
+      "chromosome_id": "G04",
+      "version": "1.0.0",
+      "purpose": "Knowledge: provenance chain responsibility.",
+      "input_schema": "schemas/genes/provenance-chain.input.schema.json",
+      "output_schema": "schemas/genes/provenance-chain.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G04-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g04.conflict-model",
+      "chromosome_id": "G04",
+      "version": "1.0.0",
+      "purpose": "Knowledge: conflict model responsibility.",
+      "input_schema": "schemas/genes/conflict-model.input.schema.json",
+      "output_schema": "schemas/genes/conflict-model.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G04-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g05.memory-classification",
+      "chromosome_id": "G05",
+      "version": "1.0.0",
+      "purpose": "Memory: memory classification responsibility.",
+      "input_schema": "schemas/genes/memory-classification.input.schema.json",
+      "output_schema": "schemas/genes/memory-classification.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G05-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g05.retention-control",
+      "chromosome_id": "G05",
+      "version": "1.0.0",
+      "purpose": "Memory: retention control responsibility.",
+      "input_schema": "schemas/genes/retention-control.input.schema.json",
+      "output_schema": "schemas/genes/retention-control.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G05-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g05.integrity-checkpoint",
+      "chromosome_id": "G05",
+      "version": "1.0.0",
+      "purpose": "Memory: integrity checkpoint responsibility.",
+      "input_schema": "schemas/genes/integrity-checkpoint.input.schema.json",
+      "output_schema": "schemas/genes/integrity-checkpoint.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G05-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g06.input-envelope",
+      "chromosome_id": "G06",
+      "version": "1.0.0",
+      "purpose": "Perception: input envelope responsibility.",
+      "input_schema": "schemas/genes/input-envelope.input.schema.json",
+      "output_schema": "schemas/genes/input-envelope.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G06-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g06.source-trust",
+      "chromosome_id": "G06",
+      "version": "1.0.0",
+      "purpose": "Perception: source trust responsibility.",
+      "input_schema": "schemas/genes/source-trust.input.schema.json",
+      "output_schema": "schemas/genes/source-trust.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G06-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g06.perception-transform",
+      "chromosome_id": "G06",
+      "version": "1.0.0",
+      "purpose": "Perception: perception transform responsibility.",
+      "input_schema": "schemas/genes/perception-transform.input.schema.json",
+      "output_schema": "schemas/genes/perception-transform.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G06-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g07.agent-principal",
+      "chromosome_id": "G07",
+      "version": "1.0.0",
+      "purpose": "Agent: agent principal responsibility.",
+      "input_schema": "schemas/genes/agent-principal.input.schema.json",
+      "output_schema": "schemas/genes/agent-principal.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G07-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g07.capability-profile",
+      "chromosome_id": "G07",
+      "version": "1.0.0",
+      "purpose": "Agent: capability profile responsibility.",
+      "input_schema": "schemas/genes/capability-profile.input.schema.json",
+      "output_schema": "schemas/genes/capability-profile.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G07-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g07.delegation-boundary",
+      "chromosome_id": "G07",
+      "version": "1.0.0",
+      "purpose": "Agent: delegation boundary responsibility.",
+      "input_schema": "schemas/genes/delegation-boundary.input.schema.json",
+      "output_schema": "schemas/genes/delegation-boundary.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G07-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g08.workflow-graph",
+      "chromosome_id": "G08",
+      "version": "1.0.0",
+      "purpose": "Orchestration: workflow graph responsibility.",
+      "input_schema": "schemas/genes/workflow-graph.input.schema.json",
+      "output_schema": "schemas/genes/workflow-graph.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G08-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g08.scheduler-policy",
+      "chromosome_id": "G08",
+      "version": "1.0.0",
+      "purpose": "Orchestration: scheduler policy responsibility.",
+      "input_schema": "schemas/genes/scheduler-policy.input.schema.json",
+      "output_schema": "schemas/genes/scheduler-policy.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G08-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g08.coordination-state",
+      "chromosome_id": "G08",
+      "version": "1.0.0",
+      "purpose": "Orchestration: coordination state responsibility.",
+      "input_schema": "schemas/genes/coordination-state.input.schema.json",
+      "output_schema": "schemas/genes/coordination-state.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G08-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g09.effect-contract",
+      "chromosome_id": "G09",
+      "version": "1.0.0",
+      "purpose": "Execution: effect contract responsibility.",
+      "input_schema": "schemas/genes/effect-contract.input.schema.json",
+      "output_schema": "schemas/genes/effect-contract.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "declared-protected-effect"
+      ],
+      "authority_requirements": [
+        "operation-specific-authorization"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G09-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g09.admission-gate",
+      "chromosome_id": "G09",
+      "version": "1.0.0",
+      "purpose": "Execution: admission gate responsibility.",
+      "input_schema": "schemas/genes/admission-gate.input.schema.json",
+      "output_schema": "schemas/genes/admission-gate.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "declared-protected-effect"
+      ],
+      "authority_requirements": [
+        "operation-specific-authorization"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G09-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g09.execution-receipt",
+      "chromosome_id": "G09",
+      "version": "1.0.0",
+      "purpose": "Execution: execution receipt responsibility.",
+      "input_schema": "schemas/genes/execution-receipt.input.schema.json",
+      "output_schema": "schemas/genes/execution-receipt.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "declared-protected-effect"
+      ],
+      "authority_requirements": [
+        "operation-specific-authorization"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G09-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g10.learning-input",
+      "chromosome_id": "G10",
+      "version": "1.0.0",
+      "purpose": "Learning: learning input responsibility.",
+      "input_schema": "schemas/genes/learning-input.input.schema.json",
+      "output_schema": "schemas/genes/learning-input.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G10-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g10.change-proposal",
+      "chromosome_id": "G10",
+      "version": "1.0.0",
+      "purpose": "Learning: change proposal responsibility.",
+      "input_schema": "schemas/genes/change-proposal.input.schema.json",
+      "output_schema": "schemas/genes/change-proposal.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G10-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g10.evaluation-record",
+      "chromosome_id": "G10",
+      "version": "1.0.0",
+      "purpose": "Learning: evaluation record responsibility.",
+      "input_schema": "schemas/genes/evaluation-record.input.schema.json",
+      "output_schema": "schemas/genes/evaluation-record.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G10-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g11.validator",
+      "chromosome_id": "G11",
+      "version": "1.0.0",
+      "purpose": "Assurance: validator responsibility.",
+      "input_schema": "schemas/genes/validator.input.schema.json",
+      "output_schema": "schemas/genes/validator.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G11-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g11.attestation",
+      "chromosome_id": "G11",
+      "version": "1.0.0",
+      "purpose": "Assurance: attestation responsibility.",
+      "input_schema": "schemas/genes/attestation.input.schema.json",
+      "output_schema": "schemas/genes/attestation.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G11-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g11.conformance-report",
+      "chromosome_id": "G11",
+      "version": "1.0.0",
+      "purpose": "Assurance: conformance report responsibility.",
+      "input_schema": "schemas/genes/conformance-report.input.schema.json",
+      "output_schema": "schemas/genes/conformance-report.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G11-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g12.mutation-policy",
+      "chromosome_id": "G12",
+      "version": "1.0.0",
+      "purpose": "Evolution: mutation policy responsibility.",
+      "input_schema": "schemas/genes/mutation-policy.input.schema.json",
+      "output_schema": "schemas/genes/mutation-policy.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G12-GENE-001"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g12.version-lineage",
+      "chromosome_id": "G12",
+      "version": "1.0.0",
+      "purpose": "Evolution: version lineage responsibility.",
+      "input_schema": "schemas/genes/version-lineage.input.schema.json",
+      "output_schema": "schemas/genes/version-lineage.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G12-GENE-002"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    },
+    {
+      "id": "g12.rollback-guard",
+      "chromosome_id": "G12",
+      "version": "1.0.0",
+      "purpose": "Evolution: rollback guard responsibility.",
+      "input_schema": "schemas/genes/rollback-guard.input.schema.json",
+      "output_schema": "schemas/genes/rollback-guard.output.schema.json",
+      "invariant_anchors": [
+        "identity-authority-separation",
+        "authority-authorization-separation",
+        "authorization-execution-separation",
+        "external-input-untrusted",
+        "security-failure-fail-closed"
+      ],
+      "dependencies": [],
+      "permitted_effects": [
+        "none"
+      ],
+      "authority_requirements": [
+        "none"
+      ],
+      "evidence_requirements": [
+        "provenance",
+        "version-bound-evidence"
+      ],
+      "failure_semantics": "fail-closed",
+      "compatibility_policy": "explicit-versioned-compatibility",
+      "conformance_cases": [
+        "G12-GENE-003"
+      ],
+      "owner": "IROKA Owner",
+      "review_state": "APPROVED_DESIGN"
+    }
+  ],
+  "principles": [
+    {
+      "id": "evidence-first",
+      "domain": "evidence",
+      "statement": "IROKA must distinguish observation, reception, verification, assurance, determination, decision, execution, and subsequent verification."
+    },
+    {
+      "id": "explicit-authorization",
+      "domain": "authority",
+      "statement": "IROKA must never treat capability, identity, intent, or execution context as implicit authorization."
+    },
+    {
+      "id": "explicit-trust",
+      "domain": "security",
+      "statement": "Trust must be explicitly established within a defined boundary and must never be inferred merely from receipt or accessibility."
+    },
+    {
+      "id": "least-privilege",
+      "domain": "authority",
+      "statement": "Authority and capability must be constrained to the minimum scope necessary for an authorized purpose."
+    },
+    {
+      "id": "fail-closed",
+      "domain": "security",
+      "statement": "When a required security, authorization, integrity, or constitutional condition cannot be established, IROKA must not silently authorize the operation."
+    },
+    {
+      "id": "separation-of-duties",
+      "domain": "authority",
+      "statement": "Identity, capability, permission, authority, authorization, and execution must remain conceptually distinct."
+    },
+    {
+      "id": "accountability",
+      "domain": "execution",
+      "statement": "Consequential operations must remain attributable to an identity, authority context, authorization decision, and execution context."
+    },
+    {
+      "id": "auditability",
+      "domain": "assurance",
+      "statement": "Material determinations and consequential operations must preserve sufficient provenance and decision context for later verification."
+    },
+    {
+      "id": "explicit-uncertainty",
+      "domain": "assurance",
+      "statement": "IROKA must preserve material uncertainty, limitations, incomplete evidence, and contradiction rather than silently converting them into certainty."
+    },
+    {
+      "id": "bounded-autonomy",
+      "domain": "execution",
+      "statement": "Autonomy is authorized capability operating within explicit identity, scope, authority, evidence, security, assurance, and execution boundaries."
+    },
+    {
+      "id": "no-silent-escalation",
+      "domain": "authority",
+      "statement": "IROKA must never silently expand authority, scope, privilege, or execution capability."
+    },
+    {
+      "id": "no-silent-retry",
+      "domain": "execution",
+      "statement": "Execution retry must be explicitly governed and must never silently create additional consequential side effects."
+    },
+    {
+      "id": "no-silent-data-loss",
+      "domain": "evidence",
+      "statement": "IROKA must not silently discard material evidence, provenance, contradiction, uncertainty, or execution information."
+    },
+    {
+      "id": "no-silent-evidence-upgrade",
+      "domain": "evidence",
+      "statement": "IROKA must never silently upgrade received, inferred, assumed, or unverified information into verified or determined truth."
+    }
+  ],
+  "invariants": [
+    {
+      "id": "identity-authority-separation",
+      "severity": "critical",
+      "enforcement": "constitutional",
+      "violation": "reject",
+      "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+    },
+    {
+      "id": "authority-authorization-separation",
+      "severity": "critical",
+      "enforcement": "boundary",
+      "violation": "fail-closed",
+      "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+    },
+    {
+      "id": "authorization-execution-separation",
+      "severity": "critical",
+      "enforcement": "boundary",
+      "violation": "fail-closed",
+      "statement": "An execution request or execution context must never implicitly create or increase authorization."
+    },
+    {
+      "id": "received-not-verified",
+      "severity": "critical",
+      "enforcement": "constitutional",
+      "violation": "preserve-and-report",
+      "statement": "Receipt of information does not establish that the information has been verified."
+    },
+    {
+      "id": "verified-not-true",
+      "severity": "critical",
+      "enforcement": "constitutional",
+      "violation": "preserve-and-report",
+      "statement": "Verification of an evidence property does not automatically establish universal truth of its substantive claim."
+    },
+    {
+      "id": "unknown-not-false",
+      "severity": "high",
+      "enforcement": "constitutional",
+      "violation": "preserve-and-report",
+      "statement": "An unknown or unestablished condition must not be represented as false solely because it is unknown."
+    },
+    {
+      "id": "absence-not-evidence",
+      "severity": "high",
+      "enforcement": "constitutional",
+      "violation": "preserve-and-report",
+      "statement": "The absence of available evidence must not be represented as affirmative evidence of absence."
+    },
+    {
+      "id": "contradiction-preservation",
+      "severity": "critical",
+      "enforcement": "constitutional",
+      "violation": "preserve-and-report",
+      "statement": "Materially conflicting evidence or determinations must remain explicitly represented and must not be silently reconciled."
+    },
+    {
+      "id": "uncertainty-preservation",
+      "severity": "critical",
+      "enforcement": "constitutional",
+      "violation": "preserve-and-report",
+      "statement": "Material uncertainty and limitations must remain represented through subsequent processing unless explicitly resolved by valid evidence and assurance."
+    },
+    {
+      "id": "external-input-untrusted",
+      "severity": "critical",
+      "enforcement": "boundary",
+      "violation": "fail-closed",
+      "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+    },
+    {
+      "id": "security-failure-fail-closed",
+      "severity": "critical",
+      "enforcement": "boundary",
+      "violation": "fail-closed",
+      "statement": "Failure to establish a required security condition must not result in authorization or execution."
+    },
+    {
+      "id": "execution-does-not-grant-authority",
+      "severity": "critical",
+      "enforcement": "boundary",
+      "violation": "fail-closed",
+      "statement": "Execution state, execution identity, or execution context must never be treated as a source of new authority."
+    },
+    {
+      "id": "autonomy-is-bounded",
+      "severity": "critical",
+      "enforcement": "constitutional",
+      "violation": "reject",
+      "statement": "Autonomous behavior is valid only when operating within explicitly established capability, authority, scope, security, evidence, assurance, and execution boundaries."
+    },
+    {
+      "id": "consequential-action-requires-authorization",
+      "severity": "critical",
+      "enforcement": "boundary",
+      "violation": "fail-closed",
+      "statement": "A consequential action must not proceed without an applicable authorization decision established before execution."
+    }
+  ],
+  "markers": [
+    {
+      "family": "IDN",
+      "id": "IDN-001",
+      "assertion": "Canonical DNA identifier matches iroka.dna",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "IDN",
+      "id": "IDN-002",
+      "assertion": "System lineage matches the approved IROKA lineage",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "IDN",
+      "id": "IDN-003",
+      "assertion": "Genome and chromosome versions are explicit and valid",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "IDN",
+      "id": "IDN-004",
+      "assertion": "Compatibility family and compatibility rules are explicit",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "INT",
+      "id": "INT-001",
+      "assertion": "Canonical principle catalogue matches its approved digest and IDs",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "INT",
+      "id": "INT-002",
+      "assertion": "Canonical invariant catalogue matches its approved digest and IDs",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "INT",
+      "id": "INT-003",
+      "assertion": "Invariant semantics, severity and violation behavior are complete",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "PRV",
+      "id": "PRV-001",
+      "assertion": "Every material artifact has attributable source provenance",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "PRV",
+      "id": "PRV-002",
+      "assertion": "Every derived artifact preserves transformation lineage and input/output digests",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "EVD",
+      "id": "EVD-001",
+      "assertion": "Evidence is assigned an explicit evidence class and source",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "EVD",
+      "id": "EVD-002",
+      "assertion": "Evidence bytes or canonical representation are digest-bound",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "EVD",
+      "id": "EVD-003",
+      "assertion": "Evidence verification state and verifier identity are explicit",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "AUT",
+      "id": "AUT-001",
+      "assertion": "Authority is bounded by subject, purpose, resource and scope",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "AUT",
+      "id": "AUT-002",
+      "assertion": "Owner-controlled constitutional changes carry the required approval record",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "AZN",
+      "id": "AZN-001",
+      "assertion": "Protected operations have explicit, operation-specific authorization",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "AZN",
+      "id": "AZN-002",
+      "assertion": "Authorization has an explicit validity interval and revocation semantics",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "SEC",
+      "id": "SEC-001",
+      "assertion": "Trust-root status, provenance, validity and revocation are verifiable",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "SEC",
+      "id": "SEC-002",
+      "assertion": "Missing or failed security conditions resolve to a non-authorizing state",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "ASN",
+      "id": "ASN-001",
+      "assertion": "Required conformance evidence is complete for the declared claim",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "ASN",
+      "id": "ASN-002",
+      "assertion": "Verification is independent of the producer for claims requiring independent assurance",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "LFC",
+      "id": "LFC-001",
+      "assertion": "Marker, artifact and chromosome lifecycle transitions are valid",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "LFC",
+      "id": "LFC-002",
+      "assertion": "No lifecycle transition silently discards history or changes meaning",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "EVO",
+      "id": "EVO-001",
+      "assertion": "Version and epoch lineage is monotonic and ancestry-linked",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "EVO",
+      "id": "EVO-002",
+      "assertion": "Mutation is covered by the correct approval class",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "EVO",
+      "id": "EVO-003",
+      "assertion": "Rollback to an unapproved or revoked state is rejected",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "CNF",
+      "id": "CNF-001",
+      "assertion": "Cross-chromosome dependencies and invariants are internally consistent",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    {
+      "family": "CNF",
+      "id": "CNF-002",
+      "assertion": "The canonical fingerprint covers the complete approved constitutional payload",
+      "schema_version": "1.0.0",
+      "states": [
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    }
+  ],
+  "mutation_policy": [
+    {
+      "class": "M0",
+      "change": "No semantic change; formatting or metadata-only",
+      "controls": [
+        "automated-canonical-diff",
+        "provenance"
+      ]
+    },
+    {
+      "class": "M1",
+      "change": "Editorial clarification with no normative semantic effect",
+      "controls": [
+        "review",
+        "semantic-equivalence-note",
+        "patch-version"
+      ]
+    },
+    {
+      "class": "M2",
+      "change": "Additive non-breaking gene/marker extension",
+      "controls": [
+        "compatibility-review",
+        "schema-validation",
+        "conformance-vectors"
+      ]
+    },
+    {
+      "class": "M3",
+      "change": "Behavior or compatibility change within approved constitutional boundaries",
+      "controls": [
+        "security-review",
+        "impact-review",
+        "migration-rollback-plan",
+        "Owner-approval-if-authority-or-protected-behavior-changes"
+      ]
+    },
+    {
+      "class": "M4",
+      "change": "Principle, invariant, marker meaning, dependency or constitutional enforcement change",
+      "controls": [
+        "explicit-Owner-approval",
+        "independent-review",
+        "new-fingerprint",
+        "migration",
+        "regression-evidence"
+      ]
+    },
+    {
+      "class": "M5",
+      "change": "DNA identity, genesis, trust-root policy or constitutional root change",
+      "controls": [
+        "explicit-Owner-authorization",
+        "enhanced-independent-review",
+        "dual-control",
+        "new-epoch",
+        "anti-rollback-evidence"
+      ]
+    }
+  ],
+  "compatibility_manifest": {
+    "historical_source": "akeayu/iroka@1224bb8298f9ef21d2590dd6e70273501281cd9",
+    "policy": "preserve-historical-bytes-and-identities; adapt-semantics-only; never-rewrite-historical-digests"
+  },
+  "historical_disposition_references": [
+    {
+      "id": "DNA-001..DNA-044",
+      "source_commit": "1224bb8298f9ef21d2590dd6e70273501281cd9",
+      "disposition": "RETAIN-HISTORICAL"
+    },
+    {
+      "id": "DNA-045",
+      "source_commit": "1224bb8298f9ef21d2590dd6e70273501281cd9",
+      "disposition": "EXTENSION-REVIEW",
+      "note": "post-genesis extension; excluded from DNA-044 genesis sequence"
+    }
+  ],
+  "dependency_graph": [
+    {
+      "node": "G01",
+      "depends_on": []
+    },
+    {
+      "node": "G02",
+      "depends_on": [
+        "G01"
+      ]
+    },
+    {
+      "node": "G03",
+      "depends_on": [
+        "G01",
+        "G04",
+        "G11"
+      ]
+    },
+    {
+      "node": "G04",
+      "depends_on": [
+        "G01",
+        "G06",
+        "G11"
+      ]
+    },
+    {
+      "node": "G05",
+      "depends_on": [
+        "G01",
+        "G02",
+        "G04",
+        "G11"
+      ]
+    },
+    {
+      "node": "G06",
+      "depends_on": [
+        "G01",
+        "G11"
+      ]
+    },
+    {
+      "node": "G07",
+      "depends_on": [
+        "G01",
+        "G02",
+        "G11"
+      ]
+    },
+    {
+      "node": "G08",
+      "depends_on": [
+        "G01",
+        "G02",
+        "G07",
+        "G11"
+      ]
+    },
+    {
+      "node": "G09",
+      "depends_on": [
+        "G01",
+        "G02",
+        "G07",
+        "G08",
+        "G11"
+      ]
+    },
+    {
+      "node": "G10",
+      "depends_on": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G11",
+        "G12"
+      ]
+    },
+    {
+      "node": "G11",
+      "depends_on": [
+        "G01"
+      ]
+    },
+    {
+      "node": "G12",
+      "depends_on": [
+        "G01",
+        "G02",
+        "G11"
+      ]
+    }
+  ],
+  "created_by": "IGACMS A3 implementation; no runtime activation implied"
+}

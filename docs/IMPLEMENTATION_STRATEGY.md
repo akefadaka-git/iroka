@@ -102,16 +102,27 @@ Work:
 - Define trust boundaries, threat model and security assumptions.
 - Define principal, capability, policy, approval, grant, audit and evidence concepts.
 - Define data classification, tenant isolation and hybrid placement rules.
+- Establish the binding Amharic-first Ethiopia baseline and African regional-profile architecture across language/script, localization, calendar/time, identity, documents, knowledge and jurisdiction.
+- Define Ethiopia defaults (am-ET, en, Ethiopian calendar, Gregorian interoperability, Africa/Addis_Ababa and ETB) without hardcoding them into shared African core logic.
+- Define original-script identity preservation, Amharic-first document/OCR/knowledge acceptance, provenance and human-review requirements.
 - Define autonomy levels A0–A4 and permitted operation classes.
 - Define service boundaries, interface ownership and dependency graph.
-- Establish acceptance criteria, risk register and unresolved decisions.
+- Establish acceptance criteria, risk register, decision register and unresolved decisions.
+
+A1 regional architecture artifacts:
+- [A1 Amharic-First Ethiopian and African Architecture Contract](architecture/A1-AMHARIC-FIRST-REGIONAL-ARCHITECTURE-CONTRACT.md)
+- [Regional Deployment Profile Contract](architecture/REGIONAL-DEPLOYMENT-PROFILE-CONTRACT.md)
+- [A1 Requirements Traceability and Decision Register](architecture/A1-REQUIREMENTS-TRACEABILITY-AND-DECISIONS.md)
+- [A1 Implementation Inventory](architecture/A1-IMPLEMENTATION-INVENTORY.md)
 
 Exit evidence:
 - Approved architecture baseline and version.
 - Domain ownership and interface register.
 - Threat model and data classification policy.
 - Authorization decision and audit contracts.
-- Acceptance matrix with positive, negative and failure-mode cases.
+- Acceptance matrix with positive, negative and failure-mode cases, including Amharic/Ethiopic and cross-profile conformance.
+- Regional profile schema, precedence, versioning and migration contract.
+- Implementation inventory tied to an exact code SHA, with MISSING/PARTIAL/NOT RUN statuses.
 - Explicit Owner approval of architecture and material risk decisions.
 
 ### A2 — Historical evidence and implementation contracts
@@ -353,3 +364,37 @@ This strategy does not authorize:
 ---
 
 **Constitutional operating rule:** Intelligence may propose. Governance decides. Authorization permits. Execution acts. Assurance verifies.
+
+
+## 14. Amharic-first Ethiopian and African architecture contract
+
+The normative regional and language requirements are defined in [A1 — Amharic-First Ethiopian and African Architecture Contract](architecture/A1-AMHARIC-FIRST-REGIONAL-ARCHITECTURE-CONTRACT.md).
+
+That contract governs language and script, localization, calendar and time, identity, documents, knowledge, regional deployment profiles, and cross-cutting Kernel controls. It is mandatory for new design and implementation. Its existence establishes requirements only; runtime support remains subject to the contract's acceptance evidence and the A1/A2 gate process.
+
+
+## 15. Native computing and VYRAQON core integration
+
+IROKA's long-term target is a proprietary intelligent computing ecosystem with its own operating-system architecture, Kernel, native programming language/toolchain, cognitive fabric and assurance plane. VYRAQON is a first-class core writing and computational representation capability, maintained independently in its own repository and integrated through pinned, versioned, verifiable interfaces.
+
+The binding A2 direction, repository boundary, logical contracts and acceptance gates are specified in [IROKA Native Computing Architecture and VYRAQON Core Integration](architecture/IROKA-NATIVE-COMPUTING-AND-VYRAQON-INTEGRATION.md).
+
+This is a target architecture, not a claim that a native OS or INL language already exists. The existing Rust Kernel remains the current implementation foundation pending A2 architecture and migration review. A1 Amharic-first Ethiopian/African requirements remain unchanged and apply to every native layer and user-facing surface.
+
+The VYRAQON repository was not present under the connected `akefadaka-git` account at the time of this update. Create that repository separately and grant access before cross-repository implementation. No VYRAQON source is copied into IROKA.
+
+## 16. Native OS, INL, VYRAQON and conformance contract package
+
+The A2 native computing design package is indexed here:
+
+- [IROKA OS System Specification](architecture/IROKA-OS-SYSTEM-SPECIFICATION.md)
+- [IROKA Native Language Design](architecture/IROKA-NATIVE-LANGUAGE-DESIGN.md)
+- [VYRAQON–IROKA Interoperability Specification](architecture/IROKA-VYRAQON-INTEROPERABILITY-SPECIFICATION.md)
+- [Native Platform and VYRAQON Conformance Suite](assurance/IROKA-A2-CONFORMANCE-SUITE-SPECIFICATION.md)
+- [Machine-readable conformance catalog](../tests/conformance/catalog.json)
+- [Conformance fixture provenance](../tests/conformance/fixtures/README.md)
+
+The specifications establish system, language, interoperability and measurable acceptance contracts. They do not establish implementation or passing test evidence. The kernel family, hardware target matrix, language syntax/memory model/ABI, VYRAQON normative release and reviewed Amharic/Ethiopic/calendar oracles remain explicit A2 decision/dependency gates. See each specification's unresolved-decision and status sections.
+
+**A3 remains blocked** until those decisions and dependencies are resolved, the conformance harness and reviewed oracles are available, the exact-SHA evidence is produced, and the Owner separately authorizes implementation.
+

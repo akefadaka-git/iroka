@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IGACMS Gene v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "chromosome_id",
+    "version",
+    "purpose",
+    "input_schema",
+    "output_schema",
+    "invariant_anchors",
+    "dependencies",
+    "permitted_effects",
+    "authority_requirements",
+    "evidence_requirements",
+    "failure_semantics",
+    "compatibility_policy",
+    "conformance_cases",
+    "owner",
+    "review_state"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "chromosome_id": {
+      "pattern": "^G(0[1-9]|1[0-2])$"
+    },
+    "version": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "input_schema": {
+      "type": "string"
+    },
+    "output_schema": {
+      "type": "string"
+    },
+    "invariant_anchors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "permitted_effects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "authority_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "failure_semantics": {
+      "type": "string"
+    },
+    "compatibility_policy": {
+      "type": "string"
+    },
+    "conformance_cases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owner": {
+      "type": "string"
+    },
+    "review_state": {
+      "type": "string"
+    }
+  }
+}

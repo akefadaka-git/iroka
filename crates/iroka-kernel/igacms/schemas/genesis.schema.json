@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IGACMS Genesis Envelope v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "dna_id",
+    "dna_version",
+    "genome_id",
+    "genome_version",
+    "digest",
+    "canonicalization",
+    "hash_algorithm",
+    "epoch",
+    "parent",
+    "owner_approval_ref",
+    "trust_root_key_ids",
+    "trust_root_provenance_refs",
+    "attestation",
+    "audit_refs"
+  ],
+  "properties": {
+    "dna_id": {
+      "const": "iroka.dna"
+    },
+    "dna_version": {
+      "const": "1.0.0"
+    },
+    "genome_id": {
+      "const": "IROKA_ZERO_GENOME"
+    },
+    "genome_version": {
+      "const": "1.0.0"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "canonicalization": {
+      "const": "RFC8785-JCS"
+    },
+    "hash_algorithm": {
+      "const": "SHA-256"
+    },
+    "epoch": {
+      "const": 0
+    },
+    "parent": {
+      "type": "null"
+    },
+    "owner_approval_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trust_root_key_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "trust_root_provenance_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "attestation": {
+      "$ref": "attestation.schema.json"
+    },
+    "audit_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

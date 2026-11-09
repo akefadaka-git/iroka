@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IGACMS Chromosome v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "purpose",
+    "version",
+    "core_genes",
+    "dependencies",
+    "validation_scope"
+  ],
+  "properties": {
+    "id": {
+      "pattern": "^G(0[1-9]|1[0-2])$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "core_genes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "validation_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
