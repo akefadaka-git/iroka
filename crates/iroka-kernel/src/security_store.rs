@@ -587,7 +587,14 @@ impl SqliteSecurityStore {
                 "INSERT OR IGNORE INTO execution_grants
                  (grant_id, decision_id, scope_digest, token_hash, issued_at, expires_at)
                  VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
-                params![grant_id, decision_id, scope_digest, token_hash, issued, expires],
+                params![
+                    grant_id,
+                    decision_id,
+                    scope_digest,
+                    token_hash,
+                    issued,
+                    expires
+                ],
             )
             .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
         if changed == 0 {
@@ -694,7 +701,9 @@ impl SqliteSecurityStore {
             .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
         let count: i64 = connection
-            .query_row("SELECT COUNT(*) FROM execution_grants", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM execution_grants", [], |row| {
+                row.get(0)
+            })
             .map_err(|_| SecurityStoreError::Unavailable)?;
         u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
     }
