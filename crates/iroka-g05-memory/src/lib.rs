@@ -166,6 +166,23 @@ pub struct MemoryRecord {
     pub updated_at: u64,
 }
 
+/// Metadata-only view returned before content access. It intentionally
+/// excludes the content field and any excerpt or derived text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryMetadata {
+    pub memory_id: String,
+    pub tenant_ref: String,
+    pub subject_ref: String,
+    pub memory_class: MemoryClass,
+    pub content_sha256: String,
+    pub purpose: Purpose,
+    pub classification: Classification,
+    pub lifecycle_state: LifecycleState,
+    pub expires_at: Option<u64>,
+    pub record_version: u64,
+    pub retention_policy_ref: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DurableApprovalReceipt {
     pub approval_ref: String,
@@ -557,10 +574,28 @@ pub trait GovernancePort {
 /// state changes, idempotency, and deletion/resurrection controls. Content
 /// reads MUST only be invoked after GovernancePort::authorize succeeds.
 pub trait MemoryRepository {
-    fn insert(&mut self, record: MemoryRecord) -> Result<(), G05Error>;
-    fn get_metadata(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error>;
+    /// Atomically persist the record and enqueue its content-free G11 event.
+    fn insert_with_audit(
+        &mut self,
+        record: MemoryRecord,
+        event: AuditEvent,
+    ) -> Result<(), G05Error>;
+
+    /// Metadata reads MUST NOT materialize or return the memory content.
+    fn get_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error>;
+
+    /// Call only after G01/tenant/G02 authorization has succeeded against
+    /// metadata and classification.
     fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error>;
-    fn replace(&mut self, record: MemoryRecord, expected_version: u64) -> Result<(), G05Error>;
+
+    /// Atomically compare the expected version, replace the record, and
+    /// enqueue its G11 event. A conflict MUST NOT partially commit.
+    fn replace_with_audit(
+        &mut self,
+        record: MemoryRecord,
+        expected_version: u64,
+        event: AuditEvent,
+    ) -> Result<(), G05Error>;
 }
 
 #[cfg(test)]
