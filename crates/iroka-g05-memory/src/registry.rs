@@ -438,13 +438,14 @@ fn g05_capability(operation: Operation) -> &'static str {
 fn enqueue_authority_event(tx:&rusqlite::Transaction<'_>,event_type:&str,aggregate_ref:&str,
     tenant_ref:&str,actor_ref:&str,purpose:Purpose,version:u64,outcome:&str,
     correlation_ref:&str,now:u64)->Result<(),G05Error>{
-    let event_id=format!("g05-authority:{}:{}:v{}",event_type,aggregate_ref,version);
+    let aggregate_digest=crate::sha256_hex(aggregate_ref.as_bytes());
+    let event_id=format!("g05-authority:{}:{}:v{}",event_type,aggregate_digest,version);
     tx.execute("INSERT INTO g05_authority_outbox
       (event_id,event_type,aggregate_ref,tenant_ref,actor_ref,purpose,record_version,
        outcome,correlation_ref,occurred_at,content_sha256,delivered_at)
       VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,NULL)",
       params![event_id,event_type,aggregate_ref,tenant_ref,actor_ref,purpose_key(purpose),
-        to_i64(version)?,outcome,correlation_ref,to_i64(now)?,"0".repeat(64)])
+        to_i64(version)?,outcome,correlation_ref,to_i64(now)?,crate::sha256_hex(&[])])
       .map_err(|_|G05Error::AuthorityUnavailable)?;
     Ok(())
 }
