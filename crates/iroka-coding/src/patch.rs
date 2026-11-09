@@ -1004,6 +1004,74 @@ mod tests {
     }
 
     #[test]
+    fn applies_create_and_delete_hunks_without_touching_a_filesystem() {
+        let create = "diff --git a/src/new.rs b/src/new.rs\n--- /dev/null\n+++ b/src/new.rs\n@@ -0,0 +1 @@\n+pub fn created() {}\n";
+        assert_eq!(
+            apply_unified_diff("src/new.rs", ChangeOperation::Create, None, create),
+            Ok(Some("pub fn created() {}\n".to_owned()))
+        );
+
+        let delete = "diff --git a/src/lib.rs b/src/lib.rs\n--- a/src/lib.rs\n+++ /dev/null\n@@ -1 +0,0 @@\n-pub fn existing() {}\n";
+        assert_eq!(
+            apply_unified_diff(
+                "src/lib.rs",
+                ChangeOperation::Delete,
+                Some("pub fn existing() {}\n"),
+                delete
+            ),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn rejects_repeated_or_out_of_order_hunks() {
+        let patch = "diff --git a/src/lib.rs b/src/lib.rs\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -1 +1 @@\n-old\n+new\n@@ -1 +1 @@\n-old\n+again\n";
+        assert_eq!(
+            apply_unified_diff(
+                "src/lib.rs",
+                ChangeOperation::Modify,
+                Some("old\n"),
+                patch
+            ),
+            Err(PatchReviewError::HunkOutOfOrder)
+        );
+    }
+
+    #[test]
+    fn rejects_stale_snapshot_after_owner_approval() {
+        let original = WorkspaceSnapshot::new(
+            "akefadaka-git/iroka",
+            "a".repeat(40),
+            vec![SnapshotFile::new("src/lib.rs", "pub fn existing() {}\n")],
+        )
+        .expect("workspace snapshot");
+        let patch = "diff --git a/src/lib.rs b/src/lib.rs\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -1 +1,2 @@\n pub fn existing() {}\n+pub fn added() {}\n";
+        let (_, review) = reviewed(&original, "src/lib.rs", ChangeOperation::Modify, patch);
+        let (verifier, key) = owner_verifier();
+        let approval = approve(&review, &verifier, &key);
+        let stale = WorkspaceSnapshot::new(
+            "akefadaka-git/iroka",
+            "a".repeat(40),
+            vec![SnapshotFile::new("src/lib.rs", "pub fn changed() {}\n")],
+        )
+        .expect("stale snapshot");
+        assert_eq!(
+            PatchApplier::apply_preview(&stale, &review, &approval),
+            Err(PatchApplyError::StaleSnapshot)
+        );
+    }
+
+    #[test]
+    fn protects_sensitive_key_material_and_additional_paths() {
+        let policy = PatchReviewPolicy::default()
+            .with_additional_protected_path("docs/owner-policy.md")
+            .expect("additional protected path");
+        assert!(policy.protects("id_ed25519.pem"));
+        assert!(policy.protects("docs/owner-policy.md"));
+        assert!(policy.protects(".env.production"));
+    }
+
+    #[test]
     fn rejects_unapproved_preview_application() {
         let original = WorkspaceSnapshot::new(
             "akefadaka-git/iroka",
