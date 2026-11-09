@@ -20,7 +20,10 @@ impl<S: AuditSink> AuditSink for TenantBoundAuditSink<'_, S> {
     fn append(&self, event: &AuditEvent) -> Result<(), crate::AuditError> {
         let correlation = format!(
             "tenant:{}:membership-version:{}:{}:{}",
-            self.tenant_id, self.membership_version, self.correlation_id, event.correlation_id()
+            self.tenant_id,
+            self.membership_version,
+            self.correlation_id,
+            event.correlation_id()
         );
         let bound = AuditEvent::new(
             event.event_id(),
@@ -85,31 +88,29 @@ pub fn authorize_compact_in_tenant<R: RevocationChecker, S: AuditSink>(
     event_id: &str,
     correlation_id: &str,
 ) -> Decision {
-    let principal = match credential_verifier.authenticate(
-        compact_credential,
-        expected_audience,
-        now,
-    ) {
-        Ok(principal) => principal,
-        Err(error) => {
-            let reason = match error {
-                CredentialError::Expired | CredentialError::NotYetValid
-                | CredentialError::IssuedInFuture => DecisionReason::IdentityExpired,
-                CredentialError::Malformed => DecisionReason::MalformedRequest,
-                _ => DecisionReason::IdentityVerificationFailed,
-            };
-            let decision = Decision::new(DecisionCode::Deny, reason, "unavailable");
-            return audit_unresolved(
-                audit_sink,
-                request,
-                "unavailable",
-                decision,
-                now,
-                event_id,
-                correlation_id,
-            );
-        }
-    };
+    let principal =
+        match credential_verifier.authenticate(compact_credential, expected_audience, now) {
+            Ok(principal) => principal,
+            Err(error) => {
+                let reason = match error {
+                    CredentialError::Expired
+                    | CredentialError::NotYetValid
+                    | CredentialError::IssuedInFuture => DecisionReason::IdentityExpired,
+                    CredentialError::Malformed => DecisionReason::MalformedRequest,
+                    _ => DecisionReason::IdentityVerificationFailed,
+                };
+                let decision = Decision::new(DecisionCode::Deny, reason, "unavailable");
+                return audit_unresolved(
+                    audit_sink,
+                    request,
+                    "unavailable",
+                    decision,
+                    now,
+                    event_id,
+                    correlation_id,
+                );
+            }
+        };
 
     if principal.subject() != request.subject() {
         let decision = Decision::new(
@@ -117,7 +118,15 @@ pub fn authorize_compact_in_tenant<R: RevocationChecker, S: AuditSink>(
             DecisionReason::IdentitySubjectMismatch,
             "unavailable",
         );
-        return audit_unresolved(audit_sink, request, "unavailable", decision, now, event_id, correlation_id);
+        return audit_unresolved(
+            audit_sink,
+            request,
+            "unavailable",
+            decision,
+            now,
+            event_id,
+            correlation_id,
+        );
     }
 
     let resolver = owner_verifier.tenant_membership_resolver();
