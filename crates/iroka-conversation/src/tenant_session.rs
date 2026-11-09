@@ -239,6 +239,9 @@ impl SqliteSessionRegistry {
         expires_at: u64,
         revocation_version: u64,
     ) -> Result<(), ConversationError> {
+        if issued_at < credential_issued_at || expires_at > credential_expires_at {
+            return Err(ConversationError::InvalidInput);
+        }
         if [session_id, subject, tenant, credential_id]
             .iter()
             .any(|v| v.trim().is_empty())
@@ -319,6 +322,8 @@ impl SessionGuard for SqliteSessionRegistry {
         credential_id: &str,
         key_id: &str,
         revocation_version: u64,
+        credential_issued_at: u64,
+        credential_expires_at: u64,
         tenant: &str,
         session_id: &str,
         now: u64,
@@ -367,6 +372,10 @@ impl SessionGuard for SqliteSessionRegistry {
             || stored_credential != credential_id
             || stored_key_id != key_id
             || version != revocation_version
+            || now < credential_issued_at
+            || now >= credential_expires_at
+            || issued < credential_issued_at
+            || expires > credential_expires_at
             || revoked
             || expires <= issued
             || now < issued
@@ -444,11 +453,11 @@ mod tests {
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:1", "issuer:1", "cred:1", "key:1", 1, "tenant:a", "s1", 200),
+            sessions.validate("subject:1", "issuer:1", "cred:1", "key:1", 1, 100, 3600, "tenant:a", "s1", 200),
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:other", "issuer:1", "cred:1", "key:1", 1, "tenant:a", "s1", 200),
+            sessions.validate("subject:other", "issuer:1", "cred:1", "key:1", 1, 100, 3600, "tenant:a", "s1", 200),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(sessions.revoke("s1"), Ok(()));
