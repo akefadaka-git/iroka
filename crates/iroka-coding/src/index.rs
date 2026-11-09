@@ -8,6 +8,7 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use crate::lockfile::{analyze_lockfile, ResolvedDependency};
 use crate::{LanguageId, LanguageRegistry};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -122,6 +123,7 @@ pub enum IndexIssueKind {
     FileTooLarge,
     TotalSizeLimitExceeded,
     UnsupportedManifestSyntax,
+    UnsupportedLockfileSyntax,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -150,6 +152,8 @@ pub struct RepositoryIndex {
     pub files: Vec<FileRecord>,
     pub projects: Vec<ProjectManifest>,
     pub issues: Vec<IndexIssue>,
+    pub resolved_dependencies: Vec<ResolvedDependency>,
+    pub dependency_analysis_partial: bool,
     pub total_bytes: usize,
 }
 
@@ -218,6 +222,17 @@ impl RepositoryIndex {
 
             index.total_bytes += size_bytes;
             let role = classify_role(&file.path);
+            if role == FileRole::Lockfile {
+                let analysis = analyze_lockfile(&file.path, &file.content);
+                if analysis.analysis_partial {
+                    index.dependency_analysis_partial = true;
+                    index.issues.push(IndexIssue {
+                        path: Some(file.path.clone()),
+                        kind: IndexIssueKind::UnsupportedLockfileSyntax,
+                    });
+                }
+                index.resolved_dependencies.extend(analysis.packages);
+            }
             let languages = registry
                 .detect_path(&file.path)
                 .into_iter()
@@ -225,12 +240,14 @@ impl RepositoryIndex {
                 .collect();
 
             if let Some(kind) = manifest_kind(&file.path) {
-                index.projects.push(analyze_manifest(
+                let manifest = analyze_manifest(
                     &file.path,
                     kind,
                     &file.content,
                     &mut index.issues,
-                ));
+                );
+                index.dependency_analysis_partial |= manifest.analysis_partial;
+                index.projects.push(manifest);
             }
 
             index.files.push(FileRecord {
@@ -244,6 +261,9 @@ impl RepositoryIndex {
         index
             .files
             .sort_by(|left, right| left.path.cmp(&right.path));
+        index.resolved_dependencies.sort_by(|left, right| {
+            left.package_id.cmp(&right.package_id)
+        });
         index
             .projects
             .sort_by(|left, right| left.path.cmp(&right.path));
@@ -259,6 +279,11 @@ impl RepositoryIndex {
             .iter()
             .map(|project| project.declared_dependencies.len())
             .sum()
+    }
+
+    #[must_use]
+    pub fn resolved_dependency_count(&self) -> usize {
+        self.resolved_dependencies.len()
     }
 
     #[must_use]
@@ -776,6 +801,33 @@ require (
             .issues
             .iter()
             .any(|issue| issue.kind == IndexIssueKind::DuplicatePath));
+    }
+
+    #[test]
+    fn integrates_resolved_cargo_lockfile_dependencies() {
+        let index = build(vec![
+            SnapshotFile::new(
+                "Cargo.lock",
+                r#"[[package]]
+name = "serde"
+version = "1.0.200"
+dependencies = ["serde_core 1.0.200"]
+"#,
+            ),
+        ]);
+        assert_eq!(index.resolved_dependency_count(), 1);
+        assert_eq!(index.resolved_dependencies[0].name, "serde");
+        assert!(!index.dependency_analysis_partial);
+    }
+
+    #[test]
+    fn unsupported_lockfiles_mark_dependency_analysis_partial() {
+        let index = build(vec![SnapshotFile::new("yarn.lock", "# yarn lockfile")]);
+        assert!(index.dependency_analysis_partial);
+        assert!(index
+            .issues
+            .iter()
+            .any(|issue| issue.kind == IndexIssueKind::UnsupportedLockfileSyntax));
     }
 
     #[test]
