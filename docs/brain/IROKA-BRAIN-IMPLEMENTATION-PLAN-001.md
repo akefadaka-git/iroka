@@ -440,3 +440,49 @@ A follow-up review found that the pre-existing Owner-key revocation check in `ap
 - New negative test: a revoked Owner key cannot subsequently change tenant membership.
 - The command replay record, revocation check, membership mutation and security-command ledger row share the same transaction.
 - Exact-head CI #653 includes this test and passed all checks.
+
+
+## 14.2 A3-B02 G02 signed policy lifecycle — Owner-approved and CI-verified
+
+**Owner approval:** 2026-11-09 — JCS/RFC 8785, distinct policy-signature domain, pending → G11 audit → active sequence, emergency stop inside signed snapshots, and Owner-signed G11-audited policy revocation all APPROVED.
+
+**Implementation PR:** https://github.com/akefadaka-git/iroka/pull/29  
+**Branch:** `feat/brain-a3-b02-signed-policy-lifecycle`  
+**Base:** `feat/brain-a3-b02-tenant-authority` (PR #28)  
+**Exact HEAD:** `7e925e49383864944ecad3eea7b790e3f3bc031d`  
+**Compare:** 50 commits ahead / 0 behind the B02 base.
+
+### Implemented and exact-HEAD verified
+
+1. Immutable, versioned signed policy snapshot contract with unknown-field rejection.
+2. RFC 8785 JCS canonical payload and `IROKA:G02:POLICY-SNAPSHOT:V1\0` signature domain separation.
+3. G02 Owner-key verification, current revocation check, key validity, policy expiry and clock-skew enforcement.
+4. Sorted unique capability allowlist and approval-required subset validation; empty allowlist is a valid explicit deny-all policy.
+5. Monotonic epoch persistence; identical retry idempotency, conflicting digest rejection, rollback rejection, and higher-epoch supersession of abandoned pending snapshots.
+6. G11 activation event binds epoch, canonical digest, Owner subject/key ID, policy version and previous active epoch. The G11 event is idempotent; active state is written only after the audit receipt succeeds.
+7. Active reload validates persisted canonical bytes, digest, Owner metadata, signature, expiry and key revocation. A pending policy revocation makes active policy unavailable.
+8. Owner-signed policy revocation stages, records a deterministic G11 event, then disables the active policy. Emergency-stop clearing requires a new higher-epoch signed snapshot and G11 confirmation.
+9. `VerifiedPolicyContext` is opaque and the coordinator uses the same security store held by the Owner verifier; callers cannot supply a different store.
+
+### Exact-head CI
+
+- Workflow: [Rust kernel verification #686](https://github.com/akefadaka-git/iroka/actions/runs/42580872001)
+- Run ID: `42580872001`
+- Exact HEAD: `7e925e49383864944ecad3eea7b790e3f3bc031d`
+- Conclusion: SUCCESS.
+- rustfmt: PASS.
+- Workspace compile (all targets, locked): PASS.
+- No-default-features compile: PASS.
+- Workspace tests: PASS — 90 Kernel tests + 2 conformance tests, zero failures.
+- Clippy with warnings denied: PASS.
+
+### Remaining blockers — B02 remains PARTIAL
+
+- Current policy store defines one global active policy per Kernel instance. Tenant-specific policy partitioning and selection semantics are not yet specified or implemented.
+- The end-to-end composition root binding G01 verified principal → G02 tenant context → active policy → Owner approval → G11 decision audit is NOT IMPLEMENTED.
+- SQLite is a single-node adapter; shared multi-node transactional persistence and cross-node recovery are NOT IMPLEMENTED.
+- Production Owner-key ceremony/provisioning and live policy activation are NOT DONE; tests use synthetic keys only.
+- G11 external checkpoint anchoring and production recovery drills are NOT DONE.
+- Independent security review and formal A4 acceptance are NOT RUN. Passing CI is not A4 assurance.
+
+PR #29 remains OPEN / DRAFT / UNMERGED and depends on PR #28. No merge, deployment, production key provisioning or production policy activation is authorized.
