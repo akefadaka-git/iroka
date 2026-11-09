@@ -106,3 +106,43 @@ The current durable receipt's `subject_ref` is treated as the organization scope
 - A missing/revoked episodic consent provider response is propagated as a denial.
 - An undesignated reviewer provider response is propagated as a denial.
 - Full exact-HEAD formatting, compilation, workspace tests, no-default-features checks and Clippy remain NOT RUN for the resulting commit until CI evidence is collected.
+
+
+## B04 authoritative consent and designated-reviewer registries
+
+The implementation now includes a G05-owned SQLite authority registry in `crates/iroka-g05-memory/src/registry.rs`, integrated through the G01/G02/G11 ports.
+
+### Episodic consent
+- Grant requires a G01 `VerifiedPrincipal` and Kernel `TenantContext`; subject and tenant are derived from those opaque verified objects, not caller-provided identity fields.
+- The grant operation is an explicit authenticated action and is G02-authorized with a purpose-bound capability/resource request.
+- Expiry is bounded by an explicit server-supplied maximum TTL; there is no hidden default.
+- Consent references are unique and immutable; withdrawal is self-only, permanent for that record, versioned, and audited through the G05 outbox.
+- Retrieval of consent checks exact consent reference, tenant, subject, purpose, granted-at/expiry interval and revocation on every verification.
+
+### Organizational reviewer designation
+- Designation/revocation requires G02 capability authorization AND an organization-scoped G02 delegation check. The latter defaults to DENY; a global capability alone cannot make an actor an organization administrator.
+- The target reviewer/key binding is checked by a G01-owned provider before designation. The registry stores organization, tenant, reviewer, key reference, designation version and validity interval.
+- Durable approval checks current designation, exact organization/tenant/reviewer, approval validity within designation validity, and a G01 proof-verification provider. Approval references are consumed once in a transaction that rechecks designation state, so a designation revocation that commits first blocks consumption.
+- Replay, missing designation, expired/revoked designation, wrong tenant/organization/reviewer, invalid proof and out-of-window approval fail closed.
+
+### G02/G11 integration
+- `KernelG02AuthorizationAdapter` maps G05 operations to explicit G02 capabilities and invokes the canonical Kernel G01 -> tenant -> G02 -> G11 decision composition using server-side credential/session dependencies. It checks that the request tenant matches the server-resolved tenant selector. Any non-ALLOW decision is denied.
+- The adapter intentionally does not grant organization-scoped reviewer-management authority. The Kernel's current G02 policy is global capability-based and has no organization delegation registry; the new organization-scope hook therefore defaults to DENY until that canonical G02 authority is implemented.
+- Consent and reviewer changes plus approval consumption enqueue content-free G05 authority events in the same SQLite transaction as the mutation. `drain_g11_outbox` retries delivery and marks an event delivered only after G11 accepts it. G11 must deduplicate event IDs.
+- G05 authority events use a new event family (`memory.consent.*`, `memory.reviewer.*`). G11's versioned event-schema extension/production sink acceptance remains a separately verified integration dependency.
+
+### Tests added (synthetic only)
+- Consent missing, wrong tenant, wrong subject, wrong purpose, expiry and withdrawal/revocation.
+- Reviewer replay, wrong tenant, wrong organization, wrong reviewer, invalid proof, proof retry after failed verification, designation expiry/revocation and approval validity outside designation window.
+- End-to-end composition of SQLite consent + reviewer registries through `TrustedGovernanceAdapter`.
+- G02 global capability without organization delegation is denied.
+- G11 outbox retries after sink failure, then marks successful delivery and does not redeliver.
+- No real user identity, consent, reviewer, key or memory content was provisioned.
+
+### Explicit unresolved production dependencies
+- A concrete G01 reviewer-proof provider must verify reviewer identity/key binding, proof signature, exact receipt claims and current key/credential revocation. The registry deliberately does not create or trust its own reviewer keys.
+- A canonical G02 organization-delegation registry/provider is absent. Reviewer designation and revocation therefore remain fail-closed under the concrete Kernel adapter until this is implemented.
+- G11 must approve/implement the versioned G05 authority event extension and idempotent sink adapter before outbox delivery can be considered production-ready.
+- SQLite registry is single-node only. Multi-node deployments require a shared transactional store with equivalent isolation, uniqueness and revocation semantics.
+- G02 authorization and G05 SQLite mutation are separate database transactions. The adapter authorizes immediately before mutation, but cross-store atomic policy revocation is not yet guaranteed; this remains a security review item.
+- Exact-HEAD CI and independent A4 security review have not yet been run.
