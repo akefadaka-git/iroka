@@ -166,7 +166,6 @@ impl PolicyActivationCoordinator {
             verified.payload.issued_at,
             verified.payload.expires_at,
             verified.payload.emergency_stop_active,
-            now,
         ).map_err(map_store_error)?;
 
         let digest_hex = verified.digest.iter().map(|b| format!("{b:02x}")).collect::<String>();
