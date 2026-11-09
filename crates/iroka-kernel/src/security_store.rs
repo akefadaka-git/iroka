@@ -563,13 +563,13 @@ impl SqliteSecurityStore {
             ).map_err(|_| SecurityStoreError::Unavailable)?;
             if existing.0.as_slice() != digest { return Err(SecurityStoreError::ConflictingVersion); }
             if existing.1 == "revoked" { return Err(SecurityStoreError::Revoked); }
+            if existing.1 == "superseded" { return Err(SecurityStoreError::Rollback); }
             tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
             return Ok(());
         }
-        let pending: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM policy_snapshots WHERE state='pending')", [], |row| row.get(0),
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
-        if pending { return Err(SecurityStoreError::ConflictingVersion); }
+        // A higher signed epoch supersedes an abandoned pending proposal.
+        tx.execute("UPDATE policy_snapshots SET state='superseded' WHERE state='pending'", [])
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         tx.execute(
             "INSERT INTO policy_snapshots(epoch,digest,canonical_payload,signature,owner_subject,key_id,policy_version,issued_at,expires_at,emergency_stop_active,state) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,'pending')",
             params![epoch_i,digest.as_slice(),canonical_payload,signature,owner_subject,key_id,policy_version,issued_i,expires_i,i64::from(emergency_stop_active)],
@@ -634,10 +634,6 @@ impl SqliteSecurityStore {
             [key_id], |row| row.get(0),
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         if revoked { return Err(SecurityStoreError::Revoked); }
-        let active: Option<i64> = tx.query_row(
-            "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1", [], |row| row.get(0),
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
-        if active != Some(epoch_i) { return Err(SecurityStoreError::Rollback); }
         let existing: Option<(i64,Vec<u8>,String)> = tx.query_row(
             "SELECT policy_epoch,digest,state FROM policy_revocations WHERE command_id=?1", [command_id],
             |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
@@ -649,6 +645,10 @@ impl SqliteSecurityStore {
             tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
             return Ok(());
         }
+        let active: Option<i64> = tx.query_row(
+            "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1", [], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if active != Some(epoch_i) { return Err(SecurityStoreError::Rollback); }
         tx.execute(
             "INSERT INTO policy_revocations(policy_epoch,command_id,digest,owner_subject,key_id,reason,issued_at,state) VALUES(?1,?2,?3,?4,?5,?6,?7,'pending')",
             params![epoch_i,command_id,digest.as_slice(),owner_subject,key_id,reason,issued_i],
@@ -664,10 +664,15 @@ impl SqliteSecurityStore {
         let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
         let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let (stored_digest,state): (Vec<u8>,String) = tx.query_row(
-            "SELECT digest,state FROM policy_revocations WHERE policy_epoch=?1 AND command_id=?2",
-            params![epoch_i,command_id], |row| Ok((row.get(0)?,row.get(1)?)),
+        let (stored_digest,state,key_id): (Vec<u8>,String,String) = tx.query_row(
+            "SELECT digest,state,key_id FROM policy_revocations WHERE policy_epoch=?1 AND command_id=?2",
+            params![epoch_i,command_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
         ).map_err(|_| SecurityStoreError::Unavailable)?;
+        let signer_revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer='iroka:owner-authority' AND key_id=?1)",
+            [&key_id], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if signer_revoked { return Err(SecurityStoreError::Revoked); }
         if stored_digest.as_slice() != digest { return Err(SecurityStoreError::ConflictingVersion); }
         if state == "complete" {
             tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
