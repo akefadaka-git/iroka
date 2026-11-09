@@ -118,6 +118,7 @@ impl SqliteG05AuthorityRegistry {
             classification:Classification::Confidential,memory_id:None,
             recipient_refs:vec![reviewer_ref.into()],correlation_ref:designation_ref.into()};
         g02.authorize_g05(&req)?;
+        g02.authorize_organization_scope(&req, organization_ref)?;
         let mut c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
         let high:Option<i64>=tx.query_row("SELECT MAX(version) FROM g05_reviewer_designations
@@ -146,6 +147,7 @@ impl SqliteG05AuthorityRegistry {
             classification:Classification::Confidential,memory_id:None,recipient_refs:Vec::new(),
             correlation_ref:action_ref.into()};
         g02.authorize_g05(&req)?;
+        g02.authorize_organization_scope(&req, organization_ref)?;
         let c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         let n=c.execute("UPDATE g05_reviewer_designations SET revoked_at=?1
           WHERE designation_ref=?2 AND tenant_ref=?3 AND organization_ref=?4 AND revoked_at IS NULL",
