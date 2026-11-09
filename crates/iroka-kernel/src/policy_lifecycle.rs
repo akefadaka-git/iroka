@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     AuditEvent, DecisionCode, OwnerApprovalError, OwnerApprovalVerifier, Policy, RiskLevel,
-    SqliteAuditSink, SqliteSecurityStore,
+    SqliteAuditSink,
 };
 
 const DOMAIN: &[u8] = b"IROKA:G02:POLICY-SNAPSHOT:V1\0";
@@ -284,7 +284,7 @@ pub(crate) fn canonical_payload_and_digest(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{OwnerApprovalError, TrustedOwnerKey};
+    use crate::{OwnerApprovalError, SqliteSecurityStore, TrustedOwnerKey};
     use ed25519_dalek::{Signer, SigningKey};
     use std::sync::Arc;
 
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn owner_signed_policy_is_audited_before_activation_and_loads_verified() {
-        let (signer, verifier, store, audit) = fixture();
+        let (signer, verifier, _store, audit) = fixture();
         let signed = signed(&signer, 1, true);
         let active =
             PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200).unwrap();
@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn identical_activation_retry_is_idempotent() {
-        let (signer, verifier, store, audit) = fixture();
+        let (signer, verifier, _store, audit) = fixture();
         let signed = signed(&signer, 1, false);
         PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200).unwrap();
         PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_250).unwrap();
@@ -402,7 +402,7 @@ mod tests {
 
     #[test]
     fn g11_failure_keeps_policy_pending_and_retry_recovers_idempotently() {
-        let (signer, verifier, store, audit) = fixture();
+        let (signer, verifier, _store, audit) = fixture();
         let signed = signed(&signer, 1, false);
         audit.force_append_failure(true).unwrap();
         assert_eq!(
@@ -422,7 +422,7 @@ mod tests {
     fn pending_owner_policy_revocation_blocks_policy_use_until_g11_recovers() {
         let (signer, verifier, store, audit) = fixture();
         let signed = signed(&signer, 1, false);
-        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200).unwrap();
         store
             .stage_policy_revocation(
                 1,
@@ -442,7 +442,7 @@ mod tests {
 
     #[test]
     fn policy_epochs_are_monotonic_and_same_epoch_conflicts_fail() {
-        let (signer, verifier, store, audit) = fixture();
+        let (signer, verifier, _store, audit) = fixture();
         let first = signed(&signer, 1, false);
         PolicyActivationCoordinator::activate(&verifier, &audit, &first, 1_200).unwrap();
         let second = signed(&signer, 2, true);
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn owner_signed_revocation_is_audited_before_policy_is_disabled() {
-        let (signer, verifier, store, audit) = fixture();
+        let (signer, verifier, _store, audit) = fixture();
         let active = signed(&signer, 1, false);
         PolicyActivationCoordinator::activate(&verifier, &audit, &active, 1_200).unwrap();
         let payload = crate::OwnerSecurityCommandPayload {
@@ -530,7 +530,7 @@ mod tests {
 
     #[test]
     fn emergency_stop_can_only_be_cleared_by_a_new_owner_signed_epoch() {
-        let (signer, verifier, store, audit) = fixture();
+        let (signer, verifier, _store, audit) = fixture();
         let stopped = signed(&signer, 1, true);
         assert!(
             PolicyActivationCoordinator::activate(&verifier, &audit, &stopped, 1_200)
