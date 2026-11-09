@@ -16,6 +16,9 @@ use crate::index::SnapshotFile;
 use crate::planner::{safe_relative_path, valid_revision};
 
 const PATCH_CAPABILITY: &str = "coding.patch.preview";
+const MAX_SNAPSHOT_FILES: usize = 20_000;
+const MAX_SNAPSHOT_FILE_BYTES: usize = 2 * 1024 * 1024;
+const MAX_SNAPSHOT_TOTAL_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WorkspaceSnapshot {
@@ -35,8 +38,19 @@ impl WorkspaceSnapshot {
         if !valid_repository_id(&repository) || !valid_revision(&revision) {
             return Err(PatchReviewError::InvalidSnapshot);
         }
+        if files.len() > MAX_SNAPSHOT_FILES {
+            return Err(PatchReviewError::LimitExceeded);
+        }
         let mut paths = BTreeSet::new();
+        let mut total_bytes = 0_usize;
         for file in &files {
+            if file.content.len() > MAX_SNAPSHOT_FILE_BYTES {
+                return Err(PatchReviewError::LimitExceeded);
+            }
+            total_bytes = total_bytes.saturating_add(file.content.len());
+            if total_bytes > MAX_SNAPSHOT_TOTAL_BYTES {
+                return Err(PatchReviewError::LimitExceeded);
+            }
             if file.is_symlink || !safe_relative_path(&file.path) {
                 return Err(PatchReviewError::UnsafePath);
             }
@@ -104,12 +118,18 @@ impl Default for PatchReviewPolicy {
                 "go.sum".to_owned(),
                 "crates/iroka-kernel/src/owner_approval.rs".to_owned(),
                 "crates/iroka-kernel/src/identity_crypto.rs".to_owned(),
+                "crates/iroka-kernel/src/identity.rs".to_owned(),
                 "crates/iroka-kernel/src/security_store.rs".to_owned(),
                 "crates/iroka-kernel/src/trust_lifecycle.rs".to_owned(),
                 "crates/iroka-kernel/src/igacms.rs".to_owned(),
                 "crates/iroka-kernel/src/governance.rs".to_owned(),
                 "crates/iroka-kernel/src/service.rs".to_owned(),
                 "crates/iroka-kernel/src/policy.rs".to_owned(),
+                "crates/iroka-kernel/src/audit_store.rs".to_owned(),
+                "crates/iroka-kernel/src/assurance.rs".to_owned(),
+                "crates/iroka-kernel/src/request.rs".to_owned(),
+                "crates/iroka-kernel/src/decision.rs".to_owned(),
+                "crates/iroka-kernel/src/lib.rs".to_owned(),
             ],
             max_patch_bytes: 128 * 1024,
             max_total_bytes: 256 * 1024,
@@ -134,6 +154,13 @@ impl PatchReviewPolicy {
     }
 
     fn protects(&self, path: &str) -> bool {
+        let lowercase = path.to_ascii_lowercase();
+        if [".pem", ".key", ".p12", ".pfx", ".crt", ".cer"]
+            .iter()
+            .any(|extension| lowercase.ends_with(extension))
+        {
+            return true;
+        }
         self.protected_paths.iter().any(|protected| {
             path == protected
                 || path
