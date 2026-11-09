@@ -159,10 +159,17 @@ impl VerifiedPolicySnapshot {
 
 #[derive(Debug, Clone)]
 pub struct VerifiedPolicyContext {
-    pub epoch: u64,
-    pub digest: [u8; 32],
-    pub policy: Policy,
-    pub emergency_stop_active: bool,
+    epoch: u64,
+    digest: [u8; 32],
+    policy: Policy,
+    emergency_stop_active: bool,
+}
+
+impl VerifiedPolicyContext {
+    pub fn epoch(&self) -> u64 { self.epoch }
+    pub fn digest(&self) -> &[u8; 32] { &self.digest }
+    pub fn policy(&self) -> &Policy { &self.policy }
+    pub fn emergency_stop_active(&self) -> bool { self.emergency_stop_active }
 }
 
 pub struct PolicyActivationCoordinator;
@@ -170,12 +177,12 @@ pub struct PolicyActivationCoordinator;
 impl PolicyActivationCoordinator {
     pub fn activate(
         verifier: &OwnerApprovalVerifier,
-        store: &SqliteSecurityStore,
         audit: &SqliteAuditSink,
         signed: &SignedPolicySnapshot,
         now: u64,
     ) -> Result<VerifiedPolicyContext, PolicyLifecycleError> {
         let verified = verifier.verify_policy_snapshot(signed, now)?;
+        let store = verifier.security_store();
         let previous_epoch = store
             .stage_policy_snapshot(
                 verified.epoch(),
@@ -229,10 +236,10 @@ impl PolicyActivationCoordinator {
 
     pub fn load_active(
         verifier: &OwnerApprovalVerifier,
-        store: &SqliteSecurityStore,
         now: u64,
     ) -> Result<VerifiedPolicyContext, PolicyLifecycleError> {
-        let (epoch, signed) = store
+        let (epoch, signed) = verifier
+            .security_store()
             .active_policy_snapshot()
             .map_err(map_store_error)?
             .ok_or(PolicyLifecycleError::Inactive)?;
@@ -337,24 +344,24 @@ mod tests {
         let (signer, verifier, store, audit) = fixture();
         let signed = signed(&signer, 1, true);
         let active =
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200)
+            PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200)
                 .unwrap();
-        assert_eq!(active.epoch, 1);
-        assert!(active.emergency_stop_active);
-        assert!(active.policy.allows_capability("workspace.read"));
+        assert_eq!(active.epoch(), 1);
+        assert!(active.emergency_stop_active());
+        assert!(active.policy().allows_capability("workspace.read"));
         assert_eq!(audit.head().unwrap().0, 1);
-        let loaded = PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap();
-        assert_eq!(loaded.epoch, 1);
-        assert!(loaded.emergency_stop_active);
-        assert_eq!(loaded.digest, active.digest);
+        let loaded = PolicyActivationCoordinator::load_active(&verifier, 1_201).unwrap();
+        assert_eq!(loaded.epoch(), 1);
+        assert!(loaded.emergency_stop_active());
+        assert_eq!(loaded.digest(), active.digest());
     }
 
     #[test]
     fn identical_activation_retry_is_idempotent() {
         let (signer, verifier, store, audit) = fixture();
         let signed = signed(&signer, 1, false);
-        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200).unwrap();
-        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_250).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_250).unwrap();
         assert_eq!(audit.head().unwrap().0, 1);
     }
 
@@ -381,7 +388,7 @@ mod tests {
             None
         );
         assert_eq!(
-            PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap_err(),
+            PolicyActivationCoordinator::load_active(&verifier, 1_201).unwrap_err(),
             PolicyLifecycleError::Inactive
         );
     }
@@ -431,11 +438,11 @@ mod tests {
     fn policy_epochs_are_monotonic_and_same_epoch_conflicts_fail() {
         let (signer, verifier, store, audit) = fixture();
         let first = signed(&signer, 1, false);
-        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &first, 1_200).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &audit, &first, 1_200).unwrap();
         let second = signed(&signer, 2, true);
-        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &second, 1_300).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &audit, &second, 1_300).unwrap();
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &first, 1_301)
+            PolicyActivationCoordinator::activate(&verifier, &audit, &first, 1_301)
                 .unwrap_err(),
             PolicyLifecycleError::Rollback
         );
@@ -446,7 +453,7 @@ mod tests {
             .to_vec();
         let conflict = SignedPolicySnapshot::from_signature(conflict_payload, conflict_signature);
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &conflict, 1_302)
+            PolicyActivationCoordinator::activate(&verifier, &audit, &conflict, 1_302)
                 .unwrap_err(),
             PolicyLifecycleError::ConflictingEpoch
         );
@@ -478,7 +485,7 @@ mod tests {
             .unwrap();
         let valid = signed(&signer, 3, false);
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &valid, 1_300)
+            PolicyActivationCoordinator::activate(&verifier, &audit, &valid, 1_300)
                 .unwrap_err(),
             PolicyLifecycleError::Revoked
         );
@@ -523,13 +530,13 @@ mod tests {
         let (signer, verifier, store, audit) = fixture();
         let stopped = signed(&signer, 1, true);
         assert!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &stopped, 1_200)
+            PolicyActivationCoordinator::activate(&verifier, &audit, &stopped, 1_200)
                 .unwrap()
                 .emergency_stop_active
         );
         let cleared = signed(&signer, 2, false);
         assert!(
-            !PolicyActivationCoordinator::activate(&verifier, &store, &audit, &cleared, 1_300)
+            !PolicyActivationCoordinator::activate(&verifier, &audit, &cleared, 1_300)
                 .unwrap()
                 .emergency_stop_active
         );
