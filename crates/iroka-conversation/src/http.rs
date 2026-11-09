@@ -11,7 +11,7 @@ use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
         Arc, Condvar, Mutex,
     },
     thread,
@@ -29,16 +29,27 @@ use crate::{
 const MAX_HEADER_BYTES: usize = 24 * 1024;
 const MAX_BODY_BYTES: usize = 32 * 1024;
 static REQUEST_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+static ACTIVE_CONNECTIONS: AtomicUsize = AtomicUsize::new(0);
+const MAX_ACTIVE_CONNECTIONS: usize = 64;
+
+struct ConnectionGuard;
+impl Drop for ConnectionGuard {
+    fn drop(&mut self) {
+        ACTIVE_CONNECTIONS.fetch_sub(1, Ordering::AcqRel);
+    }
+}
 
 struct GenerationState {
     events: Mutex<Vec<StreamEvent>>,
     ready: Condvar,
     done: std::sync::atomic::AtomicBool,
+    accepted: std::sync::atomic::AtomicBool,
     cancellation: Cancellation,
     created_at: u64,
 }
 impl GenerationState {
     fn publish(&self, event: StreamEvent) -> Result<(), ConversationError> {
+        let accepted = matches!(&event, StreamEvent::Accepted { .. });
         let terminal = matches!(
             &event,
             StreamEvent::Completed { .. }
@@ -50,6 +61,9 @@ impl GenerationState {
             .lock()
             .map_err(|_| ConversationError::StorageUnavailable)?;
         events.push(event);
+        if accepted {
+            self.accepted.store(true, Ordering::Release);
+        }
         if terminal {
             self.done.store(true, Ordering::Release);
         }
@@ -58,6 +72,29 @@ impl GenerationState {
     }
     fn cancel(&self) {
         self.cancellation.cancel();
+    }
+
+    fn wait_for_acceptance(&self, timeout: std::time::Duration) -> bool {
+        let deadline = Instant::now() + timeout;
+        let Ok(mut events) = self.events.lock() else {
+            return false;
+        };
+        while !self.accepted.load(Ordering::Acquire) && !self.done.load(Ordering::Acquire) {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            match self.ready.wait_timeout(events, remaining) {
+                Ok((guard, result)) => {
+                    events = guard;
+                    if result.timed_out() {
+                        break;
+                    }
+                }
+                Err(_) => return false,
+            }
+        }
+        self.accepted.load(Ordering::Acquire)
     }
 }
 
@@ -71,6 +108,7 @@ impl GenerationHub {
             events: Mutex::new(Vec::new()),
             ready: Condvar::new(),
             done: std::sync::atomic::AtomicBool::new(false),
+            accepted: std::sync::atomic::AtomicBool::new(false),
             cancellation: Cancellation::new(),
             created_at,
         });
@@ -181,11 +219,17 @@ where
         let authenticator = self.authenticator;
         let generations = self.generations;
         for stream in listener.incoming() {
-            let stream = stream?;
+            let mut stream = stream?;
+            if ACTIVE_CONNECTIONS.fetch_add(1, Ordering::AcqRel) >= MAX_ACTIVE_CONNECTIONS {
+                ACTIVE_CONNECTIONS.fetch_sub(1, Ordering::AcqRel);
+                let _ = fail(&mut stream, HttpError::Overloaded);
+                continue;
+            }
             let service = Arc::clone(&service);
             let authenticator = Arc::clone(&authenticator);
             let generations = Arc::clone(&generations);
             thread::spawn(move || {
+                let _guard = ConnectionGuard;
                 let _ = handle_connection(stream, service, authenticator, generations);
             });
         }
@@ -204,6 +248,7 @@ pub enum HttpError {
     UnsupportedMedia,
     Storage,
     Configuration,
+    Overloaded,
 }
 impl HttpError {
     fn status(self) -> u16 {
@@ -229,6 +274,7 @@ impl HttpError {
             Self::UnsupportedMedia => "UNSUPPORTED_MEDIA_TYPE",
             Self::Storage => "STORAGE_UNAVAILABLE",
             Self::Configuration => "SERVICE_UNAVAILABLE",
+            Self::Overloaded => "SERVER_BUSY",
         }
     }
 }
@@ -432,6 +478,7 @@ where
     G: AnswerGenerator + 'static,
     R: RevocationChecker + 'static,
 {
+    stream.set_write_timeout(Some(std::time::Duration::from_secs(30))).ok();
     let request = match read_request(&mut stream) {
         Ok(r) => r,
         Err(e) => return fail(&mut stream, e),
@@ -674,6 +721,9 @@ where
             let _ = state.publish(event);
         }
     });
+    if !state.wait_for_acceptance(std::time::Duration::from_secs(10)) {
+        return fail(stream, HttpError::Forbidden);
+    }
     write_json(
         stream,
         202,
