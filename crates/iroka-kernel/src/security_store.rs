@@ -11,6 +11,15 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 use crate::identity_crypto::{RevocationChecker, RevocationError};
 
+type ExecutionGrantRow = (
+    Vec<u8>,
+    Vec<u8>,
+    i64,
+    i64,
+    Option<i64>,
+    Option<i64>,
+);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecurityStoreError {
     Unavailable,
@@ -623,7 +632,7 @@ impl SqliteSecurityStore {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| ExecutionGrantStoreError::Unavailable)?;
-        let row: Option<(Vec<u8>, Vec<u8>, i64, i64, Option<i64>, Option<i64>)> = tx
+        let row: Option<ExecutionGrantRow> = tx
             .query_row(
                 "SELECT scope_digest, token_hash, issued_at, expires_at, consumed_at, revoked_at
                  FROM execution_grants WHERE grant_id=?1",
@@ -694,19 +703,6 @@ impl SqliteSecurityStore {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn execution_grant_count(&self) -> Result<u64, SecurityStoreError> {
-        let connection = self
-            .connection
-            .lock()
-            .map_err(|_| SecurityStoreError::Unavailable)?;
-        let count: i64 = connection
-            .query_row("SELECT COUNT(*) FROM execution_grants", [], |row| {
-                row.get(0)
-            })
-            .map_err(|_| SecurityStoreError::Unavailable)?;
-        u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
-    }
 }
 
 impl RevocationChecker for SqliteSecurityStore {
