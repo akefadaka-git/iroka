@@ -82,7 +82,7 @@ pub enum Operation {
 /// Adapter must construct the Kernel AuthorizationRequest itself using the
 /// verified subject, constant capability, canonical resource and trusted policy.
 /// Only a positive, audited Kernel decision may return Ok.
-pub trait KernelAuthorization {
+pub trait KernelAuthorization: Send + Sync {
     fn authorize(
         &self,
         principal: &VerifiedPrincipal,
