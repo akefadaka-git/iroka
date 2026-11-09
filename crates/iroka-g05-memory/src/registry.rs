@@ -57,6 +57,7 @@ impl SqliteG05AuthorityRegistry {
     }
 
     /// Explicit authenticated user action only; do not call from passive signup.
+    #[allow(clippy::too_many_arguments)]
     pub fn grant_episodic_consent<G: G02AuthorizationAuthority>(
         &self, actor: &VerifiedPrincipal, tenant: &TenantContext, purpose: Purpose,
         consent_ref: &str, action_ref: &str, expires_at: u64, now: u64,
@@ -84,6 +85,7 @@ impl SqliteG05AuthorityRegistry {
     }
 
     /// Withdrawal is self-only and permanent for this consent reference.
+    #[allow(clippy::too_many_arguments)]
     pub fn withdraw_episodic_consent<G: G02AuthorizationAuthority>(
         &self, actor:&VerifiedPrincipal, tenant:&TenantContext, consent_ref:&str,
         action_ref:&str, now:u64, g02:&G,
@@ -163,6 +165,7 @@ impl SqliteG05AuthorityRegistry {
         tx.commit().map_err(|_|G05Error::AuthorityUnavailable)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn revoke_reviewer_designation<G:G02AuthorizationAuthority>(&self,actor:&VerifiedPrincipal,
         tenant:&TenantContext,organization_ref:&str,designation_ref:&str,action_ref:&str,
         now:u64,g02:&G)->Result<(),G05Error>{
@@ -200,8 +203,8 @@ impl SqliteG05AuthorityRegistry {
           AND revoked_at IS NULL AND valid_from<=?4 AND valid_until>?4 ORDER BY version DESC LIMIT 1",
           params![tenant,org,reviewer,to_i64(now)?],|r|Ok(ReviewerDesignation{
             designation_ref:r.get(0)?,tenant_ref:r.get(1)?,organization_ref:r.get(2)?,
-            reviewer_ref:r.get(3)?,reviewer_key_ref:r.get(4)?,version:r.get::<_,i64>(5)? as u64,
-            valid_from:r.get::<_,i64>(6)? as u64,valid_until:r.get::<_,i64>(7)? as u64}))
+            reviewer_ref:r.get(3)?,reviewer_key_ref:r.get(4)?,version:r.get::<_,u64>(5)?,
+            valid_from:r.get::<_,u64>(6)?,valid_until:r.get::<_,u64>(7)?}))
           .optional().map_err(|_|G05Error::AuthorityUnavailable)?
           .ok_or(G05Error::ReviewerNotAuthorized)
     }
@@ -440,8 +443,10 @@ mod tests{
   let r=SqliteG05AuthorityRegistry::open_in_memory().unwrap();
   {let c=r.connection.lock().unwrap();c.execute("INSERT INTO g05_episodic_consents VALUES
    ('c1','t1','s1','TASK_CONTINUITY','iss','cred',100,200,NULL,1,'action')",[]).unwrap();}
+  assert_eq!(r.verify_active_opt_in("missing","t1","s1",Purpose::TaskContinuity,150),Err(G05Error::EpisodicOptInRequired));
   assert_eq!(r.verify_active_opt_in("c1","t1","s1",Purpose::TaskContinuity,150),Ok(()));
   assert_eq!(r.verify_active_opt_in("c1","t2","s1",Purpose::TaskContinuity,150),Err(G05Error::ConsentScopeMismatch));
+  assert_eq!(r.verify_active_opt_in("c1","t1","other-subject",Purpose::TaskContinuity,150),Err(G05Error::ConsentScopeMismatch));
   assert_eq!(r.verify_active_opt_in("c1","t1","s1",Purpose::UserPreference,150),Err(G05Error::ConsentScopeMismatch));
   assert_eq!(r.verify_active_opt_in("c1","t1","s1",Purpose::TaskContinuity,200),Err(G05Error::EpisodicOptInRequired));
   let c=r.connection.lock().unwrap();c.execute("UPDATE g05_episodic_consents SET revoked_at=160 WHERE consent_ref='c1'",[]).unwrap();
@@ -459,6 +464,14 @@ mod tests{
   assert_eq!(a.verify_designated_reviewer(&receipt,"org1",151),Err(G05Error::ApprovalReplay));
   let mut wrong=receipt.clone();wrong.tenant_ref="t2".into();
   assert_eq!(a.verify_designated_reviewer(&wrong,"org1",152),Err(G05Error::ReviewerNotAuthorized));
+  let mut wrong_org=receipt.clone();wrong_org.approval_ref="a-org".into();
+  assert_eq!(a.verify_designated_reviewer(&wrong_org,"other-org",152),Err(G05Error::ApprovalExpired));
+  let mut wrong_reviewer=receipt.clone();wrong_reviewer.approval_ref="a-reviewer".into();wrong_reviewer.reviewer_ref="reviewer:other".into();
+  assert_eq!(a.verify_designated_reviewer(&wrong_reviewer,"org1",152),Err(G05Error::ReviewerNotAuthorized));
+  let mut bad_proof=receipt.clone();bad_proof.approval_ref="a-proof".into();bad_proof.proof_ref="proof:forged".into();
+  assert_eq!(a.verify_designated_reviewer(&bad_proof,"org1",152),Err(G05Error::ReviewerNotAuthorized));
+  let mut overlong=receipt.clone();overlong.approval_ref="a-window".into();overlong.expires_at=301;
+  assert_eq!(a.verify_designated_reviewer(&overlong,"org1",152),Err(G05Error::ReviewerNotAuthorized));
   let c=r.connection.lock().unwrap();c.execute("UPDATE g05_reviewer_designations SET revoked_at=153 WHERE designation_ref='d1'",[]).unwrap();
   drop(c);let next=DurableApprovalReceipt{approval_ref:"a2".into(),..receipt};
   assert_eq!(a.verify_designated_reviewer(&next,"org1",154),Err(G05Error::ReviewerNotAuthorized));
