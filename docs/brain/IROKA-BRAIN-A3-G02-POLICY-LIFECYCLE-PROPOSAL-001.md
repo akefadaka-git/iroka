@@ -1,6 +1,6 @@
 # IROKA G02 Signed Policy Lifecycle — A3 Design Proposal 001
 
-**Status:** OWNER DECISION REQUIRED — PROPOSAL ONLY  
+**Status:** OWNER-APPROVED — A3 IMPLEMENTATION AUTHORIZED  
 **Version:** 0.1.0  
 **Date:** 2026-11-09  
 **Scope:** B02 policy authority; no runtime implementation or activation is authorized by this document alone.
@@ -99,11 +99,13 @@ No public API may accept a bare `Policy` as proof that it is the active G02 poli
 - Production activation remains blocked until the Owner key ceremony, protected key provisioning, multi-node persistence, G11 ordering/recovery and independent A4 review are complete.
 - SQLite remains a development/single-node adapter; it is not represented as multi-node production authority.
 
-## 10. Owner decision
+## 10. Owner decision — APPROVED 2026-11-09
 
-Please decide:
-1. Canonical policy signature encoding: approve JCS/RFC 8785, or specify an alternative.
-2. Activation protocol: approve the pending → G11 append → active sequence, or request revision.
-3. Emergency stop: keep it inside the signed policy snapshot, or require a separate Owner-signed monotonic latch.
+The Owner explicitly approved the complete proposal as written:
 
-Until these decisions are approved, signed policy lifecycle code remains NOT AUTHORIZED / NOT STARTED. B02 remains PARTIAL.
+1. **JCS / RFC 8785 canonical JSON:** APPROVED. Signatures use the distinct `IROKA:G02:POLICY-SNAPSHOT:V1\0` domain separator.
+2. **Activation protocol:** APPROVED. Pending persistence → G11 append-only audit confirmation → active policy. Audit failure leaves the new snapshot pending and unavailable; identical event retries are idempotent.
+3. **Emergency stop:** APPROVED inside the immutable signed policy snapshot. Both activation and clearing require a valid Owner signature, a strictly higher epoch, and G11 audit confirmation.
+4. **Policy revocation:** APPROVED as an explicit Owner-signed G02 command; G11 confirmation precedes disabling the active policy. Pending revocation makes the active policy unavailable.
+
+Implementation is authorized on isolated A3 branches. This approval does not authorize merge, deployment, production key provisioning, production policy activation or release. B02 remains PARTIAL until implementation, exact-HEAD verification, integration and A4 gates are complete.
