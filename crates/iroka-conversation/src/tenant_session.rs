@@ -512,6 +512,8 @@ mod tests {
                 "cred:1",
                 "key:1",
                 1,
+                100,
+                3600,
                 "tenant:a",
                 "s1",
                 200
