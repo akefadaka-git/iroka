@@ -253,19 +253,25 @@ impl OwnerApprovalVerifier {
         {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
-        if self.store.key_revoked(OWNER_ISSUER, &payload.key_id)
+        if self
+            .store
+            .key_revoked(OWNER_ISSUER, &payload.key_id)
             .map_err(|_| OwnerApprovalError::StoreUnavailable)?
         {
             return Err(OwnerApprovalError::Revoked);
         }
-        let signing_bytes = payload.signing_bytes()
+        let signing_bytes = payload
+            .signing_bytes()
             .map_err(|_| OwnerApprovalError::Malformed)?;
-        let signature = Signature::from_slice(&signed.signature)
-            .map_err(|_| OwnerApprovalError::Malformed)?;
-        owner_key.verifying_key.verify(&signing_bytes, &signature)
+        let signature =
+            Signature::from_slice(&signed.signature).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(&signing_bytes, &signature)
             .map_err(|_| OwnerApprovalError::InvalidSignature)?;
-        let (canonical_payload, digest) = crate::policy_lifecycle::canonical_payload_and_digest(payload)
-            .map_err(|_| OwnerApprovalError::Malformed)?;
+        let (canonical_payload, digest) =
+            crate::policy_lifecycle::canonical_payload_and_digest(payload)
+                .map_err(|_| OwnerApprovalError::Malformed)?;
         Ok(crate::VerifiedPolicySnapshot {
             payload: payload.clone(),
             signature: signed.signature.clone(),
@@ -378,40 +384,76 @@ impl OwnerApprovalVerifier {
         now: u64,
     ) -> Result<(), OwnerApprovalError> {
         let p = &command.payload;
-        if p.command_id.trim().is_empty() || p.owner_subject.trim().is_empty()
-            || p.key_id.trim().is_empty() || p.issued_at >= p.expires_at
-            || p.expires_at <= now || p.issued_at > now.saturating_add(CLOCK_SKEW_SECS)
+        if p.command_id.trim().is_empty()
+            || p.owner_subject.trim().is_empty()
+            || p.key_id.trim().is_empty()
+            || p.issued_at >= p.expires_at
+            || p.expires_at <= now
+            || p.issued_at > now.saturating_add(CLOCK_SKEW_SECS)
             || p.expires_at - p.issued_at > MAX_APPROVAL_TTL_SECS
-        { return Err(OwnerApprovalError::Malformed); }
+        {
+            return Err(OwnerApprovalError::Malformed);
+        }
         let (policy_epoch, reason) = match &p.action {
-            OwnerSecurityAction::RevokePolicy { policy_epoch, reason }
-                if *policy_epoch > 0 && !reason.trim().is_empty() && reason.len() <= 1024 =>
-                    (*policy_epoch, reason.clone()),
+            OwnerSecurityAction::RevokePolicy {
+                policy_epoch,
+                reason,
+            } if *policy_epoch > 0 && !reason.trim().is_empty() && reason.len() <= 1024 => {
+                (*policy_epoch, reason.clone())
+            }
             _ => return Err(OwnerApprovalError::Malformed),
         };
-        let owner_key = self.keys.get(&p.key_id).ok_or(OwnerApprovalError::UnknownOwnerKey)?;
-        if p.owner_subject != owner_key.owner_subject { return Err(OwnerApprovalError::ScopeMismatch); }
-        if now < owner_key.not_before || now >= owner_key.not_after
-            || p.issued_at < owner_key.not_before || p.issued_at >= owner_key.not_after
-        { return Err(OwnerApprovalError::OwnerKeyOutsideValidity); }
+        let owner_key = self
+            .keys
+            .get(&p.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if p.owner_subject != owner_key.owner_subject {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || p.issued_at < owner_key.not_before
+            || p.issued_at >= owner_key.not_after
+        {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
         let signing_bytes = p.signing_bytes()?;
-        let signature = Signature::from_slice(&command.signature).map_err(|_| OwnerApprovalError::Malformed)?;
-        owner_key.verifying_key.verify(&signing_bytes, &signature)
+        let signature =
+            Signature::from_slice(&command.signature).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(&signing_bytes, &signature)
             .map_err(|_| OwnerApprovalError::InvalidSignature)?;
         let digest = Sha256::digest(&signing_bytes);
         self.store.stage_policy_revocation(
-            policy_epoch, &p.command_id, digest.as_slice(), &p.owner_subject,
-            &p.key_id, &reason, p.issued_at,
+            policy_epoch,
+            &p.command_id,
+            digest.as_slice(),
+            &p.owner_subject,
+            &p.key_id,
+            &reason,
+            p.issued_at,
         )?;
-        let digest_hex = digest.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let digest_hex = digest
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
         let event_id = format!("g02-policy-revoke:{policy_epoch}:{digest_hex}");
         let event = crate::AuditEvent::new(
-            event_id.clone(), event_id, &p.owner_subject, "g02.policy.revoke",
-            format!("policy-epoch:{policy_epoch}"), format!("policy-epoch-{policy_epoch}"),
-            crate::DecisionCode::Allow, p.issued_at,
+            event_id.clone(),
+            event_id,
+            &p.owner_subject,
+            "g02.policy.revoke",
+            format!("policy-epoch:{policy_epoch}"),
+            format!("policy-epoch-{policy_epoch}"),
+            crate::DecisionCode::Allow,
+            p.issued_at,
         );
-        audit.append_event_idempotent(&event).map_err(|_| OwnerApprovalError::StoreUnavailable)?;
-        self.store.complete_policy_revocation(policy_epoch, &p.command_id, digest.as_slice())?;
+        audit
+            .append_event_idempotent(&event)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?;
+        self.store
+            .complete_policy_revocation(policy_epoch, &p.command_id, digest.as_slice())?;
         Ok(())
     }
 
