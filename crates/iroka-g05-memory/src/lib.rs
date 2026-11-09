@@ -891,6 +891,55 @@ mod tests {
     }
 
     #[test]
+    fn retrieval_requires_preflight_and_stored_scope_authorization() {
+        let request = AuthorizationRequest {
+            operation: Operation::Retrieve,
+            principal_ref: "principal:1".to_owned(),
+            tenant_ref: "tenant:1".to_owned(),
+            subject_ref: "principal:1".to_owned(),
+            purpose: Purpose::TaskContinuity,
+            classification: Classification::Internal,
+            memory_id: Some("memory:1".to_owned()),
+            recipient_refs: vec![],
+            correlation_ref: "trace:1".to_owned(),
+        };
+        let metadata = MemoryMetadata {
+            memory_id: "memory:1".to_owned(),
+            tenant_ref: "tenant:1".to_owned(),
+            subject_ref: "principal:1".to_owned(),
+            memory_class: MemoryClass::Working,
+            content_sha256: "a".repeat(64),
+            purpose: Purpose::TaskContinuity,
+            classification: Classification::Internal,
+            lifecycle_state: LifecycleState::Active,
+            expires_at: Some(200),
+            record_version: 1,
+            retention_policy_ref: "retention:v1".to_owned(),
+        };
+        assert_eq!(authorize_retrieval_request(&request, &AllowGovernance), Ok(()));
+        assert_eq!(
+            authorize_retrieval_metadata(&metadata, &request, &AllowGovernance, 150),
+            Ok(())
+        );
+        assert_eq!(
+            authorize_retrieval_request(&request, &DenyGovernance),
+            Err(G05Error::AuthorizationDenied)
+        );
+        let mut cross_tenant = request.clone();
+        cross_tenant.tenant_ref = "tenant:2".to_owned();
+        assert_eq!(
+            authorize_retrieval_metadata(&metadata, &cross_tenant, &AllowGovernance, 150),
+            Err(G05Error::TenantScopeMismatch)
+        );
+        let mut expired = metadata;
+        expired.expires_at = Some(150);
+        assert_eq!(
+            authorize_retrieval_metadata(&expired, &request, &AllowGovernance, 150),
+            Err(G05Error::RecordNotActive)
+        );
+    }
+
+    #[test]
     fn audit_event_has_no_content_field() {
         let event = AuditEvent {
             event_type: "memory.created".to_owned(),
