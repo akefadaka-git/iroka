@@ -133,6 +133,29 @@ analysis; and a normalized cross-ecosystem transitive graph. These limitations
 are documented in the acceptance record. No registry access, dependency
 installation, script execution or network access is performed.
 
+## C1.3 — AI task planner and structured code generation
+
+**Status: VERIFIED-CLOSED — planner/code-generation core and local-provider adapter**
+
+The C1.3 implementation and evidence are recorded in
+`docs/coding-intelligence/C1.3-PLANNER-CODEGEN-ACCEPTANCE.md`. It provides
+evidence-bound task plans, dependency-DAG validation, mandatory Owner-approval
+boundaries, strict structured code-generation responses, registered-language
+binding and single-target unified-diff validation.
+
+The optional Ollama-compatible adapter uses a loopback-only endpoint with
+bounded HTTP requests/responses and timeouts. It does not contact remote hosts,
+run local commands, or apply generated patches. A real local Ollama runtime/model
+was not provisioned; the adapter was tested against a mock loopback server.
+Remote provider adapters and model-quality/red-team evaluation remain future
+work.
+
+Exact implementation HEAD:
+`f705ca9d916b12f6f83effbdf470569f6b14ffed`.
+Exact-HEAD workflow #758 passed formatting, compilation, production-feature
+checks, all tests and Clippy: 40 coding tests + 71 kernel tests + 2 integration
+tests = 113 passed, 0 failed.
+
 ## Acceptance gates
 
 Each milestone requires an A1 frozen contract, A2 read-only reconciliation,
