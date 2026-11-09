@@ -432,9 +432,9 @@ pub fn sign_marker_assertion(
     if assertion.asserted_state != "ATTESTED" || key_id.trim().is_empty() {
         return Err(IgacmsError::Marker);
     }
-    validate_marker_assertion_inner(assertion, true)?;
     let digest = marker_assertion_digest(assertion)?;
     assertion.signature_ref = Some(digest.clone());
+    validate_marker_assertion_inner(assertion, true)?;
     let mut attestation = Attestation {
         envelope_type: "iroka.igacms.attestation".into(), version: "1.0.0".into(),
         digest, epoch: assertion.issued_at, key_id: key_id.into(), signature: Vec::new(),
@@ -453,6 +453,9 @@ pub fn verify_attested_marker_assertion(
     let digest = marker_assertion_digest(assertion)?;
     if assertion.signature_ref.as_deref() != Some(digest.as_str())
         || attestation.digest != digest || attestation.epoch != assertion.issued_at
+        || now < assertion.valid_from
+        || assertion.valid_until.is_some_and(|until| now >= until)
+        || assertion.issued_at > now
     { return Err(IgacmsError::Signature); }
     verify_attestation_with_trust_roots(attestation, roots, now)
 }
