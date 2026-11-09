@@ -389,3 +389,28 @@ The authoritative consolidated assessment is now maintained in [IGACMS A4 Consol
 - A4-05 production custody, production trust-root provisioning, Genesis activation, runtime promotion and deployment: NOT RUN; separately Owner-gated.
 - Overall A4 remains **PARTIAL — NOT CLOSED**. The package is an evidence consolidation, not merge or deployment authorization.
 - Final package/index documentation HEAD requires its own exact-head workflow verification; no pass is claimed until that run succeeds.
+
+
+## A3 focused implementation/security remediation (2026-11-09)
+
+**Scope:** A3-R1 through A3-R5 from the focused review of the reconciled A3 implementation. The Owner-approved A2 baseline is unchanged. No production keys, trust-root ceremony, Genesis activation, merge or deployment is performed.
+
+### Implemented controls
+
+1. **A3-R1 — Marker attestation:** structural marker validation no longer accepts ATTESTED as a trusted result. A dedicated signing and verification path binds the canonical assertion payload (excluding its signature reference) to a SHA-256 digest, Ed25519 attestation, issue epoch, key ID and configured immutable trust-root snapshot. Invalid or unverified attestations fail closed. Signature verification authenticates the assertion source and payload integrity; it does not establish substantive truth.
+2. **A3-R2 — Canonical catalogues:** principle and invariant arrays are compared with the embedded, digest-pinned v1.0 A2 baseline, enforcing exact IDs and all normative fields.
+3. **A3-R3 — Dependency graph:** each graph node is checked against the corresponding chromosome dependency list; duplicate edges and unknown dependency nodes are rejected before acyclicity validation.
+4. **A3-R4 — Marker lifecycle:** assertion validity, evidence-reference uniqueness, state/status consistency, immutable assertion identity and explicit supersession are enforced. A revoked assertion cannot be revived under its original ID; replacement requires a new ID and supersession reference.
+5. **A3-R5 — CI path coverage:** the A3 implementation-record path is included in the pull-request workflow path filter as well as the push filter.
+
+### Regression tests added
+
+- Canonical principle ID substitution rejected.
+- Canonical invariant statement mutation rejected.
+- Dependency graph drift and duplicate edges rejected.
+- Structural-only validation rejects ATTESTED; the dedicated cryptographic verifier checks trust roots and payload digest binding, including tampering and wrong-key cases.
+- Marker replacement/revocation lifecycle requires a new assertion identity and explicit supersession.
+
+### Verification status
+
+Exact-HEAD CI is pending for the resulting commit; no test PASS is claimed before the workflow completes. Production trust-root custody/provisioning remains separately gated.

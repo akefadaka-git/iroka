@@ -278,6 +278,13 @@ pub fn validate_genome(bytes: &[u8]) -> Result<ValidatedGenome, IgacmsError> {
     }
     unique(p, "id")?;
     unique(i, "id")?;
+    // Enforce exact A2 catalogue semantics, not merely counts and unique IDs.
+    let approved = parse_unique(EMBEDDED)?;
+    if v["principles"] != approved["principles"]
+        || v["invariants"] != approved["invariants"]
+    {
+        return Err(IgacmsError::Identity);
+    }
     let m = v["markers"].as_array().ok_or(IgacmsError::Marker)?;
     if m.len() != MARKER_IDS.len() {
         return Err(IgacmsError::Marker);
@@ -312,6 +319,27 @@ pub fn validate_genome(bytes: &[u8]) -> Result<ValidatedGenome, IgacmsError> {
             .any(|id| !edges.iter().any(|x| x.0 == *id))
     {
         return Err(IgacmsError::Dependency);
+    }
+    let graph: BTreeMap<&str, &Vec<String>> =
+        edges.iter().map(|(node, deps)| (node.as_str(), deps)).collect();
+    for (node, deps) in &edges {
+        let unique_deps: BTreeSet<&str> = deps.iter().map(String::as_str).collect();
+        if unique_deps.len() != deps.len() {
+            return Err(IgacmsError::Dependency);
+        }
+        let chromosome = c
+            .iter()
+            .find(|item| item["id"].as_str() == Some(node.as_str()))
+            .ok_or(IgacmsError::Dependency)?;
+        let declared = chromosome["dependencies"]
+            .as_array()
+            .ok_or(IgacmsError::Dependency)?
+            .iter()
+            .map(|value| value.as_str().map(str::to_owned).ok_or(IgacmsError::Dependency))
+            .collect::<Result<Vec<_>, _>>()?;
+        if &declared != deps || deps.iter().any(|dependency| !graph.contains_key(dependency.as_str())) {
+            return Err(IgacmsError::Dependency);
+        }
     }
     graph_is_acyclic(&edges)?;
     let bytes = canonical_json(&v)?;
@@ -353,62 +381,96 @@ pub struct MarkerAssertion {
     pub supersedes_ref: Option<String>,
     pub status: String,
 }
-pub fn validate_marker_assertion(a: &MarkerAssertion) -> Result<(), IgacmsError> {
-    let known = [
-        "IDN-001", "IDN-002", "IDN-003", "IDN-004", "INT-001", "INT-002", "INT-003", "PRV-001",
-        "PRV-002", "EVD-001", "EVD-002", "EVD-003", "AUT-001", "AUT-002", "AZN-001", "AZN-002",
-        "SEC-001", "SEC-002", "ASN-001", "ASN-002", "LFC-001", "LFC-002", "EVO-001", "EVO-002",
-        "EVO-003", "CNF-001", "CNF-002",
-    ];
-    if !known.contains(&a.marker_id.as_str())
-        || [
-            &a.assertion_id,
-            &a.subject_id,
-            &a.genome_version,
-            &a.chromosome_version,
-            &a.issuer,
-        ]
-        .iter()
-        .any(|s| s.trim().is_empty())
+fn validate_marker_assertion_inner(a: &MarkerAssertion, allow_attested: bool) -> Result<(), IgacmsError> {
+    if !MARKER_IDS.contains(&a.marker_id.as_str())
+        || [&a.assertion_id, &a.subject_id, &a.genome_version, &a.chromosome_version, &a.issuer]
+            .iter().any(|s| s.trim().is_empty())
         || a.issued_at < a.valid_from
-        || a.valid_until.is_some_and(|x| x <= a.valid_from)
-    {
-        return Err(IgacmsError::Marker);
-    }
+        || a.valid_until.is_some_and(|x| x <= a.valid_from || a.issued_at >= x)
+        || a.evidence_refs.iter().any(|r| r.trim().is_empty())
+        || a.evidence_refs.iter().collect::<BTreeSet<_>>().len() != a.evidence_refs.len()
+    { return Err(IgacmsError::Marker); }
     if (a.asserted_state == "VERIFIED" || a.asserted_state == "ATTESTED")
-        && (a.evidence_refs.is_empty()
-            || a.verifier.trim().is_empty()
-            || a.verification_method.trim().is_empty())
-    {
+        && (a.evidence_refs.is_empty() || a.verifier.trim().is_empty() || a.verification_method.trim().is_empty())
+    { return Err(IgacmsError::Marker); }
+    if a.asserted_state == "ATTESTED"
+        && (!allow_attested || a.signature_ref.as_deref().unwrap_or("").trim().is_empty())
+    { return Err(IgacmsError::Marker); }
+    if a.asserted_state != "ATTESTED" && a.signature_ref.is_some() {
         return Err(IgacmsError::Marker);
     }
-    if a.asserted_state == "ATTESTED" && a.signature_ref.as_deref().unwrap_or("").trim().is_empty()
-    {
-        return Err(IgacmsError::Marker);
-    }
-    if ![
-        "DEFINED",
-        "OBSERVED",
-        "VERIFIED",
-        "ATTESTED",
-        "FAILED",
-        "REVOKED",
-        "UNKNOWN",
-        "NOT_APPLICABLE",
-    ]
-    .contains(&a.asserted_state.as_str())
-    {
-        return Err(IgacmsError::Marker);
-    }
-    if !["PASS", "FAIL", "INDETERMINATE", "NOT_RUN", "NOT_APPLICABLE"].contains(&a.status.as_str())
-    {
-        return Err(IgacmsError::Marker);
-    }
-    if matches!(a.asserted_state.as_str(), "UNKNOWN" | "NOT_APPLICABLE") && a.status == "PASS" {
-        return Err(IgacmsError::Marker);
-    }
+    if !["DEFINED","OBSERVED","VERIFIED","ATTESTED","FAILED","REVOKED","UNKNOWN","NOT_APPLICABLE"].contains(&a.asserted_state.as_str())
+        || !["PASS","FAIL","INDETERMINATE","NOT_RUN","NOT_APPLICABLE"].contains(&a.status.as_str())
+    { return Err(IgacmsError::Marker); }
+    if (matches!(a.asserted_state.as_str(), "UNKNOWN" | "NOT_APPLICABLE" | "REVOKED") && a.status == "PASS")
+        || (a.asserted_state == "FAILED" && a.status != "FAIL")
+    { return Err(IgacmsError::Marker); }
     Ok(())
 }
+
+/// Structural validation cannot confer ATTESTED status; use the cryptographic verifier.
+pub fn validate_marker_assertion(a: &MarkerAssertion) -> Result<(), IgacmsError> {
+    validate_marker_assertion_inner(a, false)
+}
+
+fn marker_assertion_digest(a: &MarkerAssertion) -> Result<String, IgacmsError> {
+    // Exclude signature_ref to avoid a self-referential payload digest.
+    let payload = serde_json::json!({
+        "assertion_id": a.assertion_id, "marker_id": a.marker_id, "subject_id": a.subject_id,
+        "genome_version": a.genome_version, "chromosome_version": a.chromosome_version,
+        "asserted_state": a.asserted_state, "issuer": a.issuer, "issued_at": a.issued_at,
+        "valid_from": a.valid_from, "valid_until": a.valid_until, "evidence_refs": a.evidence_refs,
+        "verifier": a.verifier, "verification_method": a.verification_method,
+        "supersedes_ref": a.supersedes_ref, "status": a.status
+    });
+    Ok(format!("{:x}", Sha256::digest(canonical_json(&payload)?)))
+}
+
+pub fn sign_marker_assertion(
+    assertion: &mut MarkerAssertion, key_id: &str, key: &SigningKey,
+) -> Result<Attestation, IgacmsError> {
+    if assertion.asserted_state != "ATTESTED" || key_id.trim().is_empty() {
+        return Err(IgacmsError::Marker);
+    }
+    validate_marker_assertion_inner(assertion, true)?;
+    let digest = marker_assertion_digest(assertion)?;
+    assertion.signature_ref = Some(digest.clone());
+    let mut attestation = Attestation {
+        envelope_type: "iroka.igacms.attestation".into(), version: "1.0.0".into(),
+        digest, epoch: assertion.issued_at, key_id: key_id.into(), signature: Vec::new(),
+    };
+    attestation.signature = key.sign(&attestation.bytes()).to_bytes().to_vec();
+    Ok(attestation)
+}
+
+/// Verify payload binding and Ed25519 trust against the immutable trust snapshot.
+/// A valid signature authenticates the assertion source; it does not prove substantive truth.
+pub fn verify_attested_marker_assertion(
+    assertion: &MarkerAssertion, attestation: &Attestation,
+    roots: &crate::trust_lifecycle::TrustRootSet, now: u64,
+) -> Result<(), IgacmsError> {
+    validate_marker_assertion_inner(assertion, true)?;
+    let digest = marker_assertion_digest(assertion)?;
+    if assertion.signature_ref.as_deref() != Some(digest.as_str())
+        || attestation.digest != digest || attestation.epoch != assertion.issued_at
+    { return Err(IgacmsError::Signature); }
+    verify_attestation_with_trust_roots(attestation, roots, now)
+}
+
+/// A replacement assertion must have a new identity and explicitly supersede its predecessor.
+/// REVOKED is terminal for an assertion ID; a new assertion may replace it but cannot revive it.
+pub fn validate_marker_transition(
+    previous: Option<&MarkerAssertion>, next: &MarkerAssertion,
+) -> Result<(), IgacmsError> {
+    validate_marker_assertion(next)?;
+    match previous {
+        None if next.supersedes_ref.is_none() => Ok(()),
+        Some(prior) if prior.assertion_id != next.assertion_id
+            && next.supersedes_ref.as_deref() == Some(prior.assertion_id.as_str()) => Ok(()),
+        _ => Err(IgacmsError::Marker),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TrustedRoot {
     pub key_id: String,
@@ -980,4 +1042,80 @@ mod tests {
             Err(IgacmsError::Epoch)
         );
     }
+    fn marker_fixture(state: &str) -> MarkerAssertion {
+        MarkerAssertion {
+            assertion_id: "assertion-1".into(), marker_id: "IDN-001".into(),
+            subject_id: "genome-0".into(), genome_version: "1.0.0".into(),
+            chromosome_version: "1.0.0".into(), asserted_state: state.into(),
+            issuer: "test-issuer".into(), issued_at: 50, valid_from: 10,
+            valid_until: Some(100), evidence_refs: vec!["sha256:evidence".into()],
+            verifier: "test-verifier".into(), verification_method: "fixture".into(),
+            signature_ref: None, supersedes_ref: None, status: "PASS".into(),
+        }
+    }
+
+    #[test]
+    fn rejects_substituted_canonical_principle_id() {
+        let mut value: Value = serde_json::from_slice(EMBEDDED).unwrap();
+        value["principles"][0]["id"] = Value::String("invented-principle".into());
+        assert_eq!(validate_genome(&serde_json::to_vec(&value).unwrap()).unwrap_err(), IgacmsError::Identity);
+    }
+
+    #[test]
+    fn rejects_changed_canonical_invariant_semantics() {
+        let mut value: Value = serde_json::from_slice(EMBEDDED).unwrap();
+        value["invariants"][0]["statement"] = Value::String("altered".into());
+        assert_eq!(validate_genome(&serde_json::to_vec(&value).unwrap()).unwrap_err(), IgacmsError::Identity);
+    }
+
+    #[test]
+    fn rejects_dependency_graph_drift_and_duplicate_edges() {
+        let mut drift: Value = serde_json::from_slice(EMBEDDED).unwrap();
+        drift["dependency_graph"][2]["depends_on"] = serde_json::json!(["G01"]);
+        assert_eq!(validate_genome(&serde_json::to_vec(&drift).unwrap()).unwrap_err(), IgacmsError::Dependency);
+        let mut duplicate: Value = serde_json::from_slice(EMBEDDED).unwrap();
+        duplicate["dependency_graph"][2]["depends_on"] = serde_json::json!(["G01","G01","G04","G11"]);
+        assert_eq!(validate_genome(&serde_json::to_vec(&duplicate).unwrap()).unwrap_err(), IgacmsError::Dependency);
+    }
+
+    #[test]
+    fn attested_marker_requires_a_trusted_signature_bound_to_payload() {
+        let key = SigningKey::from_bytes(&[31u8; 32]);
+        let mut assertion = marker_fixture("ATTESTED");
+        let attestation = sign_marker_assertion(&mut assertion, "marker-root", &key).unwrap();
+        assert_eq!(validate_marker_assertion(&assertion), Err(IgacmsError::Marker));
+        let roots = crate::trust_lifecycle::TrustRootSet::new(vec![
+            crate::trust_lifecycle::TrustRoot {
+                key_id: "marker-root".into(), public_key: key.verifying_key().to_bytes(),
+                not_before: 1, not_after: 100, provenance_ref: "test-root-provenance".into(),
+            }
+        ]).unwrap();
+        assert!(verify_attested_marker_assertion(&assertion, &attestation, &roots, 60).is_ok());
+        let mut tampered = assertion.clone();
+        tampered.evidence_refs.push("sha256:changed".into());
+        assert_eq!(verify_attested_marker_assertion(&tampered, &attestation, &roots, 60), Err(IgacmsError::Signature));
+        let wrong_key = SigningKey::from_bytes(&[32u8; 32]);
+        let wrong_roots = crate::trust_lifecycle::TrustRootSet::new(vec![
+            crate::trust_lifecycle::TrustRoot {
+                key_id: "marker-root".into(), public_key: wrong_key.verifying_key().to_bytes(),
+                not_before: 1, not_after: 100, provenance_ref: "test-root-provenance".into(),
+            }
+        ]).unwrap();
+        assert_eq!(verify_attested_marker_assertion(&assertion, &attestation, &wrong_roots, 60), Err(IgacmsError::Signature));
+    }
+
+    #[test]
+    fn marker_replacement_requires_new_id_and_supersession_even_after_revocation() {
+        let previous = marker_fixture("REVOKED");
+        let mut replacement = marker_fixture("OBSERVED");
+        replacement.assertion_id = "assertion-2".into();
+        replacement.supersedes_ref = Some(previous.assertion_id.clone());
+        assert!(validate_marker_transition(Some(&previous), &replacement).is_ok());
+        replacement.assertion_id = previous.assertion_id.clone();
+        assert_eq!(validate_marker_transition(Some(&previous), &replacement), Err(IgacmsError::Marker));
+        replacement.assertion_id = "assertion-3".into();
+        replacement.supersedes_ref = None;
+        assert_eq!(validate_marker_transition(Some(&previous), &replacement), Err(IgacmsError::Marker));
+    }
+
 }
