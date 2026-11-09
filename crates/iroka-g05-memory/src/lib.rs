@@ -243,26 +243,6 @@ pub struct ValidationPolicy {
     pub allowed_purposes: BTreeSet<Purpose>,
 }
 
-impl Default for ValidationPolicy {
-    fn default() -> Self {
-        Self {
-            // Bounded defaults; deployments may tighten these through policy.
-            max_working_ttl_secs: 24 * 60 * 60,
-            max_episodic_ttl_secs: 365 * 24 * 60 * 60,
-            allowed_purposes: [
-                Purpose::TaskContinuity,
-                Purpose::UserPreference,
-                Purpose::ProjectContext,
-                Purpose::OrganizationalContext,
-                Purpose::OperationalHistory,
-                Purpose::AuthorizedSystemAssurance,
-            ]
-            .into_iter()
-            .collect(),
-        }
-    }
-}
-
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     let mut output = String::with_capacity(64);
@@ -717,7 +697,20 @@ mod tests {
     }
 
     fn policy() -> ValidationPolicy {
-        ValidationPolicy::default()
+        ValidationPolicy {
+            max_working_ttl_secs: 24 * 60 * 60,
+            max_episodic_ttl_secs: 365 * 24 * 60 * 60,
+            allowed_purposes: [
+                Purpose::TaskContinuity,
+                Purpose::UserPreference,
+                Purpose::ProjectContext,
+                Purpose::OrganizationalContext,
+                Purpose::OperationalHistory,
+                Purpose::AuthorizedSystemAssurance,
+            ]
+            .into_iter()
+            .collect(),
+        }
     }
 
     #[test]
