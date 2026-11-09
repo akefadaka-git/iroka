@@ -647,7 +647,9 @@ mod tests {
     fn rejects_scope_mismatch_and_expired_grants() {
         let (store, scope, evidence) = approved_evidence();
         let issuer = ExecutionGrantIssuer::new(&store);
-        let grant = issuer.issue_at(evidence, scope.clone(), 1_200, 30).expect("G09 grant");
+        let grant = issuer
+            .issue_at(evidence, scope.clone(), 1_200, 30)
+            .expect("G09 grant");
         let wrong_scope = ExecutionGrantScope::new(
             scope.subject(),
             scope.capability(),
