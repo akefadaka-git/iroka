@@ -33,7 +33,8 @@ The reconciliation supports a **new, bounded G03 cognitive workstream** that con
 | Visibility | Public |
 | Default branch | `main` |
 | Default branch head at initial snapshot | `143311a655be68acea2700650b7f88c9fb085526` |
-| Default branch head at final recheck | `2304a793ce4a49464bc87f972c0e02fa07f75237` (merge commit for PR #13) |
+| Default branch head at intermediate recheck | `2304a793ce4a49464bc87f972c0e02fa07f75237` (PR #13 merge) |
+| Default branch head at latest recheck | `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472` (PR #24 merge) |
 | README blob | `a85ee805e35481b20087e8f32e451eb1bd4eb4a7` |
 | Main strategy blob | `84f3f9ffddc8340132b76ab3161a6120e1817b58` |
 | Root contents on main | `README.md`, `docs/IMPLEMENTATION_STRATEGY.md` |
@@ -235,13 +236,14 @@ Proposed order after A2 approval and separate A3 authorization:
 - [x] Existing G08 draft dependency finding recorded.
 - [x] Proposed roadmap documents distinguished from approved architecture.
 - [x] No existing branch, PR, main, workflow, trust root or runtime configuration was modified by this assistant. GitHub records PR #12 and PR #13 merges during this assessment window; these external repository state changes are not attributed to this Brain work.
-- [ ] Owner decisions B-A2-01 through B-A2-10 recorded.
+- [x] Owner decisions B-A2-01 and B-A2-02 recorded as approved by D2.
+- [ ] Remaining A2 decisions B-A2-03 through B-A2-10 resolved.
 - [ ] G04/G05/G06 interface contracts and versions confirmed.
 - [ ] G08 tenant-context and lineage dependencies resolved or explicitly deferred with accepted constraints.
 - [ ] Dependency/provenance/license/data-flow assessment completed for the selected A3 increment.
 - [ ] A2 closure approved by Owner.
 
-**A2 status: PARTIAL — read-only reconciliation complete; B-A2-01/02 approved, with formal schemas, domain interfaces, G08 dependencies, evaluation governance and first-increment scope still open.**
+**A2 status: PARTIAL — read-only reconciliation complete and cognitive contract proposal drafted; B-A2-01/02 approved, while formal schema acceptance, domain interfaces, G08/CIW lineage, evaluation governance and first-increment scope remain open.**
 
 ## 11. Final repository recheck — 2026-11-09
 
@@ -249,9 +251,14 @@ The repository changed after the initial read-only snapshot:
 
 - PR #12 was merged into `architecture/a2-reconciliation-contracts` at `1746c0087eb324b4ae25266a6c321dd1614f2def` at 06:38:47Z, recorded as merged by `akefadaka-git`.
 - PR #13 was merged into `main` at `2304a793ce4a49464bc87f972c0e02fa07f75237` at 06:41:40Z, recorded as merged by `akefadaka-git`.
+- A subsequent main update merged PR #24 (E1 external-checkpoint architecture) at `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472` at 06:47:29Z, with PR #24 recorded as merged by `akefadaka-git`. Its merge commit has parents `2304a793ce4a49464bc87f972c0e02fa07f75237` and `71ca5a2b7dd2099c75719645d5be05c9122df566`. D1 in this conversation explicitly confirms authorization for PR #12 and #13; it is not treated as a separate authorization record for PR #24.
 - The new main merge commit has parents `143311a655be68acea2700650b7f88c9fb085526` and `bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a`.
-- Exact-head PR #13 push and PR workflows #42566864113 and #42566869592 both completed SUCCESS before merge. No Actions run was returned for the merge commit itself; no post-merge exact-main CI PASS is claimed.
+- Exact-head PR #13 push and PR workflows #42566864113 and #42566869592 both completed SUCCESS before merge. No Actions run was returned for merge commit #13 or the later main head #24; no post-merge exact-main CI PASS is claimed.
 - The merges were not performed by this assistant. Owner subsequently confirmed D1 = YES on 2026-11-09, explicitly confirming separate authorization for both PR #12 and PR #13 merges. D1 authorization is now recorded; the merged commits remain unchanged.
+- The latest main tree contains the Kernel foundation and IGACMS schemas plus the E1 checkpoint architecture, but no G03 runtime or verified G04/G05/G06 implementation was identified in the targeted path inventory.
+- PR #18 G08 A2 contract remains draft, based on earlier main SHA `143311a655be68acea2700650b7f88c9fb085526`; its own section 323–334 records no G01 tenant resolver in the inspected Kernel and an integration-lineage blocker. Current main has advanced through PR #13 and PR #24, so G08 ancestry must be reconciled before stacking runtime work.
+- PR #20 CIW A2 contract is draft and documents server-side tenant membership, G03 gateway boundary, G04 executable API as unreconciled, and separate G05/G06 ownership. PR #23 remains draft on an earlier Kernel base; current-main integration is not proven.
+- The Brain A2 cognitive contract proposal is now present at `docs/brain/IROKA-BRAIN-A2-COGNITIVE-CONTRACTS-001.md`; it defines proposed task/result/plan/critic/gateway envelopes and records unresolved G01/G02/G04/G05/G06/G08/CIW dependencies. It is not Owner-approved.
 - The Brain proposal branch remains based on the unchanged Owner-approved A2 source branch at `a709fc473b23494839417449e34bebf4cb8be77a`. Owner confirmed D2 = YES on 2026-11-09; A1 architecture v1.0.0 is now frozen on this proposal branch. The Brain PR remains documentation-only and unmerged.
 
 This state change does not authorize any additional merge, deployment, production trust provisioning or Brain A3 implementation.
@@ -267,7 +274,7 @@ This state change does not authorize any additional merge, deployment, productio
 
 This report records findings; it does not:
 - merge or close existing PRs;
-- change the default branch or adopt PR #16/#17/#18;
+- change the default branch or adopt PR #16/#17/#18/#20/#23;
 - authorize G03/G04/G05/G06/G07/G08/G09/G10/G12 runtime implementation;
 - activate an external model/provider or send production data;
 - authorize agent delegation or protected side effects;
