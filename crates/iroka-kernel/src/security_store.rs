@@ -616,6 +616,76 @@ impl SqliteSecurityStore {
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
     }
 
+    /// Stage an Owner-signed policy revocation; it has no effect until G11 confirms it.
+    pub(crate) fn stage_policy_revocation(
+        &self, epoch: u64, command_id: &str, digest: &[u8; 32], owner_subject: &str,
+        key_id: &str, reason: &str, issued_at: u64,
+    ) -> Result<(), SecurityStoreError> {
+        if epoch == 0 || command_id.trim().is_empty() || owner_subject.trim().is_empty()
+            || key_id.trim().is_empty() || reason.trim().is_empty()
+        { return Err(SecurityStoreError::InvalidVersion); }
+        let epoch_i = i64::try_from(epoch).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let issued_i = i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer='iroka:owner-authority' AND key_id=?1)",
+            [key_id], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if revoked { return Err(SecurityStoreError::Revoked); }
+        let active: Option<i64> = tx.query_row(
+            "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1", [], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if active != Some(epoch_i) { return Err(SecurityStoreError::Rollback); }
+        let existing: Option<(i64,Vec<u8>,String)> = tx.query_row(
+            "SELECT policy_epoch,digest,state FROM policy_revocations WHERE command_id=?1", [command_id],
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        if let Some((existing_epoch, existing_digest, _)) = existing {
+            if existing_epoch != epoch_i || existing_digest.as_slice() != digest {
+                return Err(SecurityStoreError::ConflictingVersion);
+            }
+            tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+            return Ok(());
+        }
+        tx.execute(
+            "INSERT INTO policy_revocations(policy_epoch,command_id,digest,owner_subject,key_id,reason,issued_at,state) VALUES(?1,?2,?3,?4,?5,?6,?7,'pending')",
+            params![epoch_i,command_id,digest.as_slice(),owner_subject,key_id,reason,issued_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Complete a staged revocation only after the deterministic G11 event is confirmed.
+    pub(crate) fn complete_policy_revocation(
+        &self, epoch: u64, command_id: &str, digest: &[u8; 32],
+    ) -> Result<(), SecurityStoreError> {
+        let epoch_i = i64::try_from(epoch).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let (stored_digest,state): (Vec<u8>,String) = tx.query_row(
+            "SELECT digest,state FROM policy_revocations WHERE policy_epoch=?1 AND command_id=?2",
+            params![epoch_i,command_id], |row| Ok((row.get(0)?,row.get(1)?)),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if stored_digest.as_slice() != digest { return Err(SecurityStoreError::ConflictingVersion); }
+        if state == "complete" {
+            tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+            return Ok(());
+        }
+        let active: Option<i64> = tx.query_row(
+            "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1", [], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if active != Some(epoch_i) { return Err(SecurityStoreError::Rollback); }
+        tx.execute("UPDATE policy_snapshots SET state='revoked' WHERE epoch=?1 AND state='active'", [epoch_i])
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute("UPDATE policy_lifecycle_state SET active_epoch=NULL WHERE singleton=1", [])
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute("UPDATE policy_revocations SET state='complete' WHERE policy_epoch=?1", [epoch_i])
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
     pub(crate) fn active_policy_snapshot(
         &self,
     ) -> Result<Option<(u64, crate::SignedPolicySnapshot)>, SecurityStoreError> {
