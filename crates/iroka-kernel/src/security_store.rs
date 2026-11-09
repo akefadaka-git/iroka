@@ -68,6 +68,8 @@ pub(crate) struct ApprovalReceipt<'a> {
     pub consumed_at: u64,
 }
 
+type StoredActivePolicyRow = (Vec<u8>, Vec<u8>, Vec<u8>, String, String, String, i64, i64, i64);
+
 pub struct SqliteSecurityStore {
     connection: Mutex<Connection>,
 }
@@ -858,7 +860,7 @@ impl SqliteSecurityStore {
             return Ok(None);
         }
         let (payload_bytes, signature, stored_digest, owner_subject, key_id, policy_version,
-            issued_at, expires_at, emergency_stop_active): (Vec<u8>, Vec<u8>, Vec<u8>, String, String, String, i64, i64, i64) = connection.query_row(
+            issued_at, expires_at, emergency_stop_active): StoredActivePolicyRow = connection.query_row(
             "SELECT canonical_payload,signature,digest,owner_subject,key_id,policy_version,issued_at,expires_at,emergency_stop_active FROM policy_snapshots WHERE epoch=?1 AND state='active'", [epoch],
             |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?,row.get(7)?,row.get(8)?)),
         ).map_err(|_| SecurityStoreError::Unavailable)?;
