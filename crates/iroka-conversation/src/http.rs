@@ -613,7 +613,7 @@ where
             let event = if error == ConversationError::Cancelled {
                 StreamEvent::Cancelled { turn_id: assistant_id_for_worker.clone(), sequence: 0 }
             } else {
-                StreamEvent::Failed { turn_id: assistant_id.clone(), sequence: 0 }
+                StreamEvent::Failed { turn_id: assistant_id_for_worker.clone(), sequence: 0 }
             };
             state.publish(event);
         }
@@ -673,7 +673,7 @@ where
     if !turns.iter().any(|turn| turn.id == parts[3] && turn.role == "assistant") {
         return fail(stream, HttpError::NotFound);
     }
-    write!(stream, "HTTP/1.1 200 OK\\r\\nContent-Type: text/event-stream; charset=utf-8\\r\\nCache-Control: no-store, no-transform\\r\\nX-Content-Type-Options: nosniff\\r\\nX-Accel-Buffering: no\\r\\nConnection: close\\r\\n\\r\\n")?;
+    write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream; charset=utf-8\r\nCache-Control: no-store, no-transform\r\nX-Content-Type-Options: nosniff\r\nX-Accel-Buffering: no\r\nConnection: close\r\n\r\n")?;
     if let Some(state) = generations.get(parts[3]) {
         let mut index = 0usize;
         loop {
@@ -688,7 +688,7 @@ where
                         events = guard;
                         if timeout.timed_out() && index >= events.len() {
                             drop(events);
-                            stream.write_all(b": keep-alive\\n\\n")?;
+                            stream.write_all(b": keep-alive\n\n")?;
                             continue;
                         }
                     }
@@ -700,7 +700,7 @@ where
             let done = state.done.load(Ordering::Acquire);
             drop(events);
             for event in &batch {
-                writeln!(stream, "data: {}\\n", sse_event(event))?;
+                writeln!(stream, "data: {}\n", sse_event(event))?;
             }
             stream.flush()?;
             if done && index >= batch.len() {
@@ -709,12 +709,12 @@ where
         }
     } else if let Some(turn) = turns.iter().find(|turn| turn.id == parts[3]) {
         if turn.state == "completed" {
-            writeln!(stream, "data: {}\\n", json!({"type":"message.delta","payload":{"text":turn.content}}))?;
-            writeln!(stream, "data: {}\\n", json!({"type":"generation.completed","payload":{"turn_id":turn.id}}))?;
+            writeln!(stream, "data: {}\n", json!({"type":"message.delta","payload":{"text":turn.content}}))?;
+            writeln!(stream, "data: {}\n", json!({"type":"generation.completed","payload":{"turn_id":turn.id}}))?;
         } else if turn.state == "cancelled" {
-            writeln!(stream, "data: {}\\n", json!({"type":"generation.interrupted","payload":{"turn_id":turn.id}}))?;
+            writeln!(stream, "data: {}\n", json!({"type":"generation.interrupted","payload":{"turn_id":turn.id}}))?;
         } else {
-            writeln!(stream, "data: {}\\n", json!({"type":"generation.failed","payload":{"turn_id":turn.id}}))?;
+            writeln!(stream, "data: {}\n", json!({"type":"generation.failed","payload":{"turn_id":turn.id}}))?;
         }
     }
     stream.flush()
