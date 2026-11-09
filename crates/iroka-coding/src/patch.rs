@@ -475,7 +475,9 @@ impl PatchApplier {
         {
             return Err(PatchApplyError::ApprovalMismatch);
         }
-        if snapshot.repository != reviewed.repository || snapshot.revision != reviewed.source_revision {
+        if snapshot.repository != reviewed.repository
+            || snapshot.revision != reviewed.source_revision
+        {
             return Err(PatchApplyError::StaleSnapshot);
         }
         let existing = snapshot.file(&reviewed.path);
@@ -494,7 +496,9 @@ impl PatchApplier {
                     .after_content
                     .clone()
                     .ok_or(PatchApplyError::InvalidReview)?;
-                preview.files.push(SnapshotFile::new(&reviewed.path, content));
+                preview
+                    .files
+                    .push(SnapshotFile::new(&reviewed.path, content));
             }
             ChangeOperation::Modify => {
                 let content = reviewed
@@ -517,7 +521,9 @@ impl PatchApplier {
                 preview.files.retain(|file| file.path != reviewed.path);
             }
         }
-        preview.files.sort_by(|left, right| left.path.cmp(&right.path));
+        preview
+            .files
+            .sort_by(|left, right| left.path.cmp(&right.path));
         let after_hash = preview
             .file(&reviewed.path)
             .map(|file| content_hash(&file.content));
@@ -739,9 +745,7 @@ mod tests {
     use std::sync::Arc;
 
     use ed25519_dalek::{Signer, SigningKey};
-    use iroka_kernel::{
-        OwnerApprovalPayload, SqliteSecurityStore, TrustedOwnerKey,
-    };
+    use iroka_kernel::{OwnerApprovalPayload, SqliteSecurityStore, TrustedOwnerKey};
 
     use crate::codegen::{
         CodeGenerationLimits, CodeGenerationProvider, CodeGenerationResponse, CodeGenerator,
@@ -749,7 +753,9 @@ mod tests {
     };
     use crate::index::{FileRecord, FileRole, RepositoryIndex};
     use crate::planner::{EvidenceSnippet, ProviderFailure};
-    use crate::{ExtensionAdapter, LanguageCapabilities, LanguageDescriptor, LanguageId, LanguageRegistry};
+    use crate::{
+        ExtensionAdapter, LanguageCapabilities, LanguageDescriptor, LanguageId, LanguageRegistry,
+    };
 
     struct FixtureProvider {
         response: CodeGenerationResponse,
@@ -789,7 +795,11 @@ mod tests {
         }
     }
 
-    fn request<'a>(index: &'a RepositoryIndex, path: &str, operation: ChangeOperation) -> CodeGenerationRequest<'a> {
+    fn request<'a>(
+        index: &'a RepositoryIndex,
+        path: &str,
+        operation: ChangeOperation,
+    ) -> CodeGenerationRequest<'a> {
         CodeGenerationRequest {
             request_id: "request-1".to_owned(),
             task_id: "task-1".to_owned(),
@@ -861,7 +871,11 @@ mod tests {
         (verifier, signing_key)
     }
 
-    fn approve(review: &ReviewedPatch, verifier: &OwnerApprovalVerifier, key: &SigningKey) -> VerifiedPatchApproval {
+    fn approve(
+        review: &ReviewedPatch,
+        verifier: &OwnerApprovalVerifier,
+        key: &SigningKey,
+    ) -> VerifiedPatchApproval {
         let payload = OwnerApprovalPayload::new(
             "approval-1",
             "owner-1",
@@ -891,10 +905,14 @@ mod tests {
         let (_, review) = reviewed(&original, "src/lib.rs", ChangeOperation::Modify, patch);
         let (verifier, key) = owner_verifier();
         let approval = approve(&review, &verifier, &key);
-        let applied = PatchApplier::apply_preview(&original, &review, &approval)
-            .expect("approved preview");
+        let applied =
+            PatchApplier::apply_preview(&original, &review, &approval).expect("approved preview");
         assert_eq!(
-            applied.preview().file("src/lib.rs").expect("preview file").content,
+            applied
+                .preview()
+                .file("src/lib.rs")
+                .expect("preview file")
+                .content,
             "pub fn existing() {}\npub fn added() {}\n"
         );
         assert_eq!(applied.rollback(), original);
@@ -924,7 +942,15 @@ mod tests {
         );
         let signature = key.sign(&payload.signing_bytes().expect("signing bytes"));
         let approval = SignedOwnerApproval::from_signature(payload, signature.to_bytes().to_vec());
-        assert!(verify_owner_approval(&verifier, &approval, &review, "agent-1", "policy-v1", 1_000).is_ok());
+        assert!(verify_owner_approval(
+            &verifier,
+            &approval,
+            &review,
+            "agent-1",
+            "policy-v1",
+            1_000
+        )
+        .is_ok());
         assert_eq!(
             verify_owner_approval(&verifier, &approval, &review, "agent-1", "policy-v1", 1_000),
             Err(PatchApprovalError::Owner(OwnerApprovalError::Replay))
@@ -1027,12 +1053,7 @@ mod tests {
     fn rejects_repeated_or_out_of_order_hunks() {
         let patch = "diff --git a/src/lib.rs b/src/lib.rs\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -1 +1 @@\n-old\n+new\n@@ -1 +1 @@\n-old\n+again\n";
         assert_eq!(
-            apply_unified_diff(
-                "src/lib.rs",
-                ChangeOperation::Modify,
-                Some("old\n"),
-                patch
-            ),
+            apply_unified_diff("src/lib.rs", ChangeOperation::Modify, Some("old\n"), patch),
             Err(PatchReviewError::HunkOutOfOrder)
         );
     }
