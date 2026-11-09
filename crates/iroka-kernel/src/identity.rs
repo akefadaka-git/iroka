@@ -11,6 +11,8 @@ pub(crate) struct IdentityAssertion {
     audience: String,
     expires_at: u64,
     credential_id: String,
+    key_id: String,
+    revocation_version: u64,
 }
 
 #[cfg(test)]
@@ -64,11 +66,15 @@ impl VerifiedPrincipal {
         subject: String,
         issuer: String,
         credential_id: String,
+        key_id: String,
+        revocation_version: u64,
     ) -> Self {
         Self {
             subject,
             issuer,
             credential_id,
+            key_id,
+            revocation_version,
         }
     }
 
@@ -80,6 +86,12 @@ impl VerifiedPrincipal {
     }
     pub fn credential_id(&self) -> &str {
         &self.credential_id
+    }
+    pub fn key_id(&self) -> &str {
+        &self.key_id
+    }
+    pub fn revocation_version(&self) -> u64 {
+        self.revocation_version
     }
 }
 
