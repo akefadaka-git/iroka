@@ -2,6 +2,8 @@
 //!
 //! Generated patches are validated but never applied by this module.
 
+use serde::{Deserialize, Serialize};
+
 use crate::index::RepositoryIndex;
 use crate::planner::{
     safe_relative_path, valid_identifier, valid_revision, EvidenceSnippet, ProviderFailure,
@@ -27,7 +29,8 @@ impl Default for CodeGenerationLimits {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ChangeOperation {
     Create,
     Modify,
@@ -49,7 +52,8 @@ pub struct CodeGenerationRequest<'a> {
     pub constraints: Vec<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct GeneratedChange {
     pub path: String,
     pub operation: ChangeOperation,
@@ -57,7 +61,8 @@ pub struct GeneratedChange {
     pub rationale: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CodeGenerationResponse {
     pub request_id: String,
     pub summary: String,
