@@ -145,7 +145,7 @@ impl VerifiedPolicySnapshot {
         &self.payload.policy_version
     }
     pub fn emergency_stop_active(&self) -> bool {
-        self.payload.emergency_stop_active
+        self.payload.emergency_stop_active()
     }
     pub fn policy(&self) -> Policy {
         Policy::new(
@@ -399,16 +399,16 @@ mod tests {
         let signed = signed(&signer, 1, false);
         audit.force_append_failure(true).unwrap();
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200)
+            PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200)
                 .unwrap_err(),
             PolicyLifecycleError::AuditUnavailable
         );
         assert_eq!(
-            PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap_err(),
+            PolicyActivationCoordinator::load_active(&verifier, 1_201).unwrap_err(),
             PolicyLifecycleError::Inactive
         );
         audit.force_append_failure(false).unwrap();
-        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_202).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_202).unwrap();
         assert_eq!(audit.head().unwrap().0, 1);
     }
 
@@ -429,7 +429,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            PolicyActivationCoordinator::load_active(&verifier, &store, 1_301).unwrap_err(),
+            PolicyActivationCoordinator::load_active(&verifier, 1_301).unwrap_err(),
             PolicyLifecycleError::Inactive
         );
     }
@@ -495,7 +495,7 @@ mod tests {
     fn owner_signed_revocation_is_audited_before_policy_is_disabled() {
         let (signer, verifier, store, audit) = fixture();
         let active = signed(&signer, 1, false);
-        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &active, 1_200).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &audit, &active, 1_200).unwrap();
         let payload = crate::OwnerSecurityCommandPayload {
             command_id: "policy-revoke-1".into(),
             owner_subject: "owner:akefa".into(),
@@ -516,7 +516,7 @@ mod tests {
             .revoke_policy_snapshot(&command, &audit, 1_350)
             .unwrap();
         assert_eq!(
-            PolicyActivationCoordinator::load_active(&verifier, &store, 1_351).unwrap_err(),
+            PolicyActivationCoordinator::load_active(&verifier, 1_351).unwrap_err(),
             PolicyLifecycleError::Inactive
         );
         verifier
