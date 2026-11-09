@@ -226,6 +226,95 @@ impl<P:G01ReviewerProofAuthority> DesignatedReviewerAuthority for RegistryDesign
         self.registry.consume_approval(receipt,&d,now)
     }
 }
+
+/// Concrete G02 adapter over the canonical Kernel composition. The credential,
+/// tenant selector, genesis, verifier, Owner verifier and audit sink are
+/// server-side session dependencies; request fields cannot replace them.
+/// A policy requiring a separate Owner approval is denied here rather than
+/// silently bypassed. Construct a fresh adapter per request with current time.
+pub struct KernelG02AuthorizationAdapter<'a, R: iroka_kernel::RevocationChecker> {
+    compact_credential: &'a str,
+    expected_audience: &'a str,
+    requested_tenant_id: &'a str,
+    genesis: &'a iroka_kernel::VerifiedGenesis,
+    credential_verifier: &'a iroka_kernel::Ed25519CredentialVerifier<R>,
+    owner_verifier: &'a iroka_kernel::OwnerApprovalVerifier,
+    audit_sink: &'a iroka_kernel::SqliteAuditSink,
+    now: u64,
+    max_membership_age_secs: u64,
+}
+impl<'a, R: iroka_kernel::RevocationChecker> KernelG02AuthorizationAdapter<'a, R> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(compact_credential: &'a str, expected_audience: &'a str,
+        requested_tenant_id: &'a str, genesis: &'a iroka_kernel::VerifiedGenesis,
+        credential_verifier: &'a iroka_kernel::Ed25519CredentialVerifier<R>,
+        owner_verifier: &'a iroka_kernel::OwnerApprovalVerifier,
+        audit_sink: &'a iroka_kernel::SqliteAuditSink, now: u64,
+        max_membership_age_secs: u64) -> Self {
+        Self { compact_credential, expected_audience, requested_tenant_id, genesis,
+            credential_verifier, owner_verifier, audit_sink, now, max_membership_age_secs }
+    }
+}
+impl<R: iroka_kernel::RevocationChecker> G02AuthorizationAuthority
+    for KernelG02AuthorizationAdapter<'_, R> {
+    fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error> {
+        let capability = g05_capability(request.operation);
+        let resource = format!("g05:{}:{}:{}:{}", operation_key(request.operation),
+            request.tenant_ref, request.subject_ref,
+            request.memory_id.as_deref().unwrap_or("registry"));
+        let risk = match request.operation {
+            Operation::DesignateReviewer | Operation::RevokeReviewerDesignation => iroka_kernel::RiskLevel::High,
+            Operation::GrantEpisodicConsent | Operation::WithdrawEpisodicConsent => iroka_kernel::RiskLevel::Moderate,
+            _ => iroka_kernel::RiskLevel::Moderate,
+        };
+        let kernel_request = iroka_kernel::AuthorizationRequest::new(
+            request.principal_ref.clone(), capability, resource, risk);
+        let event_id = format!("g05-authz:{}:{}", operation_key(request.operation), request.correlation_ref);
+        let decision = iroka_kernel::authorize_compact_in_tenant(
+            self.compact_credential, self.expected_audience, self.requested_tenant_id,
+            &kernel_request, self.genesis, None, self.credential_verifier,
+            self.owner_verifier, self.audit_sink, self.now, self.max_membership_age_secs,
+            &event_id, &request.correlation_ref);
+        if decision.code() == iroka_kernel::DecisionCode::Allow {
+            Ok(())
+        } else {
+            Err(G05Error::AuthorizationDenied)
+        }
+    }
+}
+fn operation_key(operation: Operation) -> &'static str {
+    match operation {
+        Operation::Propose => "propose", Operation::CreateWorking => "working.create",
+        Operation::CreateEpisodic => "episodic.create", Operation::ActivateDurable => "durable.activate",
+        Operation::Retrieve => "retrieve", Operation::InspectMetadata => "metadata.inspect",
+        Operation::Correct => "correct", Operation::Restrict => "restrict",
+        Operation::RequestDeletion => "deletion.request", Operation::VerifyDeletion => "deletion.verify",
+        Operation::Share => "share", Operation::GrantEpisodicConsent => "consent.grant",
+        Operation::WithdrawEpisodicConsent => "consent.withdraw",
+        Operation::DesignateReviewer => "reviewer.designate",
+        Operation::RevokeReviewerDesignation => "reviewer.revoke",
+    }
+}
+fn g05_capability(operation: Operation) -> &'static str {
+    match operation {
+        Operation::Propose => "g05.memory.propose",
+        Operation::CreateWorking => "g05.memory.working.create",
+        Operation::CreateEpisodic => "g05.memory.episodic.create",
+        Operation::ActivateDurable => "g05.memory.durable.activate",
+        Operation::Retrieve => "g05.memory.retrieve",
+        Operation::InspectMetadata => "g05.memory.metadata.inspect",
+        Operation::Correct => "g05.memory.correct",
+        Operation::Restrict => "g05.memory.restrict",
+        Operation::RequestDeletion => "g05.memory.deletion.request",
+        Operation::VerifyDeletion => "g05.memory.deletion.verify",
+        Operation::Share => "g05.memory.share",
+        Operation::GrantEpisodicConsent => "g05.memory.consent.grant",
+        Operation::WithdrawEpisodicConsent => "g05.memory.consent.withdraw",
+        Operation::DesignateReviewer => "g05.memory.reviewer.designate",
+        Operation::RevokeReviewerDesignation => "g05.memory.reviewer.revoke",
+    }
+}
+
 fn purpose_key(p:Purpose)->&'static str{match p{
     Purpose::TaskContinuity=>"TASK_CONTINUITY",Purpose::UserPreference=>"USER_PREFERENCE",
     Purpose::ProjectContext=>"PROJECT_CONTEXT",Purpose::OrganizationalContext=>"ORGANIZATIONAL_CONTEXT",
