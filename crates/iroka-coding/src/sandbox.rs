@@ -77,7 +77,7 @@ impl ToolCommand {
                 && !safe_relative_path(&working_directory))
             || args.len() > 256
             || args.iter().any(|arg| {
-                arg.len() > 4096 || arg.bytes().any(|byte| byte == 0 || byte == b'\r')
+                arg.len() > 4096 || arg.bytes().any(|byte| byte.is_ascii_control())
             })
         {
             return Err(SandboxError::InvalidInvocation);
@@ -269,6 +269,9 @@ impl ToolchainRegistry {
         snapshot: &WorkspaceSnapshot,
         debug_target: Option<&str>,
     ) -> Result<SandboxInvocation, SandboxError> {
+        if !valid_identifier(sandbox_id) {
+            return Err(SandboxError::InvalidInvocation);
+        }
         if !valid_identifier(sandbox_id) {
             return Err(SandboxError::InvalidInvocation);
         }
@@ -586,6 +589,16 @@ impl SandboxRuntimeConfig {
                 || host_path.starts_with("/proc")
                 || host_path.starts_with("/sys")
                 || host_path.starts_with("/dev")
+                || !["/usr", "/opt", "/lib", "/lib64", "/bin", "/sbin"]
+                    .iter()
+                    .any(|root| {
+                        host_path == Path::new(root)
+                            || host_path.starts_with(format!("{root}/"))
+                    })
+                || canonical_mounts.iter().any(|existing: &ReadOnlyMount| {
+                    existing.host_path.starts_with(&host_path)
+                        || host_path.starts_with(&existing.host_path)
+                })
             {
                 return Err(SandboxError::ToolUnavailable);
             }
@@ -599,8 +612,13 @@ impl SandboxRuntimeConfig {
                 || mount.sandbox_path.starts_with("/dev")
                 || mount.sandbox_path.starts_with("/run")
                 || mount.sandbox_path.starts_with("/workspace")
-                || mount.sandbox_path == Path::new("/tmp")
-                || mount.sandbox_path == Path::new("/tmp")
+                || mount.sandbox_path.starts_with("/tmp")
+                || !["/usr", "/opt", "/lib", "/lib64", "/bin", "/sbin"]
+                    .iter()
+                    .any(|root| {
+                        mount.sandbox_path == Path::new(root)
+                            || mount.sandbox_path.starts_with(format!("{root}/"))
+                    })
                 || mount
                     .sandbox_path
                     .components()
@@ -775,6 +793,8 @@ impl SandboxBackend for BubblewrapBackend {
             || grant.scope().source_revision() != snapshot.revision()
             || grant.scope().action_digest() != invocation.action_digest
             || grant.scope().sandbox_id() != invocation.sandbox_id
+            || grant.scope().capability() != invocation.capability
+            || grant.scope().risk() != iroka_kernel::RiskLevel::High
         {
             return Err(SandboxError::ScopeMismatch);
         }
@@ -971,7 +991,7 @@ fn run_bounded(
         }
         if started.elapsed() >= limits.wall_time {
             timed_out = true;
-            let _ = child.kill();
+            child.kill().map_err(|_| SandboxError::WaitFailed)?;
             break child.wait().map_err(|_| SandboxError::WaitFailed)?;
         }
         thread::sleep(Duration::from_millis(10));
@@ -1127,13 +1147,18 @@ mod tests {
     #[test]
     fn debugger_requires_a_real_workspace_target() {
         let registry = ToolchainRegistry::standard();
-        let source = snapshot("fn main() {}\n");
+        let source = WorkspaceSnapshot::new(
+            "akefadaka-git/iroka",
+            "a".repeat(40),
+            vec![SnapshotFile::new("src/main.py", "print('sandbox')\n")],
+        )
+        .expect("Python snapshot");
         assert!(registry
-            .prepare("rust", ToolchainAction::Debug, "sandbox-1", &source, None)
+            .prepare("python", ToolchainAction::Debug, "sandbox-1", &source, None)
             .is_err());
         assert!(registry
             .prepare(
-                "rust",
+                "python",
                 ToolchainAction::Debug,
                 "sandbox-1",
                 &source,
@@ -1142,11 +1167,11 @@ mod tests {
             .is_err());
         assert!(registry
             .prepare(
-                "rust",
+                "python",
                 ToolchainAction::Debug,
                 "sandbox-1",
                 &source,
-                Some("src/main.rs")
+                Some("src/main.py")
             )
             .is_ok());
     }
