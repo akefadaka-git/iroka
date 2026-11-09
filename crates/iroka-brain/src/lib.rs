@@ -275,6 +275,9 @@ pub enum ValidationError {
     InputTooLarge,
     ForbiddenCapabilityFlag,
     InvalidInputReference,
+    TrustedContextUnavailable,
+    DomainAdapterUnavailable,
+    SerializationFailure,
     EvidenceUnavailable,
     OutputTooLarge,
 }
@@ -325,7 +328,18 @@ impl TaskEnvelope {
         {
             return Err(ValidationError::InvalidBudget);
         }
-        if self.objective.text.len() > limits.max_input_bytes {
+        if self.principal_ref.is_some()
+            || self.tenant_context_ref.is_some()
+            || self.policy_context_ref.is_some()
+        {
+            return Err(ValidationError::TrustedContextUnavailable);
+        }
+        if !self.input_refs.is_empty() {
+            return Err(ValidationError::DomainAdapterUnavailable);
+        }
+        let encoded = serde_json::to_vec(self)
+            .map_err(|_| ValidationError::SerializationFailure)?;
+        if encoded.len() > limits.max_input_bytes {
             return Err(ValidationError::InputTooLarge);
         }
         if limits.allow_external_provider
@@ -451,7 +465,11 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
                 "Model adapter returned incomplete attribution or empty output".to_owned(),
             );
         }
-        if generated.output_units > task.constraints.max_output_tokens {
+        let measured_output_units = generated.content.split_whitespace().count();
+        let max_output_bytes = task.constraints.max_output_tokens.saturating_mul(32);
+        if measured_output_units > task.constraints.max_output_tokens
+            || generated.content.len() > max_output_bytes
+        {
             return self.terminal(
                 task,
                 ResultStatus::BudgetExhausted,
@@ -484,11 +502,7 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
         } else {
             TerminationReason::Abstention
         };
-        let content = if task.locale.requested == "am-ET" {
-            format!("የሙከራ ምላሽ፦ {}", generated.content)
-        } else {
-            generated.content
-        };
+        let content = generated.content;
         let answer = if status == ResultStatus::Abstained {
             None
         } else {
@@ -505,7 +519,11 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
             status,
             answer,
             claims: Vec::new(),
-            assumptions: vec!["Synthetic adapter output is not externally verified".to_owned()],
+            assumptions: vec![
+                "Synthetic adapter output is not externally verified".to_owned(),
+                "Locale tag is preserved; language quality and translation are not validated".to_owned(),
+                "Output units are a conservative whitespace/byte bound, not tokenizer-exact tokens".to_owned(),
+            ],
             unresolved_questions: Vec::new(),
             uncertainty: "unavailable".to_owned(),
             model_attribution: ModelAttribution {
@@ -515,8 +533,8 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
             },
             termination,
             resource_usage: ResourceUsage {
-                input_units: generated.input_units,
-                output_units: generated.output_units,
+                input_units: serde_json::to_vec(task).map_or(0, |encoded| encoded.len()),
+                output_units: measured_output_units,
                 elapsed_ms: 0,
             },
             verification: Verification {
@@ -685,7 +703,7 @@ mod tests {
                 timezone: None,
             },
             constraints: Constraints {
-                max_input_bytes: 256,
+                max_input_bytes: 4096,
                 max_output_tokens: 64,
                 max_iterations: 2,
                 deadline_at: None,
@@ -710,6 +728,31 @@ mod tests {
         assert_eq!(result.model_attribution.model_id, "fixture");
         assert_eq!(result.verification.status, VerificationStatus::NotVerified);
         assert!(result.answer.is_some());
+    }
+
+    #[test]
+    fn caller_supplied_trust_references_are_not_accepted_as_authority() {
+        let mut request = task();
+        request.principal_ref = Some("principal:caller-asserted".to_owned());
+        assert_eq!(
+            request.validate(),
+            Err(ValidationError::TrustedContextUnavailable)
+        );
+    }
+
+    #[test]
+    fn unimplemented_domain_references_are_rejected_instead_of_silently_ignored() {
+        let mut request = task();
+        request.input_refs.push(InputReference {
+            reference: "g04:source-1".to_owned(),
+            source_domain: SourceDomain::G04,
+            classification: Classification::Public,
+            purpose: "evidence".to_owned(),
+        });
+        assert_eq!(
+            request.validate(),
+            Err(ValidationError::DomainAdapterUnavailable)
+        );
     }
 
     #[test]
@@ -780,15 +823,17 @@ mod tests {
             }
             fn generate(&self, _task: &TaskEnvelope) -> Result<ModelOutput, AdapterError> {
                 Ok(ModelOutput {
-                    content: "too many words here".to_owned(),
+                    content: "one two three four".to_owned(),
                     model_id: "fixture".to_owned(),
                     model_version: "1".to_owned(),
                     input_units: 1,
-                    output_units: 99,
+                    output_units: 0,
                 })
             }
         }
-        let result = CognitiveRuntime::new(Oversized).run(&task());
+        let mut request = task();
+        request.constraints.max_output_tokens = 2;
+        let result = CognitiveRuntime::new(Oversized).run(&request);
         assert_eq!(result.status, ResultStatus::BudgetExhausted);
         assert_eq!(result.termination, TerminationReason::Budget);
     }
@@ -832,6 +877,8 @@ mod tests {
         let mut request = task();
         request.locale.requested = "am-ET".to_owned();
         let result = CognitiveRuntime::new(DeterministicFakeAdapter).run(&request);
-        assert_eq!(result.answer.unwrap().locale, "am-ET");
+        let answer = result.answer.unwrap();
+        assert_eq!(answer.locale, "am-ET");
+        assert!(answer.content.starts_with("Synthetic response"));
     }
 }
