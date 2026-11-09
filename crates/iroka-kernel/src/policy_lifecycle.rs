@@ -326,6 +326,41 @@ mod tests {
     }
 
     #[test]
+    fn g11_failure_keeps_policy_pending_and_retry_recovers_idempotently() {
+        let (signer, verifier, store, audit) = fixture();
+        let signed = signed(&signer, 1, false);
+        audit.force_append_failure(true).unwrap();
+        assert_eq!(
+            PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_200).unwrap_err(),
+            PolicyLifecycleError::AuditUnavailable
+        );
+        assert_eq!(
+            PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap_err(),
+            PolicyLifecycleError::Inactive
+        );
+        audit.force_append_failure(false).unwrap();
+        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &signed, 1_202).unwrap();
+        assert_eq!(audit.head().unwrap().0, 1);
+    }
+
+    #[test]
+    fn pending_owner_policy_revocation_blocks_policy_use_until_g11_recovers() {
+        let (signer, verifier, store, _audit) = fixture();
+        let signed = signed(&signer, 1, false);
+        PolicyActivationCoordinator::activate(
+            &verifier, &store, &_audit, &signed, 1_200,
+        ).unwrap();
+        store.stage_policy_revocation(
+            1, "pending-revoke", &[7u8; 32], "owner:akefa", "owner-key-policy",
+            "test pending revocation", 1_300,
+        ).unwrap();
+        assert_eq!(
+            PolicyActivationCoordinator::load_active(&verifier, &store, 1_301).unwrap_err(),
+            PolicyLifecycleError::Inactive
+        );
+    }
+
+    #[test]
     fn policy_epochs_are_monotonic_and_same_epoch_conflicts_fail() {
         let (signer, verifier, store, audit) = fixture();
         let first = signed(&signer, 1, false);
