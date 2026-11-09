@@ -399,10 +399,10 @@ This resolves **ownership of the authoritative membership domain**: B02 must imp
 
 - PR: https://github.com/akefadaka-git/iroka/pull/28
 - Branch: `feat/brain-a3-b02-tenant-authority`
-- Exact HEAD: `254d46d47a2f221a95c5f6d18a665a336220ddca`
+- Exact HEAD: `98b7f8c00d5bdcceb2d1588541f06924b039bb43`
 - Base: `main` at `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`
-- Compare: 9 commits ahead / 0 behind main.
-- Exact-head CI: Rust kernel verification #650 / run ID `42578173071`: SUCCESS.
+- Compare: 13 commits ahead / 0 behind main.
+- Exact-head CI: Rust kernel verification #653 / run ID `42578543444`: SUCCESS.
 
 ### Implemented
 
@@ -418,7 +418,7 @@ This resolves **ownership of the authoritative membership domain**: B02 must imp
 - rustfmt: PASS
 - workspace compile (all targets, locked): PASS
 - no-default-features compile: PASS
-- workspace tests: PASS — 77 Kernel tests and 2 conformance tests, zero failures
+- workspace tests: PASS — 78 Kernel tests and 2 conformance tests, zero failures
 - Clippy with warnings denied: PASS
 
 ### Remaining B02 blockers
@@ -431,3 +431,12 @@ This resolves **ownership of the authoritative membership domain**: B02 must imp
 - Independent security review and formal A4 verification are NOT RUN.
 
 PR #28 remains OPEN / DRAFT / UNMERGED. No merge, deployment or production activation is authorized. B02 must not be marked closed until all remaining contracts, integration and A4 gates are satisfied.
+
+
+### 14.1 Atomic Owner-key revocation hardening
+
+A follow-up review found that the pre-existing Owner-key revocation check in `apply_security_command` was outside the transaction that consumed the command ID and applied the membership mutation. The check has now been repeated inside the same `BEGIN IMMEDIATE` transaction. A revoked Owner signing key therefore cannot race a membership update between verification and commit.
+
+- New negative test: a revoked Owner key cannot subsequently change tenant membership.
+- The command replay record, revocation check, membership mutation and security-command ledger row share the same transaction.
+- Exact-head CI #653 includes this test and passed all checks.
