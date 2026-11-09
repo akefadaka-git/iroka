@@ -164,7 +164,7 @@ impl SqliteSecurityStore {
                epoch INTEGER PRIMARY KEY CHECK(epoch > 0), digest BLOB NOT NULL CHECK(length(digest)=32),
                canonical_payload BLOB NOT NULL, signature BLOB NOT NULL,
                owner_subject TEXT NOT NULL, key_id TEXT NOT NULL, policy_version TEXT NOT NULL,
-               issued_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+               issued_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, previous_epoch INTEGER,
                emergency_stop_active INTEGER NOT NULL CHECK(emergency_stop_active IN (0,1)),
                state TEXT NOT NULL CHECK(state IN ('pending','active','superseded','revoked'))
              );
@@ -536,7 +536,7 @@ impl SqliteSecurityStore {
         &self, epoch: u64, digest: &[u8; 32], canonical_payload: &[u8], signature: &[u8],
         owner_subject: &str, key_id: &str, policy_version: &str,
         issued_at: u64, expires_at: u64, emergency_stop_active: bool,
-    ) -> Result<(), SecurityStoreError> {
+    ) -> Result<Option<u64>, SecurityStoreError> {
         if epoch == 0 || canonical_payload.is_empty() || signature.len() != 64
             || owner_subject.trim().is_empty() || key_id.trim().is_empty()
             || policy_version.trim().is_empty() || issued_at >= expires_at
@@ -555,29 +555,34 @@ impl SqliteSecurityStore {
         let highest: i64 = tx.query_row(
             "SELECT highest_epoch FROM policy_lifecycle_state WHERE singleton=1", [], |row| row.get(0),
         ).map_err(|_| SecurityStoreError::Unavailable)?;
+        let previous_epoch: Option<i64> = tx.query_row(
+            "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1", [], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
         if epoch_i < highest { return Err(SecurityStoreError::Rollback); }
         if epoch_i == highest {
-            let existing: (Vec<u8>, String) = tx.query_row(
-                "SELECT digest,state FROM policy_snapshots WHERE epoch=?1", [epoch_i],
-                |row| Ok((row.get(0)?,row.get(1)?)),
+            let existing: (Vec<u8>, String, Option<i64>) = tx.query_row(
+                "SELECT digest,state,previous_epoch FROM policy_snapshots WHERE epoch=?1", [epoch_i],
+                |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
             ).map_err(|_| SecurityStoreError::Unavailable)?;
             if existing.0.as_slice() != digest { return Err(SecurityStoreError::ConflictingVersion); }
             if existing.1 == "revoked" { return Err(SecurityStoreError::Revoked); }
             if existing.1 == "superseded" { return Err(SecurityStoreError::Rollback); }
             tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
-            return Ok(());
+            return existing.2.map(u64::try_from).transpose()
+                .map_err(|_| SecurityStoreError::Unavailable);
         }
         // A higher signed epoch supersedes an abandoned pending proposal.
         tx.execute("UPDATE policy_snapshots SET state='superseded' WHERE state='pending'", [])
             .map_err(|_| SecurityStoreError::Unavailable)?;
         tx.execute(
-            "INSERT INTO policy_snapshots(epoch,digest,canonical_payload,signature,owner_subject,key_id,policy_version,issued_at,expires_at,emergency_stop_active,state) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,'pending')",
-            params![epoch_i,digest.as_slice(),canonical_payload,signature,owner_subject,key_id,policy_version,issued_i,expires_i,i64::from(emergency_stop_active)],
+            "INSERT INTO policy_snapshots(epoch,digest,canonical_payload,signature,owner_subject,key_id,policy_version,issued_at,expires_at,previous_epoch,emergency_stop_active,state) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,'pending')",
+            params![epoch_i,digest.as_slice(),canonical_payload,signature,owner_subject,key_id,policy_version,issued_i,expires_i,previous_epoch,i64::from(emergency_stop_active)],
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         tx.execute(
             "UPDATE policy_lifecycle_state SET highest_epoch=?1 WHERE singleton=1", [epoch_i],
         ).map_err(|_| SecurityStoreError::Unavailable)?;
-        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+        previous_epoch.map(u64::try_from).transpose().map_err(|_| SecurityStoreError::Unavailable)
     }
 
     /// Make a pending snapshot active only after the caller has obtained G11 confirmation.
