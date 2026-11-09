@@ -193,6 +193,16 @@ impl SqliteAuditSink {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn force_append_failure(&self, enabled: bool) -> Result<(), AuditStoreError> {
+        let connection = self.connection.lock().map_err(|_| AuditStoreError::Unavailable)?;
+        if enabled {
+            connection.execute_batch("CREATE TRIGGER IF NOT EXISTS test_reject_audit BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT,'forced audit failure'); END;")
+        } else {
+            connection.execute_batch("DROP TRIGGER IF EXISTS test_reject_audit;")
+        }.map_err(|_| AuditStoreError::Unavailable)
+    }
+
     pub fn verify_integrity(&self) -> Result<(), AuditStoreError> {
         let c = self
             .connection
