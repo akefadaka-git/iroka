@@ -156,6 +156,29 @@ Exact-HEAD workflow #758 passed formatting, compilation, production-feature
 checks, all tests and Clippy: 40 coding tests + 71 kernel tests + 2 integration
 tests = 113 passed, 0 failed.
 
+## C1.4 — Governed file editing, patch review and rollback
+
+**Status: VERIFIED-CLOSED — in-memory governed patch transaction baseline**
+
+The C1.4 acceptance record is
+`docs/coding-intelligence/C1.4-GOVERNED-PATCHING-ACCEPTANCE.md`. It adds
+revision-pinned snapshot review, protected-path policy, strict unified-diff
+application in memory, SHA-256 patch/content binding, canonical G02 signed
+Owner-approval verification, replay protection, a single-use preview approval,
+and exact rollback.
+
+Exact implementation HEAD:
+`594580554f11bf96991c59deb3e021b22931fe89`.
+Exact-HEAD workflow #761 passed formatting, compilation, production-feature
+checks, all tests and Clippy: 50 coding tests + 71 kernel tests + 2 integration
+tests = 123 passed, 0 failed.
+
+**G09 limitation:** persistent filesystem writes are NOT IMPLEMENTED. The
+inspected kernel explicitly states that ALLOW is not an execution grant and
+requires G09 to exchange decision evidence for a short-lived grant. C1.4 does
+not bypass this boundary. C1.5/G09 integration must provide it before a real
+workspace writer or isolated tool execution is enabled.
+
 ## Acceptance gates
 
 Each milestone requires an A1 frozen contract, A2 read-only reconciliation,
