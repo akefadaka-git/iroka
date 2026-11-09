@@ -430,7 +430,7 @@ pub fn transition_allowed(from: LifecycleState, to: LifecycleState) -> bool {
 /// Activation is a privileged lifecycle transition. It is allowed only when
 /// the receipt is bound to this exact record and the trusted governance port
 /// has independently verified its signature and reviewer designation.
-pub fn validate_durable_activation(
+pub fn validate_durable_activation_binding(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
     now: u64,
@@ -439,6 +439,66 @@ pub fn validate_durable_activation(
     if record.lifecycle_state != LifecycleState::PendingReview {
         return Err(G05Error::InvalidLifecycleTransition);
     }
+    Ok(())
+}
+
+
+/// Complete durable activation preflight. This function enforces operation
+/// scope, G02 authorization, record-bound receipt integrity, and delegated
+/// cryptographic/designated-reviewer verification. Persistence and G11
+/// transactional outbox completion remain the repository adapter's duty.
+pub fn authorize_durable_activation<G: GovernancePort>(
+    record: &MemoryRecord,
+    receipt: &DurableApprovalReceipt,
+    request: &AuthorizationRequest,
+    organizational: bool,
+    governance: &G,
+    now: u64,
+) -> Result<(), G05Error> {
+    if request.operation != Operation::ActivateDurable
+        || request.memory_id.as_deref() != Some(record.candidate.memory_id.as_str())
+        || request.tenant_ref != record.candidate.tenant_ref
+        || request.subject_ref != record.candidate.subject_ref
+        || request.purpose != record.candidate.purpose
+        || request.classification != record.candidate.classification
+    {
+        return Err(G05Error::ApprovalBindingMismatch);
+    }
+    validate_durable_activation_binding(record, receipt, now)?;
+    governance.authorize(request)?;
+    governance.verify_durable_approval(receipt, organizational, now)?;
+    Ok(())
+}
+
+/// Verify opt-in through the authoritative consent/governance adapter before
+/// episodic capture. A reference's presence alone is not proof of consent.
+pub fn authorize_episodic_capture<G: GovernancePort>(
+    candidate: &MemoryCandidate,
+    request: &AuthorizationRequest,
+    governance: &G,
+    now: u64,
+) -> Result<(), G05Error> {
+    if candidate.memory_class != MemoryClass::Episodic
+        || request.operation != Operation::CreateEpisodic
+        || request.tenant_ref != candidate.tenant_ref
+        || request.subject_ref != candidate.subject_ref
+        || request.purpose != candidate.purpose
+        || request.classification != candidate.classification
+    {
+        return Err(G05Error::MalformedRecord);
+    }
+    let opt_in_ref = candidate
+        .episodic_opt_in_ref
+        .as_deref()
+        .ok_or(G05Error::EpisodicOptInRequired)?;
+    governance.authorize(request)?;
+    governance.verify_episodic_opt_in(
+        opt_in_ref,
+        &candidate.tenant_ref,
+        &candidate.subject_ref,
+        candidate.purpose,
+        now,
+    )?;
     Ok(())
 }
 
@@ -504,6 +564,36 @@ pub trait MemoryRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct AllowGovernance;
+    impl GovernancePort for AllowGovernance {
+        fn authorize(&self, _request: &AuthorizationRequest) -> Result<(), G05Error> {
+            Ok(())
+        }
+        fn verify_episodic_opt_in(
+            &self, _opt_in_ref: &str, _tenant_ref: &str, _subject_ref: &str,
+            _purpose: Purpose, _now: u64,
+        ) -> Result<(), G05Error> { Ok(()) }
+        fn verify_durable_approval(
+            &self, _receipt: &DurableApprovalReceipt, _organizational: bool, _now: u64,
+        ) -> Result<(), G05Error> { Ok(()) }
+        fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> { Ok(()) }
+    }
+
+    struct DenyGovernance;
+    impl GovernancePort for DenyGovernance {
+        fn authorize(&self, _request: &AuthorizationRequest) -> Result<(), G05Error> {
+            Err(G05Error::AuthorizationDenied)
+        }
+        fn verify_episodic_opt_in(
+            &self, _opt_in_ref: &str, _tenant_ref: &str, _subject_ref: &str,
+            _purpose: Purpose, _now: u64,
+        ) -> Result<(), G05Error> { Ok(()) }
+        fn verify_durable_approval(
+            &self, _receipt: &DurableApprovalReceipt, _organizational: bool, _now: u64,
+        ) -> Result<(), G05Error> { Ok(()) }
+        fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> { Ok(()) }
+    }
 
     fn candidate(class: MemoryClass, classification: Classification) -> MemoryCandidate {
         let content = "synthetic memory".to_owned();
@@ -571,6 +661,19 @@ mod tests {
     fn episodic_memory_requires_explicit_opt_in_reference() {
         let mut item = candidate(MemoryClass::Episodic, Classification::Internal);
         assert_eq!(validate_candidate(&item, 100, &policy()), Ok(()));
+        let request = AuthorizationRequest {
+            operation: Operation::CreateEpisodic,
+            principal_ref: "principal:1".to_owned(),
+            tenant_ref: "tenant:1".to_owned(),
+            subject_ref: "principal:1".to_owned(),
+            purpose: Purpose::TaskContinuity,
+            classification: Classification::Internal,
+            memory_id: Some("memory:1".to_owned()),
+            recipient_refs: vec![],
+            correlation_ref: "trace:1".to_owned(),
+        };
+        assert_eq!(authorize_episodic_capture(&item, &request, &AllowGovernance, 110), Ok(()));
+        assert_eq!(authorize_episodic_capture(&item, &request, &DenyGovernance, 110), Err(G05Error::AuthorizationDenied));
         item.episodic_opt_in_ref = None;
         assert_eq!(
             validate_candidate(&item, 100, &policy()),
@@ -610,7 +713,25 @@ mod tests {
             proof_ref: "proof:1".to_owned(),
         };
         assert_eq!(validate_approval_binding(&record, &receipt, 110), Ok(()));
-        assert_eq!(validate_durable_activation(&record, &receipt, 110), Ok(()));
+        let request = AuthorizationRequest {
+            operation: Operation::ActivateDurable,
+            principal_ref: "reviewer:1".to_owned(),
+            tenant_ref: "tenant:1".to_owned(),
+            subject_ref: "principal:1".to_owned(),
+            purpose: Purpose::TaskContinuity,
+            classification: Classification::Internal,
+            memory_id: Some("memory:1".to_owned()),
+            recipient_refs: vec![],
+            correlation_ref: "trace:1".to_owned(),
+        };
+        assert_eq!(
+            authorize_durable_activation(&record, &receipt, &request, false, &AllowGovernance, 110),
+            Ok(())
+        );
+        assert_eq!(
+            authorize_durable_activation(&record, &receipt, &request, false, &DenyGovernance, 110),
+            Err(G05Error::AuthorizationDenied)
+        );
         let mut tampered = receipt.clone();
         tampered.content_sha256 = "0".repeat(64);
         assert_eq!(
