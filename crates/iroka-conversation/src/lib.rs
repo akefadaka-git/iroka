@@ -99,6 +99,22 @@ pub trait AnswerGenerator: Send + Sync {
         locale: Locale,
         cancel: &Cancellation,
     ) -> Result<String, ConversationError>;
+
+    /// Emit bounded UTF-8 chunks while generation is active. Provider adapters
+    /// must override this method to expose their native incremental stream.
+    fn stream(
+        &self,
+        prompt: &str,
+        locale: Locale,
+        cancel: &Cancellation,
+        emit: &mut dyn FnMut(&str) -> Result<(), ConversationError>,
+    ) -> Result<String, ConversationError> {
+        let answer = self.answer(prompt, locale, cancel)?;
+        if !answer.is_empty() {
+            emit(&answer)?;
+        }
+        Ok(answer)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -515,6 +531,26 @@ impl ConversationStore {
         Ok(due.len())
     }
 
+    fn append_assistant_chunk(&self, id: &str, chunk: &str) -> Result<(), ConversationError> {
+        if chunk.is_empty() {
+            return Ok(());
+        }
+        let db = self
+            .db
+            .lock()
+            .map_err(|_| ConversationError::StorageUnavailable)?;
+        let changed = db
+            .execute(
+                "UPDATE turns SET content=content || ?2 WHERE id=?1 AND role='assistant' AND state='generating'",
+                params![id, chunk],
+            )
+            .map_err(|_| ConversationError::StorageUnavailable)?;
+        if changed == 0 {
+            return Err(ConversationError::Conflict);
+        }
+        Ok(())
+    }
+
     fn finish_turn(
         &self,
         id: &str,
@@ -725,6 +761,41 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         now: u64,
         cancel: &Cancellation,
     ) -> Result<Vec<StreamEvent>, ConversationError> {
+        let mut events = Vec::new();
+        self.submit_streaming(
+            principal,
+            session,
+            conversation_id,
+            turn_id,
+            idempotency,
+            prompt,
+            locale,
+            correlation,
+            now,
+            cancel,
+            &mut |event| {
+                events.push(event);
+                Ok(())
+            },
+        )?;
+        Ok(events)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn submit_streaming(
+        &self,
+        principal: &VerifiedPrincipal,
+        session: &str,
+        conversation_id: &str,
+        turn_id: &str,
+        idempotency: &str,
+        prompt: &str,
+        locale: Option<&str>,
+        correlation: &str,
+        now: u64,
+        cancel: &Cancellation,
+        emit_event: &mut dyn FnMut(StreamEvent) -> Result<(), ConversationError>,
+    ) -> Result<(), ConversationError> {
         if prompt.trim().is_empty()
             || turn_id.trim().is_empty()
             || idempotency.trim().is_empty()
@@ -778,16 +849,45 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             &format!("{idempotency}:assistant"),
             now,
         )?;
-        let mut events = vec![StreamEvent::Accepted {
+        emit_event(StreamEvent::Accepted {
             turn_id: turn_id.into(),
             sequence: user_seq,
-        }];
-        let answer = match self.generator.answer(
+        })?;
+
+        let mut answer = String::new();
+        let stream_result = self.generator.stream(
             prompt,
             Locale::parse(locale.or(Some(c.locale.as_str()))),
             cancel,
-        ) {
-            Ok(answer) if !cancel.is_cancelled() => answer,
+            &mut |chunk| {
+                if cancel.is_cancelled() {
+                    return Err(ConversationError::Cancelled);
+                }
+                // Recheck the mutable tenant/session/revocation context before
+                // accepting each generated chunk, not only at final commit.
+                let current_tenant = self.context(principal, session, now)?;
+                if current_tenant != tenant {
+                    return Err(ConversationError::SessionInvalid);
+                }
+                self.authorization.authorize(
+                    principal,
+                    Operation::SubmitTurn,
+                    &turn_resource,
+                    correlation,
+                    now,
+                )?;
+                self.store.append_assistant_chunk(&assistant_id, chunk)?;
+                answer.push_str(chunk);
+                emit_event(StreamEvent::Delta {
+                    turn_id: assistant_id.clone(),
+                    sequence: assistant_seq,
+                    text: chunk.to_owned(),
+                })
+            },
+        );
+
+        match stream_result {
+            Ok(_) if !cancel.is_cancelled() => {}
             Ok(_) | Err(ConversationError::Cancelled) => {
                 self.store.finish_turn(&assistant_id, "cancelled", None)?;
                 self.store.record_event(
@@ -799,11 +899,11 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
                     correlation,
                     now,
                 )?;
-                events.push(StreamEvent::Cancelled {
+                emit_event(StreamEvent::Cancelled {
                     turn_id: assistant_id,
                     sequence: assistant_seq,
-                });
-                return Ok(events);
+                })?;
+                return Ok(());
             }
             Err(_) => {
                 self.store.finish_turn(&assistant_id, "failed", None)?;
@@ -816,22 +916,22 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
                     correlation,
                     now,
                 )?;
-                events.push(StreamEvent::Failed {
+                emit_event(StreamEvent::Failed {
                     turn_id: assistant_id,
                     sequence: assistant_seq,
-                });
-                return Ok(events);
+                })?;
+                return Ok(());
             }
-        };
-        // Revalidate all mutable authorization context immediately before commit.
+        }
+
         let tenant_again = self.context(principal, session, now)?;
         if tenant_again != tenant || cancel.is_cancelled() {
             self.store.finish_turn(&assistant_id, "cancelled", None)?;
-            events.push(StreamEvent::Cancelled {
+            emit_event(StreamEvent::Cancelled {
                 turn_id: assistant_id,
                 sequence: assistant_seq,
-            });
-            return Ok(events);
+            })?;
+            return Ok(());
         }
         self.authorization.authorize(
             principal,
@@ -852,11 +952,11 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
                 correlation,
                 now,
             )?;
-            events.push(StreamEvent::Failed {
+            emit_event(StreamEvent::Failed {
                 turn_id: assistant_id,
                 sequence: assistant_seq,
-            });
-            return Ok(events);
+            })?;
+            return Ok(());
         }
         self.store
             .finish_turn(&assistant_id, "completed", Some(&answer))?;
@@ -869,16 +969,10 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             correlation,
             now,
         )?;
-        events.push(StreamEvent::Delta {
-            turn_id: assistant_id.clone(),
-            sequence: assistant_seq,
-            text: answer,
-        });
-        events.push(StreamEvent::Completed {
+        emit_event(StreamEvent::Completed {
             turn_id: assistant_id,
             sequence: assistant_seq,
-        });
-        Ok(events)
+        })
     }
     pub fn delete_conversation(
         &self,
@@ -968,6 +1062,34 @@ impl AnswerGenerator for SyntheticAnswerGenerator {
                 format!("This is a synthetic test response. Received text: {normalized}")
             }
         })
+    }
+
+    fn stream(
+        &self,
+        prompt: &str,
+        locale: Locale,
+        cancel: &Cancellation,
+        emit: &mut dyn FnMut(&str) -> Result<(), ConversationError>,
+    ) -> Result<String, ConversationError> {
+        let answer = self.answer(prompt, locale, cancel)?;
+        let mut pending = String::new();
+        for word in answer.split_inclusive(char::is_whitespace) {
+            if cancel.is_cancelled() {
+                return Err(ConversationError::Cancelled);
+            }
+            pending.push_str(word);
+            if pending.chars().count() >= 48 {
+                emit(&pending)?;
+                pending.clear();
+            }
+        }
+        if !pending.is_empty() {
+            if cancel.is_cancelled() {
+                return Err(ConversationError::Cancelled);
+            }
+            emit(&pending)?;
+        }
+        Ok(answer)
     }
 }
 
