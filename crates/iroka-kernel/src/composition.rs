@@ -85,7 +85,11 @@ pub fn authorize_compact_in_tenant<R: RevocationChecker, S: AuditSink>(
     event_id: &str,
     correlation_id: &str,
 ) -> Decision {
-    let principal = match credential_verifier.authenticate(compact_credential, expected_audience, now) {
+    let principal = match credential_verifier.authenticate(
+        compact_credential,
+        expected_audience,
+        now,
+    ) {
         Ok(principal) => principal,
         Err(error) => {
             let reason = match error {
@@ -95,7 +99,15 @@ pub fn authorize_compact_in_tenant<R: RevocationChecker, S: AuditSink>(
                 _ => DecisionReason::IdentityVerificationFailed,
             };
             let decision = Decision::new(DecisionCode::Deny, reason, "unavailable");
-            return audit_unresolved(audit_sink, request, "unavailable", decision, now, event_id, correlation_id);
+            return audit_unresolved(
+                audit_sink,
+                request,
+                "unavailable",
+                decision,
+                now,
+                event_id,
+                correlation_id,
+            );
         }
     };
 
@@ -113,16 +125,22 @@ pub fn authorize_compact_in_tenant<R: RevocationChecker, S: AuditSink>(
         Ok(context) => context,
         Err(error) => {
             let (code, reason) = match error {
-                crate::TenantResolutionError::Malformed =>
-                    (DecisionCode::Deny, DecisionReason::TenantSelectorMalformed),
-                crate::TenantResolutionError::MembershipMissing =>
-                    (DecisionCode::Deny, DecisionReason::TenantMembershipMissing),
-                crate::TenantResolutionError::MembershipInactive =>
-                    (DecisionCode::Deny, DecisionReason::TenantMembershipInactive),
-                crate::TenantResolutionError::MembershipStale =>
-                    (DecisionCode::Deny, DecisionReason::TenantMembershipStale),
-                crate::TenantResolutionError::StoreUnavailable =>
-                    (DecisionCode::Escalate, DecisionReason::TenantAuthorityUnavailable),
+                crate::TenantResolutionError::Malformed => {
+                    (DecisionCode::Deny, DecisionReason::TenantSelectorMalformed)
+                }
+                crate::TenantResolutionError::MembershipMissing => {
+                    (DecisionCode::Deny, DecisionReason::TenantMembershipMissing)
+                }
+                crate::TenantResolutionError::MembershipInactive => {
+                    (DecisionCode::Deny, DecisionReason::TenantMembershipInactive)
+                }
+                crate::TenantResolutionError::MembershipStale => {
+                    (DecisionCode::Deny, DecisionReason::TenantMembershipStale)
+                }
+                crate::TenantResolutionError::StoreUnavailable => (
+                    DecisionCode::Escalate,
+                    DecisionReason::TenantAuthorityUnavailable,
+                ),
             };
             let decision = Decision::new(code, reason, "unavailable");
             return audit_unresolved(audit_sink, request, "unavailable", decision, now, event_id, correlation_id);
@@ -211,8 +229,14 @@ mod tests {
             correlation_id: "trace:request-1",
         };
         let event = AuditEvent::new(
-            "event:1", "trace:inner", "principal:alice", "workspace.read",
-            "workspace:1", "policy-global-v1", DecisionCode::Allow, 1_800,
+            "event:1",
+            "trace:inner",
+            "principal:alice",
+            "workspace.read",
+            "workspace:1",
+            "policy-global-v1",
+            DecisionCode::Allow,
+            1_800,
         );
         sink.append(&event).unwrap();
         let stored = capture.0.lock().unwrap().clone().unwrap();
@@ -227,14 +251,24 @@ mod tests {
     #[test]
     fn unresolved_tenant_audit_failure_escalates() {
         let request = AuthorizationRequest::new(
-            "principal:alice", "workspace.read", "workspace:1", crate::RiskLevel::Low,
+            "principal:alice",
+            "workspace.read",
+            "workspace:1",
+            crate::RiskLevel::Low,
         );
         let decision = Decision::new(
-            DecisionCode::Deny, DecisionReason::TenantMembershipMissing, "unavailable",
+            DecisionCode::Deny,
+            DecisionReason::TenantMembershipMissing,
+            "unavailable",
         );
         let result = audit_unresolved(
-            &RejectAudit, &request, "unavailable", decision, 1_800,
-            "event:missing-tenant", "trace:missing-tenant",
+            &RejectAudit,
+            &request,
+            "unavailable",
+            decision,
+            1_800,
+            "event:missing-tenant",
+            "trace:missing-tenant",
         );
         assert_eq!(result.code(), DecisionCode::Escalate);
         assert_eq!(result.reason(), DecisionReason::AuditUnavailable);
