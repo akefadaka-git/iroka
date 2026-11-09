@@ -217,6 +217,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "iroka-coding"
+version = "0.1.0"
+
+[[package]]
 name = "iroka-kernel"
 version = "0.1.0"
 dependencies = [
