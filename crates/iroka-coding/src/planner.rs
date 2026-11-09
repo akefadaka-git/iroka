@@ -356,8 +356,8 @@ fn has_dependency_cycle(steps: &[PlanStep]) -> bool {
     for step in steps {
         for dependency in &step.depends_on {
             *indegree
-                .get_mut(dependency.as_str())
-                .expect("dependency checked") += 1;
+                .get_mut(step.id.as_str())
+                .expect("step indexed") += 1;
             children
                 .entry(dependency.as_str())
                 .or_default()
