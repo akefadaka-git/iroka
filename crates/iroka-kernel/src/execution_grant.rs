@@ -5,6 +5,7 @@
 //! permission tokens; it does not execute commands.
 
 use std::fmt;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use getrandom::getrandom;
 use sha2::{Digest, Sha256};
@@ -175,6 +176,15 @@ impl<'a> ExecutionGrantIssuer<'a> {
         &self,
         evidence: GovernedDecisionEvidence,
         scope: ExecutionGrantScope,
+        ttl_seconds: u64,
+    ) -> Result<ExecutionGrant, ExecutionGrantError> {
+        self.issue_at(evidence, scope, unix_now()?, ttl_seconds)
+    }
+
+    fn issue_at(
+        &self,
+        evidence: GovernedDecisionEvidence,
+        scope: ExecutionGrantScope,
         now: u64,
         ttl_seconds: u64,
     ) -> Result<ExecutionGrant, ExecutionGrantError> {
@@ -250,6 +260,7 @@ pub enum ExecutionGrantError {
     Revoked,
     StoreUnavailable,
     RandomnessUnavailable,
+    ClockUnavailable,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -303,6 +314,14 @@ impl<'a> ExecutionGrantVerifier<'a> {
         &self,
         grant: &ExecutionGrant,
         expected_scope: &ExecutionGrantScope,
+    ) -> Result<ConsumedExecutionGrant, ExecutionGrantError> {
+        self.consume_at(grant, expected_scope, unix_now()?)
+    }
+
+    fn consume_at(
+        &self,
+        grant: &ExecutionGrant,
+        expected_scope: &ExecutionGrantScope,
         now: u64,
     ) -> Result<ConsumedExecutionGrant, ExecutionGrantError> {
         if &grant.scope != expected_scope {
@@ -339,7 +358,11 @@ impl<'a> ExecutionGrantVerifier<'a> {
         })
     }
 
-    pub fn revoke(
+    pub fn revoke(&self, grant: &ExecutionGrant) -> Result<(), ExecutionGrantError> {
+        self.revoke_at(grant, unix_now()?)
+    }
+
+    fn revoke_at(
         &self,
         grant: &ExecutionGrant,
         now: u64,
@@ -351,6 +374,13 @@ impl<'a> ExecutionGrantVerifier<'a> {
             .revoke_execution_grant(&grant.grant_id, now)
             .map_err(map_store_error)
     }
+}
+
+fn unix_now() -> Result<u64, ExecutionGrantError> {
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| ExecutionGrantError::ClockUnavailable)?;
+    Ok(duration.as_secs())
 }
 
 fn map_store_error(error: ExecutionGrantStoreError) -> ExecutionGrantError {
@@ -581,16 +611,16 @@ mod tests {
     fn issues_and_consumes_exact_scope_once() {
         let (store, scope, evidence) = approved_evidence();
         let issuer = ExecutionGrantIssuer::new(&store);
-        let grant = issuer.issue(evidence, scope.clone(), 1_200, 30).expect("G09 grant");
+        let grant = issuer.issue_at(evidence, scope.clone(), 1_200, 30).expect("G09 grant");
         assert_eq!(grant.expires_at(), 1_230);
         assert_eq!(grant.scope(), &scope);
 
         let consumer = ExecutionGrantVerifier::new(&store);
-        let consumed = consumer.consume(&grant, &scope, 1_201).expect("consume grant");
+        let consumed = consumer.consume_at(&grant, &scope, 1_201).expect("consume grant");
         assert_eq!(consumed.scope(), &scope);
         assert_eq!(consumed.consumed_at(), 1_201);
         assert_eq!(
-            consumer.consume(&grant, &scope, 1_202),
+            consumer.consume_at(&grant, &scope, 1_202),
             Err(ExecutionGrantError::Replay)
         );
     }
@@ -599,7 +629,7 @@ mod tests {
     fn rejects_scope_mismatch_and_expired_grants() {
         let (store, scope, evidence) = approved_evidence();
         let issuer = ExecutionGrantIssuer::new(&store);
-        let grant = issuer.issue(evidence, scope.clone(), 1_200, 30).expect("G09 grant");
+        let grant = issuer.issue_at(evidence, scope.clone(), 1_200, 30).expect("G09 grant");
         let wrong_scope = ExecutionGrantScope::new(
             scope.subject(),
             scope.capability(),
@@ -612,16 +642,16 @@ mod tests {
         .expect("alternate scope");
         let verifier = ExecutionGrantVerifier::new(&store);
         assert_eq!(
-            verifier.consume(&grant, &wrong_scope, 1_201),
+            verifier.consume_at(&grant, &wrong_scope, 1_201),
             Err(ExecutionGrantError::ScopeMismatch)
         );
 
         let (store, scope, evidence) = approved_evidence();
         let grant = ExecutionGrantIssuer::new(&store)
-            .issue(evidence, scope.clone(), 1_200, 1)
+            .issue_at(evidence, scope.clone(), 1_200, 1)
             .expect("short grant");
         assert_eq!(
-            ExecutionGrantVerifier::new(&store).consume(&grant, &scope, 1_202),
+            ExecutionGrantVerifier::new(&store).consume_at(&grant, &scope, 1_202),
             Err(ExecutionGrantError::Expired)
         );
     }
@@ -631,13 +661,13 @@ mod tests {
         let (store, scope, evidence) = approved_evidence();
         let issuer = ExecutionGrantIssuer::new(&store);
         assert!(matches!(
-            issuer.issue(evidence, scope.clone(), 1_231, 10),
+            issuer.issue_at(evidence, scope.clone(), 1_231, 10),
             Err(ExecutionGrantError::EvidenceStale)
         ));
 
         let (store, scope, evidence) = approved_evidence();
         assert!(matches!(
-            ExecutionGrantIssuer::new(&store).issue(evidence, scope, 1_200, 61),
+            ExecutionGrantIssuer::new(&store).issue_at(evidence, scope, 1_200, 61),
             Err(ExecutionGrantError::InvalidTtl)
         ));
     }
@@ -646,12 +676,12 @@ mod tests {
     fn revocation_blocks_unconsumed_grant() {
         let (store, scope, evidence) = approved_evidence();
         let grant = ExecutionGrantIssuer::new(&store)
-            .issue(evidence, scope.clone(), 1_200, 30)
+            .issue_at(evidence, scope.clone(), 1_200, 30)
             .expect("G09 grant");
         let verifier = ExecutionGrantVerifier::new(&store);
-        verifier.revoke(&grant, 1_201).expect("revoke grant");
+        verifier.revoke_at(&grant, 1_201).expect("revoke grant");
         assert_eq!(
-            verifier.consume(&grant, &scope, 1_202),
+            verifier.consume_at(&grant, &scope, 1_202),
             Err(ExecutionGrantError::Revoked)
         );
     }
