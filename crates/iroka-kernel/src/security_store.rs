@@ -11,14 +11,7 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 use crate::identity_crypto::{RevocationChecker, RevocationError};
 
-type ExecutionGrantRow = (
-    Vec<u8>,
-    Vec<u8>,
-    i64,
-    i64,
-    Option<i64>,
-    Option<i64>,
-);
+type ExecutionGrantRow = (Vec<u8>, Vec<u8>, i64, i64, Option<i64>, Option<i64>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecurityStoreError {
@@ -702,7 +695,6 @@ impl SqliteSecurityStore {
             Err(ExecutionGrantStoreError::Invalid)
         }
     }
-
 }
 
 impl RevocationChecker for SqliteSecurityStore {
