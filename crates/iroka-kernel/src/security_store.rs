@@ -704,6 +704,11 @@ impl SqliteSecurityStore {
             "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1", [], |row| row.get(0),
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         let Some(epoch) = epoch else { return Ok(None); };
+        let pending_revocation: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM policy_revocations WHERE policy_epoch=?1 AND state='pending')",
+            [epoch], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if pending_revocation { return Ok(None); }
         let (payload_bytes, signature): (Vec<u8>, Vec<u8>) = connection.query_row(
             "SELECT canonical_payload,signature FROM policy_snapshots WHERE epoch=?1 AND state='active'", [epoch],
             |row| Ok((row.get(0)?,row.get(1)?)),
