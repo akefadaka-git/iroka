@@ -1,0 +1,53 @@
+name: Temporary Rust formatting export
+
+on:
+  push:
+    branches: [feat/ciw-amharic-answer-only-chat]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt && rustup default stable
+      - name: Format and export exact source
+        run: |
+          cargo fmt --all
+          echo FILE_0_BEGIN
+          base64 -w0 crates/iroka-conversation/src/http.rs
+          echo
+          echo FILE_0_END
+          echo FILE_1_BEGIN
+          base64 -w0 crates/iroka-conversation/src/lib.rs
+          echo
+          echo FILE_1_END
+          echo FILE_2_BEGIN
+          base64 -w0 crates/iroka-conversation/src/tenant_session.rs
+          echo
+          echo FILE_2_END
+          echo FILE_3_BEGIN
+          base64 -w0 crates/iroka-conversation/src/kernel_adapter.rs
+          echo
+          echo FILE_3_END
+          echo FILE_4_BEGIN
+          base64 -w0 crates/iroka-kernel/src/identity.rs
+          echo
+          echo FILE_4_END
+          echo FILE_5_BEGIN
+          base64 -w0 crates/iroka-kernel/src/identity_crypto.rs
+          echo
+          echo FILE_5_END
+          echo FILE_6_BEGIN
+          base64 -w0 crates/iroka-kernel/src/security_store.rs
+          echo
+          echo FILE_6_END
+          echo FILE_7_BEGIN
+          base64 -w0 crates/iroka-kernel/src/lib.rs
+          echo
+          echo FILE_7_END
