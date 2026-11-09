@@ -239,9 +239,6 @@ impl SqliteSessionRegistry {
         expires_at: u64,
         revocation_version: u64,
     ) -> Result<(), ConversationError> {
-        if issued_at < credential_issued_at || expires_at > credential_expires_at {
-            return Err(ConversationError::InvalidInput);
-        }
         if [session_id, subject, tenant, credential_id]
             .iter()
             .any(|v| v.trim().is_empty())
@@ -284,6 +281,9 @@ impl SqliteSessionRegistry {
         issued_at: u64,
         expires_at: u64,
     ) -> Result<(), ConversationError> {
+        if issued_at < principal.issued_at() || expires_at > principal.expires_at() {
+            return Err(ConversationError::InvalidInput);
+        }
         self.register_fields(
             session_id,
             principal.subject(),
