@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation, feat/brain-a3-b02-signed-policy-lifecycle]
+    branches: [feat/igacms-a3-implementation, feat/brain-a3-b02-signed-policy-lifecycle, verify/g05-latest-head-ci]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -10,7 +10,7 @@ on:
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base]
+    branches: [main, architecture/igacms-a2-ci-base, feat/brain-a3-b04-g05-memory-core]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -46,7 +46,6 @@ jobs:
           rustup default stable
           rustc --version
           cargo --version
-
 
       - name: Check formatting
         run: cargo fmt --all -- --check
