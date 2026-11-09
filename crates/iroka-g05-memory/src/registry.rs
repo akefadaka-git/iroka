@@ -248,7 +248,7 @@ impl SqliteG05AuthorityRegistry {
         if n!=1{return Err(G05Error::ApprovalReplay);}
         enqueue_authority_event(&tx,"memory.reviewer.approval_consumed",&receipt.approval_ref,
             &receipt.tenant_ref,&receipt.reviewer_ref,Purpose::OrganizationalContext,
-            designation.version,"consumed",&receipt.approval_ref,now)?;
+            d.version,"consumed",&receipt.approval_ref,now)?;
         tx.commit().map_err(|_|G05Error::AuthorityUnavailable)
     }
 
