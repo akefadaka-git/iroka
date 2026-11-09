@@ -309,7 +309,9 @@ fn now() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
-fn live_clock() -> u64 { now() }
+fn live_clock() -> u64 {
+    now()
+}
 fn correlation() -> String {
     format!(
         "http-{}-{}",
@@ -385,7 +387,13 @@ fn read_request(stream: &mut TcpStream) -> Result<Request, HttpError> {
         || header(&headers, "host").is_none()
         || ["host", "content-length", "cookie", "origin"]
             .iter()
-            .any(|name| headers.iter().filter(|(key, _)| key.eq_ignore_ascii_case(name)).count() > 1)
+            .any(|name| {
+                headers
+                    .iter()
+                    .filter(|(key, _)| key.eq_ignore_ascii_case(name))
+                    .count()
+                    > 1
+            })
     {
         return Err(HttpError::BadRequest);
     }
@@ -491,7 +499,9 @@ where
     G: AnswerGenerator + 'static,
     R: RevocationChecker + 'static,
 {
-    stream.set_write_timeout(Some(std::time::Duration::from_secs(30))).ok();
+    stream
+        .set_write_timeout(Some(std::time::Duration::from_secs(30)))
+        .ok();
     let request = match read_request(&mut stream) {
         Ok(r) => r,
         Err(e) => return fail(&mut stream, e),
@@ -948,7 +958,10 @@ mod tests {
     #[test]
     fn cookie_parser_rejects_duplicate_security_cookie_names() {
         assert_eq!(
-            cookie_value("__Host-iroka_session=first; __Host-iroka_session=second", "__Host-iroka_session"),
+            cookie_value(
+                "__Host-iroka_session=first; __Host-iroka_session=second",
+                "__Host-iroka_session"
+            ),
             None
         );
     }
@@ -968,6 +981,9 @@ mod tests {
         assert_eq!(enforce_same_origin(&request), Ok(()));
         let mut cross_origin = request;
         cross_origin.headers[1].1 = "https://evil.example".into();
-        assert_eq!(enforce_same_origin(&cross_origin), Err(HttpError::Forbidden));
+        assert_eq!(
+            enforce_same_origin(&cross_origin),
+            Err(HttpError::Forbidden)
+        );
     }
 }
