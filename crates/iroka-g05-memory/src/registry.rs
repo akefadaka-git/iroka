@@ -70,7 +70,6 @@ impl SqliteG05AuthorityRegistry {
             subject_ref: actor.subject().into(), purpose, classification: Classification::Internal,
             memory_id: None, recipient_refs: Vec::new(), correlation_ref: action_ref.into() };
         g02.authorize_g05(&req)?;
-        g02.authorize_organization_scope(&req, organization_ref)?;
         let mut c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
         tx.execute("INSERT INTO g05_episodic_consents
@@ -97,7 +96,6 @@ impl SqliteG05AuthorityRegistry {
             classification:Classification::Internal,memory_id:None,recipient_refs:Vec::new(),
             correlation_ref:action_ref.into()};
         g02.authorize_g05(&req)?;
-        g02.authorize_organization_scope(&req, organization_ref)?;
         let mut c=self.connection.lock().map_err(|_|G05Error::AuthorityUnavailable)?;
         let tx=c.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_|G05Error::AuthorityUnavailable)?;
         let purpose_text:String=tx.query_row("SELECT purpose FROM g05_episodic_consents
