@@ -1009,7 +1009,8 @@ mod tests {
     #[test]
     fn generation_hub_publishes_terminal_state_and_propagates_cancel() {
         let hub = GenerationHub::default();
-        let state = hub.insert("turn-1", 10).unwrap();
+        let (state, created) = hub.insert("turn-1", 10).unwrap();
+        assert!(created);
         state
             .publish(StreamEvent::Accepted {
                 turn_id: "turn-1".into(),
