@@ -8,7 +8,7 @@ use iroka_kernel::RevocationChecker;
 
 const MAX_MEMBERSHIP_AGE: u64 = 300;
 const MAX_SESSION_TTL: u64 = 1_800;
-type SessionRow = (String, String, String, String, u64, u64, u64, bool);
+type SessionRow = (String, String, String, String, String, u64, u64, u64, bool);
 
 pub struct SqliteTenantDirectory {
     db: Mutex<Connection>,
@@ -23,6 +23,7 @@ impl SqliteTenantDirectory {
           PRIMARY KEY(subject,tenant_id));",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
+        ensure_session_key_column(&db)?;
         Ok(Self { db: Mutex::new(db) })
     }
     pub fn open_in_memory() -> Result<Self, ConversationError> {
@@ -110,6 +111,7 @@ pub trait CredentialStatus: Send + Sync {
         &self,
         issuer: &str,
         credential_id: &str,
+        key_id: &str,
         revocation_version: u64,
         now: u64,
     ) -> Result<(), ConversationError>;
@@ -128,17 +130,44 @@ impl<R: RevocationChecker> CredentialStatus for KernelCredentialStatus<R> {
         &self,
         issuer: &str,
         credential_id: &str,
+        key_id: &str,
         revocation_version: u64,
         _now: u64,
     ) -> Result<(), ConversationError> {
         if issuer.trim().is_empty() || credential_id.trim().is_empty() || revocation_version == 0 {
             return Err(ConversationError::SessionInvalid);
         }
-        match self.checker.credential_revoked(issuer, credential_id) {
-            Ok(false) => Ok(()),
-            Ok(true) | Err(_) => Err(ConversationError::SessionInvalid),
+        let key_revoked = self.checker.key_revoked(issuer, key_id)
+            .map_err(|_| ConversationError::SessionInvalid)?;
+        let credential_revoked = self.checker.credential_revoked(issuer, credential_id)
+            .map_err(|_| ConversationError::SessionInvalid)?;
+        let current_version = self.checker.current_version(issuer)
+            .map_err(|_| ConversationError::SessionInvalid)?;
+        if key_revoked || credential_revoked || current_version == 0 || current_version != revocation_version {
+            return Err(ConversationError::SessionInvalid);
+        }
+        Ok(())
+    }
+}
+
+fn ensure_session_key_column(db: &Connection) -> Result<(), ConversationError> {
+    let mut statement = db.prepare("PRAGMA table_info(app_sessions)")
+        .map_err(|_| ConversationError::StorageUnavailable)?;
+    let columns = statement.query_map([], |row| row.get::<_, String>(1))
+        .map_err(|_| ConversationError::StorageUnavailable)?;
+    let mut found = false;
+    for column in columns {
+        if column.map_err(|_| ConversationError::StorageUnavailable)? == "key_id" {
+            found = true;
+            break;
         }
     }
+    drop(statement);
+    if !found {
+        db.execute_batch("ALTER TABLE app_sessions ADD COLUMN key_id TEXT NOT NULL DEFAULT ''")
+            .map_err(|_| ConversationError::StorageUnavailable)?;
+    }
+    Ok(())
 }
 
 pub struct SqliteSessionRegistry {
@@ -154,7 +183,7 @@ impl SqliteSessionRegistry {
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS app_sessions(
           session_id TEXT PRIMARY KEY NOT NULL,subject TEXT NOT NULL,tenant_id TEXT NOT NULL,
-          issuer TEXT NOT NULL,credential_id TEXT NOT NULL,issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
+          issuer TEXT NOT NULL,credential_id TEXT NOT NULL,key_id TEXT NOT NULL DEFAULT '',issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
@@ -189,6 +218,7 @@ impl SqliteSessionRegistry {
         tenant: &str,
         issuer: &str,
         credential_id: &str,
+        key_id: &str,
         issued_at: u64,
         expires_at: u64,
         revocation_version: u64,
@@ -196,6 +226,7 @@ impl SqliteSessionRegistry {
         if [session_id, subject, tenant, credential_id]
             .iter()
             .any(|v| v.trim().is_empty())
+            || key_id.trim().is_empty()
             || expires_at <= issued_at
             || expires_at - issued_at > MAX_SESSION_TTL
             || revocation_version == 0
@@ -207,14 +238,15 @@ impl SqliteSessionRegistry {
             .lock()
             .map_err(|_| ConversationError::StorageUnavailable)?;
         db.execute(
-            "INSERT INTO app_sessions(session_id,subject,tenant_id,issuer,credential_id,
-          issued_at,expires_at,revocation_version,revoked) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,0)",
+            "INSERT INTO app_sessions(session_id,subject,tenant_id,issuer,credential_id,key_id,
+          issued_at,expires_at,revocation_version,revoked) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,0)",
             params![
                 session_id,
                 subject,
                 tenant,
                 issuer,
                 credential_id,
+                key_id,
                 issued_at as i64,
                 expires_at as i64,
                 revocation_version as i64
@@ -246,6 +278,8 @@ impl SessionGuard for SqliteSessionRegistry {
         subject: &str,
         issuer: &str,
         credential_id: &str,
+        key_id: &str,
+        revocation_version: u64,
         tenant: &str,
         session_id: &str,
         now: u64,
@@ -256,7 +290,7 @@ impl SessionGuard for SqliteSessionRegistry {
             .map_err(|_| ConversationError::SessionInvalid)?;
         let row: Option<SessionRow> = db
             .query_row(
-                "SELECT subject,tenant_id,issuer,credential_id,issued_at,expires_at,revocation_version,revoked
+                "SELECT subject,tenant_id,issuer,credential_id,key_id,issued_at,expires_at,revocation_version,revoked
                  FROM app_sessions WHERE session_id=?1",
                 params![session_id],
                 |r| Ok((
@@ -264,10 +298,11 @@ impl SessionGuard for SqliteSessionRegistry {
                     r.get(1)?,
                     r.get(2)?,
                     r.get(3)?,
-                    r.get::<_, i64>(4)? as u64,
+                    r.get(4)?,
                     r.get::<_, i64>(5)? as u64,
                     r.get::<_, i64>(6)? as u64,
-                    r.get::<_, i64>(7)? != 0,
+                    r.get::<_, i64>(7)? as u64,
+                    r.get::<_, i64>(8)? != 0,
                 )),
             )
             .optional()
@@ -278,6 +313,7 @@ impl SessionGuard for SqliteSessionRegistry {
             stored_tenant,
             stored_issuer,
             stored_credential,
+            stored_key_id,
             issued,
             expires,
             version,
@@ -290,6 +326,8 @@ impl SessionGuard for SqliteSessionRegistry {
             || stored_tenant != tenant
             || stored_issuer != issuer
             || stored_credential != credential_id
+            || stored_key_id != key_id
+            || version != revocation_version
             || revoked
             || expires <= issued
             || now < issued
@@ -299,7 +337,7 @@ impl SessionGuard for SqliteSessionRegistry {
             return Err(ConversationError::SessionInvalid);
         }
         self.credential_status
-            .ensure_active(issuer, credential_id, version, now)
+            .ensure_active(issuer, key_id, credential_id, version, now)
     }
 }
 
@@ -314,7 +352,7 @@ impl CredentialStatus for AllowTestCredential {
         revocation_version: u64,
         _now: u64,
     ) -> Result<(), ConversationError> {
-        if issuer == "issuer:1" && credential_id == "cred:1" && revocation_version == 1 {
+        if issuer == "issuer:1" && credential_id == "cred:1" && key_id == "key:1" && revocation_version == 1 {
             Ok(())
         } else {
             Err(ConversationError::SessionInvalid)
@@ -358,6 +396,7 @@ mod tests {
                 "tenant:a",
                 "issuer:1",
                 "cred:1",
+                "key:1",
                 100,
                 1_900,
                 1
@@ -365,11 +404,11 @@ mod tests {
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:1", "issuer:1", "cred:1", "tenant:a", "s1", 200),
+            sessions.validate("subject:1", "issuer:1", "cred:1", "key:1", 1, "tenant:a", "s1", 200),
             Ok(())
         );
         assert_eq!(
-            sessions.validate("subject:other", "issuer:1", "cred:1", "tenant:a", "s1", 200),
+            sessions.validate("subject:other", "issuer:1", "cred:1", "key:1", 1, "tenant:a", "s1", 200),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(sessions.revoke("s1"), Ok(()));
