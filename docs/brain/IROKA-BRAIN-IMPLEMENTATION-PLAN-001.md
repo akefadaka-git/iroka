@@ -384,3 +384,10 @@ B02 must remain disabled until all of the following are supplied and reconciled 
 - Candidate changes 19 files, including Kernel identity/security-store modifications, a new conversation domain, manual HTTP transport, session/membership/policy/budget code, browser UI and workflow changes.
 
 **Stop condition:** do not merge, rebase, cherry-pick or transplant PR #23. First resolve B06-F01/F02, settle B06-F03/F04 against G01/G02 authority, complete F05–F10, reconcile exact lineage, and rerun exact-HEAD CI plus route-level security tests on a clean branch from the current approved main. Independent A4 review remains a separate gate.
+
+
+### 12.5 Prior Owner-approved tenant authority decision carried forward
+
+A prior Owner-approved D01 decision establishes that IROKA itself owns identity, sessions, tenants, authorization and audit. Tenant membership is server-resolved; client-supplied tenant IDs are selectors only and never authority; tenant binding on a created resource is immutable. AbayFlow is a reference implementation only, not IROKA's source of truth.
+
+This resolves **ownership of the authoritative membership domain**: B02 must implement the tenant-membership authority inside IROKA's shared tenant-authorization layer, not adopt a standalone Conversation-owned directory or depend on AbayFlow. It does not yet supply the production membership lifecycle API, persistence semantics, administrative authorization, revocation behavior, multi-node store or atomic G11 audit integration. Those are B02 implementation requirements, not grounds to invent an external source.
