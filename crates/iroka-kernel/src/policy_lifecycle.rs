@@ -35,7 +35,7 @@ impl PolicySnapshotPayload {
         Ok(bytes)
     }
 
-    fn validate(&self, now: u64) -> Result<(), PolicyLifecycleError> {
+    pub(crate) fn validate(&self, now: u64) -> Result<(), PolicyLifecycleError> {
         if self.schema_id != "iroka.g02.policy-snapshot"
             || self.contract_version != "1.0"
             || self.owner_subject.trim().is_empty()
