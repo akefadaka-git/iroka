@@ -7,8 +7,8 @@ use crate::{
 };
 use crate::{
     evaluate, record_decision, AuditEvent, AuditSink, AuthorizationRequest, Decision, DecisionCode,
-    DecisionReason, GovernedDecisionEvidence, OwnerApprovalError, OwnerApprovalVerifier, Policy, SignedOwnerApproval,
-    VerifiedPrincipal,
+    DecisionReason, GovernedDecisionEvidence, OwnerApprovalError, OwnerApprovalVerifier, Policy,
+    SignedOwnerApproval, VerifiedPrincipal,
 };
 
 #[cfg(test)]
@@ -281,7 +281,6 @@ pub fn authorize_authenticated_with_owner_approval<S: AuditSink>(
     );
     record_decision(audit_sink, &event, decision)
 }
-
 
 /// Authorize an operation and return opaque G09 evidence only after an
 /// authenticated principal, constitutional baseline, signed Owner approval
