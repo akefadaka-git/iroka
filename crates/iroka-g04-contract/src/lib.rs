@@ -29,6 +29,7 @@ pub enum G04Error {
     ByteBudgetExceeded,
     DuplicateEvidenceReference,
     DigestMismatch,
+    FreshnessConstraintViolation,
     UnpermittedContentExposed,
 }
 
@@ -163,6 +164,15 @@ impl EvidenceItem {
         {
             return Err(G04Error::MalformedBundle);
         }
+        if let (Some(max_age), Some(source_updated_at)) =
+            (request.max_source_age_secs, self.source_updated_at)
+        {
+            if self.freshness_state == EvidenceState::VerifiedCurrent
+                && self.retrieved_at.saturating_sub(source_updated_at) > max_age
+            {
+                return Err(G04Error::FreshnessConstraintViolation);
+            }
+        }
         if self.freshness_state == EvidenceState::Revoked && !self.excerpt.is_empty() {
             return Err(G04Error::UnpermittedContentExposed);
         }
@@ -231,7 +241,15 @@ impl EvidenceBundle {
 }
 
 /// G04 owns source permissions, lifecycle, retrieval, provenance, freshness
-/// and revocation. Implementations must enforce G01/G02 context before ranking.
+/// and revocation. Implementations MUST:
+/// - resolve/authenticate the opaque G01 principal and tenant references;
+/// - resolve the G02 policy reference and enforce it before source access;
+/// - enforce source-level permissions before retrieval, indexing or ranking;
+/// - enforce max_source_age_secs and classification_ceiling before ranking;
+/// - return only evidence whose metadata and state are supported by source
+///   records and provenance. The adapter independently checks freshness age,
+///   but classification ordering is G04-owned because A2 defines no universal
+///   classification lattice.
 pub trait G04Provider: Send + Sync {
     fn retrieve(&self, request: &RetrievalRequest) -> Result<EvidenceBundle, G04Error>;
 }
@@ -485,6 +503,20 @@ mod tests {
         response.items[0].source_updated_at = Some(response.retrieved_at + 1);
         let adapter = G04Adapter::new(FixtureProvider { bundle: response });
         assert_eq!(adapter.retrieve(&req), Err(G04Error::MalformedBundle));
+    }
+
+    #[test]
+    fn rejects_current_evidence_outside_requested_freshness_window() {
+        let mut req = request();
+        req.max_source_age_secs = Some(60);
+        let mut evidence = item();
+        evidence.source_updated_at = Some(1_700_000_000);
+        evidence.retrieved_at = 1_700_000_100;
+        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(evidence) });
+        assert_eq!(
+            adapter.retrieve(&req),
+            Err(G04Error::FreshnessConstraintViolation)
+        );
     }
 
     #[test]
