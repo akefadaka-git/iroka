@@ -270,7 +270,14 @@ impl ConversationStore {
         db.execute(
             "INSERT INTO conversations(id,tenant_id,owner_subject,locale,created_at) VALUES(?1,?2,?3,?4,?5)",
             params![c.id,c.tenant_id,c.owner_subject,c.locale.as_str(),c.created_at as i64],
-        ).map_err(|_| ConversationError::StorageUnavailable)?;
+        ).map_err(|error| match error {
+            rusqlite::Error::SqliteFailure(code, _)
+                if code.code == rusqlite::ErrorCode::ConstraintViolation =>
+            {
+                ConversationError::Conflict
+            }
+            _ => ConversationError::StorageUnavailable,
+        })?;
         Ok(())
     }
 
