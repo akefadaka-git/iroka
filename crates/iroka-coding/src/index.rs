@@ -529,8 +529,9 @@ fn parse_pyproject(path: &str, content: &str, manifest: &mut ProjectManifest) {
 }
 
 fn distribution_name(requirement: &str) -> String {
+    let requirement = unquote(requirement);
     requirement
-        .split(|character: char| matches!(character, '<' | '>' | '=' | '!' | '~' | '[' | ';'))
+        .split(['<', '>', '=', '!', '~', '[', ';'])
         .next()
         .unwrap_or(requirement)
         .trim()
