@@ -36,6 +36,12 @@ impl PolicySnapshotPayload {
     }
 
     pub(crate) fn validate(&self, now: u64) -> Result<(), PolicyLifecycleError> {
+        if self.issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
+            return Err(PolicyLifecycleError::NotYetValid);
+        }
+        if self.expires_at <= now {
+            return Err(PolicyLifecycleError::Expired);
+        }
         if self.schema_id != "iroka.g02.policy-snapshot"
             || self.contract_version != "1.0"
             || self.owner_subject.trim().is_empty()
@@ -45,8 +51,6 @@ impl PolicySnapshotPayload {
             || self.policy_version.len() > 128
             || self.issued_at >= self.expires_at
             || self.expires_at.saturating_sub(self.issued_at) > MAX_POLICY_TTL_SECS
-            || self.issued_at > now.saturating_add(CLOCK_SKEW_SECS)
-            || self.expires_at <= now
             || self.allowed_capabilities.is_empty()
             || self.allowed_capabilities.len() > MAX_CAPABILITIES
             || self.approval_required.len() > MAX_CAPABILITIES
