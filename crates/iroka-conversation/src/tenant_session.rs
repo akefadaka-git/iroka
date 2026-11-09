@@ -133,7 +133,7 @@ impl<R: RevocationChecker> CredentialStatus for KernelCredentialStatus<R> {
         revocation_version: u64,
         _now: u64,
     ) -> Result<(), ConversationError> {
-        if issuer.trim().is_empty() || credential_id.trim().is_empty() || revocation_version == 0 {
+        if issuer.trim().is_empty() || credential_id.trim().is_empty() || key_id.trim().is_empty() || revocation_version == 0 {
             return Err(ConversationError::SessionInvalid);
         }
         let key_revoked = self.checker.key_revoked(issuer, key_id)
