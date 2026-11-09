@@ -217,11 +217,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "iroka-coding"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "iroka-kernel",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "iroka-kernel"
 version = "0.1.0"
 dependencies = [
  "base64",
  "ed25519-dalek",
+ "getrandom",
  "rusqlite",
  "serde",
  "serde_jcs",
