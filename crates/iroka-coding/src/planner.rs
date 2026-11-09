@@ -355,9 +355,7 @@ fn has_dependency_cycle(steps: &[PlanStep]) -> bool {
     let mut children: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for step in steps {
         for dependency in &step.depends_on {
-            *indegree
-                .get_mut(step.id.as_str())
-                .expect("step indexed") += 1;
+            *indegree.get_mut(step.id.as_str()).expect("step indexed") += 1;
             children
                 .entry(dependency.as_str())
                 .or_default()
