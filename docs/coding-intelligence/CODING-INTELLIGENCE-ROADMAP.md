@@ -101,44 +101,37 @@ languages that do not yet exist.
 
 ## C1.2 — Repository indexing and project understanding
 
-The first static analysis implementation is in `crates/iroka-coding/src/index.rs`.
-It consumes a caller-provided repository snapshot and produces a deterministic
-file index, language classifications through registered adapters, project
-manifest records, dependency declarations and explicit analysis issues.
+<badge>VERIFIED-CLOSED — supported baseline</badge>
 
-Current manifest recognition covers Cargo, npm/package.json, Python
-pyproject/requirements, Go modules, Maven, Gradle, Composer, CMake and Ruby
-Gemfile. Initial dependency extraction is implemented for Cargo dependency
-tables, common package.json dependency blocks, basic Python dependency
-declarations, Go require statements and simple Gemfile gem declarations.
-Unsupported or ambiguous manifest syntax is marked partial rather than being
-reported as a complete dependency inventory.
+The C1.2 implementation is recorded in
+`docs/coding-intelligence/C1.2-REPOSITORY-INDEXING-ACCEPTANCE.md`.
+It delivers deterministic repository indexing, bounded read-only workspace
+snapshot collection, manifest/project recognition, declared dependency
+extraction, and selected lockfile package/dependency-reference analysis.
 
-The index enforces configurable file-count, per-file and aggregate byte limits;
-rejects absolute, traversal, malformed and duplicate paths; and skips symlinks.
-It sorts output deterministically. It does not execute project scripts, resolve
-versions, install dependencies, invoke package managers or access the network.
-Lockfiles are identified as evidence but are not yet parsed into a resolved
-transitive dependency graph.
+The collector in `crates/iroka-coding/src/snapshot.rs` enforces canonical-root
+confinement checks, symlink/non-regular-file rejection, deterministic ordering,
+common generated/vendor exclusions, literal root `.gitignore` rules, and
+file-count/per-file/aggregate-byte/depth limits. It does not execute repository
+content.
 
-A bounded workspace collector now lives in `crates/iroka-coding/src/snapshot.rs`.
-It traverses a canonicalized root deterministically, skips symlinks and non-regular
-files, applies file-count/per-file/aggregate-size/depth limits, excludes common
-build/vendor directories, and honors literal root `.gitignore` entries. It exposes
-`collect_snapshot` and `analyze_workspace` so callers can collect and index a local
-workspace without executing repository content or invoking package managers.
-Glob, negation and nested `.gitignore` rules are reported as unsupported; they are
-not silently approximated. Non-UTF-8 files are skipped and reported. This is a
-read-only collector, not an OS sandbox or a race-free hostile-filesystem boundary.
+Manifest recognition covers Cargo, npm, Python, Go, Maven, Gradle, Composer,
+CMake and Ruby. Dependency extraction is implemented for supported Cargo,
+npm, Python, Go and Ruby patterns. Lockfile package records are parsed for
+Cargo.lock, package-lock.json/npm-shrinkwrap.json and composer.lock. Unsupported
+syntax and formats are marked PARTIAL, not represented as complete.
 
-Dependency analysis remains static and local-only. Resolved package records
-and lockfile dependency references are extracted from Cargo.lock,
-package-lock.json/npm-shrinkwrap.json and composer.lock, including available
-source/checksum metadata. Other recognized lockfiles (including pnpm, Yarn,
-Poetry, Pipenv, Go and Ruby lockfiles) are explicitly marked partial until their
-format adapters are implemented. Maven/Gradle/CMake manifest parsing also remains
-partial. The analyzer does not query registries, audit vulnerabilities, install
-packages, execute scripts or make network requests.
+Exact implementation HEAD:
+`7398a7afd4dc07bc8c70e8bd972c9133911e552d`.
+Exact-HEAD workflow #743 passed formatting, compilation, production-feature
+checks, all tests and Clippy: 25 coding tests + 71 kernel tests + 2 integration
+tests = 98 passed, 0 failed.
+
+Known extensions remain: pnpm/Yarn/Poetry/Pipenv/Go/Ruby lockfile parsers;
+Maven/Gradle/CMake dependency parsing; vulnerability/advisory and license-policy
+analysis; and a normalized cross-ecosystem transitive graph. These limitations
+are documented in the acceptance record. No registry access, dependency
+installation, script execution or network access is performed.
 
 ## Acceptance gates
 
