@@ -548,6 +548,13 @@ impl ConversationStore {
             )
             .map_err(|_| ConversationError::StorageUnavailable)?;
         if changed == 0 {
+            let current_state: Option<String> = db
+                .query_row("SELECT state FROM turns WHERE id=?1", params![id], |row| row.get(0))
+                .optional()
+                .map_err(|_| ConversationError::StorageUnavailable)?;
+            if current_state.as_deref() == Some("cancelled") {
+                return Err(ConversationError::Cancelled);
+            }
             return Err(ConversationError::Conflict);
         }
         Ok(())
