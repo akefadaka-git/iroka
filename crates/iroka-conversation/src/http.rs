@@ -507,7 +507,7 @@ where
         return Ok((
             202,
             json!({"turn":{"id":assistant_id},"events_url":format!("/api/v1/generations/{assistant_id}/events?conversation_id={id}"),"answer":text}),
-        ))
+        ));
     }
     if parts.len() == 7
         && parts[0] == "api"
