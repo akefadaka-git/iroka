@@ -12,7 +12,8 @@ The new `iroka-g05-memory` Rust workspace crate provides:
 
 - Versioned G05 record, provenance, approval receipt, access context, lifecycle, operation and content-free audit-event types.
 - Canonical SHA-256 content integrity validation.
-- Bounded working-memory expiry validation.
+- Bounded working-memory expiry validation using explicit caller-supplied policy limits; no deployment TTL defaults are invented.
+- Episodic expiry validation using explicit policy limits; retention periods remain a deployment-policy decision.
 - Episodic opt-in reference requirement.
 - Rejection of Restricted-classification working memory.
 - Durable candidate/proposal state and a separate record-bound approval validation primitive.
