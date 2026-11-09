@@ -871,8 +871,10 @@ impl SqliteSecurityStore {
             || owner_subject != payload.owner_subject
             || key_id != payload.key_id
             || policy_version != payload.policy_version
-            || issued_at != i64::try_from(payload.issued_at).map_err(|_| SecurityStoreError::Unavailable)?
-            || expires_at != i64::try_from(payload.expires_at).map_err(|_| SecurityStoreError::Unavailable)?
+            || issued_at
+                != i64::try_from(payload.issued_at).map_err(|_| SecurityStoreError::Unavailable)?
+            || expires_at
+                != i64::try_from(payload.expires_at).map_err(|_| SecurityStoreError::Unavailable)?
             || emergency_stop_active != i64::from(payload.emergency_stop_active)
         {
             return Err(SecurityStoreError::Unavailable);
