@@ -59,6 +59,8 @@ pub struct VerifiedPrincipal {
     credential_id: String,
     key_id: String,
     revocation_version: u64,
+    issued_at: u64,
+    expires_at: u64,
 }
 
 impl VerifiedPrincipal {
@@ -68,6 +70,8 @@ impl VerifiedPrincipal {
         credential_id: String,
         key_id: String,
         revocation_version: u64,
+        issued_at: u64,
+        expires_at: u64,
     ) -> Self {
         Self {
             subject,
@@ -75,6 +79,8 @@ impl VerifiedPrincipal {
             credential_id,
             key_id,
             revocation_version,
+            issued_at,
+            expires_at,
         }
     }
 
@@ -93,6 +99,8 @@ impl VerifiedPrincipal {
     pub fn revocation_version(&self) -> u64 {
         self.revocation_version
     }
+    pub fn issued_at(&self) -> u64 { self.issued_at }
+    pub fn expires_at(&self) -> u64 { self.expires_at }
 }
 
 /// Verify an assertion before producing the opaque principal used by the service.
@@ -124,5 +132,7 @@ pub(crate) fn authenticate<V: IdentityVerifier>(
         credential_id: assertion.credential_id.clone(),
         key_id: "test-key".into(),
         revocation_version: 1,
+        issued_at: 0,
+        expires_at: assertion.expires_at,
     })
 }
