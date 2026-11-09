@@ -1,7 +1,10 @@
 //! Concrete G01 compact-JWS credential verification.
 //! Only Ed25519 (EdDSA) is accepted. Trust and revocation state are explicit inputs.
 
-use std::{collections::{HashMap, HashSet}, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -151,7 +154,11 @@ pub trait RevocationChecker: Send + Sync {
 }
 
 impl<T: RevocationChecker + ?Sized> RevocationChecker for Arc<T> {
-    fn credential_revoked(&self, issuer: &str, credential_id: &str) -> Result<bool, RevocationError> {
+    fn credential_revoked(
+        &self,
+        issuer: &str,
+        credential_id: &str,
+    ) -> Result<bool, RevocationError> {
         (**self).credential_revoked(issuer, credential_id)
     }
     fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError> {
@@ -173,7 +180,9 @@ impl RevocationChecker for NoRevocations {
     fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
         Ok(false)
     }
-    fn current_version(&self, _: &str) -> Result<u64, RevocationError> { Ok(1) }
+    fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+        Ok(1)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -347,13 +356,7 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         }
 
         Ok(VerifiedPrincipal::from_verified_credential(
-            claims.sub,
-            claims.iss,
-            claims.jti,
-            header.kid,
-            claims.rv,
-            claims.iat,
-            claims.exp,
+            claims.sub, claims.iss, claims.jti, header.kid, claims.rv, claims.iat, claims.exp,
         ))
     }
 }
@@ -372,7 +375,9 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
             Ok(false)
         }
-        fn current_version(&self, _: &str) -> Result<u64, RevocationError> { Ok(1) }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+            Ok(1)
+        }
     }
 
     #[derive(Clone, Copy)]
@@ -384,7 +389,9 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
             Ok(true)
         }
-        fn current_version(&self, _: &str) -> Result<u64, RevocationError> { Ok(1) }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+            Ok(1)
+        }
     }
 
     #[derive(Clone, Copy)]
@@ -410,7 +417,9 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
             Err(RevocationError::Unavailable)
         }
-        fn current_version(&self, _: &str) -> Result<u64, RevocationError> { Err(RevocationError::Unavailable) }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> {
+            Err(RevocationError::Unavailable)
+        }
     }
 
     fn fixture() -> (SigningKey, TrustStore) {
