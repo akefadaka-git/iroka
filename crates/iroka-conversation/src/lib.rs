@@ -551,7 +551,9 @@ impl ConversationStore {
             .map_err(|_| ConversationError::StorageUnavailable)?;
         if changed == 0 {
             let current_state: Option<String> = db
-                .query_row("SELECT state FROM turns WHERE id=?1", params![id], |row| row.get(0))
+                .query_row("SELECT state FROM turns WHERE id=?1", params![id], |row| {
+                    row.get(0)
+                })
                 .optional()
                 .map_err(|_| ConversationError::StorageUnavailable)?;
             if current_state.as_deref() == Some("cancelled") {
@@ -820,8 +822,18 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         emit_event: &mut dyn FnMut(StreamEvent) -> Result<(), ConversationError>,
     ) -> Result<(), ConversationError> {
         self.submit_streaming_with_clock(
-            principal, session, conversation_id, turn_id, idempotency, prompt,
-            locale, correlation, now, &|| now, cancel, emit_event,
+            principal,
+            session,
+            conversation_id,
+            turn_id,
+            idempotency,
+            prompt,
+            locale,
+            correlation,
+            now,
+            &|| now,
+            cancel,
+            emit_event,
         )
     }
 
