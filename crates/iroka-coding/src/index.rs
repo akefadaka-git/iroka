@@ -5,7 +5,7 @@
 //! the network. A future workspace provider must enforce the same path and
 //! resource limits while collecting this snapshot.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::{LanguageId, LanguageRegistry};
@@ -286,7 +286,7 @@ fn classify_role(path: &str) -> FileRole {
         name,
         "Cargo.lock" | "package-lock.json" | "npm-shrinkwrap.json" | "pnpm-lock.yaml"
             | "yarn.lock" | "poetry.lock" | "Pipfile.lock" | "go.sum" | "composer.lock"
-            | "Gemfile.lock" | "Cargo.lock"
+            | "Gemfile.lock"
     ) {
         FileRole::Lockfile
     } else if name.ends_with(".md") || name.ends_with(".rst") || name.ends_with(".adoc") {
@@ -616,7 +616,11 @@ mod tests {
     fn identifies_cargo_project_and_declared_dependencies() {
         let index = build(vec![SnapshotFile::new(
             "Cargo.toml",
-            "[package]\\nname = \\"sample\\"\\n[dependencies]\\nserde = \\"1\\"\\n",
+            r#"[package]
+name = "sample"
+[dependencies]
+serde = "1"
+"#,
         )]);
         assert_eq!(index.projects[0].package_name.as_deref(), Some("sample"));
         assert_eq!(index.projects[0].declared_dependencies[0].name, "serde");
@@ -626,8 +630,13 @@ mod tests {
     #[test]
     fn detects_node_and_python_manifests() {
         let index = build(vec![
-            SnapshotFile::new("package.json", "{\\n  \\"name\\": \\"web\\",\\n  \\"dependencies\\": {\\n    \\"react\\": \\"^19\\"\\n  }\\n}"),
-            SnapshotFile::new("requirements.txt", "requests>=2\\n"),
+            SnapshotFile::new("package.json", r#"{
+  "name": "web",
+  "dependencies": {
+    "react": "^19"
+  }
+}"#),
+            SnapshotFile::new("requirements.txt", "requests>=2\n"),
         ]);
         assert_eq!(index.projects.len(), 2);
         assert!(index.projects.iter().any(|project| project.kind == ProjectKind::NodePackage));
@@ -640,7 +649,11 @@ mod tests {
     fn parses_go_module_requirements() {
         let index = build(vec![SnapshotFile::new(
             "go.mod",
-            "module example.org/app\\nrequire (\\n example.org/lib v1.2.3\\n)\\n",
+            r#"module example.org/app
+require (
+ example.org/lib v1.2.3
+)
+"#,
         )]);
         assert_eq!(index.projects[0].package_name.as_deref(), Some("example.org/app"));
         assert_eq!(index.projects[0].declared_dependencies[0].requirement.as_deref(), Some("v1.2.3"));
