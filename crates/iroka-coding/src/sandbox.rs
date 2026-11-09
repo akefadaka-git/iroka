@@ -272,9 +272,6 @@ impl ToolchainRegistry {
         if !valid_identifier(sandbox_id) {
             return Err(SandboxError::InvalidInvocation);
         }
-        if !valid_identifier(sandbox_id) {
-            return Err(SandboxError::InvalidInvocation);
-        }
         let profile = self
             .profiles
             .get(language_id)
