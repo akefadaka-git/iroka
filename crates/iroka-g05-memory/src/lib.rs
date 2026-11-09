@@ -483,6 +483,8 @@ pub fn authorize_episodic_capture<G: GovernancePort>(
         || request.operation != Operation::CreateEpisodic
         || request.tenant_ref != candidate.tenant_ref
         || request.subject_ref != candidate.subject_ref
+        || request.principal_ref != candidate.actor_ref
+        || request.memory_id.as_deref() != Some(candidate.memory_id.as_str())
         || request.purpose != candidate.purpose
         || request.classification != candidate.classification
     {
