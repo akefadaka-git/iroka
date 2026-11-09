@@ -129,6 +129,7 @@ pub enum CredentialError {
     RevokedCredential,
     RevokedKey,
     RevocationUnavailable,
+    RevocationVersionMismatch,
 }
 
 /// Implementations must read authoritative, current revocation state.
@@ -145,6 +146,8 @@ pub trait RevocationChecker: Send + Sync {
         credential_id: &str,
     ) -> Result<bool, RevocationError>;
     fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError>;
+    /// Current issuer-wide revocation epoch. A token issued under an older epoch is invalid.
+    fn current_version(&self, issuer: &str) -> Result<u64, RevocationError>;
 }
 
 #[cfg(any(test, feature = "dev-no-revocations"))]
@@ -158,6 +161,7 @@ impl RevocationChecker for NoRevocations {
     fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
         Ok(false)
     }
+    fn current_version(&self, _: &str) -> Result<u64, RevocationError> { Ok(1) }
 }
 
 #[derive(Debug, Deserialize)]
@@ -178,6 +182,7 @@ struct Claims {
     nbf: Option<u64>,
     iat: u64,
     jti: String,
+    rv: u64,
 }
 
 /// Concrete verifier for compact JWS credentials signed by trusted Ed25519 keys.
@@ -273,6 +278,7 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         if claims.iss.trim().is_empty()
             || claims.sub.trim().is_empty()
             || claims.jti.trim().is_empty()
+            || claims.rv == 0
         {
             return Err(CredentialError::Malformed);
         }
@@ -320,9 +326,20 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         {
             return Err(CredentialError::RevokedCredential);
         }
+        let current_version = self
+            .revocations
+            .current_version(&claims.iss)
+            .map_err(|_| CredentialError::RevocationUnavailable)?;
+        if current_version == 0 || claims.rv != current_version {
+            return Err(CredentialError::RevocationVersionMismatch);
+        }
 
         Ok(VerifiedPrincipal::from_verified_credential(
-            claims.sub, claims.iss, claims.jti,
+            claims.sub,
+            claims.iss,
+            claims.jti,
+            header.kid,
+            claims.rv,
         ))
     }
 }
@@ -341,6 +358,7 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
             Ok(false)
         }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> { Ok(1) }
     }
 
     #[derive(Clone, Copy)]
@@ -352,6 +370,7 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
             Ok(true)
         }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> { Ok(1) }
     }
 
     #[derive(Clone, Copy)]
@@ -363,6 +382,7 @@ mod tests {
         fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
             Err(RevocationError::Unavailable)
         }
+        fn current_version(&self, _: &str) -> Result<u64, RevocationError> { Err(RevocationError::Unavailable) }
     }
 
     fn fixture() -> (SigningKey, TrustStore) {
