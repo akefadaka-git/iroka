@@ -566,7 +566,13 @@ impl ConversationStore {
             params![id,state,content]
         ).map_err(|_| ConversationError::StorageUnavailable)?;
         if changed == 0 {
-            return Err(ConversationError::Conflict);
+            let current_state: Option<String> = db
+                .query_row("SELECT state FROM turns WHERE id=?1", params![id], |row| row.get(0))
+                .optional()
+                .map_err(|_| ConversationError::StorageUnavailable)?;
+            if current_state.as_deref() != Some(state) {
+                return Err(ConversationError::Conflict);
+            }
         }
         Ok(())
     }
