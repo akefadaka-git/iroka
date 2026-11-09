@@ -747,7 +747,7 @@ require (
         let index = RepositoryIndex::build(
             vec![
                 SnapshotFile::new("a.rs", "1234"),
-                SnapshotFile::new("b.rs", "123"),
+                SnapshotFile::new("b.rs", "12345"),
                 SnapshotFile::new("c.rs", "1"),
             ],
             &registry(),
