@@ -16,7 +16,8 @@ The new `iroka-g05-memory` Rust workspace crate provides:
 - Episodic expiry validation using explicit policy limits; retention periods remain a deployment-policy decision.
 - Episodic opt-in reference requirement.
 - Rejection of Restricted-classification working memory.
-- Durable candidate/proposal state and a separate record-bound approval validation primitive.
+- Gated candidate preparation: working/episodic records activate only after G02 authorization and episodic opt-in verification; durable records enter PENDING_REVIEW.
+- Durable activation preparation increments the record version and requires a record-bound approval receipt, G02 authorization and trusted designated-reviewer verification.
 - Approval binding to exact memory ID, tenant, subject and content digest, with issue/expiry checks.
 - Explicit default-deny cross-principal sharing validation and tenant-scope checks.
 - A lifecycle transition matrix that does not permit direct or implicit durable activation.
@@ -49,7 +50,7 @@ The crate deliberately does not implement identity verification, tenant resoluti
 4. No atomic G11 outbox/transaction adapter. A G05 mutation cannot be reported complete until its required audit guarantee is met.
 5. Personal inspection, correction, deletion, retention holds, expiry workers, idempotency and recovery workflows are not yet implemented.
 6. No production source ingestion or real-user data is permitted in this stage.
-7. The code has not yet passed exact-HEAD CI; A4 security review is not run. The crate currently contains 13 synthetic unit tests.
+7. The code has not yet passed exact-HEAD CI; A4 security review is not run. The crate currently contains 15 synthetic unit tests.
 
 ## Required next work
 
