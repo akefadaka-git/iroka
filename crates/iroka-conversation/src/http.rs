@@ -101,16 +101,12 @@ where
         let service = self.service;
         let authenticator = self.authenticator;
         for stream in listener.incoming() {
-            match stream {
-                Ok(stream) => {
-                    let service = Arc::clone(&service);
-                    let authenticator = Arc::clone(&authenticator);
-                    thread::spawn(move || {
-                        let _ = handle_connection(stream, &service, &authenticator);
-                    });
-                }
-                Err(error) => return Err(error),
-            }
+            let stream = stream?;
+            let service = Arc::clone(&service);
+            let authenticator = Arc::clone(&authenticator);
+            thread::spawn(move || {
+                let _ = handle_connection(stream, &service, &authenticator);
+            });
         }
         Ok(())
     }
