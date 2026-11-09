@@ -341,6 +341,7 @@ impl SqliteSecurityStore {
     }
 
     /// Atomically records a signed control command and its revocation effect.
+    #[allow(clippy::too_many_arguments)] // Explicitly binds the signed command and target to one transaction.
     pub(crate) fn apply_signed_revocation(
         &self,
         command_id: &str,
