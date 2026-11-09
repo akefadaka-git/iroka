@@ -68,7 +68,17 @@ pub(crate) struct ApprovalReceipt<'a> {
     pub consumed_at: u64,
 }
 
-type StoredActivePolicyRow = (Vec<u8>, Vec<u8>, Vec<u8>, String, String, String, i64, i64, i64);
+type StoredActivePolicyRow = (
+    Vec<u8>,
+    Vec<u8>,
+    Vec<u8>,
+    String,
+    String,
+    String,
+    i64,
+    i64,
+    i64,
+);
 
 pub struct SqliteSecurityStore {
     connection: Mutex<Connection>,
