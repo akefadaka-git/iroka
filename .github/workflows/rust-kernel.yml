@@ -7,6 +7,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "web/chat/**"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
@@ -15,6 +16,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "web/chat/**"
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - ".github/workflows/rust-kernel.yml"
@@ -45,10 +47,16 @@ jobs:
           rustup default stable
           rustc --version
           cargo --version
-
+          node --version
 
       - name: Check formatting
         run: cargo fmt --all -- --check
+
+      - name: Check browser client JavaScript syntax
+        run: node --check web/chat/chat.js
+
+      - name: Check patch whitespace
+        run: git diff --check
 
       - name: Compile all targets
         run: cargo check --workspace --all-targets --locked
