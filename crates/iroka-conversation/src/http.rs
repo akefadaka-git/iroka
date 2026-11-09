@@ -59,7 +59,7 @@ pub struct HttpServer<T, S, A, G, R>
 where
     T: TenantMembership + 'static,
     S: SessionGuard + 'static,
-    A: KernelAuthorization + 'static,
+    A: KernelAuthorization + Send + Sync + 'static,
     G: AnswerGenerator + 'static,
     R: RevocationChecker + 'static,
 {
@@ -103,7 +103,7 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum HttpError {
+pub enum HttpError {
     BadRequest,
     Unauthenticated,
     Forbidden,
@@ -159,6 +159,7 @@ impl From<ConversationError> for HttpError {
 struct Request {
     method: String,
     path: String,
+    query: String,
     headers: Vec<(String, String)>,
     body: Vec<u8>,
 }
@@ -196,7 +197,9 @@ fn read_request(stream: &mut TcpStream) -> Result<Request, HttpError> {
     if request_line.next() != Some("HTTP/1.1") || !target.starts_with('/') || target.starts_with("//") {
         return Err(HttpError::BadRequest);
     }
-    let path = target.split('?').next().unwrap_or("/").to_owned();
+    let mut target_parts = target.splitn(2, '?');
+    let path = target_parts.next().unwrap_or("/").to_owned();
+    let query = target_parts.next().unwrap_or("").to_owned();
     let mut headers = Vec::new();
     for line in lines {
         let (key, value) = line.split_once(':').ok_or(HttpError::BadRequest)?;
@@ -215,7 +218,7 @@ fn read_request(stream: &mut TcpStream) -> Result<Request, HttpError> {
         if n == 0 { return Err(HttpError::BadRequest); }
         body.extend_from_slice(&chunk[..n]);
     }
-    Ok(Request { method, path, headers, body })
+    Ok(Request { method, path, query, headers, body })
 }
 fn write_json(stream: &mut TcpStream, status: u16, body: Value) -> std::io::Result<()> {
     let bytes = serde_json::to_vec(&body).unwrap_or_else(|_| b"{\"error\":{\"code\":\"INTERNAL\"}}".to_vec());
@@ -268,6 +271,9 @@ where
         Err(error) => return fail(&mut stream, error),
     };
     let correlation_id = correlation();
+    if request.method == "GET" && request.path.starts_with("/api/v1/generations/") {
+        return write_sse(&mut stream, service, &principal, &session, &request, &correlation_id, now);
+    }
     let result = route(&request, service, &principal, &session, &correlation_id, now);
     match result {
         Ok((status, body)) => write_json(&mut stream, status, body),
@@ -319,15 +325,61 @@ where
         let text = events.iter().find_map(|event| match event { crate::StreamEvent::Delta { text, .. } => Some(text.as_str()), _ => None }).unwrap_or("");
         Ok((202, json!({"turn":{"id":assistant_id},"events_url":format!("/api/v1/generations/{assistant_id}/events"),"answer":text})))
     }
-    if parts.len() == 6 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "conversations" && parts[4] == "turns" && parts[5] == "cancel" && request.method == "POST" {
-        let conversation_id = parts[3]; if !valid_id(conversation_id) { return Err(HttpError::BadRequest); }
-        let body = body_json(request)?;
-        let turn_id = body.get("turn_id").and_then(Value::as_str).ok_or(HttpError::BadRequest)?;
-        if !valid_id(turn_id) { return Err(HttpError::BadRequest); }
+    if parts.len() == 7 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "conversations" && parts[4] == "turns" && parts[6] == "cancel" && request.method == "POST" {
+        let conversation_id = parts[3]; let turn_id = parts[5];
+        if !valid_id(conversation_id) || !valid_id(turn_id) { return Err(HttpError::BadRequest); }
+        let _ = body_json(request)?;
         service.cancel_turn(principal, session, conversation_id, turn_id, correlation_id, now).map_err(HttpError::from)?;
         return Ok((200, json!({"cancelled":true})));
     }
     Err(HttpError::NotFound)
+}
+
+
+fn write_sse<T, S, A, G>(
+    stream: &mut TcpStream,
+    service: &ConversationService<T, S, A, G>,
+    principal: &iroka_kernel::VerifiedPrincipal,
+    session: &str,
+    request: &Request,
+    correlation_id: &str,
+    now: u64,
+) -> std::io::Result<()>
+where
+    T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGenerator,
+{
+    let parts: Vec<&str> = request.path.trim_matches('/').split('/').collect();
+    if parts.len() != 5 || parts[0] != "api" || parts[1] != "v1" || parts[2] != "generations" || parts[4] != "events" || !valid_id(parts[3]) {
+        return fail(stream, HttpError::NotFound);
+    }
+    let conversation_id = request.query.split('&').find_map(|pair| {
+        let (key, value) = pair.split_once('=')?;
+        (key == "conversation_id").then_some(value)
+    });
+    let Some(conversation_id) = conversation_id.filter(|v| valid_id(v)) else {
+        return fail(stream, HttpError::BadRequest);
+    };
+    let turns = match service.read(principal, session, conversation_id, correlation_id, now) {
+        Ok(value) => value,
+        Err(error) => return fail(stream, HttpError::from(error)),
+    };
+    let Some(turn) = turns.iter().find(|turn| turn.id == parts[3] && turn.role == "assistant") else {
+        return fail(stream, HttpError::NotFound);
+    };
+    write!(stream, "HTTP/1.1 200 OK\\r\\nContent-Type: text/event-stream; charset=utf-8\\r\\nCache-Control: no-store, no-transform\\r\\nX-Content-Type-Options: nosniff\\r\\nX-Accel-Buffering: no\\r\\nConnection: close\\r\\n\\r\\n")?;
+    if turn.state == "completed" {
+        let delta = json!({"type":"message.delta","payload":{"text":turn.content}});
+        writeln!(stream, "data: {}\\n", delta)?;
+        let done = json!({"type":"generation.completed","payload":{"turn_id":turn.id}});
+        writeln!(stream, "data: {}\\n", done)?;
+    } else if turn.state == "cancelled" {
+        let stopped = json!({"type":"generation.interrupted","payload":{"turn_id":turn.id}});
+        writeln!(stream, "data: {}\\n", stopped)?;
+    } else {
+        let failed = json!({"type":"generation.failed","payload":{"turn_id":turn.id}});
+        writeln!(stream, "data: {}\\n", failed)?;
+    }
+    stream.flush()
 }
 
 #[cfg(test)]
