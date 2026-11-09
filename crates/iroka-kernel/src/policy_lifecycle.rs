@@ -166,10 +166,18 @@ pub struct VerifiedPolicyContext {
 }
 
 impl VerifiedPolicyContext {
-    pub fn epoch(&self) -> u64 { self.epoch }
-    pub fn digest(&self) -> &[u8; 32] { &self.digest }
-    pub fn policy(&self) -> &Policy { &self.policy }
-    pub fn emergency_stop_active(&self) -> bool { self.emergency_stop_active }
+    pub fn epoch(&self) -> u64 {
+        self.epoch
+    }
+    pub fn digest(&self) -> &[u8; 32] {
+        &self.digest
+    }
+    pub fn policy(&self) -> &Policy {
+        &self.policy
+    }
+    pub fn emergency_stop_active(&self) -> bool {
+        self.emergency_stop_active
+    }
 }
 
 pub struct PolicyActivationCoordinator;
@@ -344,8 +352,7 @@ mod tests {
         let (signer, verifier, store, audit) = fixture();
         let signed = signed(&signer, 1, true);
         let active =
-            PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200)
-                .unwrap();
+            PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200).unwrap();
         assert_eq!(active.epoch(), 1);
         assert!(active.emergency_stop_active());
         assert!(active.policy().allows_capability("workspace.read"));
@@ -399,8 +406,7 @@ mod tests {
         let signed = signed(&signer, 1, false);
         audit.force_append_failure(true).unwrap();
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200)
-                .unwrap_err(),
+            PolicyActivationCoordinator::activate(&verifier, &audit, &signed, 1_200).unwrap_err(),
             PolicyLifecycleError::AuditUnavailable
         );
         assert_eq!(
@@ -442,8 +448,7 @@ mod tests {
         let second = signed(&signer, 2, true);
         PolicyActivationCoordinator::activate(&verifier, &audit, &second, 1_300).unwrap();
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &audit, &first, 1_301)
-                .unwrap_err(),
+            PolicyActivationCoordinator::activate(&verifier, &audit, &first, 1_301).unwrap_err(),
             PolicyLifecycleError::Rollback
         );
         let conflict_payload = payload(2, false);
@@ -453,8 +458,7 @@ mod tests {
             .to_vec();
         let conflict = SignedPolicySnapshot::from_signature(conflict_payload, conflict_signature);
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &audit, &conflict, 1_302)
-                .unwrap_err(),
+            PolicyActivationCoordinator::activate(&verifier, &audit, &conflict, 1_302).unwrap_err(),
             PolicyLifecycleError::ConflictingEpoch
         );
     }
@@ -485,8 +489,7 @@ mod tests {
             .unwrap();
         let valid = signed(&signer, 3, false);
         assert_eq!(
-            PolicyActivationCoordinator::activate(&verifier, &audit, &valid, 1_300)
-                .unwrap_err(),
+            PolicyActivationCoordinator::activate(&verifier, &audit, &valid, 1_300).unwrap_err(),
             PolicyLifecycleError::Revoked
         );
     }
