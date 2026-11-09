@@ -165,6 +165,7 @@ impl PolicyActivationCoordinator {
             verified.version(),
             verified.payload.issued_at,
             verified.payload.expires_at,
+            verified.payload.emergency_stop_active,
             now,
         ).map_err(map_store_error)?;
 
