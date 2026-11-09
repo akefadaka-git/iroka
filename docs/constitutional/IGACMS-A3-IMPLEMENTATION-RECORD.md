@@ -413,9 +413,9 @@ The authoritative consolidated assessment is now maintained in [IGACMS A4 Consol
 
 ### Verification status
 
-Exact-HEAD CI is pending for the resulting commit; no test PASS is claimed before the workflow completes. Production trust-root custody/provisioning remains separately gated.
-
-
-### A3-R5 documentation-only PR trigger smoke test
-
-A documentation-only follow-up commit to this implementation record is used to exercise the pull-request workflow path filter independently of Rust source changes. The exact commit and associated PR workflow run are recorded in the final A3 remediation verification entry after the run completes.
+- Implementation source and test SHA: `e516bd091a75255dda062d1b1a69a52375ebcb88`.
+- Exact-HEAD push CI: [run #42566538600](https://github.com/akefadaka-git/iroka/actions/runs/42566538600) — SUCCESS.
+- Exact-HEAD pull-request CI: [run #42566543870](https://github.com/akefadaka-git/iroka/actions/runs/42566543870) — SUCCESS.
+- Both runs passed formatting, locked workspace compilation, no-default-features production check, complete tests and Clippy. Test output: 71 unit tests and 2 contract tests; zero failures.
+- Documentation-only PR path-filter smoke commit: `479a25aff5a3a4867d27234b7e01ac2dbdcffd61`. It changed only this implementation record. Push workflow [run #42566629502](https://github.com/akefadaka-git/iroka/actions/runs/42566629502) and PR workflow [run #42566635809](https://github.com/akefadaka-git/iroka/actions/runs/42566635809) both completed SUCCESS, confirming that the documentation-only change triggers the PR workflow.
+- The Owner-approved A2 baseline remains unchanged at `a709fc473b23494839417449e34bebf4cb8be77a`. Production trust-root custody/provisioning, Genesis activation, merge and deployment remain separately gated and were not performed.
