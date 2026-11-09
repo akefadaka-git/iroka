@@ -166,7 +166,11 @@ impl EvidenceItem {
         if self.freshness_state == EvidenceState::Revoked && !self.excerpt.is_empty() {
             return Err(G04Error::UnpermittedContentExposed);
         }
-        if !request.accepted_formats.iter().any(|f| f == &self.media_type) {
+        if !request
+            .accepted_formats
+            .iter()
+            .any(|f| f == &self.media_type)
+        {
             return Err(G04Error::MalformedBundle);
         }
         Ok(self.excerpt.len())
@@ -198,7 +202,9 @@ impl EvidenceBundle {
         let mut total_bytes = 0usize;
         for item in &self.items {
             if item.retrieved_at > self.retrieved_at
-                || item.source_updated_at.is_some_and(|updated| updated > self.retrieved_at)
+                || item
+                    .source_updated_at
+                    .is_some_and(|updated| updated > self.retrieved_at)
             {
                 return Err(G04Error::MalformedBundle);
             }
@@ -206,7 +212,10 @@ impl EvidenceBundle {
                 return Err(G04Error::DuplicateEvidenceReference);
             }
             if !request.source_selectors.is_empty()
-                && !request.source_selectors.iter().any(|s| s == &item.source_ref)
+                && !request
+                    .source_selectors
+                    .iter()
+                    .any(|s| s == &item.source_ref)
             {
                 return Err(G04Error::MalformedBundle);
             }
@@ -337,9 +346,14 @@ mod tests {
     #[test]
     fn accepts_well_formed_synthetic_evidence_without_upgrading_it() {
         let req = request();
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(item()) });
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(item()),
+        });
         let result = adapter.retrieve(&req).unwrap();
-        assert_eq!(result.items[0].freshness_state, EvidenceState::VerifiedCurrent);
+        assert_eq!(
+            result.items[0].freshness_state,
+            EvidenceState::VerifiedCurrent
+        );
         assert_eq!(result.items[0].tenant_context_ref, req.tenant_context_ref);
     }
 
@@ -357,7 +371,9 @@ mod tests {
         let req = request();
         let mut evidence = item();
         evidence.tenant_context_ref = "g01:tenant-context:other".into();
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(evidence) });
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(evidence),
+        });
         assert_eq!(adapter.retrieve(&req), Err(G04Error::MalformedBundle));
     }
 
@@ -366,7 +382,9 @@ mod tests {
         let req = request();
         let mut evidence = item();
         evidence.excerpt.push('!');
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(evidence) });
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(evidence),
+        });
         assert_eq!(adapter.retrieve(&req), Err(G04Error::DigestMismatch));
     }
 
@@ -375,8 +393,13 @@ mod tests {
         let req = request();
         let mut evidence = item();
         evidence.freshness_state = EvidenceState::Revoked;
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(evidence) });
-        assert_eq!(adapter.retrieve(&req), Err(G04Error::UnpermittedContentExposed));
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(evidence),
+        });
+        assert_eq!(
+            adapter.retrieve(&req),
+            Err(G04Error::UnpermittedContentExposed)
+        );
     }
 
     #[test]
@@ -385,8 +408,13 @@ mod tests {
         let mut evidence = item();
         evidence.license_state = LicenseState::Unknown;
         evidence.license_ref = None;
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(evidence) });
-        assert_eq!(adapter.retrieve(&req), Err(G04Error::UnpermittedContentExposed));
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(evidence),
+        });
+        assert_eq!(
+            adapter.retrieve(&req),
+            Err(G04Error::UnpermittedContentExposed)
+        );
     }
 
     #[test]
@@ -399,7 +427,9 @@ mod tests {
         evidence.provenance_state = ProvenanceState::Unverified;
         evidence.license_state = LicenseState::Unknown;
         evidence.license_ref = None;
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(evidence) });
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(evidence),
+        });
         let result = adapter.retrieve(&req).unwrap();
         assert_eq!(result.items[0].freshness_state, EvidenceState::Unverified);
     }
@@ -413,9 +443,14 @@ mod tests {
         let mut duplicate = bundle(first.clone());
         duplicate.items.push(first);
         let adapter = G04Adapter::new(FixtureProvider { bundle: duplicate });
-        assert_eq!(adapter.retrieve(&req), Err(G04Error::DuplicateEvidenceReference));
+        assert_eq!(
+            adapter.retrieve(&req),
+            Err(G04Error::DuplicateEvidenceReference)
+        );
 
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(second) });
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(second),
+        });
         assert_eq!(adapter.retrieve(&req), Err(G04Error::MalformedBundle));
     }
 
@@ -432,7 +467,9 @@ mod tests {
 
         let mut req = request();
         req.max_bytes = 1;
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(item()) });
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(item()),
+        });
         assert_eq!(adapter.retrieve(&req), Err(G04Error::ByteBudgetExceeded));
     }
 
