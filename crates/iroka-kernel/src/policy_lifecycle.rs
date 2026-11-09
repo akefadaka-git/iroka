@@ -364,6 +364,43 @@ mod tests {
     }
 
     #[test]
+    fn owner_signed_revocation_is_audited_before_policy_is_disabled() {
+        let (signer, verifier, store, audit) = fixture();
+        let active = signed(&signer, 1, false);
+        PolicyActivationCoordinator::activate(&verifier, &store, &audit, &active, 1_200).unwrap();
+        let payload = crate::OwnerSecurityCommandPayload {
+            command_id: "policy-revoke-1".into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-policy".into(),
+            issued_at: 1_300,
+            expires_at: 1_600,
+            action: crate::OwnerSecurityAction::RevokePolicy {
+                policy_epoch: 1,
+                reason: "policy superseded by incident response".into(),
+            },
+        };
+        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let command = crate::SignedOwnerSecurityCommand::from_signature(payload, signature);
+        verifier.revoke_policy_snapshot(&command, &audit, 1_350).unwrap();
+        assert_eq!(
+            PolicyActivationCoordinator::load_active(&verifier, &store, 1_351).unwrap_err(),
+            PolicyLifecycleError::Inactive
+        );
+        verifier.revoke_policy_snapshot(&command, &audit, 1_352).unwrap();
+        assert_eq!(audit.head().unwrap().0, 2);
+    }
+
+    #[test]
+    fn emergency_stop_can_only_be_cleared_by_a_new_owner_signed_epoch() {
+        let (signer, verifier, store, audit) = fixture();
+        let stopped = signed(&signer, 1, true);
+        assert!(PolicyActivationCoordinator::activate(&verifier, &store, &audit, &stopped, 1_200).unwrap().emergency_stop_active);
+        let cleared = signed(&signer, 2, false);
+        assert!(!PolicyActivationCoordinator::activate(&verifier, &store, &audit, &cleared, 1_300).unwrap().emergency_stop_active);
+        assert_eq!(audit.head().unwrap().0, 2);
+    }
+
+    #[test]
     fn malformed_capability_order_and_unknown_schema_are_rejected() {
         let (_signer, verifier, _store, _audit) = fixture();
         let mut p = payload(1, false);
