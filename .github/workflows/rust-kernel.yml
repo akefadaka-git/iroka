@@ -46,8 +46,6 @@ jobs:
           rustc --version
           cargo --version
 
-      - name: Apply canonical Rust formatting
-        run: cargo fmt --all
 
       - name: Check formatting
         run: cargo fmt --all -- --check
