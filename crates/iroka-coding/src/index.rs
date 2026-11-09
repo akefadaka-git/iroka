@@ -240,12 +240,7 @@ impl RepositoryIndex {
                 .collect();
 
             if let Some(kind) = manifest_kind(&file.path) {
-                let manifest = analyze_manifest(
-                    &file.path,
-                    kind,
-                    &file.content,
-                    &mut index.issues,
-                );
+                let manifest = analyze_manifest(&file.path, kind, &file.content, &mut index.issues);
                 index.dependency_analysis_partial |= manifest.analysis_partial;
                 index.projects.push(manifest);
             }
@@ -261,9 +256,9 @@ impl RepositoryIndex {
         index
             .files
             .sort_by(|left, right| left.path.cmp(&right.path));
-        index.resolved_dependencies.sort_by(|left, right| {
-            left.package_id.cmp(&right.package_id)
-        });
+        index
+            .resolved_dependencies
+            .sort_by(|left, right| left.package_id.cmp(&right.package_id));
         index
             .projects
             .sort_by(|left, right| left.path.cmp(&right.path));
@@ -805,16 +800,14 @@ require (
 
     #[test]
     fn integrates_resolved_cargo_lockfile_dependencies() {
-        let index = build(vec![
-            SnapshotFile::new(
-                "Cargo.lock",
-                r#"[[package]]
+        let index = build(vec![SnapshotFile::new(
+            "Cargo.lock",
+            r#"[[package]]
 name = "serde"
 version = "1.0.200"
 dependencies = ["serde_core 1.0.200"]
 "#,
-            ),
-        ]);
+        )]);
         assert_eq!(index.resolved_dependency_count(), 1);
         assert_eq!(index.resolved_dependencies[0].name, "serde");
         assert!(!index.dependency_analysis_partial);
