@@ -7,7 +7,7 @@ use crate::{
 };
 use crate::{
     evaluate, record_decision, AuditEvent, AuditSink, AuthorizationRequest, Decision, DecisionCode,
-    DecisionReason, OwnerApprovalError, OwnerApprovalVerifier, Policy, SignedOwnerApproval,
+    DecisionReason, GovernedDecisionEvidence, OwnerApprovalError, OwnerApprovalVerifier, Policy, SignedOwnerApproval,
     VerifiedPrincipal,
 };
 
@@ -280,4 +280,46 @@ pub fn authorize_authenticated_with_owner_approval<S: AuditSink>(
         now,
     );
     record_decision(audit_sink, &event, decision)
+}
+
+
+/// Authorize an operation and return opaque G09 evidence only after an
+/// authenticated principal, constitutional baseline, signed Owner approval
+/// and durable audit append have all succeeded.
+#[allow(clippy::too_many_arguments)]
+pub fn authorize_authenticated_with_owner_approval_evidence<S: AuditSink>(
+    request: &AuthorizationRequest,
+    principal: &VerifiedPrincipal,
+    genesis: &crate::igacms::VerifiedGenesis,
+    approval: Option<&SignedOwnerApproval>,
+    owner_approval_verifier: &OwnerApprovalVerifier,
+    audit_sink: &S,
+    policy: &Policy,
+    now: u64,
+    emergency_stop_active: bool,
+    event_id: &str,
+    correlation_id: &str,
+) -> Result<GovernedDecisionEvidence, Decision> {
+    let decision = authorize_authenticated_with_owner_approval(
+        request,
+        principal,
+        genesis,
+        approval,
+        owner_approval_verifier,
+        audit_sink,
+        policy,
+        now,
+        emergency_stop_active,
+        event_id,
+        correlation_id,
+    );
+    GovernedDecisionEvidence::from_approved_decision(
+        request,
+        &decision,
+        genesis.digest(),
+        now,
+        event_id,
+        correlation_id,
+    )
+    .ok_or(decision)
 }
