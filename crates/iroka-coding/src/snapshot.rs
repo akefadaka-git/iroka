@@ -11,8 +11,18 @@ use crate::{index::IndexError, LanguageRegistry};
 
 const MAX_DEPTH: usize = 128;
 const IGNORED_DIRECTORIES: &[&str] = &[
-    ".git", "target", "node_modules", "vendor", ".venv", "venv", "dist", "build",
-    ".next", ".turbo", ".gradle", ".idea",
+    ".git",
+    "target",
+    "node_modules",
+    "vendor",
+    ".venv",
+    "venv",
+    "dist",
+    "build",
+    ".next",
+    ".turbo",
+    ".gradle",
+    ".idea",
 ];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,7 +64,9 @@ impl std::fmt::Display for SnapshotError {
         match self {
             Self::RootUnavailable => formatter.write_str("repository root is unavailable"),
             Self::RootNotDirectory => formatter.write_str("repository root is not a directory"),
-            Self::InvalidLimits => formatter.write_str("repository snapshot limits must be non-zero"),
+            Self::InvalidLimits => {
+                formatter.write_str("repository snapshot limits must be non-zero")
+            },
         }
     }
 }
@@ -69,7 +81,10 @@ pub fn collect_snapshot(
     root: impl AsRef<Path>,
     limits: IndexLimits,
 ) -> Result<SnapshotCollection, SnapshotError> {
-    if limits.max_files == 0 || limits.max_file_bytes == 0 || limits.max_total_bytes == 0 {
+    if limits.max_files == 0
+        || limits.max_file_bytes == 0
+        || limits.max_total_bytes == 0
+    {
         return Err(SnapshotError::InvalidLimits);
     }
     let root = fs::canonicalize(root).map_err(|_| SnapshotError::RootUnavailable)?;
@@ -87,9 +102,9 @@ pub fn collect_snapshot(
     walk_directory(&root, &root, 0, &ignore_rules, limits, &mut collection);
     collection.files.sort_by(|left, right| left.path.cmp(&right.path));
     collection.issues.sort_by(|left, right| {
-        left.path
-            .cmp(&right.path)
-            .then_with(|| format!("{:?}", left.kind).cmp(&format!("{:?}", right.kind)))
+        left.path.cmp(&right.path).then_with(|| {
+            format!("{:?}", left.kind).cmp(&format!("{:?}", right.kind))
+        })
     });
     Ok(collection)
 }
@@ -179,7 +194,7 @@ fn walk_directory(
                 kind: SnapshotIssueKind::ReadError,
             });
             continue;
-        }
+        };
         let metadata = match fs::symlink_metadata(&path) {
             Ok(metadata) => metadata,
             Err(_) => {
@@ -198,7 +213,10 @@ fn walk_directory(
             continue;
         }
         if metadata.is_dir() {
-            let name = path.file_name().and_then(|value| value.to_str()).unwrap_or("");
+            let name = path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or("");
             if IGNORED_DIRECTORIES.contains(&name) || is_ignored(&relative, ignore_rules) {
                 collection.issues.push(SnapshotIssue {
                     path: Some(relative),
@@ -207,7 +225,11 @@ fn walk_directory(
                 continue;
             }
             walk_directory(root, &path, depth + 1, ignore_rules, limits, collection);
-            if collection.issues.iter().any(|issue| issue.kind == SnapshotIssueKind::TotalSizeLimitExceeded) {
+            if collection
+                .issues
+                .iter()
+                .any(|issue| issue.kind == SnapshotIssueKind::TotalSizeLimitExceeded)
+            {
                 return;
             }
             continue;
@@ -265,7 +287,10 @@ fn walk_directory(
         };
         let size = content.len();
         if size > limits.max_file_bytes {
-            collection.issues.push(SnapshotIssue { path: Some(relative), kind: SnapshotIssueKind::FileTooLarge });
+            collection.issues.push(SnapshotIssue {
+                path: Some(relative),
+                kind: SnapshotIssueKind::FileTooLarge,
+            });
             continue;
         }
         if collection.total_bytes.saturating_add(size) > limits.max_total_bytes {
@@ -299,7 +324,11 @@ fn load_root_ignore_rules(root: &Path) -> (Vec<String>, Vec<SnapshotIssue>) {
         if rule.is_empty() || rule.starts_with('#') {
             continue;
         }
-        if rule.starts_with('!') || rule.contains('*') || rule.contains('?') || rule.contains('[') {
+        if rule.starts_with('!')
+            || rule.contains('*')
+            || rule.contains('?')
+            || rule.contains('[')
+        {
             issues.push(SnapshotIssue {
                 path: Some(format!(".gitignore:{}", line_number + 1)),
                 kind: SnapshotIssueKind::UnsupportedIgnorePattern,
@@ -313,7 +342,10 @@ fn load_root_ignore_rules(root: &Path) -> (Vec<String>, Vec<SnapshotIssue>) {
 
 fn is_ignored(path: &str, rules: &[String]) -> bool {
     rules.iter().any(|rule| {
-        path == rule || path.strip_prefix(rule).is_some_and(|suffix| suffix.starts_with('/'))
+        path == rule
+            || path
+                .strip_prefix(rule)
+                .is_some_and(|suffix| suffix.starts_with('/'))
     })
 }
 
@@ -323,8 +355,10 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_root() -> std::path::PathBuf {
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH)
-            .expect("clock after epoch").as_nanos();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
         let root = std::env::temp_dir().join(format!("iroka-snapshot-{nonce}"));
         fs::create_dir_all(&root).expect("create test root");
         root
@@ -339,7 +373,14 @@ mod tests {
         fs::write(root.join("src/a.rs"), "a").expect("write a");
         fs::write(root.join("target/ignored.rs"), "ignored").expect("write ignored");
         let result = collect_snapshot(&root, IndexLimits::default()).expect("collect");
-        assert_eq!(result.files.iter().map(|file| file.path.as_str()).collect::<Vec<_>>(), vec!["src/a.rs", "src/z.rs"]);
+        assert_eq!(
+            result
+                .files
+                .iter()
+                .map(|file| file.path.as_str())
+                .collect::<Vec<_>>(),
+            vec!["src/a.rs", "src/z.rs"]
+        );
         assert!(result.issues.iter().any(|issue| issue.kind == SnapshotIssueKind::IgnoredDirectory));
         fs::remove_dir_all(root).expect("remove test root");
     }
@@ -353,7 +394,10 @@ mod tests {
         let result = collect_snapshot(&root, IndexLimits::default()).expect("collect");
         assert!(!result.files.iter().any(|file| file.path == "secrets"));
         assert!(result.files.iter().any(|file| file.path == "visible.rs"));
-        assert!(result.issues.iter().any(|issue| issue.kind == SnapshotIssueKind::UnsupportedIgnorePattern));
+        assert!(result
+            .issues
+            .iter()
+            .any(|issue| issue.kind == SnapshotIssueKind::UnsupportedIgnorePattern));
         fs::remove_dir_all(root).expect("remove test root");
     }
 
@@ -361,7 +405,11 @@ mod tests {
     fn enforces_per_file_size_limit() {
         let root = temp_root();
         fs::write(root.join("large.rs"), "12345").expect("write large");
-        let limits = IndexLimits { max_files: 5, max_file_bytes: 4, max_total_bytes: 4 };
+        let limits = IndexLimits {
+            max_files: 5,
+            max_file_bytes: 4,
+            max_total_bytes: 4,
+        };
         let result = collect_snapshot(&root, limits).expect("collect");
         assert!(result.files.is_empty());
         assert!(result.issues.iter().any(|issue| issue.kind == SnapshotIssueKind::FileTooLarge));
@@ -378,7 +426,10 @@ mod tests {
         symlink(&outside, root.join("linked.rs")).expect("create symlink");
         let result = collect_snapshot(&root, IndexLimits::default()).expect("collect");
         assert!(result.files.is_empty());
-        assert!(result.issues.iter().any(|issue| issue.kind == SnapshotIssueKind::SymlinkSkipped));
+        assert!(result
+            .issues
+            .iter()
+            .any(|issue| issue.kind == SnapshotIssueKind::SymlinkSkipped));
         fs::remove_file(root.join("linked.rs")).expect("remove symlink");
         fs::remove_dir_all(root).expect("remove test root");
         fs::remove_file(outside).expect("remove outside");
@@ -389,9 +440,18 @@ mod tests {
         let root = temp_root();
         let file = root.join("file");
         fs::write(&file, "x").expect("write file");
-        assert_eq!(collect_snapshot(&file, IndexLimits::default()), Err(SnapshotError::RootNotDirectory));
-        let invalid = IndexLimits { max_files: 0, ..IndexLimits::default() };
-        assert_eq!(collect_snapshot(&root, invalid), Err(SnapshotError::InvalidLimits));
+        assert_eq!(
+            collect_snapshot(&file, IndexLimits::default()),
+            Err(SnapshotError::RootNotDirectory)
+        );
+        let invalid = IndexLimits {
+            max_files: 0,
+            ..IndexLimits::default()
+        };
+        assert_eq!(
+            collect_snapshot(&root, invalid),
+            Err(SnapshotError::InvalidLimits)
+        );
         fs::remove_dir_all(root).expect("remove test root");
     }
 }
