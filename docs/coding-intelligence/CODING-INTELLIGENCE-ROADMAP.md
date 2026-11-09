@@ -101,7 +101,7 @@ languages that do not yet exist.
 
 ## C1.2 — Repository indexing and project understanding
 
-<badge>VERIFIED-CLOSED — supported baseline</badge>
+**Status: VERIFIED-CLOSED — supported baseline**
 
 The C1.2 implementation is recorded in
 `docs/coding-intelligence/C1.2-REPOSITORY-INDEXING-ACCEPTANCE.md`.
