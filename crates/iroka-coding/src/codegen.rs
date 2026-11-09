@@ -152,7 +152,11 @@ fn validate_request(
     if !valid_revision(&request.source_revision) {
         return Err(CodeGenerationValidationError::InvalidSourceRevision);
     }
-    if registry.get(&request.language).is_none() {
+    if !registry
+        .detect_path(&request.target_path)
+        .iter()
+        .any(|adapter| adapter.descriptor().id == request.language)
+    {
         return Err(CodeGenerationValidationError::UnsupportedLanguage);
     }
     if request.instructions.trim().is_empty() {
@@ -269,17 +273,31 @@ fn validate_response(
 }
 
 fn valid_unified_diff(change: &GeneratedChange) -> bool {
-    let old_header = change
-        .unified_diff
-        .lines()
-        .find(|line| line.starts_with("--- "));
-    let new_header = change
-        .unified_diff
-        .lines()
-        .find(|line| line.starts_with("+++ "));
-    let (Some(old_header), Some(new_header)) = (old_header, new_header) else {
+    let lines: Vec<_> = change.unified_diff.lines().collect();
+    let expected_git_header = format!("diff --git a/{0} b/{0}", change.path);
+    let git_headers: Vec<_> = lines
+        .iter()
+        .filter(|line| line.starts_with("diff --git "))
+        .collect();
+    let old_headers: Vec<_> = lines
+        .iter()
+        .filter(|line| line.starts_with("--- "))
+        .collect();
+    let new_headers: Vec<_> = lines
+        .iter()
+        .filter(|line| line.starts_with("+++ "))
+        .collect();
+    if git_headers.len() != 1
+        || git_headers[0].as_str() != expected_git_header
+        || old_headers.len() != 1
+        || new_headers.len() != 1
+        || change.unified_diff.contains('\0')
+    {
         return false;
-    };
+    }
+
+    let old_header = old_headers[0].as_str();
+    let new_header = new_headers[0].as_str();
     let expected_old = match change.operation {
         ChangeOperation::Create => "--- /dev/null",
         ChangeOperation::Modify | ChangeOperation::Delete => {
@@ -444,6 +462,27 @@ mod tests {
             ),
             Err(CodeGenerationError::InvalidRequest(
                 CodeGenerationValidationError::UnsupportedLanguage
+            ))
+        );
+    }
+
+    #[test]
+    fn rejects_multi_file_patch_payloads() {
+        let repository = repository();
+        let request = request(&repository);
+        let mut invalid = response();
+        invalid.changes[0].unified_diff.push_str(
+            "diff --git a/other.rs b/other.rs\n--- a/other.rs\n+++ b/other.rs\n@@ -1 +1 @@\n-old\n+new\n",
+        );
+        let provider = FixtureProvider { response: invalid };
+        assert_eq!(
+            CodeGenerator::new(CodeGenerationLimits::default()).generate(
+                &provider,
+                &request,
+                &registry()
+            ),
+            Err(CodeGenerationError::InvalidResponse(
+                CodeGenerationValidationError::InvalidPatchHeader
             ))
         );
     }
