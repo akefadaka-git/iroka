@@ -460,6 +460,51 @@ pub fn validate_durable_activation_binding(
 }
 
 
+
+/// First retrieval authorization. A caller MUST invoke this before even
+/// looking up record metadata; the record ID is only a selector.
+pub fn authorize_retrieval_request<G: GovernancePort>(
+    request: &AuthorizationRequest,
+    governance: &G,
+) -> Result<(), G05Error> {
+    if request.operation != Operation::Retrieve
+        || request.memory_id.as_deref().map_or(true, |id| !valid_ref(id))
+        || !valid_ref(&request.principal_ref)
+        || !valid_ref(&request.tenant_ref)
+        || !valid_ref(&request.subject_ref)
+        || !valid_ref(&request.correlation_ref)
+    {
+        return Err(G05Error::MalformedRecord);
+    }
+    governance.authorize(request)
+}
+
+/// Second retrieval authorization, after metadata-only lookup and before
+/// content access. This binds the G02 decision to the stored record's actual
+/// tenant, subject, purpose, classification, state and expiry.
+pub fn authorize_retrieval_metadata<G: GovernancePort>(
+    metadata: &MemoryMetadata,
+    request: &AuthorizationRequest,
+    governance: &G,
+    now: u64,
+) -> Result<(), G05Error> {
+    if request.operation != Operation::Retrieve
+        || request.memory_id.as_deref() != Some(metadata.memory_id.as_str())
+        || request.tenant_ref != metadata.tenant_ref
+        || request.subject_ref != metadata.subject_ref
+        || request.purpose != metadata.purpose
+        || request.classification != metadata.classification
+    {
+        return Err(G05Error::TenantScopeMismatch);
+    }
+    if metadata.lifecycle_state != LifecycleState::Active
+        || metadata.expires_at.is_some_and(|expiry| expiry <= now)
+    {
+        return Err(G05Error::RecordNotActive);
+    }
+    governance.authorize(request)
+}
+
 /// Complete durable activation preflight. This function enforces operation
 /// scope, G02 authorization, record-bound receipt integrity, and delegated
 /// cryptographic/designated-reviewer verification. Persistence and G11
