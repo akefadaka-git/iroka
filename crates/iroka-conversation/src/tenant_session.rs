@@ -23,7 +23,6 @@ impl SqliteTenantDirectory {
           PRIMARY KEY(subject,tenant_id));",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
-        ensure_session_key_column(&db)?;
         Ok(Self { db: Mutex::new(db) })
     }
     pub fn open_in_memory() -> Result<Self, ConversationError> {
@@ -187,6 +186,7 @@ impl SqliteSessionRegistry {
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
+        ensure_session_key_column(&db)?;
         Ok(Self {
             db: Mutex::new(db),
             credential_status,
@@ -199,10 +199,11 @@ impl SqliteSessionRegistry {
         db.execute_batch(
             "CREATE TABLE app_sessions(
           session_id TEXT PRIMARY KEY NOT NULL,subject TEXT NOT NULL,tenant_id TEXT NOT NULL,
-          issuer TEXT NOT NULL,credential_id TEXT NOT NULL,issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
+          issuer TEXT NOT NULL,credential_id TEXT NOT NULL,key_id TEXT NOT NULL DEFAULT '',issued_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,
           revocation_version INTEGER NOT NULL,revoked INTEGER NOT NULL DEFAULT 0);",
         )
         .map_err(|_| ConversationError::StorageUnavailable)?;
+        ensure_session_key_column(&db)?;
         Ok(Self {
             db: Mutex::new(db),
             credential_status,
@@ -349,6 +350,7 @@ impl CredentialStatus for AllowTestCredential {
         &self,
         issuer: &str,
         credential_id: &str,
+        key_id: &str,
         revocation_version: u64,
         _now: u64,
     ) -> Result<(), ConversationError> {
@@ -413,7 +415,7 @@ mod tests {
         );
         assert_eq!(sessions.revoke("s1"), Ok(()));
         assert_eq!(
-            sessions.validate("subject:1", "issuer:1", "cred:1", "tenant:a", "s1", 200),
+            sessions.validate("subject:1", "issuer:1", "cred:1", "key:1", 1, "tenant:a", "s1", 200),
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(
@@ -423,6 +425,7 @@ mod tests {
                 "tenant:a",
                 "issuer:1",
                 "cred:1",
+                "key:1",
                 100,
                 5_000,
                 1
