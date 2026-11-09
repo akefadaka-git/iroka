@@ -835,6 +835,7 @@ fn g05_capability(operation: Operation) -> &'static str {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn enqueue_authority_event(
     tx: &rusqlite::Transaction<'_>,
     event_type: &str,
