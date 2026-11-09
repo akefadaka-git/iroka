@@ -104,7 +104,11 @@ struct GenerationHub {
     states: Mutex<HashMap<String, Arc<GenerationState>>>,
 }
 impl GenerationHub {
-    fn insert(&self, id: &str, created_at: u64) -> Result<Arc<GenerationState>, HttpError> {
+    fn insert(&self, id: &str, created_at: u64) -> Result<(Arc<GenerationState>, bool), HttpError> {
+        let mut states = self.states.lock().map_err(|_| HttpError::Storage)?;
+        if let Some(existing) = states.get(id) {
+            return Ok((Arc::clone(existing), false));
+        }
         let state = Arc::new(GenerationState {
             events: Mutex::new(Vec::new()),
             ready: Condvar::new(),
@@ -113,7 +117,6 @@ impl GenerationHub {
             cancellation: Cancellation::new(),
             created_at,
         });
-        let mut states = self.states.lock().map_err(|_| HttpError::Storage)?;
         if states.len() >= 512 {
             let oldest_completed = states
                 .iter()
@@ -127,7 +130,7 @@ impl GenerationHub {
             }
         }
         states.insert(id.to_owned(), Arc::clone(&state));
-        Ok(state)
+        Ok((state, true))
     }
     fn get(&self, id: &str) -> Option<Arc<GenerationState>> {
         self.states.lock().ok()?.get(id).cloned()
@@ -741,10 +744,30 @@ where
             }),
         );
     }
-    let state = match generations.insert(&assistant_id, now) {
+    let (state, should_start) = match generations.insert(&assistant_id, now) {
         Ok(value) => value,
         Err(error) => return fail(stream, error),
     };
+    if !should_start {
+        if !state.wait_for_acceptance(std::time::Duration::from_secs(10)) {
+            return fail(stream, HttpError::Conflict);
+        }
+        let turns = match service.read(&principal, &session, &conversation_id, correlation_id, now) {
+            Ok(value) => value,
+            Err(error) => return fail(stream, HttpError::from(error)),
+        };
+        if !turns.iter().any(|turn| turn.id == turn_id && turn.role == "user" && turn.content == prompt) {
+            return fail(stream, HttpError::Conflict);
+        }
+        return write_json(
+            stream,
+            202,
+            json!({
+                "turn":{"id":assistant_id},
+                "events_url":format!("/api/v1/generations/{assistant_id}/events?conversation_id={conversation_id}")
+            }),
+        );
+    }
     let service = Arc::clone(&service);
     let session_for_worker = session.clone();
     let correlation_for_worker = correlation_id.to_owned();
@@ -937,6 +960,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generation_hub_insert_is_atomic_for_duplicate_turn_ids() {
+        let hub = GenerationHub::default();
+        let (first, created) = hub.insert("turn-atomic", 10).unwrap();
+        assert!(created);
+        let (second, created_again) = hub.insert("turn-atomic", 11).unwrap();
+        assert!(!created_again);
+        assert!(Arc::ptr_eq(&first, &second));
+        assert_eq!(second.created_at, 10);
+    }
 
     #[test]
     fn idempotent_turn_identity_is_stable_and_conversation_scoped() {
