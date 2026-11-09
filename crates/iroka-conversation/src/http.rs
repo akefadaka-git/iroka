@@ -690,8 +690,9 @@ where
     let correlation_for_worker = correlation_id.to_owned();
     let assistant_id_for_worker = assistant_id.clone();
     let conversation_id_for_worker = conversation_id.clone();
+    let state_for_worker = Arc::clone(&state);
     thread::spawn(move || {
-        let state_for_events = Arc::clone(&state);
+        let state_for_events = Arc::clone(&state_for_worker);
         let result = service.submit_streaming_with_clock(
             &principal,
             &session_for_worker,
