@@ -655,9 +655,7 @@ where
             &correlation_for_worker,
             now,
             &state.cancellation,
-            &mut |event| {
-                state_for_events.publish(event)
-            },
+            &mut |event| state_for_events.publish(event),
         );
         if let Err(error) = result {
             let event = if error == ConversationError::Cancelled {
