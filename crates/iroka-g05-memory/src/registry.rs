@@ -271,7 +271,7 @@ impl SqliteG05AuthorityRegistry {
         let mut delivered=0;
         for row in rows{
             let (id,kind,aggregate,tenant,actor,purpose,version,outcome,correlation,occurred,digest)=row;
-            let event=crate::AuditEvent{event_type:kind,memory_id:aggregate,tenant_ref:tenant,
+            let event=crate::AuditEvent{event_id:id.clone(),event_type:kind,memory_id:aggregate,tenant_ref:tenant,
                 actor_ref:actor,purpose:purpose_from_key(&purpose)?,record_version:from_i64(version)?,
                 outcome,correlation_ref:correlation,occurred_at:from_i64(occurred)?,content_sha256:digest};
             g11.append_memory_event(&event)?;
