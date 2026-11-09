@@ -303,7 +303,11 @@ impl TaskEnvelope {
         }
         if self.objective.text.trim().is_empty()
             || self.objective.success_criteria.is_empty()
-            || self.objective.success_criteria.iter().any(|item| item.trim().is_empty())
+            || self
+                .objective
+                .success_criteria
+                .iter()
+                .any(|item| item.trim().is_empty())
         {
             return Err(ValidationError::MissingObjective);
         }
@@ -331,9 +335,11 @@ impl TaskEnvelope {
         {
             return Err(ValidationError::ForbiddenCapabilityFlag);
         }
-        if self.input_refs.iter().any(|item| {
-            item.reference.trim().is_empty() || item.purpose.trim().is_empty()
-        }) {
+        if self
+            .input_refs
+            .iter()
+            .any(|item| item.reference.trim().is_empty() || item.purpose.trim().is_empty())
+        {
             return Err(ValidationError::InvalidInputReference);
         }
         Ok(())
@@ -404,7 +410,12 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
 
     pub fn run(&self, task: &TaskEnvelope) -> ResultEnvelope {
         if let Err(error) = task.validate() {
-            return self.terminal(task, ResultStatus::Denied, TerminationReason::ValidationError, error.to_string());
+            return self.terminal(
+                task,
+                ResultStatus::Denied,
+                TerminationReason::ValidationError,
+                error.to_string(),
+            );
         }
 
         let plan = build_plan(task);
@@ -429,7 +440,8 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
             }
         };
 
-        if generated.content.trim().is_empty() || generated.model_id.trim().is_empty()
+        if generated.content.trim().is_empty()
+            || generated.model_id.trim().is_empty()
             || generated.model_version.trim().is_empty()
         {
             return self.terminal(
@@ -449,7 +461,9 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
         }
 
         let critic = critique(task, &generated);
-        if task.required_evidence.citation_required || task.required_evidence.minimum_source_count > 0 {
+        if task.required_evidence.citation_required
+            || task.required_evidence.minimum_source_count > 0
+        {
             return self.terminal(
                 task,
                 ResultStatus::Abstained,
@@ -459,7 +473,9 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
         }
 
         let status = match critic.recommendation {
-            CriticRecommendation::Abstain | CriticRecommendation::Escalate => ResultStatus::Abstained,
+            CriticRecommendation::Abstain | CriticRecommendation::Escalate => {
+                ResultStatus::Abstained
+            }
             CriticRecommendation::Revise => ResultStatus::Partial,
             CriticRecommendation::AcceptWithLimitations => ResultStatus::Completed,
         };
@@ -473,8 +489,13 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
         } else {
             generated.content
         };
-        let answer = if status == ResultStatus::Abstained { None } else {
-            Some(Answer { content, locale: task.locale.requested.clone() })
+        let answer = if status == ResultStatus::Abstained {
+            None
+        } else {
+            Some(Answer {
+                content,
+                locale: task.locale.requested.clone(),
+            })
         };
         ResultEnvelope {
             schema_id: RESULT_SCHEMA_ID.to_owned(),
@@ -529,7 +550,11 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
                 model_version: "not-applicable".to_owned(),
             },
             termination,
-            resource_usage: ResourceUsage { input_units: 0, output_units: 0, elapsed_ms: 0 },
+            resource_usage: ResourceUsage {
+                input_units: 0,
+                output_units: 0,
+                elapsed_ms: 0,
+            },
             verification: Verification {
                 status: VerificationStatus::NotVerified,
                 assurance_ref: None,
@@ -546,11 +571,14 @@ pub fn build_plan(task: &TaskEnvelope) -> PlanProposal {
         success_criteria: task.objective.success_criteria.clone(),
         steps: vec![PlanStep {
             step_id: "step-001".to_owned(),
-            description: "Produce a bounded synthetic response; do not execute external actions".to_owned(),
+            description: "Produce a bounded synthetic response; do not execute external actions"
+                .to_owned(),
             depends_on: Vec::new(),
         }],
         assumptions: vec!["No external evidence or domain adapter is available".to_owned()],
-        approval_points: vec!["Any future protected effect requires the G02/G09 governed path".to_owned()],
+        approval_points: vec![
+            "Any future protected effect requires the G02/G09 governed path".to_owned(),
+        ],
         stop_conditions: vec![
             "Input or output budget exceeded".to_owned(),
             "Required evidence unavailable".to_owned(),
@@ -572,9 +600,13 @@ pub fn validate_plan(plan: &PlanProposal) -> bool {
     }
     let mut seen = Vec::new();
     for step in &plan.steps {
-        if step.step_id.trim().is_empty() || step.description.trim().is_empty()
+        if step.step_id.trim().is_empty()
+            || step.description.trim().is_empty()
             || seen.iter().any(|id: &String| id == &step.step_id)
-            || step.depends_on.iter().any(|dependency| !seen.contains(dependency))
+            || step
+                .depends_on
+                .iter()
+                .any(|dependency| !seen.contains(dependency))
         {
             return false;
         }
@@ -592,7 +624,9 @@ pub fn critique(task: &TaskEnvelope, output: &ModelOutput) -> CriticResult {
             message: "The adapter returned no user-facing content".to_owned(),
         });
         CriticRecommendation::Abstain
-    } else if task.required_evidence.citation_required || task.required_evidence.minimum_source_count > 0 {
+    } else if task.required_evidence.citation_required
+        || task.required_evidence.minimum_source_count > 0
+    {
         findings.push(CriticFinding {
             severity: "high".to_owned(),
             category: "evidence_missing".to_owned(),
@@ -611,8 +645,14 @@ pub fn critique(task: &TaskEnvelope, output: &ModelOutput) -> CriticResult {
         task_id: task.task_id.clone(),
         recommendation,
         findings,
-        coverage: vec!["schema".to_owned(), "budget".to_owned(), "evidence_requirement".to_owned()],
-        limitations: vec!["Critique is an internal cognitive check, not G11 independent assurance".to_owned()],
+        coverage: vec![
+            "schema".to_owned(),
+            "budget".to_owned(),
+            "evidence_requirement".to_owned(),
+        ],
+        limitations: vec![
+            "Critique is an internal cognitive check, not G11 independent assurance".to_owned(),
+        ],
         is_independent_assurance: false,
     }
 }
@@ -729,7 +769,9 @@ mod tests {
     fn generated_output_cannot_exceed_output_budget() {
         struct Oversized;
         impl ModelAdapter for Oversized {
-            fn adapter_id(&self) -> &'static str { "oversized-test" }
+            fn adapter_id(&self) -> &'static str {
+                "oversized-test"
+            }
             fn generate(&self, _task: &TaskEnvelope) -> Result<ModelOutput, AdapterError> {
                 Ok(ModelOutput {
                     content: "too many words here".to_owned(),
@@ -765,7 +807,10 @@ mod tests {
         let output = DeterministicFakeAdapter.generate(&request).unwrap();
         let result = critique(&request, &output);
         assert!(!result.is_independent_assurance);
-        assert_eq!(result.recommendation, CriticRecommendation::AcceptWithLimitations);
+        assert_eq!(
+            result.recommendation,
+            CriticRecommendation::AcceptWithLimitations
+        );
     }
 
     #[test]
