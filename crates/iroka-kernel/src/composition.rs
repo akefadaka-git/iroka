@@ -121,7 +121,12 @@ pub fn authorize_compact_in_tenant<R: RevocationChecker, S: AuditSink>(
     }
 
     let resolver = owner_verifier.tenant_membership_resolver();
-    let tenant = match resolver.resolve(&principal, requested_tenant_id, now, max_membership_age_secs) {
+    let tenant = match resolver.resolve(
+        &principal,
+        requested_tenant_id,
+        now,
+        max_membership_age_secs,
+    ) {
         Ok(context) => context,
         Err(error) => {
             let (code, reason) = match error {
