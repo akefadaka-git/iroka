@@ -40,7 +40,7 @@ struct GenerationState {
 impl GenerationState {
     fn publish(&self, event: StreamEvent) {
         let terminal = matches!(
-            event,
+            &event,
             StreamEvent::Completed { .. } | StreamEvent::Cancelled { .. } | StreamEvent::Failed { .. }
         );
         if let Ok(mut events) = self.events.lock() {
@@ -549,7 +549,7 @@ where
     Err(HttpError::NotFound)
 }
 
-fn start_generation<T, S, A, G, R>(
+fn start_generation<T, S, A, G>(
     stream: &mut TcpStream,
     service: Arc<ConversationService<T, S, A, G>>,
     principal: iroka_kernel::VerifiedPrincipal,
@@ -564,7 +564,6 @@ where
     S: SessionGuard + 'static,
     A: KernelAuthorization + Send + Sync + 'static,
     G: AnswerGenerator + 'static,
-    R: RevocationChecker,
 {
     let parts: Vec<&str> = request.path.trim_matches('/').split('/').collect();
     if parts.len() != 5 || parts[0] != "api" || parts[1] != "v1"
@@ -591,6 +590,7 @@ where
     let service = Arc::clone(&service);
     let session_for_worker = session.clone();
     let correlation_for_worker = correlation_id.to_owned();
+    let assistant_id_for_worker = assistant_id.clone();
     thread::spawn(move || {
         let state_for_events = Arc::clone(&state);
         let result = service.submit_streaming(
@@ -611,7 +611,7 @@ where
         );
         if let Err(error) = result {
             let event = if error == ConversationError::Cancelled {
-                StreamEvent::Cancelled { turn_id: assistant_id.clone(), sequence: 0 }
+                StreamEvent::Cancelled { turn_id: assistant_id_for_worker.clone(), sequence: 0 }
             } else {
                 StreamEvent::Failed { turn_id: assistant_id.clone(), sequence: 0 }
             };
