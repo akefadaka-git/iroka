@@ -190,6 +190,9 @@ fn validate_request(
     {
         return Err(PlanValidationError::LimitExceeded);
     }
+    if request.evidence.is_empty() {
+        return Err(PlanValidationError::EvidenceNotSupplied);
+    }
     let known_paths: BTreeSet<_> = request
         .repository
         .files
@@ -276,13 +279,18 @@ fn validate_plan(
         {
             return Err(PlanValidationError::LimitExceeded);
         }
+        if step.action == PlanAction::Edit && step.target_paths.is_empty() {
+            return Err(PlanValidationError::UnsafePath);
+        }
         let mut targets = BTreeSet::new();
         for target in &step.target_paths {
+            total_bytes = total_bytes.saturating_add(target.len());
             if !safe_relative_path(target) || !targets.insert(target.as_str()) {
                 return Err(PlanValidationError::UnsafePath);
             }
         }
         for evidence in &step.evidence {
+            total_bytes = total_bytes.saturating_add(evidence.path.len());
             if !safe_relative_path(&evidence.path) {
                 return Err(PlanValidationError::UnsafePath);
             }
@@ -310,11 +318,18 @@ fn validate_plan(
     }
 
     for step in &plan.steps {
+        let mut dependencies = BTreeSet::new();
         for dependency in &step.depends_on {
             if dependency == &step.id || !step_map.contains_key(dependency.as_str()) {
                 return Err(PlanValidationError::UnknownDependency);
             }
+            if !dependencies.insert(dependency.as_str()) {
+                return Err(PlanValidationError::UnknownDependency);
+            }
         }
+    }
+    if !plan.steps.iter().any(|step| !step.evidence.is_empty()) {
+        return Err(PlanValidationError::EvidenceNotSupplied);
     }
     if has_dependency_cycle(&plan.steps) {
         return Err(PlanValidationError::DependencyCycle);
