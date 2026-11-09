@@ -627,12 +627,13 @@ where
     let session_for_worker = session.clone();
     let correlation_for_worker = correlation_id.to_owned();
     let assistant_id_for_worker = assistant_id.clone();
+    let conversation_id_for_worker = conversation_id.clone();
     thread::spawn(move || {
         let state_for_events = Arc::clone(&state);
         let result = service.submit_streaming(
             &principal,
             &session_for_worker,
-            &conversation_id,
+            &conversation_id_for_worker,
             &turn_id,
             &idempotency,
             &prompt,
@@ -745,6 +746,7 @@ where
                 Ok(value) => value,
                 Err(_) => return Ok(()),
             };
+            let mut heartbeat = false;
             while index >= events.len() && !state.done.load(Ordering::Acquire) {
                 let waited = state
                     .ready
@@ -753,27 +755,32 @@ where
                     Ok((guard, timeout)) => {
                         events = guard;
                         if timeout.timed_out() && index >= events.len() {
-                            drop(events);
-                            stream.write_all(b": keep-alive\n\n")?;
-                            continue;
+                            heartbeat = true;
+                            break;
                         }
                     }
                     Err(_) => return Ok(()),
                 }
             }
+            if heartbeat {
+                drop(events);
+                stream.write_all(b": keep-alive\n\n")?;
+                continue;
+            }
             let batch = events[index..].to_vec();
-            index = events.len();
+            index += batch.len();
+            let caught_up = index == events.len();
             let done = state.done.load(Ordering::Acquire);
             drop(events);
             for event in &batch {
                 writeln!(stream, "data: {}\n", sse_event(event))?;
             }
             stream.flush()?;
-            if done && index >= batch.len() {
+            if done && caught_up {
                 break;
             }
         }
-    } else if let Some(turn) = turns.iter().find(|turn| turn.id == parts[3]) {
+     else if let Some(turn) = turns.iter().find(|turn| turn.id == parts[3]) {
         if turn.state == "completed" {
             writeln!(
                 stream,
