@@ -749,7 +749,10 @@ mod tests {
     fn external_provider_and_effect_flags_fail_closed() {
         let mut request = task();
         request.constraints.allow_external_provider = true;
-        assert_eq!(request.validate(), Err(ValidationError::ForbiddenCapabilityFlag));
+        assert_eq!(
+            request.validate(),
+            Err(ValidationError::ForbiddenCapabilityFlag)
+        );
         request.constraints.allow_external_provider = false;
         request.constraints.allow_protected_effects = true;
         assert_eq!(request.validate(), Err(ValidationError::ForbiddenCapabilityFlag));
