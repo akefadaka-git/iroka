@@ -344,8 +344,8 @@ impl TaskEnvelope {
         if !self.input_refs.is_empty() {
             return Err(ValidationError::DomainAdapterUnavailable);
         }
-        let encoded = serde_json::to_vec(self)
-            .map_err(|_| ValidationError::SerializationFailure)?;
+        let encoded =
+            serde_json::to_vec(self).map_err(|_| ValidationError::SerializationFailure)?;
         if encoded.len() > limits.max_input_bytes {
             return Err(ValidationError::InputTooLarge);
         }
@@ -521,8 +521,10 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
             claims: Vec::new(),
             assumptions: vec![
                 "Synthetic adapter output is not externally verified".to_owned(),
-                "Locale tag is preserved; language quality and translation are not validated".to_owned(),
-                "Output units are a conservative whitespace/byte bound, not tokenizer-exact tokens".to_owned(),
+                "Locale tag is preserved; language quality and translation are not validated"
+                    .to_owned(),
+                "Output units are a conservative whitespace/byte bound, not tokenizer-exact tokens"
+                    .to_owned(),
             ],
             unresolved_questions: Vec::new(),
             uncertainty: "unavailable".to_owned(),
