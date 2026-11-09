@@ -512,7 +512,9 @@ mod tests {
         let mut evidence = item();
         evidence.source_updated_at = Some(1_700_000_000);
         evidence.retrieved_at = 1_700_000_100;
-        let adapter = G04Adapter::new(FixtureProvider { bundle: bundle(evidence) });
+        let adapter = G04Adapter::new(FixtureProvider {
+            bundle: bundle(evidence),
+        });
         assert_eq!(
             adapter.retrieve(&req),
             Err(G04Error::FreshnessConstraintViolation)
