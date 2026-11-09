@@ -420,7 +420,7 @@ mod tests {
             "changes": [{
                 "path": "src/lib.rs",
                 "operation": "modify",
-                "unified_diff": "diff --git a/src/lib.rs b/src/lib.rs\\n--- a/src/lib.rs\\n+++ b/src/lib.rs\\n@@ -1 +1 @@\\n-old\\n+new\\n",
+                "unified_diff": "diff --git a/src/lib.rs b/src/lib.rs\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -1 +1 @@\n-old\n+new\n",
                 "rationale": "Small additive change"
             }],
             "diagnostics": []
