@@ -593,7 +593,7 @@ where
         let client_request_id = body
             .get("client_request_id")
             .and_then(Value::as_str)
-            .filter(|value| valid_id(value))
+            .filter(|value| valid_id(value) && value.len() <= 126)
             .ok_or(HttpError::BadRequest)?;
         let id = format!("c-{client_request_id}");
         let c = service
@@ -695,7 +695,7 @@ where
         .and_then(Value::as_str)
         .map(str::to_owned);
     let idempotency = match header(&request.headers, "idempotency-key") {
-        Some(value) if valid_id(value) => value.to_owned(),
+        Some(value) if valid_id(value) && value.len() <= 116 => value.to_owned(),
         _ => return fail(stream, HttpError::BadRequest),
     };
     let conversation_id = parts[3].to_owned();
