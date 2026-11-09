@@ -139,6 +139,12 @@ impl fmt::Debug for ExecutionGrant {
     }
 }
 
+impl Drop for ExecutionGrant {
+    fn drop(&mut self) {
+        self.token.fill(0);
+    }
+}
+
 impl ExecutionGrant {
     #[must_use]
     pub fn grant_id(&self) -> &str {
@@ -312,7 +318,7 @@ impl<'a> ExecutionGrantVerifier<'a> {
     /// Atomically consume the grant. A second call is rejected by the durable store.
     pub fn consume(
         &self,
-        grant: &ExecutionGrant,
+        grant: ExecutionGrant,
         expected_scope: &ExecutionGrantScope,
     ) -> Result<ConsumedExecutionGrant, ExecutionGrantError> {
         self.consume_at(grant, expected_scope, unix_now()?)
@@ -320,7 +326,7 @@ impl<'a> ExecutionGrantVerifier<'a> {
 
     fn consume_at(
         &self,
-        grant: &ExecutionGrant,
+        grant: ExecutionGrant,
         expected_scope: &ExecutionGrantScope,
         now: u64,
     ) -> Result<ConsumedExecutionGrant, ExecutionGrantError> {
@@ -616,12 +622,15 @@ mod tests {
         assert_eq!(grant.scope(), &scope);
 
         let consumer = ExecutionGrantVerifier::new(&store);
-        let consumed = consumer.consume_at(&grant, &scope, 1_201).expect("consume grant");
+        let grant_id = grant.grant_id.clone();
+        let scope_digest = grant.scope_digest;
+        let token_hash = Sha256::digest(grant.token).to_vec();
+        let consumed = consumer.consume_at(grant, &scope, 1_201).expect("consume grant");
         assert_eq!(consumed.scope(), &scope);
         assert_eq!(consumed.consumed_at(), 1_201);
         assert_eq!(
-            consumer.consume_at(&grant, &scope, 1_202),
-            Err(ExecutionGrantError::Replay)
+            store.consume_execution_grant(&grant_id, &scope_digest, &token_hash, 1_202),
+            Err(ExecutionGrantStoreError::Replay)
         );
     }
 
@@ -642,7 +651,7 @@ mod tests {
         .expect("alternate scope");
         let verifier = ExecutionGrantVerifier::new(&store);
         assert_eq!(
-            verifier.consume_at(&grant, &wrong_scope, 1_201),
+            verifier.consume_at(grant, &wrong_scope, 1_201),
             Err(ExecutionGrantError::ScopeMismatch)
         );
 
@@ -651,7 +660,7 @@ mod tests {
             .issue_at(evidence, scope.clone(), 1_200, 1)
             .expect("short grant");
         assert_eq!(
-            ExecutionGrantVerifier::new(&store).consume_at(&grant, &scope, 1_202),
+            ExecutionGrantVerifier::new(&store).consume_at(grant, &scope, 1_202),
             Err(ExecutionGrantError::Expired)
         );
     }
@@ -681,7 +690,7 @@ mod tests {
         let verifier = ExecutionGrantVerifier::new(&store);
         verifier.revoke_at(&grant, 1_201).expect("revoke grant");
         assert_eq!(
-            verifier.consume_at(&grant, &scope, 1_202),
+            verifier.consume_at(grant, &scope, 1_202),
             Err(ExecutionGrantError::Revoked)
         );
     }
