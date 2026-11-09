@@ -27,6 +27,7 @@ const ENVIRONMENT_ALLOWLIST: &[&str] = &[
     "npm_config_offline",
     "NO_COLOR",
     "RUST_BACKTRACE",
+    "GOTOOLCHAIN",
 ];
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -101,20 +102,29 @@ impl ToolCommand {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ToolchainProfile {
     language_id: String,
+    profile_version: String,
     actions: BTreeMap<ToolchainAction, ToolCommand>,
 }
 
 impl ToolchainProfile {
     pub fn new(
         language_id: impl Into<String>,
+        profile_version: impl Into<String>,
         actions: BTreeMap<ToolchainAction, ToolCommand>,
     ) -> Result<Self, SandboxError> {
         let language_id = language_id.into();
-        if !valid_identifier(&language_id) || actions.is_empty() {
+        let profile_version = profile_version.into();
+        if !valid_identifier(&language_id)
+            || profile_version.trim().is_empty()
+            || profile_version.len() > 64
+            || profile_version.bytes().any(|byte| byte.is_ascii_control())
+            || actions.is_empty()
+        {
             return Err(SandboxError::InvalidInvocation);
         }
         Ok(Self {
             language_id,
+            profile_version,
             actions,
         })
     }
@@ -179,7 +189,7 @@ impl ToolchainRegistry {
             .expect("static Rust debugger profile"),
         );
         registry
-            .register(ToolchainProfile::new("rust", rust).expect("Rust profile"))
+            .register(ToolchainProfile::new("rust", "1.0.0", rust).expect("Rust profile"))
             .expect("unique Rust profile");
 
         let mut python = BTreeMap::new();
@@ -214,7 +224,7 @@ impl ToolchainRegistry {
             .expect("static Python debugger profile"),
         );
         registry
-            .register(ToolchainProfile::new("python", python).expect("Python profile"))
+            .register(ToolchainProfile::new("python", "1.0.0", python).expect("Python profile"))
             .expect("unique Python profile");
 
         let mut typescript = BTreeMap::new();
@@ -249,7 +259,7 @@ impl ToolchainRegistry {
             .expect("static TypeScript debugger profile"),
         );
         registry
-            .register(ToolchainProfile::new("typescript", typescript).expect("TypeScript profile"))
+            .register(ToolchainProfile::new("typescript", "1.0.0", typescript).expect("TypeScript profile"))
             .expect("unique TypeScript profile");
 
         let mut go = BTreeMap::new();
@@ -259,7 +269,7 @@ impl ToolchainRegistry {
                 "go",
                 strings(&["test", "-run", "^$", "./..."]),
                 ".",
-                env(&[("GOTOOLCHAIN", "local"), ("GONOSUMDB", "*")]),
+                env(&[("GOTOOLCHAIN", "local")]),
             )
             .expect("static Go compile profile"),
         );
@@ -274,7 +284,7 @@ impl ToolchainRegistry {
                 .expect("static Go debugger profile"),
         );
         registry
-            .register(ToolchainProfile::new("go", go).expect("Go profile"))
+            .register(ToolchainProfile::new("go", "1.0.0", go).expect("Go profile"))
             .expect("unique Go profile");
         registry
     }
@@ -287,6 +297,9 @@ impl ToolchainRegistry {
         snapshot: &WorkspaceSnapshot,
         debug_target: Option<&str>,
     ) -> Result<SandboxInvocation, SandboxError> {
+        if !valid_identifier(sandbox_id) {
+            return Err(SandboxError::InvalidInvocation);
+        }
         let profile = self
             .profiles
             .get(language_id)
@@ -315,6 +328,8 @@ impl ToolchainRegistry {
             &args,
             &command.working_directory,
             &command.environment,
+            sandbox_id,
+            &profile.profile_version,
         );
         Ok(SandboxInvocation {
             language_id: language_id.to_owned(),
@@ -333,6 +348,7 @@ impl ToolchainRegistry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SandboxInvocation {
     language_id: String,
+    profile_version: String,
     action: ToolchainAction,
     sandbox_id: String,
     capability: String,
@@ -347,6 +363,11 @@ impl SandboxInvocation {
     #[must_use]
     pub fn language_id(&self) -> &str {
         &self.language_id
+    }
+
+    #[must_use]
+    pub fn profile_version(&self) -> &str {
+        &self.profile_version
     }
 
     #[must_use]
@@ -478,7 +499,19 @@ impl SandboxExecutor {
     ) -> Result<ExecutionResult, SandboxError> {
         limits.validate()?;
         let scope = grant.scope().clone();
-        if scope.repository() != snapshot.repository()
+        let recomputed_digest = digest_invocation(
+            snapshot,
+            &invocation.language_id,
+            invocation.action,
+            &invocation.program_id,
+            &invocation.args,
+            &invocation.working_directory,
+            &invocation.environment,
+            &invocation.sandbox_id,
+            &invocation.profile_version,
+        );
+        if recomputed_digest != invocation.action_digest
+            || scope.repository() != snapshot.repository()
             || scope.source_revision() != snapshot.revision()
             || scope.sandbox_id() != invocation.sandbox_id
             || scope.action_digest() != invocation.action_digest
@@ -516,6 +549,7 @@ pub struct SandboxRuntimeConfig {
     sandbox_root: PathBuf,
     mounts: Vec<ReadOnlyMount>,
     programs: BTreeMap<String, PathBuf>,
+    program_digests: BTreeMap<String, String>,
 }
 
 #[cfg(target_os = "linux")]
@@ -553,6 +587,9 @@ impl SandboxRuntimeConfig {
             return Err(SandboxError::SandboxUnavailable);
         }
 
+        if mounts.is_empty() || programs.is_empty() {
+            return Err(SandboxError::ToolUnavailable);
+        }
         let mut canonical_mounts = Vec::new();
         let mut sandbox_targets = BTreeSet::new();
         for mount in mounts {
@@ -576,10 +613,22 @@ impl SandboxRuntimeConfig {
             }
             if !mount.sandbox_path.is_absolute()
                 || mount.sandbox_path == Path::new("/")
+                || mount.sandbox_path.starts_with("/home")
+                || mount.sandbox_path.starts_with("/root")
+                || mount.sandbox_path.starts_with("/etc")
+                || mount.sandbox_path.starts_with("/proc")
+                || mount.sandbox_path.starts_with("/sys")
+                || mount.sandbox_path.starts_with("/dev")
+                || mount.sandbox_path.starts_with("/run")
+                || mount.sandbox_path.starts_with("/workspace")
                 || mount
                     .sandbox_path
                     .components()
                     .any(|part| matches!(part, Component::ParentDir | Component::CurDir))
+                || sandbox_targets.iter().any(|existing: &PathBuf| {
+                    existing.starts_with(&mount.sandbox_path)
+                        || mount.sandbox_path.starts_with(existing)
+                })
                 || !sandbox_targets.insert(mount.sandbox_path.clone())
             {
                 return Err(SandboxError::ToolUnavailable);
@@ -589,27 +638,16 @@ impl SandboxRuntimeConfig {
                 sandbox_path: mount.sandbox_path,
             });
         }
+        let mut program_digests = BTreeMap::new();
         for (program_id, sandbox_program) in &programs {
             if !valid_identifier(program_id) || !sandbox_program.is_absolute() {
                 return Err(SandboxError::ToolUnavailable);
             }
-            let mut found = false;
-            for mount in &canonical_mounts {
-                if let Ok(relative) = sandbox_program.strip_prefix(&mount.sandbox_path) {
-                    let host_program = std::fs::canonicalize(mount.host_path.join(relative))
-                        .map_err(|_| SandboxError::ToolUnavailable)?;
-                    if !host_program.starts_with(&mount.host_path)
-                        || !is_executable(&host_program)
-                    {
-                        return Err(SandboxError::ToolUnavailable);
-                    }
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
+            let host_program = resolve_host_program(&canonical_mounts, sandbox_program)?;
+            if !is_executable(&host_program) {
                 return Err(SandboxError::ToolUnavailable);
             }
+            program_digests.insert(program_id.clone(), file_digest(&host_program)?);
         }
         Ok(Self {
             bwrap_path,
@@ -617,6 +655,7 @@ impl SandboxRuntimeConfig {
             sandbox_root,
             mounts: canonical_mounts,
             programs,
+            program_digests,
         })
     }
 }
@@ -663,6 +702,15 @@ impl BubblewrapBackend {
             ]);
         }
         args.extend([
+            "--symlink".to_owned(),
+            "usr/bin".to_owned(),
+            "/bin".to_owned(),
+            "--symlink".to_owned(),
+            "usr/lib".to_owned(),
+            "/lib".to_owned(),
+            "--symlink".to_owned(),
+            "usr/lib64".to_owned(),
+            "/lib64".to_owned(),
             "--proc".to_owned(),
             "/proc".to_owned(),
             "--dev".to_owned(),
@@ -697,6 +745,9 @@ impl BubblewrapBackend {
             "--setenv".to_owned(),
             "CARGO_NET_OFFLINE".to_owned(),
             "true".to_owned(),
+            "--setenv".to_owned(),
+            "CARGO_HOME".to_owned(),
+            "/tmp/cargo".to_owned(),
             "--setenv".to_owned(),
             "PIP_NO_INDEX".to_owned(),
             "1".to_owned(),
@@ -740,6 +791,7 @@ impl SandboxBackend for BubblewrapBackend {
         {
             return Err(SandboxError::ScopeMismatch);
         }
+        verify_program_digests(&self.config)?;
         let workspace = SandboxWorkspace::create(
             &self.config.sandbox_root,
             grant.grant_id(),
@@ -850,7 +902,6 @@ fn run_bounded(
     mut command: std::process::Command,
     limits: &SandboxLimits,
 ) -> Result<ExecutionResult, SandboxError> {
-    use std::io::Read;
     use std::sync::mpsc;
     use std::thread;
 
@@ -937,6 +988,8 @@ fn digest_invocation(
     args: &[String],
     working_directory: &str,
     environment: &BTreeMap<String, String>,
+    sandbox_id: &str,
+    profile_version: &str,
 ) -> String {
     let mut hasher = Sha256::new();
     let mut add = |value: &[u8]| {
@@ -944,6 +997,8 @@ fn digest_invocation(
         hasher.update(value);
     };
     add(language_id.as_bytes());
+    add(profile_version.as_bytes());
+    add(sandbox_id.as_bytes());
     add(action.as_str().as_bytes());
     add(program_id.as_bytes());
     add(working_directory.as_bytes());
@@ -1079,6 +1134,7 @@ mod tests {
         let mut registry = ToolchainRegistry::standard();
         let profile = ToolchainProfile::new(
             "rust",
+            "1.0.0",
             BTreeMap::from([(
                 ToolchainAction::Test,
                 ToolCommand::new("cargo", strings(&["test"]), ".", BTreeMap::new())
