@@ -155,9 +155,9 @@ A5 is not included in this work authorization. A future release proposal must in
 | A1 assessment | PASS | Destination, constitutional baseline and relevant workstreams inspected |
 | A1 Brain specification | VERIFIED-CLOSED | Owner approved D2; IROKA-BRAIN-A1-001 v1.0.0 frozen on proposal branch |
 | A2 read-only reconciliation | PASS | IROKA-BRAIN-A2-001 records inspected branches/PRs, final repository state and D1/D2 decisions |
-| A2 contracts | PARTIAL | Cognitive contract proposal drafted; B-A2-01/02 approved; formal schema acceptance, G01/G02 context, G04/G05/G06 interfaces, G08/CIW lineage, corpus governance and A3 increment scope remain open |
-| A3 implementation | NOT AUTHORIZED | Requires A1 freeze, A2 closure and separate explicit authorization |
-| A4 verification | NOT RUN | No Brain runtime implementation exists in this workstream |
+| A2 contracts | VERIFIED-CLOSED | Owner-approved IROKA-BRAIN-A2-COGNITIVE-CONTRACTS-001 v1.0.0; adapter integration readiness remains dependency-gated |
+| A3 implementation | AUTHORIZED / IN PROGRESS | B01 exact-HEAD CI verified; B02 tenant authority, signed policy lifecycle and composition implemented on dependent draft PRs; B03+ remain dependency-gated |
+| A4 verification | NOT RUN | Formal independent security assurance remains separate; CI evidence is not A4 acceptance |
 | A5 release | NOT AUTHORIZED | Separate release gate |
 
 ## 10. Preservation and change-control rules
@@ -171,7 +171,7 @@ A5 is not included in this work authorization. A future release proposal must in
 - No production keys, secrets, personal data or paid provider dependencies.
 - Every new implementation increment must be isolated, reviewable and exact-SHA verifiable.
 
-**Disposition:** planning only. A1 is VERIFIED-CLOSED / FROZEN by D2. A2 remains PARTIAL; the A2 cognitive contract proposal is not yet Owner-approved. A3 implementation is NOT AUTHORIZED and requires separate explicit Owner authorization after A2 closure. A4 verification and A5 release remain separate gates.
+**Disposition (historical section, superseded by Owner decisions recorded below):** A1 is VERIFIED-CLOSED / FROZEN; A2 cognitive contracts are Owner-approved and VERIFIED-CLOSED; A3 implementation B01–B09 is AUTHORIZED on isolated branches with dependency gates. Merge, deployment, A4 assurance and A5 release remain separate gates.
 
 
 ---
@@ -205,9 +205,9 @@ A5 is not included in this work authorization. A future release proposal must in
 
 ### 10.2 A3 sequencing and stop conditions
 
-1. **B01 first:** implement the isolated cognitive core only after separate A3 authorization.
-2. **B02 before authenticated integration:** if Kernel/tenant/policy contracts cannot be pinned, keep the core offline and deny authenticated execution.
-3. **B03–B05 adapters:** each adapter is independently blocked until its owner contract is exact and verified; unavailable domains produce typed abstention.
+1. **B01:** isolated cognitive core implemented and exact-HEAD CI verified in PR #27; synthetic-only restrictions remain.
+2. **B02:** tenant authority, signed G02 policy lifecycle and G01→tenant→policy→approval→G11 composition implemented in PRs #28–#30; B02 remains PARTIAL pending tenant-specific policy semantics, cross-domain transaction/revalidation, multi-node persistence and A4.
+3. **B03–B05 adapters:** each adapter is independently blocked until its owner contract is exact and verified; unavailable domains produce typed abstention. G04 proposal/readiness is tracked in PR #31; G05/G06 owner contracts are also absent from the pinned baseline.
 4. **B06 CIW:** do not transplant the current PR #23 branch wholesale. Its head is 172 commits ahead and 22 commits behind current main, with a stale base; conduct file-level provenance/security review and create a clean integration branch only after Owner-approved baseline selection.
 5. **B07 orchestration:** no G08 composition until tenant-context and lineage blockers are resolved.
 6. **B08/B09:** quality, assurance and evolution evidence are mandatory before A4; they do not confer release authority.
@@ -220,8 +220,8 @@ A failed dependency gate stops only the dependent work package; it does not just
 |---|---|
 | A1 | VERIFIED-CLOSED / FROZEN |
 | A2 | VERIFIED-CLOSED — design/contracts only |
-| A3 scope | BROADER PROPOSAL RECORDED; implementation authorization still required |
-| A3 implementation | NOT STARTED / NOT AUTHORIZED |
+| A3 scope | OWNER-APPROVED — B01–B09 direction |
+| A3 implementation | AUTHORIZED / IN PROGRESS — B01 verified; B02 partial; B03+ dependency-gated |
 | A4 | NOT RUN |
 | A5 | NOT AUTHORIZED |
 
@@ -527,3 +527,31 @@ The repository CI workflow did not include nested stacked-PR base branches in it
 - Independent security review and formal A4 acceptance are NOT RUN. CI is not A4 assurance.
 
 PR #30 remains OPEN / DRAFT / UNMERGED and depends on PR #29, which depends on PR #28. B02 remains PARTIAL. No merge, deployment, production key provisioning or production activation is authorized.
+
+
+## 14.4 A3-B03 G04 dependency readiness — 2026-11-09
+
+**Disposition: B03 BLOCKED / DESIGN PROPOSAL ONLY. No G04 implementation is claimed.**
+
+- Owner-approved A2 Brain contracts assign source registration, knowledge retrieval and evidence provenance to G04; G03 may only consume and synthesize G04-returned evidence.
+- Read-only repository-tree inspection of the pinned main baseline `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472` found no G04 crate, G04 API/contract document, authoritative source registry, retrieval adapter or provenance-verification implementation.
+- The A2 Brain task contract defines opaque input/evidence references and G04 ownership, but does not specify G04 request/response schemas, source lifecycle, license/permission evidence, freshness, revocation or tenant-scoped retrieval semantics.
+- Proposal PR: https://github.com/akefadaka-git/iroka/pull/31
+- Proposal branch: `architecture/brain-a3-g04-adapter-proposal`
+- Proposal exact HEAD: `80f1f84866169f53a63218cf99d77161f16dde07`
+- Proposal document: `docs/brain/IROKA-BRAIN-A3-G04-ADAPTER-PROPOSAL-001.md`
+- PR #31 is OPEN / DRAFT / UNMERGED, documentation-only. The G04 contract proposal is NOT OWNER-APPROVED.
+
+### G04 proposal coverage
+
+- G04 remains sole authority for source registration, retrieval, provenance, freshness and revocation.
+- G01 tenant context and G02 policy context remain opaque trusted references; caller tenant IDs are selectors only.
+- Evidence bundles preserve source/revision identity, exact locator, digest, acquisition/license attribution, freshness and explicit verified/stale/unverified/revoked/superseded/unavailable state.
+- G03 treats retrieved content as untrusted data, preserves citations and abstains on missing, stale, revoked, conflicting or unverified evidence.
+- Negative tests cover cross-tenant disclosure, forged references, digest mismatch, license gaps, stale/revoked sources, prompt injection, budget exhaustion, duplicate requests and Amharic/Ethiopic fidelity.
+
+### Other adapter readiness findings
+
+Repository-tree inspection also found no G05 memory contract/API or G06 perception/modality contract/API in the pinned main tree. A3-B04 and A3-B05 therefore remain independently BLOCKED pending their authoritative owner contracts. This does not authorize G03 to create duplicate memory or media pipelines.
+
+**Required next gate:** Owner approval or amendment of the proposed G04 boundary and identification of the authoritative G04 implementation/source contract. Only then may B03 implementation begin on a new isolated branch with exact-source provenance and CI gates.
