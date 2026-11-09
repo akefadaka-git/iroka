@@ -17,6 +17,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
+mod registry;
+pub use registry::{G01ReviewerProofAuthority, ReviewerDesignation, RegistryDesignatedReviewerAuthority, SqliteG05AuthorityRegistry};
+
 mod authority;
 pub use authority::{DesignatedReviewerAuthority, EpisodicConsentAuthority, G02AuthorizationAuthority, G11MemoryAuditAuthority, TrustedGovernanceAdapter};
 
@@ -96,6 +99,10 @@ pub enum Operation {
     RequestDeletion,
     VerifyDeletion,
     Share,
+    GrantEpisodicConsent,
+    WithdrawEpisodicConsent,
+    DesignateReviewer,
+    RevokeReviewerDesignation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,6 +116,9 @@ pub enum G05Error {
     ExpiryInvalid,
     RestrictedWorkingMemory,
     EpisodicOptInRequired,
+    ConsentScopeMismatch,
+    ApprovalReplay,
+    AuthorityUnavailable,
     DurableApprovalRequired,
     ApprovalBindingMismatch,
     ApprovalExpired,
