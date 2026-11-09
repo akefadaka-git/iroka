@@ -241,7 +241,7 @@ A failed dependency gate stops only the dependent work package; it does not just
 - Base: `main` at `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`
 - Exact verified HEAD: `9d68b580e06bb8335a626524d64b345c3a5a38aa`
 - PR state: OPEN / DRAFT / UNMERGED.
-- Compare: branch is 6 commits ahead of main, 0 behind (verify against latest comparison before any later integration).
+- Compare: branch is 10 commits ahead of main, 0 behind (verify against latest comparison before any later integration).
 - Added isolated `iroka-brain` workspace crate with serde/serde_json only; no new external dependency.
 - Implemented v1 task/result envelope structures, strict schema/version validation, full serialized-input byte budget, fail-closed iteration/output limits, offline context/domain-adapter denial, deterministic plan proposal and structural validator, critic recommendation and model-adapter trait.
 - Deterministic fake adapter is the only adapter. No network or model provider is contacted.
