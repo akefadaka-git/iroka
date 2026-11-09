@@ -11,8 +11,6 @@ pub(crate) struct IdentityAssertion {
     audience: String,
     expires_at: u64,
     credential_id: String,
-    key_id: String,
-    revocation_version: u64,
 }
 
 #[cfg(test)]
@@ -59,6 +57,8 @@ pub struct VerifiedPrincipal {
     subject: String,
     issuer: String,
     credential_id: String,
+    key_id: String,
+    revocation_version: u64,
 }
 
 impl VerifiedPrincipal {
@@ -122,5 +122,7 @@ pub(crate) fn authenticate<V: IdentityVerifier>(
         subject: assertion.subject.clone(),
         issuer: assertion.issuer.clone(),
         credential_id: assertion.credential_id.clone(),
+        key_id: "test-key".into(),
+        revocation_version: 1,
     })
 }
