@@ -1,9 +1,9 @@
 //! Bounded, deterministic repository indexing and static project analysis.
 //!
-//! This module consumes a caller-provided snapshot. It does not walk the host
-//! filesystem, follow symlinks, execute manifests, resolve packages, or access
-//! the network. A future workspace provider must enforce the same path and
-//! resource limits while collecting this snapshot.
+//! This module analyzes caller-provided or filesystem-collected snapshots.
+//! It does not execute manifests, invoke package managers, install packages,
+//! resolve versions through a registry, or access the network. Unsupported
+//! manifest and lockfile formats are reported as partial analysis.
 
 use std::collections::BTreeSet;
 use std::fmt;
