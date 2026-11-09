@@ -297,7 +297,11 @@ fn valid_new_header(header: &str, change: &GeneratedChange) -> bool {
             format!("+++ b/{}", change.path)
         }
     };
-    header == expected && change.unified_diff.lines().any(|line| line.starts_with("@@"))
+    header == expected
+        && change
+            .unified_diff
+            .lines()
+            .any(|line| line.starts_with("@@"))
 }
 
 #[cfg(test)]
@@ -383,7 +387,9 @@ mod tests {
     fn accepts_bounded_structured_patch_proposal() {
         let repository = repository();
         let request = request(&repository);
-        let provider = FixtureProvider { response: response() };
+        let provider = FixtureProvider {
+            response: response(),
+        };
         let result = CodeGenerator::new(CodeGenerationLimits::default())
             .generate(&provider, &request, &registry())
             .expect("valid patch proposal");
@@ -398,7 +404,11 @@ mod tests {
         invalid.request_id = "another-request".to_owned();
         let provider = FixtureProvider { response: invalid };
         assert_eq!(
-            CodeGenerator::new(CodeGenerationLimits::default()).generate(&provider, &request, &registry()),
+            CodeGenerator::new(CodeGenerationLimits::default()).generate(
+                &provider,
+                &request,
+                &registry()
+            ),
             Err(CodeGenerationError::InvalidResponse(
                 CodeGenerationValidationError::MismatchedRequest
             ))
@@ -410,9 +420,15 @@ mod tests {
         let repository = repository();
         let mut request = request(&repository);
         request.operation = ChangeOperation::Create;
-        let provider = FixtureProvider { response: response() };
+        let provider = FixtureProvider {
+            response: response(),
+        };
         assert_eq!(
-            CodeGenerator::new(CodeGenerationLimits::default()).generate(&provider, &request, &registry()),
+            CodeGenerator::new(CodeGenerationLimits::default()).generate(
+                &provider,
+                &request,
+                &registry()
+            ),
             Err(CodeGenerationError::InvalidRequest(
                 CodeGenerationValidationError::TargetAlreadyExists
             ))
@@ -421,7 +437,11 @@ mod tests {
         request.operation = ChangeOperation::Modify;
         request.language = LanguageId::new("future-language").expect("language id");
         assert_eq!(
-            CodeGenerator::new(CodeGenerationLimits::default()).generate(&provider, &request, &registry()),
+            CodeGenerator::new(CodeGenerationLimits::default()).generate(
+                &provider,
+                &request,
+                &registry()
+            ),
             Err(CodeGenerationError::InvalidRequest(
                 CodeGenerationValidationError::UnsupportedLanguage
             ))
@@ -436,7 +456,11 @@ mod tests {
         invalid.changes[0].path = "../outside.rs".to_owned();
         let provider = FixtureProvider { response: invalid };
         assert_eq!(
-            CodeGenerator::new(CodeGenerationLimits::default()).generate(&provider, &request, &registry()),
+            CodeGenerator::new(CodeGenerationLimits::default()).generate(
+                &provider,
+                &request,
+                &registry()
+            ),
             Err(CodeGenerationError::InvalidResponse(
                 CodeGenerationValidationError::UnsafePath
             ))
@@ -446,7 +470,11 @@ mod tests {
         invalid.changes[0].unified_diff = "not a diff".to_owned();
         let provider = FixtureProvider { response: invalid };
         assert_eq!(
-            CodeGenerator::new(CodeGenerationLimits::default()).generate(&provider, &request, &registry()),
+            CodeGenerator::new(CodeGenerationLimits::default()).generate(
+                &provider,
+                &request,
+                &registry()
+            ),
             Err(CodeGenerationError::InvalidResponse(
                 CodeGenerationValidationError::InvalidPatchHeader
             ))
