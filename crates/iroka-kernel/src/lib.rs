@@ -36,11 +36,12 @@ pub use identity_crypto::{
 };
 pub use igacms::{
     authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical,
-    sign_fingerprint, sign_genesis, validate_embedded_baseline, validate_genome,
-    validate_marker_assertion, verify_attestation_with_trust_roots, verify_epoch_transition,
-    verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
-    IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
-    ValidatedGenome, VerifiedGenesis,
+    sign_fingerprint, sign_genesis, sign_marker_assertion, validate_embedded_baseline,
+    validate_genome, validate_marker_assertion, validate_marker_transition,
+    verify_attestation_with_trust_roots, verify_attested_marker_assertion,
+    verify_epoch_transition, verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis,
+    HistoricalArtifact, IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass,
+    MutationEvidence, ValidatedGenome, VerifiedGenesis,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
