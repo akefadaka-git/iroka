@@ -4,7 +4,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use std::sync::{Arc, Mutex};
 
 use crate::{ConversationError, SessionGuard, TenantMembership};
-use iroka_kernel::RevocationChecker;
+use iroka_kernel::{RevocationChecker, SqliteSecurityStore, VerifiedPrincipal};
 
 const MAX_MEMBERSHIP_AGE: u64 = 300;
 const MAX_SESSION_TTL: u64 = 1_800;
@@ -192,6 +192,21 @@ impl SqliteSessionRegistry {
             credential_status,
         })
     }
+    pub fn open_with_kernel_store(
+        path: &str,
+        security_store: Arc<SqliteSecurityStore>,
+    ) -> Result<Self, ConversationError> {
+        let status: Arc<dyn CredentialStatus> = Arc::new(KernelCredentialStatus::new(security_store));
+        Self::open(path, status)
+    }
+
+    pub fn open_in_memory_with_kernel_store(
+        security_store: Arc<SqliteSecurityStore>,
+    ) -> Result<Self, ConversationError> {
+        let status: Arc<dyn CredentialStatus> = Arc::new(KernelCredentialStatus::new(security_store));
+        Self::open_in_memory(status)
+    }
+
     pub fn open_in_memory(
         credential_status: Arc<dyn CredentialStatus>,
     ) -> Result<Self, ConversationError> {
@@ -212,7 +227,7 @@ impl SqliteSessionRegistry {
     /// Register a session ID minted by a trusted cryptographic session issuer.
     /// The caller must not accept caller-chosen IDs or extend a session beyond this cap.
     #[allow(clippy::too_many_arguments)] // Explicitly binds session identity and lifetime at provisioning.
-    pub fn register(
+    fn register_fields(
         &self,
         session_id: &str,
         subject: &str,
@@ -256,6 +271,29 @@ impl SqliteSessionRegistry {
         .map_err(|_| ConversationError::Conflict)?;
         Ok(())
     }
+    /// Register a bounded application session only from a cryptographically verified G01 principal.
+    /// The session identifier must be freshly minted by the trusted session issuer.
+    pub fn register_verified(
+        &self,
+        principal: &VerifiedPrincipal,
+        session_id: &str,
+        tenant: &str,
+        issued_at: u64,
+        expires_at: u64,
+    ) -> Result<(), ConversationError> {
+        self.register_fields(
+            session_id,
+            principal.subject(),
+            tenant,
+            principal.issuer(),
+            principal.credential_id(),
+            principal.key_id(),
+            issued_at,
+            expires_at,
+            principal.revocation_version(),
+        )
+    }
+
     pub fn revoke(&self, session_id: &str) -> Result<(), ConversationError> {
         let db = self
             .db
@@ -392,7 +430,7 @@ mod tests {
         let sessions =
             SqliteSessionRegistry::open_in_memory(Arc::new(AllowTestCredential)).unwrap();
         assert_eq!(
-            sessions.register(
+            sessions.register_fields(
                 "s1",
                 "subject:1",
                 "tenant:a",
@@ -419,7 +457,7 @@ mod tests {
             Err(ConversationError::SessionInvalid)
         );
         assert_eq!(
-            sessions.register(
+            sessions.register_fields(
                 "s2",
                 "subject:1",
                 "tenant:a",
