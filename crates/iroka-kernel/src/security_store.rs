@@ -529,7 +529,7 @@ impl SqliteSecurityStore {
     pub(crate) fn stage_policy_snapshot(
         &self, epoch: u64, digest: &[u8; 32], canonical_payload: &[u8], signature: &[u8],
         owner_subject: &str, key_id: &str, policy_version: &str,
-        issued_at: u64, expires_at: u64, now: u64,
+        issued_at: u64, expires_at: u64, emergency_stop_active: bool, now: u64,
     ) -> Result<(), SecurityStoreError> {
         if epoch == 0 || canonical_payload.is_empty() || signature.len() != 64
             || owner_subject.trim().is_empty() || key_id.trim().is_empty()
@@ -538,7 +538,6 @@ impl SqliteSecurityStore {
         let epoch_i = i64::try_from(epoch).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let issued_i = i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let expires_i = i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let now_i = i64::try_from(now).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
         let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
@@ -567,12 +566,11 @@ impl SqliteSecurityStore {
         if pending { return Err(SecurityStoreError::ConflictingVersion); }
         tx.execute(
             "INSERT INTO policy_snapshots(epoch,digest,canonical_payload,signature,owner_subject,key_id,policy_version,issued_at,expires_at,emergency_stop_active,state) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,'pending')",
-            params![epoch_i,digest.as_slice(),canonical_payload,signature,owner_subject,key_id,policy_version,issued_i,expires_i,0i64],
+            params![epoch_i,digest.as_slice(),canonical_payload,signature,owner_subject,key_id,policy_version,issued_i,expires_i,i64::from(emergency_stop_active)],
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         tx.execute(
             "UPDATE policy_lifecycle_state SET highest_epoch=?1 WHERE singleton=1", [epoch_i],
         ).map_err(|_| SecurityStoreError::Unavailable)?;
-        let _ = now_i;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
     }
 
