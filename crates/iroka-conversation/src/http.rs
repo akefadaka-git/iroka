@@ -269,8 +269,9 @@ fn read_request(stream: &mut TcpStream) -> Result<Request, HttpError> {
     }
     while body.len() < length {
         let remaining = length - body.len();
+        let read_len = remaining.min(chunk.len());
         let n = stream
-            .read(&mut chunk[..remaining.min(chunk.len())])
+            .read(&mut chunk[..read_len])
             .map_err(|_| HttpError::BadRequest)?;
         if n == 0 {
             return Err(HttpError::BadRequest);
@@ -503,7 +504,7 @@ where
                 _ => None,
             })
             .unwrap_or("");
-        Ok((
+        return Ok((
             202,
             json!({"turn":{"id":assistant_id},"events_url":format!("/api/v1/generations/{assistant_id}/events?conversation_id={id}"),"answer":text}),
         ))
