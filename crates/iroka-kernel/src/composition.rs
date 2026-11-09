@@ -195,8 +195,6 @@ pub fn authorize_compact_in_tenant<R: RevocationChecker, S: AuditSink>(
         correlation_id,
     )
 }
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
