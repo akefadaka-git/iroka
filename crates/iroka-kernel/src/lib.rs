@@ -24,7 +24,7 @@ pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason, GovernedDecisionEvidence};
 pub use execution_grant::{
     ConsumedExecutionGrant, ExecutionGrant, ExecutionGrantError, ExecutionGrantIssuer,
-    ExecutionGrantScope, ExecutionGrantVerifier, MAX_DECISION_EVIDENCE_AGE_SECONDS,
+    ExecutionGrantScope, ExecutionGrantScopeSpec, ExecutionGrantVerifier, MAX_DECISION_EVIDENCE_AGE_SECONDS,
     MAX_EXECUTION_GRANT_TTL_SECONDS,
 };
 #[cfg(test)]
