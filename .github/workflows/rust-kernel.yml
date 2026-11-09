@@ -41,11 +41,11 @@ jobs:
           persist-credentials: false
 
       - name: Install stable Rust toolchain
-      run: |
-        rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-        rustup default stable
-        rustc --version
-        cargo --version
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+          rustc --version
+          cargo --version
 
       - name: Check formatting
         run: cargo fmt --all -- --check
