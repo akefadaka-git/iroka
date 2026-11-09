@@ -14,6 +14,16 @@ use crate::{AuditEvent, AuthorizationRequest, DurableApprovalReceipt, G05Error, 
 /// Must not accept caller-asserted principal or tenant authority.
 pub trait G02AuthorizationAuthority: Send + Sync {
     fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error>;
+
+    /// Global G02 capability permission is not sufficient to manage a
+    /// particular organization's reviewers. Implementations must additionally
+    /// resolve the actor's current organization-scoped governance delegation.
+    /// Default denial prevents a global capability from becoming an org role.
+    fn authorize_organization_scope(
+        &self, _request: &AuthorizationRequest, _organization_ref: &str,
+    ) -> Result<(), G05Error> {
+        Err(G05Error::ReviewerNotAuthorized)
+    }
 }
 
 /// Loads authoritative consent state and verifies exact tenant, subject,
@@ -77,6 +87,7 @@ mod tests {
     struct AllowG02;
     impl G02AuthorizationAuthority for AllowG02 {
         fn authorize_g05(&self, _: &AuthorizationRequest) -> Result<(), G05Error> { Ok(()) }
+        fn authorize_organization_scope(&self, _: &AuthorizationRequest, _: &str) -> Result<(), G05Error> { Ok(()) }
     }
     struct DenyConsent;
     impl EpisodicConsentAuthority for DenyConsent {
