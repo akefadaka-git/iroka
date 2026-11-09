@@ -25,7 +25,7 @@ use crate::{
     SessionGuard, TenantMembership,
 };
 
-const MAX_HEADER_BYTES: usize = 16 * 1024;
+const MAX_HEADER_BYTES: usize = 24 * 1024;
 const MAX_BODY_BYTES: usize = 32 * 1024;
 static REQUEST_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
