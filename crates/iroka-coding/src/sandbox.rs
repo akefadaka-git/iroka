@@ -823,7 +823,10 @@ impl SandboxWorkspace {
             .files()
             .iter()
             .try_fold(0_usize, |sum, file| {
-                if file.is_symlink || !safe_relative_path(&file.path) || file.content.len() > limits.max_file_bytes {
+                if file.is_symlink
+                    || !safe_relative_path(&file.path)
+                    || file.content.len() > limits.max_file_bytes
+                {
                     return None;
                 }
                 sum.checked_add(file.content.len())
@@ -834,11 +837,12 @@ impl SandboxWorkspace {
         }
         let path = sandbox_root.join(grant_id);
         std::fs::create_dir(&path).map_err(|_| SandboxError::WorkspaceRejected)?;
+        let workspace = Self { path };
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700))
+        std::fs::set_permissions(&workspace.path, std::fs::Permissions::from_mode(0o700))
             .map_err(|_| SandboxError::WorkspaceRejected)?;
         for file in snapshot.files() {
-            let destination = path.join(&file.path);
+            let destination = workspace.path.join(&file.path);
             let parent = destination.parent().ok_or(SandboxError::WorkspaceRejected)?;
             std::fs::create_dir_all(parent).map_err(|_| SandboxError::WorkspaceRejected)?;
             let mut output = std::fs::OpenOptions::new()
@@ -853,7 +857,7 @@ impl SandboxWorkspace {
             std::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o600))
                 .map_err(|_| SandboxError::WorkspaceRejected)?;
         }
-        Ok(Self { path })
+        Ok(workspace)
     }
 }
 
@@ -959,7 +963,7 @@ fn run_bounded(
     let status = loop {
         if signal_rx.try_recv().is_ok() {
             output_limited = true;
-            let _ = child.kill();
+            child.kill().map_err(|_| SandboxError::WaitFailed)?;
             break child.wait().map_err(|_| SandboxError::WaitFailed)?;
         }
         if let Some(status) = child.try_wait().map_err(|_| SandboxError::WaitFailed)? {
@@ -1004,8 +1008,15 @@ fn read_capped<R: std::io::Read>(
     let mut overflow = false;
     loop {
         let count = match reader.read(&mut buffer) {
-            Ok(0) | Err(_) => break,
+            Ok(0) => break,
             Ok(count) => count,
+            Err(_) => {
+                if !overflow {
+                    overflow = true;
+                    let _ = signal.send(());
+                }
+                break;
+            }
         };
         let remaining = limit.saturating_sub(output.len());
         let retained = count.min(remaining);
