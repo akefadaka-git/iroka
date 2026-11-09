@@ -1,0 +1,12 @@
+[package]
+name = "iroka-coding"
+version = "0.1.0"
+description = "Extensible language and toolchain contracts for IROKA coding intelligence"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
