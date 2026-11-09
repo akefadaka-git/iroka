@@ -755,7 +755,10 @@ mod tests {
             correlation_ref: "trace:1".to_owned(),
         };
         assert_eq!(authorize_episodic_capture(&item, &request, &AllowGovernance, 110), Ok(()));
-        assert_eq!(authorize_episodic_capture(&item, &request, &DenyGovernance, 110), Err(G05Error::AuthorizationDenied));
+        assert_eq!(
+            authorize_episodic_capture(&item, &request, &DenyGovernance, 110),
+            Err(G05Error::AuthorizationDenied)
+        );
         item.episodic_opt_in_ref = None;
         assert_eq!(
             validate_candidate(&item, 100, &policy()),
