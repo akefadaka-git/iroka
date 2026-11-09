@@ -808,6 +808,28 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
         cancel: &Cancellation,
         emit_event: &mut dyn FnMut(StreamEvent) -> Result<(), ConversationError>,
     ) -> Result<(), ConversationError> {
+        self.submit_streaming_with_clock(
+            principal, session, conversation_id, turn_id, idempotency, prompt,
+            locale, correlation, now, &|| now, cancel, emit_event,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn submit_streaming_with_clock(
+        &self,
+        principal: &VerifiedPrincipal,
+        session: &str,
+        conversation_id: &str,
+        turn_id: &str,
+        idempotency: &str,
+        prompt: &str,
+        locale: Option<&str>,
+        correlation: &str,
+        now: u64,
+        clock: &dyn Fn() -> u64,
+        cancel: &Cancellation,
+        emit_event: &mut dyn FnMut(StreamEvent) -> Result<(), ConversationError>,
+    ) -> Result<(), ConversationError> {
         if prompt.trim().is_empty()
             || turn_id.trim().is_empty()
             || idempotency.trim().is_empty()
@@ -891,7 +913,8 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
                 }
                 // Recheck the mutable tenant/session/revocation context before
                 // accepting each generated chunk, not only at final commit.
-                let current_tenant = self.context(principal, session, now)?;
+                let check_at = clock();
+                let current_tenant = self.context(principal, session, check_at)?;
                 if current_tenant != tenant {
                     return Err(ConversationError::SessionInvalid);
                 }
@@ -900,7 +923,7 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
                     Operation::SubmitTurn,
                     &turn_resource,
                     correlation,
-                    now,
+                    check_at,
                 )?;
                 self.store.append_assistant_chunk(&assistant_id, chunk)?;
                 answer.push_str(chunk);
@@ -950,7 +973,8 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             }
         }
 
-        let tenant_again = self.context(principal, session, now)?;
+        let final_now = clock();
+        let tenant_again = self.context(principal, session, final_now)?;
         if tenant_again != tenant || cancel.is_cancelled() {
             self.store.finish_turn(&assistant_id, "cancelled", None)?;
             emit_event(StreamEvent::Cancelled {
@@ -964,7 +988,7 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
             Operation::SubmitTurn,
             &turn_resource,
             correlation,
-            now,
+            final_now,
         )?;
         let output_tokens = answer.chars().count().div_ceil(4) as u32;
         if budget.finish(output_tokens, 0).is_err() {
