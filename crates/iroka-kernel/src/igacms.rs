@@ -1206,6 +1206,34 @@ mod tests {
             verify_attested_marker_assertion(&assertion, &attestation, &wrong_roots, 60),
             Err(IgacmsError::Signature)
         );
+
+        let unknown_roots =
+            crate::trust_lifecycle::TrustRootSet::new(vec![crate::trust_lifecycle::TrustRoot {
+                key_id: "different-root".into(),
+                public_key: key.verifying_key().to_bytes(),
+                not_before: 1,
+                not_after: 100,
+                provenance_ref: "test-root-provenance".into(),
+            }])
+            .unwrap();
+        assert_eq!(
+            verify_attested_marker_assertion(&assertion, &attestation, &unknown_roots, 60),
+            Err(IgacmsError::UnknownRoot)
+        );
+
+        let expired_roots =
+            crate::trust_lifecycle::TrustRootSet::new(vec![crate::trust_lifecycle::TrustRoot {
+                key_id: "marker-root".into(),
+                public_key: key.verifying_key().to_bytes(),
+                not_before: 1,
+                not_after: 55,
+                provenance_ref: "test-root-provenance".into(),
+            }])
+            .unwrap();
+        assert_eq!(
+            verify_attested_marker_assertion(&assertion, &attestation, &expired_roots, 60),
+            Err(IgacmsError::RootExpired)
+        );
     }
 
     #[test]
