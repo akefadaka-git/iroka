@@ -413,20 +413,44 @@ fn validate_marker_assertion_inner(
         return Err(IgacmsError::Marker);
     }
     if (a.asserted_state == "VERIFIED" || a.asserted_state == "ATTESTED")
-        && (a.evidence_refs.is_empty() || a.verifier.trim().is_empty() || a.verification_method.trim().is_empty())
-    { return Err(IgacmsError::Marker); }
+        && (a.evidence_refs.is_empty()
+            || a.verifier.trim().is_empty()
+            || a.verification_method.trim().is_empty())
+    {
+        return Err(IgacmsError::Marker);
+    }
     if a.asserted_state == "ATTESTED"
         && (!allow_attested || a.signature_ref.as_deref().unwrap_or("").trim().is_empty())
-    { return Err(IgacmsError::Marker); }
+    {
+        return Err(IgacmsError::Marker);
+    }
     if a.asserted_state != "ATTESTED" && a.signature_ref.is_some() {
         return Err(IgacmsError::Marker);
     }
-    if !["DEFINED","OBSERVED","VERIFIED","ATTESTED","FAILED","REVOKED","UNKNOWN","NOT_APPLICABLE"].contains(&a.asserted_state.as_str())
-        || !["PASS","FAIL","INDETERMINATE","NOT_RUN","NOT_APPLICABLE"].contains(&a.status.as_str())
-    { return Err(IgacmsError::Marker); }
-    if (matches!(a.asserted_state.as_str(), "UNKNOWN" | "NOT_APPLICABLE" | "REVOKED") && a.status == "PASS")
+    if ![
+        "DEFINED",
+        "OBSERVED",
+        "VERIFIED",
+        "ATTESTED",
+        "FAILED",
+        "REVOKED",
+        "UNKNOWN",
+        "NOT_APPLICABLE",
+    ]
+    .contains(&a.asserted_state.as_str())
+        || !["PASS", "FAIL", "INDETERMINATE", "NOT_RUN", "NOT_APPLICABLE"]
+            .contains(&a.status.as_str())
+    {
+        return Err(IgacmsError::Marker);
+    }
+    if (matches!(
+        a.asserted_state.as_str(),
+        "UNKNOWN" | "NOT_APPLICABLE" | "REVOKED"
+    ) && a.status == "PASS")
         || (a.asserted_state == "FAILED" && a.status != "FAIL")
-    { return Err(IgacmsError::Marker); }
+    {
+        return Err(IgacmsError::Marker);
+    }
     Ok(())
 }
 
@@ -1118,7 +1142,10 @@ mod tests {
     fn rejects_changed_canonical_invariant_semantics() {
         let mut value: Value = serde_json::from_slice(EMBEDDED).unwrap();
         value["invariants"][0]["statement"] = Value::String("altered".into());
-        assert_eq!(validate_genome(&serde_json::to_vec(&value).unwrap()).unwrap_err(), IgacmsError::Identity);
+        assert_eq!(
+            validate_genome(&serde_json::to_vec(&value).unwrap()).unwrap_err(),
+            IgacmsError::Identity
+        );
     }
 
     #[test]
@@ -1193,7 +1220,10 @@ mod tests {
         );
         replacement.assertion_id = "assertion-3".into();
         replacement.supersedes_ref = None;
-        assert_eq!(validate_marker_transition(Some(&previous), &replacement), Err(IgacmsError::Marker));
+        assert_eq!(
+            validate_marker_transition(Some(&previous), &replacement),
+            Err(IgacmsError::Marker)
+        );
     }
 
 }
