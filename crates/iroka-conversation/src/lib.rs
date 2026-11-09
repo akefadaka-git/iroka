@@ -56,6 +56,7 @@ pub trait TenantMembership: Send + Sync {
 pub trait SessionGuard: Send + Sync {
     /// Validate the bounded application session bound to the verified subject
     /// and resolved tenant. This is not an identity verifier.
+    #[allow(clippy::too_many_arguments)]
     fn validate(
         &self,
         verified_subject: &str,
