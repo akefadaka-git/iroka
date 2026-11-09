@@ -1,9 +1,9 @@
 //! Language-neutral foundation for IROKA coding intelligence.
 //!
-//! This crate separates language identity from language implementations.
-//! New and future languages are integrated by registering adapters; the core
-//! does not assume a closed enumeration of languages. Tool execution, model
-//! providers and workspace mutation are separate, governed C1 components.
+//! New and future languages are integrated through adapters. Repository
+//! analysis is bounded and static; it does not execute project content.
+
+pub mod index;
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -63,10 +63,6 @@ pub struct LanguageDescriptor {
 }
 
 /// Adapter boundary for existing and future programming languages.
-///
-/// Implementations must declare only capabilities they actually provide.
-/// Tool invocation must later be routed through the governed C1 execution
-/// broker, never called directly from untrusted repository content.
 pub trait LanguageAdapter: Send + Sync {
     fn descriptor(&self) -> LanguageDescriptor;
 
