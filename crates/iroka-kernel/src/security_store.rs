@@ -17,6 +17,7 @@ pub enum SecurityStoreError {
     Rollback,
     ConflictingVersion,
     InvalidVersion,
+    Revoked,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -344,6 +345,7 @@ impl SqliteSecurityStore {
         &self,
         command_id: &str,
         owner_subject: &str,
+        signer_issuer: &str,
         signer_key_id: &str,
         digest: &[u8],
         at: u64,
@@ -359,6 +361,19 @@ impl SqliteSecurityStore {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
+        // Serialize the final Owner-key revocation check with command consumption
+        // and the protected mutation. A revocation racing this command must win
+        // or follow a fully committed command; it cannot be bypassed by TOCTOU.
+        let signer_revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params![signer_issuer, signer_key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if signer_revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
         let changed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
             params![format!("security-command:{command_id}"), digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
