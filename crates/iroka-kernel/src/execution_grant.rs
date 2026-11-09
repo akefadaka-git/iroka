@@ -522,16 +522,16 @@ mod tests {
         )
         .expect("Owner verifier");
 
-        let scope = ExecutionGrantScope::new(
-            "principal:coding-agent",
-            "coding.sandbox.execute",
-            "akefadaka-git/iroka",
-            "a".repeat(40),
-            "sandbox-1",
-            "b".repeat(64),
-            crate::RiskLevel::High,
-            "policy-g09-v1",
-        )
+        let scope = ExecutionGrantScope::new(ExecutionGrantScopeSpec {
+            subject: "principal:coding-agent".to_owned(),
+            capability: "coding.sandbox.execute".to_owned(),
+            repository: "akefadaka-git/iroka".to_owned(),
+            source_revision: "a".repeat(40),
+            sandbox_id: "sandbox-1".to_owned(),
+            action_digest: "b".repeat(64),
+            risk: crate::RiskLevel::High,
+            policy_version: "policy-g09-v1".to_owned(),
+        })
         .expect("grant scope");
         let request = AuthorizationRequest::new(
             scope.subject(),
@@ -653,16 +653,16 @@ mod tests {
         let grant = issuer
             .issue_at(evidence, scope.clone(), 1_200, 30)
             .expect("G09 grant");
-        let wrong_scope = ExecutionGrantScope::new(
-            scope.subject(),
-            scope.capability(),
-            scope.repository(),
-            scope.source_revision(),
-            "sandbox-other",
-            scope.action_digest(),
-            scope.risk(),
-            scope.policy_version(),
-        )
+        let wrong_scope = ExecutionGrantScope::new(ExecutionGrantScopeSpec {
+            subject: scope.subject().to_owned(),
+            capability: scope.capability().to_owned(),
+            repository: scope.repository().to_owned(),
+            source_revision: scope.source_revision().to_owned(),
+            sandbox_id: "sandbox-other".to_owned(),
+            action_digest: scope.action_digest().to_owned(),
+            risk: scope.risk(),
+            policy_version: scope.policy_version().to_owned(),
+        })
         .expect("alternate scope");
         let verifier = ExecutionGrantVerifier::new(&store);
         assert_eq!(
@@ -713,29 +713,29 @@ mod tests {
     #[test]
     fn rejects_unapproved_capability_and_invalid_scope() {
         assert_eq!(
-            ExecutionGrantScope::new(
-                "principal:1",
-                "filesystem.unrestricted",
-                "akefadaka-git/iroka",
-                "a".repeat(40),
-                "sandbox-1",
-                "b".repeat(64),
-                crate::RiskLevel::High,
-                "policy-v1"
-            ),
+            ExecutionGrantScope::new(ExecutionGrantScopeSpec {
+                subject: "principal:1".to_owned(),
+                capability: "filesystem.unrestricted".to_owned(),
+                repository: "akefadaka-git/iroka".to_owned(),
+                source_revision: "a".repeat(40),
+                sandbox_id: "sandbox-1".to_owned(),
+                action_digest: "b".repeat(64),
+                risk: crate::RiskLevel::High,
+                policy_version: "policy-v1".to_owned(),
+            }),
             Err(ExecutionGrantError::InvalidScope)
         );
         assert_eq!(
-            ExecutionGrantScope::new(
-                "principal:1",
-                "coding.sandbox.execute",
-                "akefadaka-git/iroka",
-                "a".repeat(40),
-                "../host",
-                "b".repeat(64),
-                crate::RiskLevel::High,
-                "policy-v1"
-            ),
+            ExecutionGrantScope::new(ExecutionGrantScopeSpec {
+                subject: "principal:1".to_owned(),
+                capability: "coding.sandbox.execute".to_owned(),
+                repository: "akefadaka-git/iroka".to_owned(),
+                source_revision: "a".repeat(40),
+                sandbox_id: "../host".to_owned(),
+                action_digest: "b".repeat(64),
+                risk: crate::RiskLevel::High,
+                policy_version: "policy-v1".to_owned(),
+            }),
             Err(ExecutionGrantError::InvalidScope)
         );
     }
