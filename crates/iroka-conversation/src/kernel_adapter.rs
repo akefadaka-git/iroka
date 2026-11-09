@@ -1,26 +1,28 @@
 //! Narrow adapter to the adopted production IROKA Kernel authorization API.
 
+use std::sync::Arc;
+
 use crate::{ConversationError, KernelAuthorization, Operation, VerifiedPolicy};
 use iroka_kernel::{
     authorize_authenticated_with_owner_approval, AuditSink, AuthorizationRequest, DecisionCode,
     OwnerApprovalVerifier, RiskLevel, VerifiedGenesis, VerifiedPrincipal,
 };
 
-pub struct KernelConversationAuthorizer<'a, S: AuditSink> {
-    policy: &'a VerifiedPolicy,
-    genesis: &'a VerifiedGenesis,
-    owner_approvals: &'a OwnerApprovalVerifier,
-    audit: &'a S,
+pub struct KernelConversationAuthorizer<S: AuditSink + Send + Sync + 'static> {
+    policy: Arc<VerifiedPolicy>,
+    genesis: Arc<VerifiedGenesis>,
+    owner_approvals: Arc<OwnerApprovalVerifier>,
+    audit: Arc<S>,
 }
 
-impl<'a, S: AuditSink> KernelConversationAuthorizer<'a, S> {
+impl<S: AuditSink + Send + Sync + 'static> KernelConversationAuthorizer<S> {
     /// All trust dependencies are supplied by the trusted composition root.
     /// The policy can only be obtained from successful signed-policy verification.
     pub fn new(
-        policy: &'a VerifiedPolicy,
-        genesis: &'a VerifiedGenesis,
-        owner_approvals: &'a OwnerApprovalVerifier,
-        audit: &'a S,
+        policy: Arc<VerifiedPolicy>,
+        genesis: Arc<VerifiedGenesis>,
+        owner_approvals: Arc<OwnerApprovalVerifier>,
+        audit: Arc<S>,
     ) -> Self {
         Self {
             policy,
@@ -31,7 +33,7 @@ impl<'a, S: AuditSink> KernelConversationAuthorizer<'a, S> {
     }
 }
 
-impl<S: AuditSink> KernelAuthorization for KernelConversationAuthorizer<'_, S> {
+impl<S: AuditSink + Send + Sync + 'static> KernelAuthorization for KernelConversationAuthorizer<S> {
     fn authorize(
         &self,
         principal: &VerifiedPrincipal,
