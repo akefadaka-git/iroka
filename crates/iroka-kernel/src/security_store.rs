@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use sha2::{Digest, Sha256};
 
 use crate::identity_crypto::{RevocationChecker, RevocationError};
 
@@ -704,6 +705,7 @@ impl SqliteSecurityStore {
     }
 
     /// Stage an Owner-signed policy revocation; it has no effect until G11 confirms it.
+    #[allow(clippy::too_many_arguments)] // Binds signed revocation fields to one durable transaction.
     pub(crate) fn stage_policy_revocation(
         &self,
         epoch: u64,
@@ -855,12 +857,26 @@ impl SqliteSecurityStore {
         if pending_revocation {
             return Ok(None);
         }
-        let (payload_bytes, signature): (Vec<u8>, Vec<u8>) = connection.query_row(
-            "SELECT canonical_payload,signature FROM policy_snapshots WHERE epoch=?1 AND state='active'", [epoch],
-            |row| Ok((row.get(0)?,row.get(1)?)),
+        let (payload_bytes, signature, stored_digest, owner_subject, key_id, policy_version,
+            issued_at, expires_at, emergency_stop_active): (Vec<u8>, Vec<u8>, Vec<u8>, String, String, String, i64, i64, i64) = connection.query_row(
+            "SELECT canonical_payload,signature,digest,owner_subject,key_id,policy_version,issued_at,expires_at,emergency_stop_active FROM policy_snapshots WHERE epoch=?1 AND state='active'", [epoch],
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?,row.get(7)?,row.get(8)?)),
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         let payload: crate::PolicySnapshotPayload =
             serde_json::from_slice(&payload_bytes).map_err(|_| SecurityStoreError::Unavailable)?;
+        let canonical = serde_jcs::to_vec(&payload).map_err(|_| SecurityStoreError::Unavailable)?;
+        let digest = Sha256::digest(&canonical);
+        if canonical != payload_bytes
+            || stored_digest.as_slice() != digest.as_slice()
+            || owner_subject != payload.owner_subject
+            || key_id != payload.key_id
+            || policy_version != payload.policy_version
+            || issued_at != i64::try_from(payload.issued_at).map_err(|_| SecurityStoreError::Unavailable)?
+            || expires_at != i64::try_from(payload.expires_at).map_err(|_| SecurityStoreError::Unavailable)?
+            || emergency_stop_active != i64::from(payload.emergency_stop_active)
+        {
+            return Err(SecurityStoreError::Unavailable);
+        }
         Ok(Some((
             u64::try_from(epoch).map_err(|_| SecurityStoreError::Unavailable)?,
             crate::SignedPolicySnapshot::from_signature(payload, signature),
