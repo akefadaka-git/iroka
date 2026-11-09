@@ -143,7 +143,15 @@ pub fn authorize_compact_in_tenant<R: RevocationChecker, S: AuditSink>(
                 ),
             };
             let decision = Decision::new(code, reason, "unavailable");
-            return audit_unresolved(audit_sink, request, "unavailable", decision, now, event_id, correlation_id);
+            return audit_unresolved(
+                audit_sink,
+                request,
+                "unavailable",
+                decision,
+                now,
+                event_id,
+                correlation_id,
+            );
         }
     };
 
