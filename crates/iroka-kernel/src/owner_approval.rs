@@ -249,6 +249,7 @@ impl OwnerApprovalVerifier {
             || now >= owner_key.not_after
             || payload.issued_at < owner_key.not_before
             || payload.issued_at >= owner_key.not_after
+            || payload.expires_at > owner_key.not_after
         {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
