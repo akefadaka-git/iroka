@@ -17,6 +17,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
+mod authority;
+pub use authority::{DesignatedReviewerAuthority, EpisodicConsentAuthority, G02AuthorizationAuthority, G11MemoryAuditAuthority, TrustedGovernanceAdapter};
+
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
 pub const CONTRACT_VERSION: &str = "1.0.0";
 pub const RECORD_SCHEMA_ID: &str = "iroka.g05.memory-record";
