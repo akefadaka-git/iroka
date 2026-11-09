@@ -43,8 +43,10 @@ pub trait DesignatedReviewerAuthority: Send + Sync {
         organization_ref: &str, now: u64) -> Result<(), G05Error>;
 }
 
-/// G11-owned versioned, content-free lifecycle event sink. Atomicity with the
-/// memory mutation must be supplied by the repository transaction/outbox.
+/// G11-owned versioned, content-free lifecycle event sink. The receiver MUST
+/// deduplicate by event ID because the durable G05 outbox retries after crashes.
+/// Atomicity with a G05 authority mutation is supplied by the local outbox
+/// transaction, not by this cross-domain delivery call.
 pub trait G11MemoryAuditAuthority: Send + Sync {
     fn append_memory_event(&self, event: &AuditEvent) -> Result<(), G05Error>;
 }
