@@ -412,9 +412,9 @@ pub(crate) fn safe_relative_path(path: &str) -> bool {
         && !path.contains('\\')
         && !path.contains(':')
         && !path.bytes().any(|byte| byte.is_ascii_control())
-        && path.split('/').all(|part| {
-            !part.is_empty() && part != "." && part != ".." && part != ".git"
-        })
+        && path
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != ".." && part != ".git")
 }
 
 #[cfg(test)]
