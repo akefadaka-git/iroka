@@ -90,6 +90,9 @@ impl GenerationHub {
     }
     fn cancel(&self, id: &str) -> bool {
         if let Some(state) = self.get(id) {
+            if state.done.load(Ordering::Acquire) {
+                return false;
+            }
             state.cancel();
             true
         } else {
@@ -557,17 +560,19 @@ where
             return Err(HttpError::BadRequest);
         }
         let _ = body_json(request)?;
-        generations.cancel(turn_id);
-        service
-            .cancel_turn(
-                principal,
-                session,
-                conversation_id,
-                turn_id,
-                correlation_id,
-                now,
-            )
-            .map_err(HttpError::from)?;
+        let active_generation = generations.cancel(turn_id);
+        match service.cancel_turn(
+            principal,
+            session,
+            conversation_id,
+            turn_id,
+            correlation_id,
+            now,
+        ) {
+            Ok(()) => {}
+            Err(ConversationError::Conflict) if active_generation => {}
+            Err(error) => return Err(HttpError::from(error)),
+        }
         return Ok((200, json!({"cancelled":true})));
     }
     Err(HttpError::NotFound)
