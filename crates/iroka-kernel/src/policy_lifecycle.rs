@@ -313,7 +313,7 @@ mod tests {
         let verified = verifier.verify_policy_snapshot(&signed, 1_200).unwrap();
         store.stage_policy_snapshot(
             verified.epoch(), &verified.digest, &verified.canonical_payload, &verified.signature,
-            "owner:akefa", "owner-key-policy", "policy-1", 1_101, 2_001, false, 1_200,
+            "owner:akefa", "owner-key-policy", "policy-1", 1_101, 2_001, false,
         ).unwrap();
         assert_eq!(
             PolicyActivationCoordinator::load_active(&verifier, &store, 1_201).unwrap_err(),
