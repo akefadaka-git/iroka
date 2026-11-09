@@ -164,7 +164,7 @@ fn walk_directory(
         });
         return;
     }
-    let entries = match fs::read_dir(directory) {
+    let directory_entries = match fs::read_dir(directory) {
         Ok(entries) => entries,
         Err(_) => {
             collection.issues.push(SnapshotIssue {
@@ -175,7 +175,7 @@ fn walk_directory(
         }
     };
     let mut entries: Vec<std::fs::DirEntry> = Vec::new();
-    for entry in entries {
+    for entry in directory_entries {
         match entry {
             Ok(entry) => entries.push(entry),
             Err(_) => collection.issues.push(SnapshotIssue {
@@ -413,6 +413,39 @@ mod tests {
         let result = collect_snapshot(&root, limits).expect("collect");
         assert!(result.files.is_empty());
         assert!(result.issues.iter().any(|issue| issue.kind == SnapshotIssueKind::FileTooLarge));
+        fs::remove_dir_all(root).expect("remove test root");
+    }
+
+    #[test]
+    fn enforces_file_count_and_aggregate_byte_limits() {
+        let root = temp_root();
+        fs::write(root.join("a.rs"), "123").expect("write first");
+        fs::write(root.join("b.rs"), "456").expect("write second");
+
+        let byte_limited = IndexLimits {
+            max_files: 5,
+            max_file_bytes: 4,
+            max_total_bytes: 4,
+        };
+        let byte_result = collect_snapshot(&root, byte_limited).expect("collect");
+        assert_eq!(byte_result.files.len(), 1);
+        assert!(byte_result
+            .issues
+            .iter()
+            .any(|issue| issue.kind == SnapshotIssueKind::TotalSizeLimitExceeded));
+
+        let file_limited = IndexLimits {
+            max_files: 1,
+            max_file_bytes: 4,
+            max_total_bytes: 10,
+        };
+        let file_result = collect_snapshot(&root, file_limited).expect("collect");
+        assert_eq!(file_result.files.len(), 1);
+        assert!(file_result
+            .issues
+            .iter()
+            .any(|issue| issue.kind == SnapshotIssueKind::FileLimitExceeded));
+
         fs::remove_dir_all(root).expect("remove test root");
     }
 
