@@ -744,7 +744,9 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
                 Ok(c)
             }
             Err(ConversationError::Conflict) => {
-                let existing = self.store.owned_conversation(id, &c.tenant_id, principal.subject())?;
+                let existing =
+                    self.store
+                        .owned_conversation(id, &c.tenant_id, principal.subject())?;
                 if existing.locale == c.locale {
                     Ok(existing)
                 } else {
@@ -897,7 +899,9 @@ impl<T: TenantMembership, S: SessionGuard, A: KernelAuthorization, G: AnswerGene
                 return Err(ConversationError::Conflict);
             }
             let assistant_id = format!("{turn_id}:assistant");
-            if let Some(existing_assistant) = existing_turns.iter().find(|turn| turn.id == assistant_id) {
+            if let Some(existing_assistant) =
+                existing_turns.iter().find(|turn| turn.id == assistant_id)
+            {
                 emit_event(StreamEvent::Accepted {
                     turn_id: turn_id.to_owned(),
                     sequence: existing_user.sequence,
