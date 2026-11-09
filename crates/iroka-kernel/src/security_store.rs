@@ -390,7 +390,11 @@ impl SqliteSecurityStore {
                 reason,
             } => ("revoke_approval", approval_id.clone(), reason.clone()),
             RevocationTarget::TenantMembership {
-                subject, tenant_id, active, version, reason,
+                subject,
+                tenant_id,
+                active,
+                version,
+                reason,
             } => (
                 "set_tenant_membership",
                 format!("{subject}:{tenant_id}:v{version}:active={active}"),
@@ -445,15 +449,22 @@ impl SqliteSecurityStore {
                 .map_err(|_| SecurityStoreError::Unavailable)?;
             }
             RevocationTarget::TenantMembership {
-                subject, tenant_id, active, version, reason: _,
+                subject,
+                tenant_id,
+                active,
+                version,
+                reason: _,
             } => {
-                let version_i = i64::try_from(version)
-                    .map_err(|_| SecurityStoreError::InvalidVersion)?;
-                let current: Option<i64> = tx.query_row(
-                    "SELECT version FROM tenant_memberships WHERE subject=?1 AND tenant_id=?2",
-                    params![subject, tenant_id],
-                    |row| row.get(0),
-                ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+                let version_i =
+                    i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+                let current: Option<i64> = tx
+                    .query_row(
+                        "SELECT version FROM tenant_memberships WHERE subject=?1 AND tenant_id=?2",
+                        params![subject, tenant_id],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
                 if current.is_some_and(|current_version| version_i <= current_version) {
                     return Err(SecurityStoreError::Rollback);
                 }
@@ -463,9 +474,16 @@ impl SqliteSecurityStore {
                      ON CONFLICT(subject,tenant_id) DO UPDATE SET active=excluded.active,
                        version=excluded.version, updated_at=excluded.updated_at, command_id=excluded.command_id
                      WHERE excluded.version > tenant_memberships.version",
-                    params![subject, tenant_id, i64::from(active), version_i,
-                        i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?, command_id],
-                ).map_err(|_| SecurityStoreError::Unavailable)?;
+                    params![
+                        subject,
+                        tenant_id,
+                        i64::from(active),
+                        version_i,
+                        i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
+                        command_id
+                    ],
+                )
+                .map_err(|_| SecurityStoreError::Unavailable)?;
             }
         }
         tx.execute(
@@ -481,17 +499,26 @@ impl SqliteSecurityStore {
         subject: &str,
         tenant_id: &str,
     ) -> Result<Option<(bool, u64, u64)>, SecurityStoreError> {
-        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let row: Option<(i64, i64, i64)> = connection.query_row(
-            "SELECT active, version, updated_at FROM tenant_memberships WHERE subject=?1 AND tenant_id=?2",
-            params![subject, tenant_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let row: Option<(i64, i64, i64)> = connection
+            .query_row(
+                "SELECT active, version, updated_at FROM tenant_memberships WHERE subject=?1 AND tenant_id=?2",
+                params![subject, tenant_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         row.map(|(active, version, updated_at)| {
-            Ok((active == 1,
+            Ok((
+                active == 1,
                 u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
-                u64::try_from(updated_at).map_err(|_| SecurityStoreError::Unavailable)?))
-        }).transpose()
+                u64::try_from(updated_at).map_err(|_| SecurityStoreError::Unavailable)?,
+            ))
+        })
+        .transpose()
     }
 
     pub fn security_command_count(&self) -> Result<u64, SecurityStoreError> {
