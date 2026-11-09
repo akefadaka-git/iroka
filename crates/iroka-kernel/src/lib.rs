@@ -16,8 +16,8 @@ mod policy;
 mod request;
 mod security_store;
 mod service;
-mod trust_lifecycle;
 mod tenant;
+mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
