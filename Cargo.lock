@@ -231,6 +231,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "iroka-g04-contract"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sha2",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
