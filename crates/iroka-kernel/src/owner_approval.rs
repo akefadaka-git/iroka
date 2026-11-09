@@ -424,11 +424,11 @@ impl OwnerApprovalVerifier {
             .verifying_key
             .verify(&signing_bytes, &signature)
             .map_err(|_| OwnerApprovalError::InvalidSignature)?;
-        let digest = Sha256::digest(&signing_bytes);
+        let digest: [u8; 32] = Sha256::digest(&signing_bytes).into();
         self.store.stage_policy_revocation(
             policy_epoch,
             &p.command_id,
-            digest.as_slice(),
+            &digest,
             &p.owner_subject,
             &p.key_id,
             &reason,
@@ -453,7 +453,7 @@ impl OwnerApprovalVerifier {
             .append_event_idempotent(&event)
             .map_err(|_| OwnerApprovalError::StoreUnavailable)?;
         self.store
-            .complete_policy_revocation(policy_epoch, &p.command_id, digest.as_slice())?;
+            .complete_policy_revocation(policy_epoch, &p.command_id, &digest)?;
         Ok(())
     }
 
