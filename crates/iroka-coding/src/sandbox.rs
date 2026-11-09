@@ -333,6 +333,7 @@ impl ToolchainRegistry {
         );
         Ok(SandboxInvocation {
             language_id: language_id.to_owned(),
+            profile_version: profile.profile_version.clone(),
             action,
             sandbox_id: sandbox_id.to_owned(),
             capability: action.capability().to_owned(),
@@ -546,6 +547,8 @@ impl ReadOnlyMount {
 pub struct SandboxRuntimeConfig {
     bwrap_path: PathBuf,
     prlimit_path: PathBuf,
+    bwrap_digest: String,
+    prlimit_digest: String,
     sandbox_root: PathBuf,
     mounts: Vec<ReadOnlyMount>,
     programs: BTreeMap<String, PathBuf>,
@@ -563,6 +566,8 @@ impl SandboxRuntimeConfig {
     ) -> Result<Self, SandboxError> {
         let bwrap_path = canonical_executable(&bwrap_path.into())?;
         let prlimit_path = canonical_executable(&prlimit_path.into())?;
+        let bwrap_digest = file_digest(&bwrap_path)?;
+        let prlimit_digest = file_digest(&prlimit_path)?;
         let sandbox_root = sandbox_root.into();
         if !sandbox_root.is_absolute() {
             return Err(SandboxError::SandboxUnavailable);
@@ -576,6 +581,7 @@ impl SandboxRuntimeConfig {
         let sandbox_root =
             std::fs::canonicalize(&sandbox_root).map_err(|_| SandboxError::SandboxUnavailable)?;
         if sandbox_root == Path::new("/")
+            || sandbox_root == Path::new("/tmp")
             || sandbox_root.starts_with("/home")
             || sandbox_root.starts_with("/root")
             || sandbox_root.starts_with("/etc")
@@ -621,6 +627,7 @@ impl SandboxRuntimeConfig {
                 || mount.sandbox_path.starts_with("/dev")
                 || mount.sandbox_path.starts_with("/run")
                 || mount.sandbox_path.starts_with("/workspace")
+                || mount.sandbox_path == Path::new("/tmp")
                 || mount
                     .sandbox_path
                     .components()
@@ -652,6 +659,8 @@ impl SandboxRuntimeConfig {
         Ok(Self {
             bwrap_path,
             prlimit_path,
+            bwrap_digest,
+            prlimit_digest,
             sandbox_root,
             mounts: canonical_mounts,
             programs,
@@ -875,6 +884,56 @@ impl Drop for SandboxWorkspace {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.path);
     }
+}
+
+#[cfg(target_os = "linux")]
+fn resolve_host_program(
+    mounts: &[ReadOnlyMount],
+    sandbox_program: &Path,
+) -> Result<PathBuf, SandboxError> {
+    for mount in mounts {
+        if let Ok(relative) = sandbox_program.strip_prefix(&mount.sandbox_path) {
+            let host_program = std::fs::canonicalize(mount.host_path.join(relative))
+                .map_err(|_| SandboxError::ToolUnavailable)?;
+            if host_program.starts_with(&mount.host_path) && is_executable(&host_program) {
+                return Ok(host_program);
+            }
+            return Err(SandboxError::ToolUnavailable);
+        }
+    }
+    Err(SandboxError::ToolUnavailable)
+}
+
+#[cfg(target_os = "linux")]
+fn file_digest(path: &Path) -> Result<String, SandboxError> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path).map_err(|_| SandboxError::ToolUnavailable)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let count = file.read(&mut buffer).map_err(|_| SandboxError::ToolUnavailable)?;
+        if count == 0 {
+            break;
+        }
+        hasher.update(&buffer[..count]);
+    }
+    Ok(hex(&hasher.finalize()))
+}
+
+#[cfg(target_os = "linux")]
+fn verify_program_digests(config: &SandboxRuntimeConfig) -> Result<(), SandboxError> {
+    if file_digest(&config.bwrap_path)? != config.bwrap_digest
+        || file_digest(&config.prlimit_path)? != config.prlimit_digest
+    {
+        return Err(SandboxError::ToolUnavailable);
+    }
+    for (program_id, sandbox_path) in &config.programs {
+        let host_program = resolve_host_program(&config.mounts, sandbox_path)?;
+        if config.program_digests.get(program_id) != Some(&file_digest(&host_program)?) {
+            return Err(SandboxError::ToolUnavailable);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
