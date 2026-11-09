@@ -138,15 +138,17 @@ impl SqliteG05AuthorityRegistry {
           .map_err(|_|G05Error::DuplicateRecord)?;
         enqueue_authority_event(
             &tx,
-            "memory.consent.granted",
-            consent_ref,
-            tenant.tenant_id(),
-            actor.subject(),
-            purpose,
-            1,
-            "granted",
-            action_ref,
-            now,
+            AuthorityOutboxEvent {
+                event_type: "memory.consent.granted",
+                aggregate_ref: consent_ref,
+                tenant_ref: tenant.tenant_id(),
+                actor_ref: actor.subject(),
+                purpose,
+                version: 1,
+                outcome: "granted",
+                correlation_ref: action_ref,
+                now,
+            },
         )?;
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
@@ -235,15 +237,17 @@ impl SqliteG05AuthorityRegistry {
         }
         enqueue_authority_event(
             &tx,
-            "memory.consent.withdrawn",
-            consent_ref,
-            tenant.tenant_id(),
-            actor.subject(),
-            purpose,
-            2,
-            "withdrawn",
-            action_ref,
-            now,
+            AuthorityOutboxEvent {
+                event_type: "memory.consent.withdrawn",
+                aggregate_ref: consent_ref,
+                tenant_ref: tenant.tenant_id(),
+                actor_ref: actor.subject(),
+                purpose,
+                version: 2,
+                outcome: "withdrawn",
+                correlation_ref: action_ref,
+                now,
+            },
         )?;
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
@@ -328,15 +332,17 @@ impl SqliteG05AuthorityRegistry {
           .map_err(|_|G05Error::DuplicateRecord)?;
         enqueue_authority_event(
             &tx,
-            "memory.reviewer.designated",
-            designation_ref,
-            tenant.tenant_id(),
-            actor.subject(),
-            Purpose::OrganizationalContext,
-            version,
-            "designated",
-            designation_ref,
-            now,
+            AuthorityOutboxEvent {
+                event_type: "memory.reviewer.designated",
+                aggregate_ref: designation_ref,
+                tenant_ref: tenant.tenant_id(),
+                actor_ref: actor.subject(),
+                purpose: Purpose::OrganizationalContext,
+                version,
+                outcome: "designated",
+                correlation_ref: designation_ref,
+                now,
+            },
         )?;
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
@@ -396,15 +402,17 @@ impl SqliteG05AuthorityRegistry {
         }
         enqueue_authority_event(
             &tx,
-            "memory.reviewer.revoked",
-            designation_ref,
-            tenant.tenant_id(),
-            actor.subject(),
-            Purpose::OrganizationalContext,
-            from_i64(version)?,
-            "revoked",
-            action_ref,
-            now,
+            AuthorityOutboxEvent {
+                event_type: "memory.reviewer.revoked",
+                aggregate_ref: designation_ref,
+                tenant_ref: tenant.tenant_id(),
+                actor_ref: actor.subject(),
+                purpose: Purpose::OrganizationalContext,
+                version: from_i64(version)?,
+                outcome: "revoked",
+                correlation_ref: action_ref,
+                now,
+            },
         )?;
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
@@ -467,15 +475,17 @@ impl SqliteG05AuthorityRegistry {
         }
         enqueue_authority_event(
             &tx,
-            "memory.reviewer.approval_consumed",
-            &receipt.approval_ref,
-            &receipt.tenant_ref,
-            &receipt.reviewer_ref,
-            Purpose::OrganizationalContext,
-            d.version,
-            "consumed",
-            &receipt.approval_ref,
-            now,
+            AuthorityOutboxEvent {
+                event_type: "memory.reviewer.approval_consumed",
+                aggregate_ref: &receipt.approval_ref,
+                tenant_ref: &receipt.tenant_ref,
+                actor_ref: &receipt.reviewer_ref,
+                purpose: Purpose::OrganizationalContext,
+                version: d.version,
+                outcome: "consumed",
+                correlation_ref: &receipt.approval_ref,
+                now,
+            },
         )?;
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
@@ -835,39 +845,43 @@ fn g05_capability(operation: Operation) -> &'static str {
     }
 }
 
-fn enqueue_authority_event(
-    tx: &rusqlite::Transaction<'_>,
-    event_type: &str,
-    aggregate_ref: &str,
-    tenant_ref: &str,
-    actor_ref: &str,
+struct AuthorityOutboxEvent<'a> {
+    event_type: &'a str,
+    aggregate_ref: &'a str,
+    tenant_ref: &'a str,
+    actor_ref: &'a str,
     purpose: Purpose,
     version: u64,
-    outcome: &str,
-    correlation_ref: &str,
+    outcome: &'a str,
+    correlation_ref: &'a str,
     now: u64,
+}
+
+fn enqueue_authority_event(
+    tx: &rusqlite::Transaction<'_>,
+    event: AuthorityOutboxEvent<'_>,
 ) -> Result<(), G05Error> {
-    let aggregate_digest = crate::sha256_hex(aggregate_ref.as_bytes());
+    let aggregate_digest = crate::sha256_hex(event.aggregate_ref.as_bytes());
     let event_id = format!(
         "g05-authority:{}:{}:v{}",
-        event_type, aggregate_digest, version
+        event.event_type, aggregate_digest, event.version
     );
     tx.execute(
         "INSERT INTO g05_authority_outbox
-      (event_id,event_type,aggregate_ref,tenant_ref,actor_ref,purpose,record_version,
-       outcome,correlation_ref,occurred_at,content_sha256,delivered_at)
-      VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,NULL)",
+         (event_id,event_type,aggregate_ref,tenant_ref,actor_ref,purpose,record_version,
+          outcome,correlation_ref,occurred_at,content_sha256,delivered_at)
+         VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,NULL)",
         params![
             event_id,
-            event_type,
-            aggregate_ref,
-            tenant_ref,
-            actor_ref,
-            purpose_key(purpose),
-            to_i64(version)?,
-            outcome,
-            correlation_ref,
-            to_i64(now)?,
+            event.event_type,
+            event.aggregate_ref,
+            event.tenant_ref,
+            event.actor_ref,
+            purpose_key(event.purpose),
+            to_i64(event.version)?,
+            event.outcome,
+            event.correlation_ref,
+            to_i64(event.now)?,
             crate::sha256_hex(&[])
         ],
     )
