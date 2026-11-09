@@ -1,11 +1,11 @@
 # IROKA BRAIN — Cognitive Architecture and Functional Specification
 
 **Document ID:** IROKA-BRAIN-A1-001  
-**Version:** 0.1.0-draft  
-**Status:** Owner-review proposal; A1 NOT FROZEN  
+**Version:** 1.0.0  
+**Status:** OWNER-APPROVED / FROZEN — A1 CLOSED  
 **Scope:** Cognitive plane and its contracts with Genome domains G01–G12  
 **Baseline:** Owner-approved IGACMS A2 branch `architecture/igacms-a2-owner-approved` at `a709fc473b23494839417449e34bebf4cb8be77a`  
-**Governance:** A1 specification only. A2 is read-only reconciliation. A3 requires separate explicit authorization. A4 and A5 remain separate gates.
+**Governance:** A1 specification frozen by explicit Owner approval on 2026-11-09 (D2). A2 contract reconciliation remains a separate gate. A3 requires separate explicit authorization. A4 and A5 remain separate gates.
 
 ## 1. Purpose
 
@@ -278,15 +278,26 @@ This specification does not authorize:
 - memory, knowledge or audit stores outside their authoritative Genome owners;
 - deployment, pilot, publication or production-data migration.
 
-## 15. Open A1 decisions
+## 15. A1 freeze record and deferred decisions
 
-1. Owner-approved scope and version of the eight logical capability groups.
-2. Exact boundary between G03 reasoning/critic and G11 independent assurance.
-3. Task envelope, result envelope and model capability manifest schemas.
-4. Whether first A3 increment is a deterministic cognitive contract library, synthetic model-gateway slice, or both.
-5. Approved local execution target and resource envelope; no hardware baseline is yet established.
-6. Amharic evaluation corpus ownership, licensing and reviewer process.
-7. Which memory classes are in the first approved G05 integration increment.
-8. Required provider count and local/cloud mix for P1 acceptance.
+**Owner decision:** D2 = YES, explicitly approving the IROKA BRAIN architecture proposal in PR #26 for A1 freeze.  
+**Freeze date:** 2026-11-09.  
+**Disposition:** VERIFIED-CLOSED — A1 architecture baseline v1.0.0.
 
-**Current disposition:** DRAFT — A1 NOT FROZEN; A2 reconciliation report is separate. No runtime implementation or A3 authorization is implied.
+The following A1 architectural decisions are frozen:
+1. Eight logical cognitive capability groups and their mapping to the existing twelve-chromosome Genome; these are logical capabilities, not new chromosomes or mandated microservices.
+2. G03 reasoning/critic is distinct from G11 independent assurance; a cognitive critic cannot self-certify security or release readiness.
+3. The Brain is model-independent, bounded, evidence-aware, Amharic-first for the Ethiopia profile, and subject to Kernel/G02 authority and existing Genome domain ownership.
+4. Planning is not execution; protected effects remain governed by G02/G09.
+5. G04 owns knowledge, G05 memory, G06 perception, G07 agent identity, G08 durable orchestration, G10 learning/evaluation, G11 independent assurance and G12 controlled evolution.
+6. No paid provider, production data transfer, production credentials, autonomous self-modification, merge or deployment is authorized by this A1 freeze.
+
+The following matters are deliberately deferred to A2 contracts or later separately approved increments; they do not reopen the frozen architecture:
+- formal task/result/model-capability schema definitions and compatibility rules;
+- exact first A3 increment and implementation acceptance criteria;
+- local execution hardware/resource envelope;
+- Amharic evaluation corpus provenance, license, owner and native-review process;
+- first G05 memory-class integration scope;
+- provider count and local/cloud mix for future P1 acceptance.
+
+**Current disposition:** A1 = VERIFIED-CLOSED / FROZEN. A2 remains PARTIAL. No runtime implementation, merge, deployment or A3 authorization is implied.
