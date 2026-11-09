@@ -42,7 +42,7 @@ pub enum Classification {
     Restricted,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Purpose {
     TaskContinuity,
@@ -283,6 +283,7 @@ pub fn validate_candidate(
         || !valid_ref(&candidate.actor_ref)
         || !valid_ref(&candidate.retention_policy_ref)
         || candidate.record_version == 0
+        || candidate.created_at > now
         || candidate.provenance.recorded_at > now
         || !valid_ref(&candidate.provenance.recorded_by_ref)
     {
@@ -393,7 +394,10 @@ pub fn validate_approval_binding(
     {
         return Err(G05Error::ApprovalBindingMismatch);
     }
-    if receipt.issued_at > now || receipt.expires_at <= now || receipt.expires_at <= receipt.issued_at
+    if receipt.issued_at < record.candidate.created_at
+        || receipt.issued_at > now
+        || receipt.expires_at <= now
+        || receipt.expires_at <= receipt.issued_at
     {
         return Err(G05Error::ApprovalExpired);
     }
@@ -408,7 +412,6 @@ pub fn transition_allowed(from: LifecycleState, to: LifecycleState) -> bool {
         (from, to),
         (S::Proposed, S::PendingReview)
             | (S::Proposed, S::Rejected)
-            | (S::PendingReview, S::Active)
             | (S::PendingReview, S::Rejected)
             | (S::Active, S::Restricted)
             | (S::Active, S::CorrectionPending)
@@ -421,6 +424,22 @@ pub fn transition_allowed(from: LifecycleState, to: LifecycleState) -> bool {
             | (S::DeletionPending, S::Deleted)
             | (S::DeletionPending, S::Restricted)
     )
+}
+
+
+/// Activation is a privileged lifecycle transition. It is allowed only when
+/// the receipt is bound to this exact record and the trusted governance port
+/// has independently verified its signature and reviewer designation.
+pub fn validate_durable_activation(
+    record: &MemoryRecord,
+    receipt: &DurableApprovalReceipt,
+    now: u64,
+) -> Result<(), G05Error> {
+    validate_approval_binding(record, receipt, now)?;
+    if record.lifecycle_state != LifecycleState::PendingReview {
+        return Err(G05Error::InvalidLifecycleTransition);
+    }
+    Ok(())
 }
 
 /// Sharing requires an explicit G02 policy authorization. Tenant membership
@@ -564,6 +583,7 @@ mod tests {
         let item = candidate(MemoryClass::Durable, Classification::Confidential);
         assert_eq!(validate_candidate(&item, 100, &policy()), Ok(()));
         assert!(!transition_allowed(LifecycleState::Proposed, LifecycleState::Active));
+        assert!(!transition_allowed(LifecycleState::PendingReview, LifecycleState::Active));
         assert!(transition_allowed(LifecycleState::Proposed, LifecycleState::PendingReview));
     }
 
@@ -590,6 +610,7 @@ mod tests {
             proof_ref: "proof:1".to_owned(),
         };
         assert_eq!(validate_approval_binding(&record, &receipt, 110), Ok(()));
+        assert_eq!(validate_durable_activation(&record, &receipt, 110), Ok(()));
         let mut tampered = receipt.clone();
         tampered.content_sha256 = "0".repeat(64);
         assert_eq!(
@@ -658,8 +679,7 @@ mod tests {
         let mut item = candidate(MemoryClass::Durable, Classification::Internal);
         item.provenance.kind = ProvenanceKind::ModelProposed;
         assert_eq!(validate_candidate(&item, 100, &policy()), Ok(()));
-        assert!(!transition_allowed(LifecycleState::PendingReview, LifecycleState::Active)
-            || item.provenance.kind == ProvenanceKind::ModelProposed);
+        assert!(!transition_allowed(LifecycleState::PendingReview, LifecycleState::Active));
     }
 
     #[test]
