@@ -437,6 +437,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_future_bundle_and_source_timestamps() {
+        let req = request();
+        let mut response = bundle(item());
+        response.items[0].retrieved_at = response.retrieved_at + 1;
+        let adapter = G04Adapter::new(FixtureProvider { bundle: response });
+        assert_eq!(adapter.retrieve(&req), Err(G04Error::MalformedBundle));
+
+        let mut response = bundle(item());
+        response.items[0].source_updated_at = Some(response.retrieved_at + 1);
+        let adapter = G04Adapter::new(FixtureProvider { bundle: response });
+        assert_eq!(adapter.retrieve(&req), Err(G04Error::MalformedBundle));
+    }
+
+    #[test]
     fn rejects_unknown_schema_and_invalid_budgets() {
         let mut req = request();
         req.schema_id = "unknown".into();
