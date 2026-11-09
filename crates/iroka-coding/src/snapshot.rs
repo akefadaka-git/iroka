@@ -66,7 +66,7 @@ impl std::fmt::Display for SnapshotError {
             Self::RootNotDirectory => formatter.write_str("repository root is not a directory"),
             Self::InvalidLimits => {
                 formatter.write_str("repository snapshot limits must be non-zero")
-            },
+            }
         }
     }
 }
@@ -81,10 +81,7 @@ pub fn collect_snapshot(
     root: impl AsRef<Path>,
     limits: IndexLimits,
 ) -> Result<SnapshotCollection, SnapshotError> {
-    if limits.max_files == 0
-        || limits.max_file_bytes == 0
-        || limits.max_total_bytes == 0
-    {
+    if limits.max_files == 0 || limits.max_file_bytes == 0 || limits.max_total_bytes == 0 {
         return Err(SnapshotError::InvalidLimits);
     }
     let root = fs::canonicalize(root).map_err(|_| SnapshotError::RootUnavailable)?;
@@ -100,11 +97,13 @@ pub fn collect_snapshot(
     };
     collection.issues.append(&mut issues);
     walk_directory(&root, &root, 0, &ignore_rules, limits, &mut collection);
-    collection.files.sort_by(|left, right| left.path.cmp(&right.path));
+    collection
+        .files
+        .sort_by(|left, right| left.path.cmp(&right.path));
     collection.issues.sort_by(|left, right| {
-        left.path.cmp(&right.path).then_with(|| {
-            format!("{:?}", left.kind).cmp(&format!("{:?}", right.kind))
-        })
+        left.path
+            .cmp(&right.path)
+            .then_with(|| format!("{:?}", left.kind).cmp(&format!("{:?}", right.kind)))
     });
     Ok(collection)
 }
@@ -324,18 +323,18 @@ fn load_root_ignore_rules(root: &Path) -> (Vec<String>, Vec<SnapshotIssue>) {
         if rule.is_empty() || rule.starts_with('#') {
             continue;
         }
-        if rule.starts_with('!')
-            || rule.contains('*')
-            || rule.contains('?')
-            || rule.contains('[')
-        {
+        if rule.starts_with('!') || rule.contains('*') || rule.contains('?') || rule.contains('[') {
             issues.push(SnapshotIssue {
                 path: Some(format!(".gitignore:{}", line_number + 1)),
                 kind: SnapshotIssueKind::UnsupportedIgnorePattern,
             });
             continue;
         }
-        rules.push(rule.trim_start_matches('/').trim_end_matches('/').to_owned());
+        rules.push(
+            rule.trim_start_matches('/')
+                .trim_end_matches('/')
+                .to_owned(),
+        );
     }
     (rules, issues)
 }
@@ -381,7 +380,10 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["src/a.rs", "src/z.rs"]
         );
-        assert!(result.issues.iter().any(|issue| issue.kind == SnapshotIssueKind::IgnoredDirectory));
+        assert!(result
+            .issues
+            .iter()
+            .any(|issue| issue.kind == SnapshotIssueKind::IgnoredDirectory));
         fs::remove_dir_all(root).expect("remove test root");
     }
 
@@ -412,7 +414,10 @@ mod tests {
         };
         let result = collect_snapshot(&root, limits).expect("collect");
         assert!(result.files.is_empty());
-        assert!(result.issues.iter().any(|issue| issue.kind == SnapshotIssueKind::FileTooLarge));
+        assert!(result
+            .issues
+            .iter()
+            .any(|issue| issue.kind == SnapshotIssueKind::FileTooLarge));
         fs::remove_dir_all(root).expect("remove test root");
     }
 
@@ -454,7 +459,10 @@ mod tests {
     fn never_follows_file_symlinks() {
         use std::os::unix::fs::symlink;
         let root = temp_root();
-        let outside = root.parent().expect("temp parent").join("iroka-outside-secret");
+        let outside = root
+            .parent()
+            .expect("temp parent")
+            .join("iroka-outside-secret");
         fs::write(&outside, "secret").expect("write outside");
         symlink(&outside, root.join("linked.rs")).expect("create symlink");
         let result = collect_snapshot(&root, IndexLimits::default()).expect("collect");
