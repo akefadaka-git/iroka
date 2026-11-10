@@ -2,18 +2,20 @@
 
 - **Document ID:** IROKA-G05-INT-001
 - **Version:** 0.1.0
-- **Status:** DRAFT — FOR OWNER REVIEW
+- **Status:** OWNER-APPROVED DECISIONS D1–D6; DOMAIN CONTRACT CONFIRMATION AND IMPLEMENTATION PREREQUISITES OPEN
 - **Related approved contract:** IROKA-G05-MEM-001 v1.0.0
 - **Related implementation:** A3 B04 G05 core, PR #34
 - **Design baseline:** IROKA A1/A2 pinned baseline `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`
 - **Prepared against:** G05 implementation HEAD `2b5cbbd2e74308286547890d993820a5beeca329`
-- **Scope:** Contract design only. No runtime/API implementation, migration, production authority, merge, or deployment is authorized by this document.
+- **Scope:** Owner-approved integration design decisions D1–D6. This record does not itself authorize production authority, merge, or deployment.
 
 ## 1. Purpose and status
 
-This amendment proposes the missing integration contracts needed to complete G05 organizational durable-memory approval and G11 lifecycle assurance without creating duplicate authority domains.
+This amendment records the Owner's explicit approval of six G05 cross-domain integration decisions on 2026-11-10. It defines the approved design direction for G01 reviewer identity, G02 organization-scoped authorization, G11 versioned lifecycle events, transaction consistency, and privacy/retention without creating duplicate authority domains.
 
-It is subordinate to, and does not amend or weaken, the Owner-approved G05 contract v1.0.0. Its D1–D7 decisions remain binding. If this proposal conflicts with v1.0.0, v1.0.0 prevails until the Owner explicitly approves a revised contract.
+It is subordinate to, and does not amend or weaken, the Owner-approved G05 contract v1.0.0. The original G05 D1–D7 decisions remain binding. If this amendment conflicts with v1.0.0, v1.0.0 prevails unless the Owner separately approves a revision to v1.0.0.
+
+Approval is limited to the six decisions recorded in §11 and corresponding design constraints. It does not select or invent the still-unidentified canonical organization-authority provider, approve an owning-domain runtime contract that has not yet been reconciled, or authorize production use.
 
 The proposal is based on repository inspection:
 
@@ -288,8 +290,8 @@ No team/domain may implement another domain's authority as a shortcut. Where a p
 
 ## 10. Stage gates and explicit exclusions
 
-- **Current status:** Proposal only; not Owner-approved.
-- **A3:** Existing G05 A3 authorization does not automatically approve this new integration contract. Implementation of these proposed cross-domain interfaces requires explicit approval of this amendment and confirmation by the owning domain contracts.
+- **Current status:** Owner-approved decisions D1–D6; domain contract confirmation and implementation prerequisites remain open.
+- **A3:** The Owner has approved the integration design direction in §11. This does not establish missing G01/G02/G11 runtime contracts or the canonical organization-authority source. Implementation may proceed only for components whose owning-domain contracts and authoritative providers have been verified; organization reviewer designation/activation remains default-deny until its canonical authority source and G02 contract are established.
 - **A4:** Independent security assurance remains NOT RUN.
 - **A5:** Deployment/release remains NOT AUTHORIZED.
 
@@ -304,18 +306,30 @@ This document does NOT authorize:
 - vector/semantic memory dependencies;
 - deployment, release, or production activation.
 
-## 11. Review decisions requested
+## 11. Owner decision register — approved 2026-11-10
 
-Owner and domain review should resolve:
+The Owner explicitly submitted and approved all six decisions below. These are binding design decisions for this integration amendment.
 
-1. Whether the G01 proof claims and binding rules are sufficient, including the authoritative source for reviewer principal-to-key binding.
-2. Which canonical organization authority supplies the grantor's right to designate/revoke reviewers, and its version/revocation consistency guarantees.
-3. Whether G02's proposed exact-tuple authorization and one-time proof consumption fit its policy lifecycle without introducing a parallel policy engine.
-4. Whether G11 will adopt a separate versioned assurance-event envelope or a versioned event union, and the required durable-acknowledgment semantics.
-5. The supported transaction/linearization model for delegation revocation versus G05 activation.
-6. Whether any additional data-minimization, retention, or privacy constraints are required for the event envelope.
+| ID | Decision | Owner outcome | Normative effect |
+|---|---|---|---|
+| D1 | G01 reviewer identity | **APPROVED** | G01 alone owns reviewer principal authentication, principal-to-key binding, signature verification, credential validity, and current key/credential revocation. G05 MUST consume an opaque G01-verified proof and MUST NOT create or trust reviewer keys. |
+| D2 | Canonical organization authority | **APPROVED** | Reviewer designation and revocation MUST derive from a canonical, independently governed organization-authority source, mediated by G02. Tenant membership or global capability is insufficient. The specific canonical provider/source remains to be identified and verified; approval of this rule does not invent or select one. Until then, designation, revocation, and organizational durable activation remain default-deny. |
+| D3 | G02 exact-tuple authorization | **APPROVED** | G02 MUST authorize the exact tenant, organization, reviewer, delegation ID/version, action, memory ID, record version, content digest, purpose, and classification. Approval proof consumption MUST be one-time and replay-resistant. |
+| D4 | G11 separate versioned events | **APPROVED** | G11 MUST use a separate versioned memory-lifecycle assurance-event envelope (or a versioned union with equivalent isolation) while preserving existing decision-event compatibility. Lifecycle events MUST remain content-free and use durable idempotent acknowledgment. |
+| D5 | Fail-closed transaction consistency | **APPROVED** | Authority and audit state MUST be revalidated at use. Implementations MUST document consistency and linearization guarantees. If ordering/atomicity cannot be proven, the memory remains non-active/pending; no cross-store atomicity may be claimed without evidence. |
+| D6 | Privacy and retention | **APPROVED** | Audit payloads MUST minimize personal data and exclude memory content, excerpts, prompts, embeddings, credentials, and secrets. Retention, deletion, legal hold, and backup behavior MUST be explicit and compatible with G05 deletion rights. |
 
-**No implementation should begin against unresolved authority semantics.**
+### Remaining implementation prerequisites — not Owner decisions left unanswered
+
+1. **Canonical organization-authority provider:** identify the actual authoritative source, its governance owner, evidence format, revocation mechanism, freshness, and consistency/linearization guarantees. This is an implementation fact to reconcile, not permission to invent a provider.
+2. **G01 contract confirmation:** reconcile the proposed reviewer proof with the canonical G01 identity/key lifecycle and define canonical signing bytes/schema using G01-owned cryptographic conventions.
+3. **G02 contract confirmation:** reconcile organization-scoped delegation and exact-tuple authorization with the authoritative G02 policy lifecycle and organization authority.
+4. **G11 contract confirmation:** obtain G11 ownership approval for the event envelope, durable acknowledgment, deduplication/collision handling, integrity coverage, and retention.
+5. **G05 integration plan:** specify supported transaction boundaries, pending-audit states, migration/recovery and adversarial test evidence.
+6. **A4:** independent security assurance remains a separate verification gate; CI alone is not A4.
+
+No implementation may bypass an absent authoritative provider or substitute a parallel authority. Where a prerequisite is absent, dependent G05 operations remain fail-closed.
 
 ---
-Prepared as a reviewable proposal only. The Owner-approved G05 v1.0.0 contract and existing A3 implementation authorization remain unchanged.
+
+Prepared as the repository record of Owner-approved integration design decisions D1–D6. The Owner-approved G05 v1.0.0 contract and existing A3 implementation authorization remain unchanged.
