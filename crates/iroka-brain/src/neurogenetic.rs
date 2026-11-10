@@ -364,6 +364,14 @@ impl LearningProposal {
         if !self.owner_approval_required || self.activation_permitted {
             return Err(NeurogeneticError::GovernanceBoundaryViolation);
         }
+        if matches!(self.status, ProposalStatus::EvaluationAuthorized | ProposalStatus::Evaluated)
+            && self
+                .g10_authority_ref
+                .as_deref()
+                .map_or(true, |reference| reference.trim().is_empty())
+        {
+            return Err(NeurogeneticError::InvalidLearningProposal);
+        }
         Ok(())
     }
 }
@@ -643,4 +651,54 @@ mod tests {
             }
         );
     }
+    #[test]
+    fn rejects_duplicate_synapse_identity() {
+        let network = NeuralNetwork {
+            network_id: "synthetic-network".to_owned(),
+            topology: NetworkTopology::DirectedGraph,
+            cells: vec![cell("a"), cell("b"), cell("c")],
+            synapses: vec![edge("same", "a", "b"), edge("same", "b", "c")],
+        };
+        assert_eq!(network.validate(), Err(NeurogeneticError::DuplicateSynapse));
+    }
+
+    #[test]
+    fn rejects_duplicate_directed_edge() {
+        let network = NeuralNetwork {
+            network_id: "synthetic-network".to_owned(),
+            topology: NetworkTopology::DirectedGraph,
+            cells: vec![cell("a"), cell("b")],
+            synapses: vec![edge("s1", "a", "b"), edge("s2", "a", "b")],
+        };
+        assert_eq!(network.validate(), Err(NeurogeneticError::DuplicateEdge));
+    }
+
+    #[test]
+    fn evaluation_state_requires_g10_authority_reference() {
+        let proposal = LearningProposal {
+            proposal_id: "learning-2".to_owned(),
+            mode: LearningMode::Supervised,
+            target_model_ref: "model:synthetic".to_owned(),
+            dataset_ref: "dataset:synthetic".to_owned(),
+            evidence_refs: vec!["evidence:1".to_owned()],
+            g10_authority_ref: None,
+            status: ProposalStatus::EvaluationAuthorized,
+            owner_approval_required: true,
+            activation_permitted: false,
+        };
+        assert_eq!(proposal.validate(), Err(NeurogeneticError::InvalidLearningProposal));
+    }
+
+    #[test]
+    fn rejects_incomplete_memory_proposal() {
+        let proposal = MemoryAccessProposal {
+            request_id: "request-1".to_owned(),
+            memory_class: MemoryClass::Semantic,
+            opaque_reference: String::new(),
+            purpose: "knowledge retrieval".to_owned(),
+            g05_authority_receipt_ref: None,
+        };
+        assert_eq!(proposal.validate(), Err(NeurogeneticError::InvalidMemoryProposal));
+    }
+
 }
