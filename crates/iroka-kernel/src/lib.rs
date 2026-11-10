@@ -6,6 +6,7 @@
 mod assurance;
 mod audit_store;
 mod decision;
+mod ethical_programme;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -21,6 +22,10 @@ mod trust_lifecycle;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use ethical_programme::{
+    BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EvidenceKind,
+    EvidenceReference, EvidenceValidationError, EthicalPrinciple, LicenceStatus, TraitAssessment,
+};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
