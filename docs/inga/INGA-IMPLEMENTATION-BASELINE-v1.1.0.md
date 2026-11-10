@@ -172,4 +172,16 @@ Added `NeuralCircuit` and `CircuitEvaluation` contracts. A circuit binds to one 
 Four additional adversarial unit tests were authored for output projection, incorrect root declarations, duplicate interfaces, network mismatch, unknown outputs and unsupported versions. Together with the seven neural-evaluation tests, eleven new tests have been authored in these two increments. They remain **NOT RUN**; no compilation, formatting, Clippy or exact-HEAD CI result is claimed.
 
 INGA-02 remains **PARTIAL**. Circuit composition currently provides a single-network boundary, not cross-network orchestration, recurrent-state execution, distributed/federated computation or production cognition.
+## 12. A3 implementation progress — activation and synaptic polarity
+
+**Implementation commits:** `dee57b356c6f2cb1be8d4a6538d80eb8b18632b3` (feed-forward evaluator and circuit evaluation path); `5334a604fa5fc2a6b4e99078f29dd0e556b15eba` (activation functions and inhibitory synapses).  
+**Changed implementation file:** `crates/iroka-brain/src/neurogenetic.rs`
+
+Implemented the deterministic evaluator and extended it with four explicit activation policies (`clipped_linear`, `relu`, `leaky_relu`, `binary_step`) and excitatory/inhibitory synapse polarity. Synaptic magnitudes remain unsigned and bounded; polarity supplies the sign. Legacy serialized cells and synapses default to clipped-linear and excitatory respectively. Computation remains integer-only and bounded. Root inputs pass through unchanged; non-root cells apply their declared activation after the normalized weighted sum.
+
+Three additional unit tests cover inhibitory contribution, ReLU/leaky-ReLU behavior and binary-step output. Fourteen targeted neural-evaluation and circuit tests are now authored across the INGA increments. They have not been executed. The execution environment has no Rust toolchain; exact-HEAD workflow runs and status checks have not been returned. Compile, fmt, Clippy and test states remain **NOT RUN / UNRESOLVED**.
+
+**Implementation-record correction:** the earlier commits `71daff4...` and `368e9a9...` recorded test scaffolding and circuit contracts but did not yet contain the feed-forward evaluation method. The executable deterministic evaluation path was added in `dee57b3...`; inhibitory polarity and selectable activation functions were completed in `5334a60...`. The baseline is corrected here so the implementation history does not overstate what those earlier commits contained.
+
+Recurrent-state evaluation, plasticity/weight mutation, training, memory persistence, perception integration, distributed computation and production cognition remain unimplemented and outside this bounded increment.
 
