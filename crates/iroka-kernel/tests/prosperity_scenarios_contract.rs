@@ -89,3 +89,13 @@ fn comparison_evaluates_all_three_assumption_sets() {
     assert_eq!(result.base().operating_profit_minor(), 2_000);
     assert_eq!(result.upside().operating_profit_minor(), 5_300);
 }
+
+#[test]
+fn zero_volume_retains_fixed_cost_as_operating_loss() {
+    let result = scenario("zero:1", ScenarioCase::Base, 0, 500, 200, 500)
+        .calculate()
+        .unwrap();
+    assert_eq!(result.revenue_minor(), 0);
+    assert_eq!(result.total_cost_minor(), 500);
+    assert_eq!(result.operating_profit_minor(), -500);
+}
