@@ -319,6 +319,9 @@ mod kernel_g11_adapter_tests {
         );
         event.event_type = "memory.created".into();
         event.actor_ref.clear();
-        assert_eq!(adapter.append_memory_event(&event), Err(G05Error::AuditUnavailable));
+        assert_eq!(
+            adapter.append_memory_event(&event),
+            Err(G05Error::AuditUnavailable)
+        );
     }
 }
