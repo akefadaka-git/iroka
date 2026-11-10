@@ -113,6 +113,23 @@ pub struct SqliteMemoryLifecycleAuditStore {
 
 impl SqliteMemoryLifecycleAuditStore {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, MemoryAuditError> {
+        let path = path.as_ref();
+        #[cfg(unix)]
+        {
+            use std::fs::{symlink_metadata, OpenOptions};
+            use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+            match symlink_metadata(path) {
+                Ok(metadata) if metadata.file_type().is_symlink()
+                    || metadata.permissions().mode() & 0o077 != 0 =>
+                    return Err(MemoryAuditError::Unavailable),
+                Ok(_) => (),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    OpenOptions::new().write(true).create_new(true).mode(0o600)
+                        .open(path).map_err(|_| MemoryAuditError::Unavailable)?;
+                }
+                Err(_) => return Err(MemoryAuditError::Unavailable),
+            }
+        }
         let connection = Connection::open(path).map_err(|_| MemoryAuditError::Unavailable)?;
         Self::from_connection(connection)
     }
