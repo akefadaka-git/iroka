@@ -147,7 +147,11 @@ fn small_cells_are_suppressed_and_larger_synthetic_cohorts_may_be_disclosed() {
 
 #[test]
 fn higher_is_better_metric_marks_increase_as_improvement() {
-    let metric = definition(MetricDirection::HigherIsBetter, MetricUnit::BasisPoints, false);
+    let metric = definition(
+        MetricDirection::HigherIsBetter,
+        MetricUnit::BasisPoints,
+        false,
+    );
     let result =
         MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
             .unwrap();
@@ -203,8 +207,9 @@ fn monitor_only_metric_does_not_claim_improvement_or_deterioration() {
         MetricUnit::BasisPoints,
         false,
     );
-    let result = MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
-        .unwrap();
+    let result =
+        MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
+            .unwrap();
     assert_eq!(result.interpretation(), ChangeInterpretation::MonitorOnly);
 }
 
@@ -229,7 +234,11 @@ fn comparison_rejects_metric_identifier_and_unit_mismatch() {
 
 #[test]
 fn comparison_never_claims_causal_attribution() {
-    let metric = definition(MetricDirection::HigherIsBetter, MetricUnit::BasisPoints, false);
+    let metric = definition(
+        MetricDirection::HigherIsBetter,
+        MetricUnit::BasisPoints,
+        false,
+    );
     let result = MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
         .unwrap();
     assert!(!result.causal_attribution_established());
@@ -237,7 +246,11 @@ fn comparison_never_claims_causal_attribution() {
 
 #[test]
 fn no_change_is_reported_without_overclaiming() {
-    let metric = definition(MetricDirection::HigherIsBetter, MetricUnit::BasisPoints, false);
+    let metric = definition(
+        MetricDirection::HigherIsBetter,
+        MetricUnit::BasisPoints,
+        false,
+    );
     let result = MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(6000, 22))
         .unwrap();
     assert_eq!(result.change(), 0);
