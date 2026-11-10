@@ -176,34 +176,7 @@ impl SqliteMemoryLifecycleAuditStore {
             .connection
             .lock()
             .map_err(|_| MemoryAuditError::Unavailable)?;
-        let mut statement = connection
-            .prepare(
-                "SELECT payload,previous_hash,event_hash FROM g11_memory_lifecycle_events ORDER BY sequence",
-            )
-            .map_err(|_| MemoryAuditError::Unavailable)?;
-        let rows = statement
-            .query_map([], |row| {
-                Ok((
-                    row.get::<_, Vec<u8>>(0)?,
-                    row.get::<_, Vec<u8>>(1)?,
-                    row.get::<_, Vec<u8>>(2)?,
-                ))
-            })
-            .map_err(|_| MemoryAuditError::Unavailable)?;
-        let mut expected_previous = ZERO_HASH.to_vec();
-        for row in rows {
-            let (payload, previous, event_hash) =
-                row.map_err(|_| MemoryAuditError::Unavailable)?;
-            if previous != expected_previous || event_hash.len() != 32 {
-                return Err(MemoryAuditError::IntegrityFailure);
-            }
-            let calculated = hash_event(&previous, &payload);
-            if calculated.as_slice() != event_hash.as_slice() {
-                return Err(MemoryAuditError::IntegrityFailure);
-            }
-            expected_previous = event_hash;
-        }
-        Ok(())
+        verify_connection(&connection)
     }
 }
 
@@ -215,6 +188,7 @@ impl MemoryLifecycleAuditSink for SqliteMemoryLifecycleAuditStore {
             .connection
             .lock()
             .map_err(|_| MemoryAuditError::Unavailable)?;
+        verify_connection(&connection)?;
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| MemoryAuditError::Unavailable)?;
@@ -366,4 +340,30 @@ mod tests {
             Err(MemoryAuditError::Rejected)
         );
     }
+}
+
+fn verify_connection(connection: &Connection) -> Result<(), MemoryAuditError> {
+    let mut statement = connection
+        .prepare("SELECT payload,previous_hash,event_hash FROM g11_memory_lifecycle_events ORDER BY sequence")
+        .map_err(|_| MemoryAuditError::Unavailable)?;
+    let rows = statement
+        .query_map([], |row| Ok((
+            row.get::<_, Vec<u8>>(0)?,
+            row.get::<_, Vec<u8>>(1)?,
+            row.get::<_, Vec<u8>>(2)?,
+        )))
+        .map_err(|_| MemoryAuditError::Unavailable)?;
+    let mut expected_previous = ZERO_HASH.to_vec();
+    for row in rows {
+        let (payload, previous, event_hash) = row.map_err(|_| MemoryAuditError::Unavailable)?;
+        if previous != expected_previous || event_hash.len() != 32 {
+            return Err(MemoryAuditError::IntegrityFailure);
+        }
+        let calculated = hash_event(&previous, &payload);
+        if calculated.as_slice() != event_hash.as_slice() {
+            return Err(MemoryAuditError::IntegrityFailure);
+        }
+        expected_previous = event_hash;
+    }
+    Ok(())
 }
