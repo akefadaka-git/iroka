@@ -180,7 +180,9 @@ impl OperationalSelfModel {
                     self.evidence
                         .iter()
                         .find(|reference| reference.id() == id)
-                        .is_some_and(|reference| reference.kind() == EvidenceKind::GeneratedSynthesis)
+                        .is_some_and(|reference| {
+                            reference.kind() == EvidenceKind::GeneratedSynthesis
+                        })
                 })
             {
                 return Err(SelfModelError::GeneratedEvidenceCannotVerifyClaim);
