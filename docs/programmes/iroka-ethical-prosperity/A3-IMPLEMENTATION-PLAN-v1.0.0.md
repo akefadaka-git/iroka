@@ -24,7 +24,7 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | PARTIAL — metadata contracts CI VERIFIED; localization adapters remain |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | IMPLEMENTED — CI VERIFIED |
 | A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI VERIFIED |
-| A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
+| A3.7 | Candidate human-flourishing metric definitions and synthetic-only impact evaluation contracts | Baseline, adverse-outcome, small-cell disclosure, privacy boundary and correlation/causation tests | IMPLEMENTATION ADDED — EXACT-HEAD CI PENDING |
 | A3.8 | Canonical G01–G12 adapter integration and cross-domain adversarial verification | Exact-provider binding, fail-closed, audit and independent review evidence | NOT STARTED |
 
 ## 3. A3.1/A3.2 implementation constraints
@@ -97,3 +97,26 @@ A3.6 remains synthetic-only operating scenario arithmetic. It does not include m
 - A3.6: `IMPLEMENTED — EXACT-HEAD CI VERIFIED`.
 - No A2 decision is reopened or changed. No new authority, consent, reviewer or localization registry is created by this reconciliation.
 - A3.7 and A3.8 remain not started. A4 independent verification and A5 activation/deployment remain separate gates. PR #47 remains draft, open and unmerged.
+
+
+## 10. A3.7 human-flourishing metric contracts — 2026-11-10
+
+### Scope and Owner-decision boundary
+
+A3.7 defines candidate measurement vocabulary and synthetic-only comparison contracts. It does not select final programme targets, collect real participant/community data, establish a baseline, certify impact, or authorize interventions. OD-06 remains OPEN: candidate indicators only; real data collection is deferred pending Owner decisions and privacy/consent governance.
+
+Candidate domains represented by the technical vocabulary are education, livelihood, health access, food security, water access, dignity and fairness, community wellbeing, and environmental stewardship. These are measurement categories, not claims that IROKA currently improves these outcomes.
+
+### Technical contracts
+
+- Metric definitions require stable identifiers, domain, unit, directionality, numerator label, and denominator label for rate metrics.
+- Aggregate observations are explicitly synthetic-only and cannot represent person-level records.
+- Rate values are bounded to 0–10,000 basis points.
+- Baseline/follow-up comparisons validate metric identity and units, calculate descriptive change, and distinguish improvement, deterioration, no change, and monitor-only signals.
+- Adverse-outcome indicators can be represented explicitly; worsening adverse indicators are not hidden by positive aggregate movement.
+- Small-cell suppression requires a nontrivial configured cohort threshold. It is a disclosure guard only, not differential privacy or proof of anonymization.
+- The comparison primitive always reports causal attribution as not established. Temporal change is not proof of programme causation.
+
+### Explicit limits
+
+No real data ingestion, participant identifiers, subgroup profiling, durable retention, model training, health diagnosis, financial advice, intervention, or protected execution is added. The module does not determine the final metric set or thresholds. OD-04/OD-05/OD-06/OD-07/OD-08 remain open and continue to gate real-world programme deployment or data collection.
