@@ -12,7 +12,7 @@ on:
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base]
+    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
