@@ -21,7 +21,7 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.1 | Ethical evidence taxonomy, provenance references, validation | Unit/contract tests; source-kind separation; malformed-input rejection | IMPLEMENTED — CI VERIFIED |
 | A3.2 | Observable character traits and evidence-linked assessments | Adversarial tests; no scalar score; missing-evidence rejection | IMPLEMENTED — CI VERIFIED |
 | A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI VERIFIED |
-| A3.4 | Language-neutral localization infrastructure, provenance, script adapter boundary and deterministic Ethiopian/Gregorian calendar conversion | Provenance, translation-state, fail-closed script, calendar round-trip, boundary and ambiguity tests | TECHNICAL IMPLEMENTATION ADDED — EXACT-HEAD CI PENDING; authoritative content review remains a separate gate |
+| A3.4 | Language-neutral localization infrastructure, provenance, script adapter boundary and deterministic Ethiopian/Gregorian calendar conversion | Provenance, translation-state, fail-closed script, calendar round-trip, boundary and ambiguity tests | TECHNICAL IMPLEMENTATION COMPLETE — EXACT-COMMIT CI VERIFIED; authoritative content review remains a separate gate |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | IMPLEMENTED — CI VERIFIED |
 | A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI VERIFIED |
 | A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
@@ -121,3 +121,12 @@ The Owner reports that qualified Maale language reviewers/community authority ha
 ### Exit criteria and status separation
 
 A3.4 technical implementation may be marked complete after exact-commit CI passes and code review confirms the adapter contracts and calendar boundary behavior. Maale content approval remains separately gated and may remain pending without blocking the language-neutral platform capability. A3.4 technical completion must not be described as community approval, linguistic correctness of Maale content, independent assurance, A4 closure or production readiness.
+
+
+### Exact-commit verification — 2026-11-10
+
+- Tested code commit: `caf183039a70ac9a10b8cb76e1b2cfe80132c5bb`.
+- GitHub Actions run: [42867694535](https://github.com/akefadaka-git/iroka/actions/runs/42867694535).
+- Job: `Format, compile, test and lint` — `completed · success`.
+- Passed: checkout, stable Rust setup, `cargo fmt --all -- --check`, `cargo check --workspace --all-targets --locked`, production-feature bypass check, complete `cargo test --workspace --all-targets --locked`, and `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic`.
+- This verifies the code at the exact tested commit. It is not independent A4 assurance, authoritative Maale content review, merge approval or production readiness.
