@@ -103,6 +103,7 @@ impl From<SecurityStoreError> for OwnerApprovalError {
     fn from(error: SecurityStoreError) -> Self {
         match error {
             SecurityStoreError::InvalidVersion => Self::Malformed,
+            SecurityStoreError::Revoked => Self::Revoked,
             _ => Self::StoreUnavailable,
         }
     }
