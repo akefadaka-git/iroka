@@ -555,6 +555,8 @@ pub enum NeurogeneticError {
     UnsupportedEvaluationTopology,
     /// A quarantined cell cannot participate in an evaluation.
     QuarantinedCell,
+    /// Proposed cells must pass structural verification before evaluation.
+    UnverifiedCell,
     /// An input value is outside the supported signed fixed-point range.
     InputOutOfRange,
     /// An input references a cell that is not in the network.
@@ -638,8 +640,12 @@ impl NeuralNetwork {
         if self.topology != NetworkTopology::FeedForward {
             return Err(NeurogeneticError::UnsupportedEvaluationTopology);
         }
-        if self.cells.iter().any(|cell| cell.status == CellStatus::Quarantined) {
-            return Err(NeurogeneticError::QuarantinedCell);
+        for cell in &self.cells {
+            match cell.status {
+                CellStatus::StructurallyVerified => {}
+                CellStatus::Quarantined => return Err(NeurogeneticError::QuarantinedCell),
+                CellStatus::Proposed => return Err(NeurogeneticError::UnverifiedCell),
+            }
         }
 
         let mut indegree = std::collections::HashMap::<&str, usize>::with_capacity(self.cells.len());
@@ -865,6 +871,12 @@ mod tests {
         }
     }
 
+    fn verified_cell(id: &str) -> ComputationalCell {
+        let mut value = cell(id);
+        value.status = CellStatus::StructurallyVerified;
+        value
+    }
+
     fn edge(id: &str, source: &str, destination: &str) -> Synapse {
         Synapse {
             synapse_id: id.to_owned(),
@@ -881,7 +893,7 @@ mod tests {
         let network = NeuralNetwork {
             network_id: "synthetic-network".to_owned(),
             topology: NetworkTopology::FeedForward,
-            cells: vec![cell("input"), cell("hidden"), cell("output")],
+            cells: vec![verified_cell("input"), verified_cell("hidden"), verified_cell("output")],
             synapses: vec![
                 edge("s1", "input", "hidden"),
                 edge("s2", "hidden", "output"),
@@ -1291,7 +1303,7 @@ mod tests {
         let network = NeuralNetwork {
             network_id: "inhibitory-fixture".to_owned(),
             topology: NetworkTopology::FeedForward,
-            cells: vec![cell("excite"), cell("inhibit"), cell("output")],
+            cells: vec![verified_cell("excite"), verified_cell("inhibit"), verified_cell("output")],
             synapses: vec![
                 Synapse {
                     synapse_id: "positive".to_owned(),
@@ -1422,6 +1434,19 @@ mod tests {
         }]).unwrap();
         assert_eq!(positive.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, WEIGHT_SCALE as i32);
         assert_eq!(negative.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, 0);
+    }
+
+    #[test]
+    fn feed_forward_evaluation_rejects_proposed_cells_until_structurally_verified() {
+        let mut network = feed_forward_fixture();
+        network.cells[1].status = CellStatus::Proposed;
+        assert_eq!(
+            network.evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: 100_000,
+            }]),
+            Err(NeurogeneticError::UnverifiedCell)
+        );
     }
 
 }
