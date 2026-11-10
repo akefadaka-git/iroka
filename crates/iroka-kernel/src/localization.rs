@@ -230,16 +230,26 @@ impl EthiopianDate {
         Ok(date)
     }
 
-    pub fn year(&self) -> u32 { self.year }
-    pub fn month(&self) -> u8 { self.month }
-    pub fn day(&self) -> u8 { self.day }
+    pub fn year(&self) -> u32 {
+        self.year
+    }
+    pub fn month(&self) -> u8 {
+        self.month
+    }
+    pub fn day(&self) -> u8 {
+        self.day
+    }
 
     fn validate(&self) -> Result<(), CalendarError> {
         if self.year == 0 || !(1..=13).contains(&self.month) {
             return Err(CalendarError::InvalidDate);
         }
         let max_day = if self.month == 13 {
-            if self.year % 4 == 3 { 6 } else { 5 }
+            if self.year % 4 == 3 {
+                6
+            } else {
+                5
+            }
         } else {
             30
         };
@@ -323,11 +333,7 @@ pub fn gregorian_to_ethiopian(date: GregorianDate) -> Result<EthiopianDate, Cale
     }
     let month = ((day_of_year - 1) / 30) + 1;
     let day = ((day_of_year - 1) % 30) + 1;
-    EthiopianDate::new(
-        year as u32,
-        month as u8,
-        day as u8,
-    )
+    EthiopianDate::new(year as u32, month as u8, day as u8)
 }
 
 fn gregorian_jdn(date: GregorianDate) -> i64 {
