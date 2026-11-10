@@ -11,8 +11,8 @@ mod decision;
 mod governance;
 mod identity;
 mod identity_crypto;
-mod memory_audit;
 mod igacms;
+mod memory_audit;
 mod owner_approval;
 mod policy;
 mod policy_lifecycle;
@@ -31,7 +31,6 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use memory_audit::{MemoryAuditError, MemoryLifecycleAuditSink, MemoryLifecycleEvent, SqliteMemoryLifecycleAuditStore, MEMORY_EVENT_SCHEMA_ID, MEMORY_EVENT_SCHEMA_VERSION};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
@@ -48,6 +47,10 @@ pub use igacms::{
     verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
+};
+pub use memory_audit::{
+    MemoryAuditError, MemoryLifecycleAuditSink, MemoryLifecycleEvent,
+    SqliteMemoryLifecycleAuditStore, MEMORY_EVENT_SCHEMA_ID, MEMORY_EVENT_SCHEMA_VERSION,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
