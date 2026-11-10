@@ -93,7 +93,7 @@ A3.6 remains synthetic-only operating scenario arithmetic. It does not include m
 
 ### Reconciled disposition
 
-- A3.4: `PARTIAL — METADATA CONTRACTS CI VERIFIED; LOCALIZATION ADAPTERS AND QUALIFIED MAALE COMMUNITY REVIEW OUTSTANDING`.
+- A3.4 at the initial reconciliation point: `PARTIAL — METADATA CONTRACTS CI VERIFIED; LOCALIZATION ADAPTERS AND QUALIFIED MAALE COMMUNITY REVIEW OUTSTANDING`. This historical disposition is superseded for technical infrastructure by Section 9 and the exact-commit verification recorded there; the Maale content-authority gate remains open.
 - A3.6: `IMPLEMENTED — EXACT-HEAD CI VERIFIED`.
 - No A2 decision is reopened or changed. No new authority, consent, reviewer or localization registry is created by this reconciliation.
 - A3.7 and A3.8 remain not started. A4 independent verification and A5 activation/deployment remain separate gates. PR #47 remains draft, open and unmerged.
