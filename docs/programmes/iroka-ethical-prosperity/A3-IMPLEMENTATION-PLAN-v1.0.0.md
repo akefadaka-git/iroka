@@ -21,7 +21,7 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.1 | Ethical evidence taxonomy, provenance references, validation | Unit/contract tests; source-kind separation; malformed-input rejection | IMPLEMENTED — CI VERIFIED |
 | A3.2 | Observable character traits and evidence-linked assessments | Adversarial tests; no scalar score; missing-evidence rejection | IMPLEMENTED — CI VERIFIED |
 | A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI VERIFIED |
-| A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | PARTIAL — metadata contracts CI VERIFIED; localization adapters remain |
+| A3.4 | Language-neutral localization infrastructure, provenance, script adapter boundary and deterministic Ethiopian/Gregorian calendar conversion | Provenance, translation-state, fail-closed script, calendar round-trip, boundary and ambiguity tests | TECHNICAL IMPLEMENTATION ADDED — CI PENDING; authoritative content review remains a separate gate |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | IMPLEMENTED — CI VERIFIED |
 | A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI VERIFIED |
 | A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
@@ -97,3 +97,27 @@ A3.6 remains synthetic-only operating scenario arithmetic. It does not include m
 - A3.6: `IMPLEMENTED — EXACT-HEAD CI VERIFIED`.
 - No A2 decision is reopened or changed. No new authority, consent, reviewer or localization registry is created by this reconciliation.
 - A3.7 and A3.8 remain not started. A4 independent verification and A5 activation/deployment remain separate gates. PR #47 remains draft, open and unmerged.
+
+
+## 9. A3.4 technical completion and community-review boundary — 2026-11-10
+
+### Correct scope interpretation
+
+Maale-language expertise is **not** a dependency for IROKA platform engineering or for implementing language-neutral localization infrastructure. A qualified Maale language/community reviewer is relevant only to validate Maale-specific linguistic or cultural assertions and to approve material represented as authoritative. This is a content-validation gate, not a platform-build prerequisite.
+
+### Technical implementation added on the isolated A3.4 branch
+
+- Provenance-aware localization entries retain the original source text, source evidence reference, source/target language tags, candidate translation and explicit translation state.
+- Translation states distinguish not-translated, draft, unverified and review-evidence-recorded. The review-evidence state requires a non-generated evidence reference, but does not authenticate the reviewer, establish community authority or confer approval.
+- Script transformation is conservative: exact same-declared-script pass-through is supported; cross-script or unspecified-script conversion returns an explicit unsupported result while preserving the original. No Maale transliteration table or orthographic rule is invented.
+- Ethiopian-to-Gregorian and Gregorian-to-Ethiopian conversion is deterministic and bidirectional, validates date boundaries and Ethiopian Pagume leap days, and preserves source dates at the caller boundary.
+- Contract tests cover translation-state invariants, evidence requirements, unsupported script conversion, known calendar dates, leap-day behavior, Gregorian century leap-year rules and round-trip month boundaries.
+- The existing cultural-context metadata remains intact. No duplicate consent, reviewer, identity, governance, memory or audit registry is introduced.
+
+### Content and authority gate
+
+The Owner reports that qualified Maale language reviewers/community authority have been identified. This statement is recorded as an Owner-provided project fact, not as documentary evidence of review or approval. The repository must not mark Maale orthography, translations or cultural content authoritative until the applicable reviewer identity/authority, scope, review outcome and evidence are recorded through canonical governance and evidence providers. Do not add reviewer names, personal data or a new reviewer registry to this technical module.
+
+### Exit criteria and status separation
+
+A3.4 technical implementation may be marked complete after exact-commit CI passes and code review confirms the adapter contracts and calendar boundary behavior. Maale content approval remains separately gated and may remain pending without blocking the language-neutral platform capability. A3.4 technical completion must not be described as community approval, linguistic correctness of Maale content, independent assurance, A4 closure or production readiness.
