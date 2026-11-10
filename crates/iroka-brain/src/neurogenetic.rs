@@ -150,6 +150,8 @@ pub struct NeuralNetwork {
 
 impl NeuralNetwork {
     /// Validate identifiers, bounds, endpoints and fixed-point weights.
+    ///
+    /// This checks topology only; it does not execute a neural network.
     pub fn validate(&self) -> Result<(), NeurogeneticError> {
         if self.network_id.trim().is_empty() {
             return Err(NeurogeneticError::MissingIdentifier);
