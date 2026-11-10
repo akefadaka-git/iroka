@@ -18,9 +18,9 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 
 | Increment | Scope | Required evidence | Status |
 |---|---|---|---|
-| A3.1 | Ethical evidence taxonomy, provenance references, validation | Unit/contract tests; source-kind separation; malformed-input rejection | IN PROGRESS |
-| A3.2 | Observable character traits and evidence-linked assessments | Adversarial tests; no scalar score; missing-evidence rejection | IN PROGRESS |
-| A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI PENDING |
+| A3.1 | Ethical evidence taxonomy, provenance references, validation | Unit/contract tests; source-kind separation; malformed-input rejection | IMPLEMENTED — CI VERIFIED |
+| A3.2 | Observable character traits and evidence-linked assessments | Adversarial tests; no scalar score; missing-evidence rejection | IMPLEMENTED — CI VERIFIED |
+| A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI VERIFIED |
 | A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | NOT STARTED |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | NOT STARTED |
 | A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | NOT STARTED |
@@ -62,6 +62,12 @@ For every increment:
 
 A4 requires independent review where applicable and is not completed by A3 CI. A5 release/deployment requires a separate explicit Owner authorization.
 
-## 6. Current increment
+## 6. Verified implementation evidence
 
-A3.1/A3.2 implement a minimal evidence taxonomy and evidence-linked behavioral review primitives in the existing Rust kernel. This is a foundation only. It does not implement a full ethical reasoning engine, source corpus, self-model, cultural knowledge system, teaching product, prosperity engine or impact measurement system.
+At exact PR head `b20cb0166cb1d720a2b7e5dd191e8ee10defc46c`, GitHub Actions Rust kernel verification run `42848561207` completed successfully. The job passed formatting, all-target compilation, the production-feature bypass check, the complete unit/contract suite and Clippy. This verifies the code at that exact commit only; it is not independent security assurance, A4 closure or production readiness.
+
+A3.1/A3.2 evidence primitives and A3.3 operational self-model contracts are implemented and passed that exact-head CI run. Subsequent commits require their own exact-head verification.
+
+## 7. Current increment and limitations
+
+A3.1/A3.2 implement a minimal evidence taxonomy and evidence-linked behavioral review primitives in the existing Rust kernel. A3.3 adds bounded operational self-model claims. These are foundational interfaces only. They do not implement a full ethical reasoning engine, source corpus, cultural knowledge system, teaching product, prosperity engine or impact measurement system.
