@@ -86,10 +86,18 @@ impl MemoryLifecycleEvent {
         if self.event_type.len() > 128
             || !self.event_type.starts_with("memory.")
             || self.event_id.len() > 256
-            || [&self.event_id, &self.event_type, &self.aggregate_ref, &self.tenant_ref,
-                &self.actor_ref, &self.correlation_ref]
-                .iter()
-                .any(|field| field.chars().any(char::is_whitespace) || field.chars().any(char::is_control))
+            || [
+                &self.event_id,
+                &self.event_type,
+                &self.aggregate_ref,
+                &self.tenant_ref,
+                &self.actor_ref,
+                &self.correlation_ref,
+            ]
+            .iter()
+            .any(|field| {
+                field.chars().any(char::is_whitespace) || field.chars().any(char::is_control)
+            })
         {
             return Err(MemoryAuditError::Rejected);
         }
@@ -123,13 +131,20 @@ impl SqliteMemoryLifecycleAuditStore {
             use std::fs::{symlink_metadata, OpenOptions};
             use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
             match symlink_metadata(path) {
-                Ok(metadata) if metadata.file_type().is_symlink()
-                    || metadata.permissions().mode() & 0o077 != 0 =>
-                    return Err(MemoryAuditError::Unavailable),
+                Ok(metadata)
+                    if metadata.file_type().is_symlink()
+                        || metadata.permissions().mode() & 0o077 != 0 =>
+                {
+                    return Err(MemoryAuditError::Unavailable)
+                }
                 Ok(_) => (),
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    OpenOptions::new().write(true).create_new(true).mode(0o600)
-                        .open(path).map_err(|_| MemoryAuditError::Unavailable)?;
+                    OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .mode(0o600)
+                        .open(path)
+                        .map_err(|_| MemoryAuditError::Unavailable)?;
                 }
                 Err(_) => return Err(MemoryAuditError::Unavailable),
             }
@@ -278,7 +293,14 @@ mod tests {
         store.append_memory_event(&event).unwrap();
         store.verify_integrity().unwrap();
         let payload = serde_json::to_string(&event).unwrap();
-        for forbidden in ["content", "excerpt", "prompt", "embedding", "credential", "secret"] {
+        for forbidden in [
+            "content",
+            "excerpt",
+            "prompt",
+            "embedding",
+            "credential",
+            "secret",
+        ] {
             assert!(!payload.contains(forbidden));
         }
         assert_eq!(event.schema_version, 1);
@@ -293,7 +315,11 @@ mod tests {
         store.verify_integrity().unwrap();
         let connection = store.connection.lock().unwrap();
         let count: i64 = connection
-            .query_row("SELECT COUNT(*) FROM g11_memory_lifecycle_events", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM g11_memory_lifecycle_events",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(count, 1);
     }
@@ -351,11 +377,13 @@ fn verify_connection(connection: &Connection) -> Result<(), MemoryAuditError> {
         .prepare("SELECT payload,previous_hash,event_hash FROM g11_memory_lifecycle_events ORDER BY sequence")
         .map_err(|_| MemoryAuditError::Unavailable)?;
     let rows = statement
-        .query_map([], |row| Ok((
-            row.get::<_, Vec<u8>>(0)?,
-            row.get::<_, Vec<u8>>(1)?,
-            row.get::<_, Vec<u8>>(2)?,
-        )))
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, Vec<u8>>(0)?,
+                row.get::<_, Vec<u8>>(1)?,
+                row.get::<_, Vec<u8>>(2)?,
+            ))
+        })
         .map_err(|_| MemoryAuditError::Unavailable)?;
     let mut expected_previous = ZERO_HASH.to_vec();
     for row in rows {
