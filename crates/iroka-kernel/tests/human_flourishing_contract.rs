@@ -202,11 +202,7 @@ fn lower_is_better_metric_marks_decrease_as_improvement() {
 
 #[test]
 fn monitor_only_metric_does_not_claim_improvement_or_deterioration() {
-    let metric = definition(
-        MetricDirection::MonitorOnly,
-        MetricUnit::BasisPoints,
-        false,
-    );
+    let metric = definition(MetricDirection::MonitorOnly, MetricUnit::BasisPoints, false);
     let result =
         MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
             .unwrap();
@@ -215,7 +211,11 @@ fn monitor_only_metric_does_not_claim_improvement_or_deterioration() {
 
 #[test]
 fn comparison_rejects_metric_identifier_and_unit_mismatch() {
-    let metric = definition(MetricDirection::HigherIsBetter, MetricUnit::BasisPoints, false);
+    let metric = definition(
+        MetricDirection::HigherIsBetter,
+        MetricUnit::BasisPoints,
+        false,
+    );
     let wrong_id =
         SyntheticAggregateObservation::new("different:metric", MetricUnit::BasisPoints, 7000, 10)
             .unwrap();
@@ -239,8 +239,9 @@ fn comparison_never_claims_causal_attribution() {
         MetricUnit::BasisPoints,
         false,
     );
-    let result = MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
-        .unwrap();
+    let result =
+        MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
+            .unwrap();
     assert!(!result.causal_attribution_established());
 }
 
@@ -251,8 +252,9 @@ fn no_change_is_reported_without_overclaiming() {
         MetricUnit::BasisPoints,
         false,
     );
-    let result = MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(6000, 22))
-        .unwrap();
+    let result =
+        MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(6000, 22))
+            .unwrap();
     assert_eq!(result.change(), 0);
     assert_eq!(result.interpretation(), ChangeInterpretation::NoChange);
 }
