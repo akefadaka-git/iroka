@@ -21,7 +21,7 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.1 | Ethical evidence taxonomy, provenance references, validation | Unit/contract tests; source-kind separation; malformed-input rejection | IMPLEMENTED — CI VERIFIED |
 | A3.2 | Observable character traits and evidence-linked assessments | Adversarial tests; no scalar score; missing-evidence rejection | IMPLEMENTED — CI VERIFIED |
 | A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI VERIFIED |
-| A3.4 | Language-neutral localization infrastructure, provenance, script adapter boundary and deterministic Ethiopian/Gregorian calendar conversion | Provenance, translation-state, fail-closed script, calendar round-trip, boundary and ambiguity tests | TECHNICAL IMPLEMENTATION ADDED — CI PENDING; authoritative content review remains a separate gate |
+| A3.4 | Language-neutral localization infrastructure, provenance, script adapter boundary and deterministic Ethiopian/Gregorian calendar conversion | Provenance, translation-state, fail-closed script, calendar round-trip, boundary and ambiguity tests | TECHNICAL IMPLEMENTATION ADDED — EXACT-HEAD CI PENDING; authoritative content review remains a separate gate |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | IMPLEMENTED — CI VERIFIED |
 | A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI VERIFIED |
 | A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
