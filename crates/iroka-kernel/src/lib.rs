@@ -40,11 +40,6 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use localization::{
-    ethiopian_to_gregorian, gregorian_to_ethiopian, transform_script, CalendarError,
-    EthiopianDate, GregorianDate, LocalizationEntry, LocalizationError,
-    ScriptTransformResult, ScriptTransformStatus, TranslationState,
-};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
@@ -61,6 +56,11 @@ pub use igacms::{
     verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
+};
+pub use localization::{
+    ethiopian_to_gregorian, gregorian_to_ethiopian, transform_script, CalendarError,
+    EthiopianDate, GregorianDate, LocalizationEntry, LocalizationError,
+    ScriptTransformResult, ScriptTransformStatus, TranslationState,
 };
 pub use operational_self_model::{
     OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
