@@ -54,7 +54,7 @@ This branch adds:
 - `iroka_kernel::MemoryLifecycleEvent`, schema ID `iroka.g11.memory-lifecycle-event`, version 1;
 - a distinct `g11_memory_lifecycle_events` append-only table and independent SHA-256 event chain;
 - stable event-ID idempotency; identical retries succeed, conflicting payload reuse is rejected;
-- strict schema/version, event namespace, field-size and required-field validation;
+- strict schema/version, event namespace, field-size and required-field validation, including rejection of whitespace/control characters in opaque-reference fields;
 - a G05 `KernelG11MemoryAuditAdapter` that converts committed G05 outbox events to the G11-owned versioned schema;
 - deliberate omission of the G05 content digest from the G11 payload to reduce dictionary/fingerprinting leakage; and
 - adversarial tests for idempotent retry, event-ID collision, unknown schema, invalid event namespace, missing/oversized opaque references and content-free serialization.
