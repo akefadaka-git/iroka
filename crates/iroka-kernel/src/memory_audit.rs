@@ -86,6 +86,10 @@ impl MemoryLifecycleEvent {
         if self.event_type.len() > 128
             || !self.event_type.starts_with("memory.")
             || self.event_id.len() > 256
+            || [&self.event_id, &self.event_type, &self.aggregate_ref, &self.tenant_ref,
+                &self.actor_ref, &self.correlation_ref]
+                .iter()
+                .any(|field| field.chars().any(char::is_whitespace) || field.chars().any(char::is_control))
         {
             return Err(MemoryAuditError::Rejected);
         }
