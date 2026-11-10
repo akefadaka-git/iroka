@@ -18,10 +18,22 @@ fn reference(id: &str, kind: EvidenceKind) -> EvidenceReference {
 
 #[test]
 fn evidence_kinds_keep_scripture_interpretation_and_synthesis_distinct() {
-    assert_ne!(EvidenceKind::BiblicalPrimaryText, EvidenceKind::TheologicalInterpretation);
-    assert_ne!(EvidenceKind::TheologicalInterpretation, EvidenceKind::GeneratedSynthesis);
-    assert_ne!(EvidenceKind::CulturalTradition, EvidenceKind::EmpiricalEvidence);
-    assert_ne!(EvidenceKind::LegalOrPolicy, EvidenceKind::GeneratedSynthesis);
+    assert_ne!(
+        EvidenceKind::BiblicalPrimaryText,
+        EvidenceKind::TheologicalInterpretation
+    );
+    assert_ne!(
+        EvidenceKind::TheologicalInterpretation,
+        EvidenceKind::GeneratedSynthesis
+    );
+    assert_ne!(
+        EvidenceKind::CulturalTradition,
+        EvidenceKind::EmpiricalEvidence
+    );
+    assert_ne!(
+        EvidenceKind::LegalOrPolicy,
+        EvidenceKind::GeneratedSynthesis
+    );
 }
 
 #[test]
@@ -41,14 +53,24 @@ fn evidence_reference_rejects_empty_provenance() {
 #[test]
 fn evidence_reference_rejects_empty_language_and_version_metadata() {
     let language = EvidenceReference::new(
-        "src:1", EvidenceKind::CulturalTradition, "Oral history",
-        Some(" ".into()), None, "catalogue:1", LicenceStatus::Unverified,
+        "src:1",
+        EvidenceKind::CulturalTradition,
+        "Oral history",
+        Some(" ".into()),
+        None,
+        "catalogue:1",
+        LicenceStatus::Unverified,
     );
     assert_eq!(language, Err(EvidenceValidationError::EmptyLanguageTag));
 
     let version = EvidenceReference::new(
-        "src:1", EvidenceKind::CulturalTradition, "Oral history",
-        None, Some(" ".into()), "catalogue:1", LicenceStatus::Unverified,
+        "src:1",
+        EvidenceKind::CulturalTradition,
+        "Oral history",
+        None,
+        Some(" ".into()),
+        "catalogue:1",
+        LicenceStatus::Unverified,
     );
     assert_eq!(version, Err(EvidenceValidationError::EmptySourceVersion));
 }
@@ -73,7 +95,10 @@ fn insufficient_evidence_can_be_recorded_without_inventing_support() {
         "No reliable observation is available",
     )
     .unwrap();
-    assert_eq!(assessment.outcome(), BehavioralOutcome::InsufficientEvidence);
+    assert_eq!(
+        assessment.outcome(),
+        BehavioralOutcome::InsufficientEvidence
+    );
     assert!(assessment.evidence_ids().is_empty());
 }
 
@@ -87,7 +112,10 @@ fn review_rejects_unresolved_evidence_ids() {
     )
     .unwrap();
     let result = BehavioralReview::new("review:1", vec![assessment], vec![]);
-    assert_eq!(result, Err(BehavioralReviewError::UnresolvedEvidenceReference));
+    assert_eq!(
+        result,
+        Err(BehavioralReviewError::UnresolvedEvidenceReference)
+    );
 }
 
 #[test]
@@ -127,7 +155,10 @@ fn valid_review_preserves_source_class_and_evidence_linkage() {
     .unwrap();
 
     assert_eq!(review.review_id(), "review:1");
-    assert_eq!(review.assessments()[0].outcome(), BehavioralOutcome::Observed);
+    assert_eq!(
+        review.assessments()[0].outcome(),
+        BehavioralOutcome::Observed
+    );
     assert_eq!(review.evidence()[0].kind(), EvidenceKind::EmpiricalEvidence);
 }
 
