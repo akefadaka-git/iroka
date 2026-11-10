@@ -21,10 +21,10 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.1 | Ethical evidence taxonomy, provenance references, validation | Unit/contract tests; source-kind separation; malformed-input rejection | IMPLEMENTED — CI VERIFIED |
 | A3.2 | Observable character traits and evidence-linked assessments | Adversarial tests; no scalar score; missing-evidence rejection | IMPLEMENTED — CI VERIFIED |
 | A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI VERIFIED |
-| A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | PARTIAL — metadata contracts CI VERIFIED; localization adapters remain |
+| A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | IMPLEMENTED — TECHNICAL ADAPTERS EXACT-COMMIT CI VERIFIED; AUTHORITATIVE MAALE CONTENT REVIEW PENDING |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | IMPLEMENTED — CI VERIFIED |
 | A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI VERIFIED |
-| A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
+| A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | IMPLEMENTED — EXACT-COMMIT CI VERIFIED; CANDIDATE METRICS ONLY, OD-06 OPEN |
 | A3.8 | Canonical G01–G12 adapter integration and cross-domain adversarial verification | Exact-provider binding, fail-closed, audit and independent review evidence | PARTIAL — provider reconciliation complete; G01 reviewer-proof and G02 organization-delegation providers remain missing; G11 memory-lifecycle adapter is a separate unmerged candidate |
 
 ## 3. A3.1/A3.2 implementation constraints
@@ -73,31 +73,35 @@ A3.1/A3.2 evidence primitives and A3.3 operational self-model contracts are impl
 A3.1/A3.2 implement a minimal evidence taxonomy and evidence-linked behavioral review primitives in the existing Rust kernel. A3.3 adds bounded operational self-model claims. These are foundational interfaces only. They do not implement a full ethical reasoning engine, source corpus, cultural knowledge system, teaching product, prosperity engine or impact measurement system.
 
 
-## 8. A3.4/A3.6 reconciliation — 2026-11-10
+## 8. A3.4/A3.6/A3.7 implementation reconciliation — 2026-11-10
 
-### A3.4 — PARTIAL, metadata foundation verified
+### A3.4 — TECHNICAL IMPLEMENTATION VERIFIED; COMMUNITY CONTENT AUTHORITY PENDING
 
-The exact-scope evidence is run `42849369832` at commit `93667e78a2e078944c79d85da8cc9878656f8aa4`. It verifies the cultural-context metadata contracts. It does not verify a complete localization product or authoritative language content. Remaining work is limited by the A2 contract and OD-03:
+- Localization adapter implementation passed exact-commit GitHub Actions run [42867694535](https://github.com/akefadaka-git/iroka/actions/runs/42867694535) at tested code commit `caf183039a70ac9a10b8cb76e1b2cfe80132c5bb`.
+- The implementation preserves source text and provenance, records candidate translation/review evidence without authenticating reviewer authority, fails closed on unsupported script conversion, and provides deterministic Ethiopian/Gregorian conversion with boundary and leap-day tests.
+- No Maale orthography, translation or cultural claim is asserted as authoritative. Qualified reviewers/community authority have been identified by the Owner, but signed/documented review evidence has not been verified in this repository.
+- PR #48 remains OPEN, DRAFT and UNMERGED. Community review and its evidence gate remain pending; no real community data or durable retention is enabled.
 
-- implement and test bounded, provenance-preserving localization/conversion adapter interfaces without inventing Maale orthography;
-- preserve source values and expose ambiguity for script/calendar conversions; do not silently normalize uncertain forms;
-- require qualified Maale language/community review before treating orthography, translations or community content as authoritative;
-- do not create a programme-owned consent or reviewer registry; reuse canonical G05/G01/G02 providers when those providers are available and verified;
-- keep real community data and durable retention disabled until the applicable consent, authority and data-governance gates are resolved.
+### A3.6 — IMPLEMENTED; EXACT-COMMIT CI VERIFIED
 
-### A3.6 — IMPLEMENTED, EXACT-HEAD CI VERIFIED
+- Synthetic-only scenario arithmetic passed run [42851519555](https://github.com/akefadaka-git/iroka/actions/runs/42851519555) at `1b00364f49d8949d10d4aa15e5543c77b50bc57f`.
+- No market-data ingestion, tax model, capex, investment advice, guarantees, financial transactions or production forecasting is included.
 
-At code commit `1b00364f49d8949d10d4aa15e5543c77b50bc57f` (the pre-reconciliation implementation head), GitHub Actions run [42851519555](https://github.com/akefadaka-git/iroka/actions/runs/42851519555) completed successfully. Job `Format, compile, test and lint` passed checkout, stable Rust setup, formatting, all-target compilation, production-feature bypass check, complete unit/contract tests, Clippy and job completion. This is exact-commit CI evidence, not independent assurance, A4 closure or production readiness.
+### A3.7 — IMPLEMENTED; EXACT-COMMIT CI VERIFIED
 
-A3.6 remains synthetic-only operating scenario arithmetic. It does not include market-data ingestion, tax, capex, investment advice, guarantees, financial transactions or production forecasting.
+- Candidate human-flourishing metric definitions and synthetic aggregate-only baseline/follow-up comparisons passed run [42869939448](https://github.com/akefadaka-git/iroka/actions/runs/42869939448) at tested implementation commit `e412d491f12d439ae24e149b35ba901b780435b1`.
+- Eight candidate domains are covered: education, livelihood, health access, food security, water access, dignity/fairness, community wellbeing and environmental stewardship.
+- Contract tests cover metric validation, rate bounds, suppression behavior, adverse-outcome deterioration, mismatches and non-causal interpretation.
+- OD-06 remains OPEN. These are candidate metrics only; no real-world data collection, participant-level data or causal impact claim is authorized. Small-cell suppression is not differential privacy or a guarantee of anonymization.
+- PR #49 remains OPEN, DRAFT and UNMERGED.
 
 ### Reconciled disposition
 
-- A3.4: `PARTIAL — METADATA CONTRACTS CI VERIFIED; LOCALIZATION ADAPTERS AND QUALIFIED MAALE COMMUNITY REVIEW OUTSTANDING`.
-- A3.6: `IMPLEMENTED — EXACT-HEAD CI VERIFIED`.
-- No A2 decision is reopened or changed. No new authority, consent, reviewer or localization registry is created by this reconciliation.
-- A3.7 and A3.8 remain not started. A4 independent verification and A5 activation/deployment remain separate gates. PR #47 remains draft, open and unmerged.
-
+- A3.4: `TECHNICAL IMPLEMENTATION — EXACT-COMMIT CI VERIFIED; AUTHORITATIVE MAALE CONTENT REVIEW — PENDING`.
+- A3.6: `IMPLEMENTED — EXACT-COMMIT CI VERIFIED`.
+- A3.7: `IMPLEMENTED — EXACT-COMMIT CI VERIFIED; CANDIDATE METRICS ONLY; OD-06 OPEN`.
+- A2 remains VERIFIED-CLOSED. No Owner decision is reopened or changed.
+- A4 independent verification and A5 activation/deployment remain separate gates. PRs #47, #48 and #49 remain draft, open and unmerged.
 
 ## 11. A3.8 canonical-provider integration readiness — 2026-11-10
 
