@@ -2,8 +2,7 @@ use iroka_kernel::{
     ethiopian_to_gregorian, gregorian_to_ethiopian, transform_script, CalendarError,
     CalendarSystem, CommunityReviewStatus, CulturalContextError, CulturalContextRecord,
     EthiopianDate, EvidenceKind, EvidenceReference, GregorianDate, LicenceStatus,
-    LocalizationEntry, LocalizationError, ScriptSystem, ScriptTransformStatus,
-    TranslationState,
+    LocalizationEntry, LocalizationError, ScriptSystem, ScriptTransformStatus, TranslationState,
 };
 
 fn source(id: &str, kind: EvidenceKind) -> EvidenceReference {
@@ -69,7 +68,10 @@ fn cultural_context_requires_cultural_tradition_source_kind() {
         CommunityReviewStatus::NotReviewed,
         None,
     );
-    assert_eq!(result, Err(CulturalContextError::SourceIsNotCulturalTradition));
+    assert_eq!(
+        result,
+        Err(CulturalContextError::SourceIsNotCulturalTradition)
+    );
 }
 
 #[test]
@@ -130,7 +132,11 @@ fn script_adapter_passes_through_only_identical_declared_scripts() {
 
 #[test]
 fn script_adapter_preserves_original_and_fails_closed_for_cross_script_conversion() {
-    let result = transform_script("source form", ScriptSystem::Unspecified, ScriptSystem::Ethiopic);
+    let result = transform_script(
+        "source form",
+        ScriptSystem::Unspecified,
+        ScriptSystem::Ethiopic,
+    );
     assert_eq!(result.status(), ScriptTransformStatus::Unsupported);
     assert_eq!(result.original_text(), "source form");
     assert_eq!(result.output_text(), None);
@@ -231,7 +237,10 @@ fn invalid_ethiopian_thirteenth_month_day_is_rejected() {
 
 #[test]
 fn gregorian_century_leap_year_rules_are_respected() {
-    assert_eq!(GregorianDate::new(1900, 2, 29), Err(CalendarError::InvalidDate));
+    assert_eq!(
+        GregorianDate::new(1900, 2, 29),
+        Err(CalendarError::InvalidDate)
+    );
     assert!(GregorianDate::new(2000, 2, 29).is_ok());
 }
 
@@ -240,7 +249,11 @@ fn calendar_round_trip_holds_across_ethiopian_month_boundaries() {
     for year in 2010..=2030 {
         for month in 1..=13 {
             let max_day = if month == 13 {
-                if year % 4 == 3 { 6 } else { 5 }
+                if year % 4 == 3 {
+                    6
+                } else {
+                    5
+                }
             } else {
                 30
             };
