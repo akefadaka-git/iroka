@@ -81,6 +81,42 @@ pub enum CellStatus {
     Quarantined,
 }
 
+/// Deterministic, bounded activation functions for synthetic cell evaluation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivationFunction {
+    /// Clipped linear activation; preserves the original bounded evaluator behavior.
+    ClippedLinear,
+    /// Rectified linear activation.
+    Relu,
+    /// Leaky rectified linear activation with a fixed 0.1 negative slope.
+    LeakyRelu,
+    /// Binary threshold activation.
+    BinaryStep,
+}
+
+impl Default for ActivationFunction {
+    fn default() -> Self {
+        Self::ClippedLinear
+    }
+}
+
+/// Excitatory or inhibitory sign applied to a non-negative synaptic magnitude.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SynapsePolarity {
+    /// Adds the weighted source activation.
+    Excitatory,
+    /// Subtracts the weighted source activation.
+    Inhibitory,
+}
+
+impl Default for SynapsePolarity {
+    fn default() -> Self {
+        Self::Excitatory
+    }
+}
+
 /// A single computational cell descriptor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ComputationalCell {
@@ -94,6 +130,9 @@ pub struct ComputationalCell {
     pub status: CellStatus,
     /// Version of the cell contract.
     pub contract_version: String,
+    /// Deterministic activation function; legacy serialized cells default to clipped linear.
+    #[serde(default)]
+    pub activation: ActivationFunction,
 }
 
 /// Plasticity policy for a connection.
@@ -119,6 +158,9 @@ pub struct Synapse {
     pub destination_cell_id: String,
     /// Weight in millionths, constrained to 0..=1_000_000.
     pub weight_micros: u32,
+    /// Excitatory or inhibitory sign; legacy serialized synapses default to excitatory.
+    #[serde(default)]
+    pub polarity: SynapsePolarity,
     /// Learning/update boundary.
     pub plasticity: PlasticityPolicy,
 }
@@ -538,6 +580,160 @@ pub enum NeurogeneticError {
 }
 
 
+
+/// A caller-supplied value for a root cell in a synthetic feed-forward pass.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CellInput {
+    /// Identifier of a zero-in-degree input cell.
+    pub cell_id: String,
+    /// Signed fixed-point input in the range -WEIGHT_SCALE..=WEIGHT_SCALE.
+    pub value_micros: i32,
+}
+
+/// The computed activation of one cell; this is data, not an execution grant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CellActivation {
+    /// Cell identifier.
+    pub cell_id: String,
+    /// Signed, bounded fixed-point activation.
+    pub value_micros: i32,
+}
+
+/// Result of one deterministic synthetic feed-forward evaluation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NetworkEvaluation {
+    /// Evaluated network identifier.
+    pub network_id: String,
+    /// Activations in stable lexicographic cell-id order.
+    pub activations: Vec<CellActivation>,
+}
+
+/// Apply a fixed-point activation function without floating-point operations.
+fn apply_activation(function: ActivationFunction, value: i64) -> i32 {
+    let bounded = value.clamp(-i64::from(WEIGHT_SCALE), i64::from(WEIGHT_SCALE)) as i32;
+    match function {
+        ActivationFunction::ClippedLinear => bounded,
+        ActivationFunction::Relu => bounded.max(0),
+        ActivationFunction::LeakyRelu => {
+            if bounded < 0 { bounded / 10 } else { bounded }
+        }
+        ActivationFunction::BinaryStep => {
+            if bounded > 0 { WEIGHT_SCALE as i32 } else { 0 }
+        }
+    }
+}
+
+impl NeuralNetwork {
+    /// Evaluate a feed-forward network using deterministic signed fixed-point arithmetic.
+    ///
+    /// Every root cell requires exactly one bounded input. Non-root cells receive
+    /// a weighted sum of incoming activations, followed by their declared
+    /// activation function. This isolated pass does not persist state, mutate
+    /// weights, train a model, call tools or authorize actions.
+    pub fn evaluate_feed_forward(
+        &self,
+        inputs: &[CellInput],
+    ) -> Result<NetworkEvaluation, NeurogeneticError> {
+        self.validate()?;
+        if self.topology != NetworkTopology::FeedForward {
+            return Err(NeurogeneticError::UnsupportedEvaluationTopology);
+        }
+        if self.cells.iter().any(|cell| cell.status == CellStatus::Quarantined) {
+            return Err(NeurogeneticError::QuarantinedCell);
+        }
+
+        let mut indegree = std::collections::HashMap::<&str, usize>::with_capacity(self.cells.len());
+        let mut incoming = std::collections::HashMap::<&str, Vec<&Synapse>>::with_capacity(self.cells.len());
+        let mut outgoing = std::collections::HashMap::<&str, Vec<&str>>::with_capacity(self.cells.len());
+        let mut activation_functions = std::collections::HashMap::<&str, ActivationFunction>::with_capacity(self.cells.len());
+        for cell in &self.cells {
+            indegree.insert(cell.cell_id.as_str(), 0);
+            incoming.insert(cell.cell_id.as_str(), Vec::new());
+            outgoing.insert(cell.cell_id.as_str(), Vec::new());
+            activation_functions.insert(cell.cell_id.as_str(), cell.activation);
+        }
+        for synapse in &self.synapses {
+            *indegree.entry(synapse.destination_cell_id.as_str()).or_default() += 1;
+            incoming.entry(synapse.destination_cell_id.as_str()).or_default().push(synapse);
+            outgoing.entry(synapse.source_cell_id.as_str()).or_default()
+                .push(synapse.destination_cell_id.as_str());
+        }
+
+        let mut input_values = std::collections::HashMap::<&str, i32>::with_capacity(inputs.len());
+        for input in inputs {
+            if input.value_micros < -(WEIGHT_SCALE as i32)
+                || input.value_micros > WEIGHT_SCALE as i32
+            {
+                return Err(NeurogeneticError::InputOutOfRange);
+            }
+            let degree = indegree.get(input.cell_id.as_str())
+                .ok_or(NeurogeneticError::UnknownInputCell)?;
+            if *degree != 0 {
+                return Err(NeurogeneticError::InputForNonRootCell);
+            }
+            if input_values.insert(input.cell_id.as_str(), input.value_micros).is_some() {
+                return Err(NeurogeneticError::DuplicateInput);
+            }
+        }
+
+        let mut ready = std::collections::BTreeSet::<&str>::new();
+        for (cell_id, degree) in &indegree {
+            if *degree == 0 {
+                if !input_values.contains_key(cell_id) {
+                    return Err(NeurogeneticError::MissingRootInput);
+                }
+                ready.insert(*cell_id);
+            }
+        }
+
+        let mut activations = std::collections::BTreeMap::<String, i32>::new();
+        while let Some(cell_id) = ready.iter().next().copied() {
+            ready.remove(cell_id);
+            let value = if let Some(input) = input_values.get(cell_id) {
+                *input
+            } else {
+                let mut weighted_sum = 0i64;
+                if let Some(edges) = incoming.get(cell_id) {
+                    for edge in edges {
+                        let source = activations.get(&edge.source_cell_id)
+                            .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
+                        let contribution = i64::from(*source) * i64::from(edge.weight_micros);
+                        weighted_sum = weighted_sum.saturating_add(contribution);
+                    }
+                }
+                let normalized = weighted_sum / i64::from(WEIGHT_SCALE);
+                let function = activation_functions.get(cell_id)
+                    .copied()
+                    .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
+                apply_activation(function, normalized)
+            };
+            activations.insert(cell_id.to_owned(), value);
+
+            if let Some(destinations) = outgoing.get(cell_id) {
+                for destination in destinations {
+                    let degree = indegree.get_mut(destination)
+                        .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
+                    *degree = degree.saturating_sub(1);
+                    if *degree == 0 {
+                        ready.insert(*destination);
+                    }
+                }
+            }
+        }
+
+        if activations.len() != self.cells.len() {
+            return Err(NeurogeneticError::EvaluationOrderViolation);
+        }
+
+        Ok(NetworkEvaluation {
+            network_id: self.network_id.clone(),
+            activations: activations.into_iter()
+                .map(|(cell_id, value_micros)| CellActivation { cell_id, value_micros })
+                .collect(),
+        })
+    }
+}
+
 /// A named functional circuit composed over one validated feed-forward network.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NeuralCircuit {
@@ -661,6 +857,7 @@ mod tests {
             region: BrainRegion::ExecutiveControl,
             status: CellStatus::Proposed,
             contract_version: NEUROGENETIC_CONTRACT_VERSION.to_owned(),
+            activation: ActivationFunction::ClippedLinear,
         }
     }
 
@@ -670,6 +867,7 @@ mod tests {
             source_cell_id: source.to_owned(),
             destination_cell_id: destination.to_owned(),
             weight_micros: 500_000,
+            polarity: SynapsePolarity::Excitatory,
             plasticity: PlasticityPolicy::Frozen,
         }
     }
@@ -893,6 +1091,7 @@ mod tests {
                     source_cell_id: "input".to_owned(),
                     destination_cell_id: "hidden".to_owned(),
                     weight_micros: 500_000,
+                    polarity: SynapsePolarity::Excitatory,
                     plasticity: PlasticityPolicy::Frozen,
                 },
                 Synapse {
@@ -900,6 +1099,7 @@ mod tests {
                     source_cell_id: "hidden".to_owned(),
                     destination_cell_id: "output".to_owned(),
                     weight_micros: 1_000_000,
+                    polarity: SynapsePolarity::Excitatory,
                     plasticity: PlasticityPolicy::Frozen,
                 },
             ],
@@ -1080,6 +1280,75 @@ mod tests {
         circuit.contract_version = NEUROGENETIC_CONTRACT_VERSION.to_owned();
         circuit.input_cell_ids = vec!["input".to_owned(), "input".to_owned()];
         assert_eq!(circuit.validate(&network), Err(NeurogeneticError::DuplicateCircuitInput));
+    }
+
+    #[test]
+    fn inhibitory_synapses_subtract_from_the_weighted_sum() {
+        let network = NeuralNetwork {
+            network_id: "inhibitory-fixture".to_owned(),
+            topology: NetworkTopology::FeedForward,
+            cells: vec![cell("excite"), cell("inhibit"), cell("output")],
+            synapses: vec![
+                Synapse {
+                    synapse_id: "positive".to_owned(),
+                    source_cell_id: "excite".to_owned(),
+                    destination_cell_id: "output".to_owned(),
+                    weight_micros: 500_000,
+                    polarity: SynapsePolarity::Excitatory,
+                    plasticity: PlasticityPolicy::Frozen,
+                },
+                Synapse {
+                    synapse_id: "negative".to_owned(),
+                    source_cell_id: "inhibit".to_owned(),
+                    destination_cell_id: "output".to_owned(),
+                    weight_micros: 500_000,
+                    polarity: SynapsePolarity::Inhibitory,
+                    plasticity: PlasticityPolicy::Frozen,
+                },
+            ],
+        };
+        let result = network.evaluate_feed_forward(&[
+            CellInput { cell_id: "excite".to_owned(), value_micros: 800_000 },
+            CellInput { cell_id: "inhibit".to_owned(), value_micros: 400_000 },
+        ]).unwrap();
+        assert_eq!(
+            result.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros,
+            200_000
+        );
+    }
+
+    #[test]
+    fn relu_and_leaky_relu_are_deterministic() {
+        let mut network = feed_forward_fixture();
+        network.cells[2].activation = ActivationFunction::Relu;
+        let relu = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: -800_000,
+        }]).unwrap();
+        assert_eq!(relu.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, 0);
+
+        network.cells[2].activation = ActivationFunction::LeakyRelu;
+        let leaky = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: -800_000,
+        }]).unwrap();
+        assert_eq!(leaky.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, -40_000);
+    }
+
+    #[test]
+    fn binary_step_activation_has_a_bounded_two_state_output() {
+        let mut network = feed_forward_fixture();
+        network.cells[2].activation = ActivationFunction::BinaryStep;
+        let positive = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: 800_000,
+        }]).unwrap();
+        let negative = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: -800_000,
+        }]).unwrap();
+        assert_eq!(positive.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, WEIGHT_SCALE as i32);
+        assert_eq!(negative.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, 0);
     }
 
 }
