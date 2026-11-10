@@ -16,6 +16,7 @@ mod igacms;
 mod operational_self_model;
 mod owner_approval;
 mod policy;
+mod prosperity_scenarios;
 mod request;
 mod security_store;
 mod service;
@@ -63,6 +64,10 @@ pub use owner_approval::{
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
+pub use prosperity_scenarios::{
+    BusinessScenario, ScenarioCase, ScenarioComparison, ScenarioComparisonResult, ScenarioError,
+    ScenarioResult,
+};
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
