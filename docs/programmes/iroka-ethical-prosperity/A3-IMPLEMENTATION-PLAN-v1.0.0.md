@@ -23,7 +23,7 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI VERIFIED |
 | A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | PARTIAL — metadata contracts CI VERIFIED; localization adapters remain |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | IMPLEMENTED — CI VERIFIED |
-| A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI PENDING |
+| A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI VERIFIED |
 | A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
 | A3.8 | Canonical G01–G12 adapter integration and cross-domain adversarial verification | Exact-provider binding, fail-closed, audit and independent review evidence | NOT STARTED |
 
@@ -66,8 +66,34 @@ A4 requires independent review where applicable and is not completed by A3 CI. A
 
 At exact PR head `b20cb0166cb1d720a2b7e5dd191e8ee10defc46c`, GitHub Actions Rust kernel verification run `42848561207` completed successfully. The job passed formatting, all-target compilation, the production-feature bypass check, the complete unit/contract suite and Clippy. This verifies the code at that exact commit only; it is not independent security assurance, A4 closure or production readiness.
 
-A3.1/A3.2 evidence primitives and A3.3 operational self-model contracts are implemented and passed that exact-head CI run. A3.4 cultural-context metadata contracts also passed exact-head CI run `42849369832` at `93667e78a2e078944c79d85da8cc9878656f8aa4`. A3.4 remains partial: actual localization/conversion adapters and authoritative community review are not implemented. A3.5 task-profile and human-review safeguard contracts passed exact-head CI run `42850125260` at `5f5759cb7237a53e5101d433ece99e6980217e21`. A3.6 deterministic synthetic scenario arithmetic is implemented; its exact-head verification is pending.
+A3.1/A3.2 evidence primitives and A3.3 operational self-model contracts are implemented and passed that exact-head CI run. A3.4 cultural-context metadata contracts also passed exact-head CI run `42849369832` at `93667e78a2e078944c79d85da8cc9878656f8aa4`. A3.4 remains partial: actual localization/conversion adapters and authoritative community review are not implemented. A3.5 task-profile and human-review safeguard contracts passed exact-head CI run `42850125260` at `5f5759cb7237a53e5101d433ece99e6980217e21`. A3.6 deterministic synthetic scenario arithmetic is implemented and exact-head CI verified at `1b00364f49d8949d10d4aa15e5543c77b50bc57f` by run `42851519555`.
 
 ## 7. Current increment and limitations
 
 A3.1/A3.2 implement a minimal evidence taxonomy and evidence-linked behavioral review primitives in the existing Rust kernel. A3.3 adds bounded operational self-model claims. These are foundational interfaces only. They do not implement a full ethical reasoning engine, source corpus, cultural knowledge system, teaching product, prosperity engine or impact measurement system.
+
+
+## 8. A3.4/A3.6 reconciliation — 2026-11-10
+
+### A3.4 — PARTIAL, metadata foundation verified
+
+The exact-scope evidence is run `42849369832` at commit `93667e78a2e078944c79d85da8cc9878656f8aa4`. It verifies the cultural-context metadata contracts. It does not verify a complete localization product or authoritative language content. Remaining work is limited by the A2 contract and OD-03:
+
+- implement and test bounded, provenance-preserving localization/conversion adapter interfaces without inventing Maale orthography;
+- preserve source values and expose ambiguity for script/calendar conversions; do not silently normalize uncertain forms;
+- require qualified Maale language/community review before treating orthography, translations or community content as authoritative;
+- do not create a programme-owned consent or reviewer registry; reuse canonical G05/G01/G02 providers when those providers are available and verified;
+- keep real community data and durable retention disabled until the applicable consent, authority and data-governance gates are resolved.
+
+### A3.6 — IMPLEMENTED, EXACT-HEAD CI VERIFIED
+
+At current PR head `1b00364f49d8949d10d4aa15e5543c77b50bc57f`, GitHub Actions run [42851519555](https://github.com/akefadaka-git/iroka/actions/runs/42851519555) completed successfully. Job `Format, compile, test and lint` passed checkout, stable Rust setup, formatting, all-target compilation, production-feature bypass check, complete unit/contract tests, Clippy and job completion. This is exact-commit CI evidence, not independent assurance, A4 closure or production readiness.
+
+A3.6 remains synthetic-only operating scenario arithmetic. It does not include market-data ingestion, tax, capex, investment advice, guarantees, financial transactions or production forecasting.
+
+### Reconciled disposition
+
+- A3.4: `PARTIAL — METADATA CONTRACTS CI VERIFIED; LOCALIZATION ADAPTERS AND QUALIFIED MAale REVIEW OUTSTANDING`.
+- A3.6: `IMPLEMENTED — EXACT-HEAD CI VERIFIED`.
+- No A2 decision is reopened or changed. No new authority, consent, reviewer or localization registry is created by this reconciliation.
+- A3.7 and A3.8 remain not started. A4 independent verification and A5 activation/deployment remain separate gates. PR #47 remains draft, open and unmerged.
