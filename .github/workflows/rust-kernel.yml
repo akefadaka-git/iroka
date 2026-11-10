@@ -2,7 +2,9 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation]
+    branches:
+      - feat/igacms-a3-implementation
+      - feat/a3-8-g01-tenant-reconciliation
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
