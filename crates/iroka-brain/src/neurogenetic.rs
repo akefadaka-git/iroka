@@ -697,7 +697,11 @@ impl NeuralNetwork {
                     for edge in edges {
                         let source = activations.get(&edge.source_cell_id)
                             .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
-                        let contribution = i64::from(*source) * i64::from(edge.weight_micros);
+                        let magnitude = i64::from(*source) * i64::from(edge.weight_micros);
+                        let contribution = match edge.polarity {
+                            SynapsePolarity::Excitatory => magnitude,
+                            SynapsePolarity::Inhibitory => -magnitude,
+                        };
                         weighted_sum = weighted_sum.saturating_add(contribution);
                     }
                 }
@@ -1280,6 +1284,75 @@ mod tests {
         circuit.contract_version = NEUROGENETIC_CONTRACT_VERSION.to_owned();
         circuit.input_cell_ids = vec!["input".to_owned(), "input".to_owned()];
         assert_eq!(circuit.validate(&network), Err(NeurogeneticError::DuplicateCircuitInput));
+    }
+
+    #[test]
+    fn inhibitory_synapses_subtract_from_the_weighted_sum() {
+        let network = NeuralNetwork {
+            network_id: "inhibitory-fixture".to_owned(),
+            topology: NetworkTopology::FeedForward,
+            cells: vec![cell("excite"), cell("inhibit"), cell("output")],
+            synapses: vec![
+                Synapse {
+                    synapse_id: "positive".to_owned(),
+                    source_cell_id: "excite".to_owned(),
+                    destination_cell_id: "output".to_owned(),
+                    weight_micros: 500_000,
+                    polarity: SynapsePolarity::Excitatory,
+                    plasticity: PlasticityPolicy::Frozen,
+                },
+                Synapse {
+                    synapse_id: "negative".to_owned(),
+                    source_cell_id: "inhibit".to_owned(),
+                    destination_cell_id: "output".to_owned(),
+                    weight_micros: 500_000,
+                    polarity: SynapsePolarity::Inhibitory,
+                    plasticity: PlasticityPolicy::Frozen,
+                },
+            ],
+        };
+        let result = network.evaluate_feed_forward(&[
+            CellInput { cell_id: "excite".to_owned(), value_micros: 800_000 },
+            CellInput { cell_id: "inhibit".to_owned(), value_micros: 400_000 },
+        ]).unwrap();
+        assert_eq!(
+            result.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros,
+            200_000
+        );
+    }
+
+    #[test]
+    fn relu_and_leaky_relu_are_deterministic() {
+        let mut network = feed_forward_fixture();
+        network.cells[2].activation = ActivationFunction::Relu;
+        let relu = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: -800_000,
+        }]).unwrap();
+        assert_eq!(relu.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, 0);
+
+        network.cells[2].activation = ActivationFunction::LeakyRelu;
+        let leaky = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: -800_000,
+        }]).unwrap();
+        assert_eq!(leaky.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, -40_000);
+    }
+
+    #[test]
+    fn binary_step_activation_has_a_bounded_two_state_output() {
+        let mut network = feed_forward_fixture();
+        network.cells[2].activation = ActivationFunction::BinaryStep;
+        let positive = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: 800_000,
+        }]).unwrap();
+        let negative = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: -800_000,
+        }]).unwrap();
+        assert_eq!(positive.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, WEIGHT_SCALE as i32);
+        assert_eq!(negative.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, 0);
     }
 
     #[test]
