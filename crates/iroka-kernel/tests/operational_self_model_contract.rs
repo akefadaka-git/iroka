@@ -71,13 +71,13 @@ fn unavailable_claim_cannot_assert_value_evidence() {
 fn generated_synthesis_alone_cannot_support_verified_claim() {
     let result = OperationalSelfModel::new(
         "snapshot:1",
-        vec![claim(
-            SelfClaimStatus::Verified,
-            vec!["source:1".into()],
-        )],
+        vec![claim(SelfClaimStatus::Verified, vec!["source:1".into()])],
         vec![evidence("source:1", EvidenceKind::GeneratedSynthesis)],
     );
-    assert_eq!(result, Err(SelfModelError::GeneratedEvidenceCannotVerifyClaim));
+    assert_eq!(
+        result,
+        Err(SelfModelError::GeneratedEvidenceCannotVerifyClaim)
+    );
 }
 
 #[test]
@@ -141,7 +141,6 @@ fn unavailable_status_is_preserved_as_uncertainty() {
         "No authoritative provider response",
     )
     .unwrap();
-    let model =
-        OperationalSelfModel::new("snapshot:2", vec![unavailable], vec![]).unwrap();
+    let model = OperationalSelfModel::new("snapshot:2", vec![unavailable], vec![]).unwrap();
     assert_eq!(model.claims()[0].status(), SelfClaimStatus::Unavailable);
 }
