@@ -71,7 +71,6 @@ pub(crate) use service::{authorize, authorize_authenticated};
 pub use teaching_profiles::{
     HumanReviewRequirement, ImpactLevel, TeachingMode, TeachingProfileError, TeachingTaskProfile,
 };
-#[cfg(test)]
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
