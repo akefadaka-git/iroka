@@ -525,6 +525,129 @@ pub enum NeurogeneticError {
     DuplicateInput,
     /// The validated graph could not be evaluated in topological order.
     EvaluationOrderViolation,
+    /// A circuit descriptor is incomplete or incompatible.
+    InvalidCircuit,
+    /// Circuit identity references a different network.
+    CircuitNetworkMismatch,
+    /// A circuit input identifier is repeated.
+    DuplicateCircuitInput,
+    /// Circuit inputs do not exactly match the network's root cells.
+    CircuitInputMismatch,
+    /// A circuit output identifier is repeated.
+    DuplicateCircuitOutput,
+}
+
+
+/// A named functional circuit composed over one validated feed-forward network.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NeuralCircuit {
+    /// Stable circuit identifier.
+    pub circuit_id: String,
+    /// Contract version for this circuit descriptor.
+    pub contract_version: String,
+    /// Functional region primarily served by this circuit.
+    pub region: BrainRegion,
+    /// Network identifier to which this circuit is bound.
+    pub network_id: String,
+    /// All zero-in-degree cells exposed as circuit inputs.
+    pub input_cell_ids: Vec<String>,
+    /// Cells exposed as circuit outputs, in declared interface order.
+    pub output_cell_ids: Vec<String>,
+}
+
+/// Result of evaluating a named circuit; only declared outputs are exposed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CircuitEvaluation {
+    /// Evaluated circuit identifier.
+    pub circuit_id: String,
+    /// Underlying network identifier.
+    pub network_id: String,
+    /// Output activations in the circuit's declared output order.
+    pub outputs: Vec<CellActivation>,
+}
+
+impl NeuralCircuit {
+    /// Validate circuit identity, network binding and exact root/output interfaces.
+    pub fn validate(&self, network: &NeuralNetwork) -> Result<(), NeurogeneticError> {
+        if self.circuit_id.trim().is_empty()
+            || self.contract_version != NEUROGENETIC_CONTRACT_VERSION
+            || self.input_cell_ids.is_empty()
+            || self.output_cell_ids.is_empty()
+        {
+            return Err(NeurogeneticError::InvalidCircuit);
+        }
+        if self.network_id != network.network_id {
+            return Err(NeurogeneticError::CircuitNetworkMismatch);
+        }
+        network.validate()?;
+
+        let cell_ids: HashSet<&str> = network.cells.iter()
+            .map(|cell| cell.cell_id.as_str())
+            .collect();
+        let mut indegree = std::collections::HashMap::<&str, usize>::with_capacity(network.cells.len());
+        for cell in &network.cells {
+            indegree.insert(cell.cell_id.as_str(), 0);
+        }
+        for synapse in &network.synapses {
+            *indegree.entry(synapse.destination_cell_id.as_str()).or_default() += 1;
+        }
+
+        let mut declared_inputs = HashSet::with_capacity(self.input_cell_ids.len());
+        for input in &self.input_cell_ids {
+            if !declared_inputs.insert(input.as_str()) {
+                return Err(NeurogeneticError::DuplicateCircuitInput);
+            }
+            match indegree.get(input.as_str()) {
+                Some(0) => {}
+                Some(_) => return Err(NeurogeneticError::CircuitInputMismatch),
+                None => return Err(NeurogeneticError::InvalidCircuit),
+            }
+        }
+        let actual_roots: HashSet<&str> = indegree.iter()
+            .filter_map(|(cell_id, degree)| if *degree == 0 { Some(*cell_id) } else { None })
+            .collect();
+        if actual_roots != declared_inputs {
+            return Err(NeurogeneticError::CircuitInputMismatch);
+        }
+
+        let mut declared_outputs = HashSet::with_capacity(self.output_cell_ids.len());
+        for output in &self.output_cell_ids {
+            if !declared_outputs.insert(output.as_str()) {
+                return Err(NeurogeneticError::DuplicateCircuitOutput);
+            }
+            if !cell_ids.contains(output.as_str()) {
+                return Err(NeurogeneticError::InvalidCircuit);
+            }
+        }
+        Ok(())
+    }
+
+    /// Evaluate the bound network and expose only the circuit's declared outputs.
+    pub fn evaluate(
+        &self,
+        network: &NeuralNetwork,
+        inputs: &[CellInput],
+    ) -> Result<CircuitEvaluation, NeurogeneticError> {
+        self.validate(network)?;
+        let evaluation = network.evaluate_feed_forward(inputs)?;
+        let values: std::collections::HashMap<&str, i32> = evaluation.activations.iter()
+            .map(|activation| (activation.cell_id.as_str(), activation.value_micros))
+            .collect();
+        let mut outputs = Vec::with_capacity(self.output_cell_ids.len());
+        for cell_id in &self.output_cell_ids {
+            let value_micros = *values.get(cell_id.as_str())
+                .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
+            outputs.push(CellActivation {
+                cell_id: cell_id.clone(),
+                value_micros,
+            });
+        }
+        Ok(CircuitEvaluation {
+            circuit_id: self.circuit_id.clone(),
+            network_id: self.network_id.clone(),
+            outputs,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -884,6 +1007,79 @@ mod tests {
             result.activations.iter().find(|item| item.cell_id == "hidden").unwrap().value_micros,
             -400_000
         );
+    }
+
+    #[test]
+    fn circuit_validates_interfaces_and_exposes_only_declared_outputs() {
+        let network = feed_forward_fixture();
+        let circuit = NeuralCircuit {
+            circuit_id: "language-circuit".to_owned(),
+            contract_version: NEUROGENETIC_CONTRACT_VERSION.to_owned(),
+            region: BrainRegion::LanguageSemantic,
+            network_id: network.network_id.clone(),
+            input_cell_ids: vec!["input".to_owned()],
+            output_cell_ids: vec!["output".to_owned()],
+        };
+        let result = circuit.evaluate(&network, &[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: 600_000,
+        }]).unwrap();
+        assert_eq!(result.circuit_id, "language-circuit");
+        assert_eq!(result.outputs, vec![CellActivation {
+            cell_id: "output".to_owned(),
+            value_micros: 300_000,
+        }]);
+    }
+
+    #[test]
+    fn circuit_rejects_missing_root_and_duplicate_interface_ids() {
+        let network = feed_forward_fixture();
+        let mut circuit = NeuralCircuit {
+            circuit_id: "circuit-1".to_owned(),
+            contract_version: NEUROGENETIC_CONTRACT_VERSION.to_owned(),
+            region: BrainRegion::ExecutiveControl,
+            network_id: network.network_id.clone(),
+            input_cell_ids: vec!["input".to_owned(), "hidden".to_owned()],
+            output_cell_ids: vec!["output".to_owned()],
+        };
+        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::CircuitInputMismatch));
+        circuit.input_cell_ids = vec!["input".to_owned()];
+        circuit.output_cell_ids = vec!["output".to_owned(), "output".to_owned()];
+        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::DuplicateCircuitOutput));
+    }
+
+    #[test]
+    fn circuit_rejects_wrong_network_and_unknown_outputs() {
+        let network = feed_forward_fixture();
+        let mut circuit = NeuralCircuit {
+            circuit_id: "circuit-1".to_owned(),
+            contract_version: NEUROGENETIC_CONTRACT_VERSION.to_owned(),
+            region: BrainRegion::ExecutiveControl,
+            network_id: "different-network".to_owned(),
+            input_cell_ids: vec!["input".to_owned()],
+            output_cell_ids: vec!["output".to_owned()],
+        };
+        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::CircuitNetworkMismatch));
+        circuit.network_id = network.network_id.clone();
+        circuit.output_cell_ids = vec!["missing".to_owned()];
+        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::InvalidCircuit));
+    }
+
+    #[test]
+    fn circuit_rejects_unsupported_contract_and_duplicate_inputs() {
+        let network = feed_forward_fixture();
+        let mut circuit = NeuralCircuit {
+            circuit_id: "circuit-1".to_owned(),
+            contract_version: "99.0.0".to_owned(),
+            region: BrainRegion::ExecutiveControl,
+            network_id: network.network_id.clone(),
+            input_cell_ids: vec!["input".to_owned()],
+            output_cell_ids: vec!["output".to_owned()],
+        };
+        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::InvalidCircuit));
+        circuit.contract_version = NEUROGENETIC_CONTRACT_VERSION.to_owned();
+        circuit.input_cell_ids = vec!["input".to_owned(), "input".to_owned()];
+        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::DuplicateCircuitInput));
     }
 
 }
