@@ -701,4 +701,17 @@ mod tests {
         assert_eq!(proposal.validate(), Err(NeurogeneticError::InvalidMemoryProposal));
     }
 
+    #[test]
+    fn rejects_unsupported_cell_contract_version() {
+        let mut invalid = cell("cell-1");
+        invalid.contract_version = "99.0.0".to_owned();
+        let network = NeuralNetwork {
+            network_id: "synthetic-network".to_owned(),
+            topology: NetworkTopology::DirectedGraph,
+            cells: vec![invalid],
+            synapses: Vec::new(),
+        };
+        assert_eq!(network.validate(), Err(NeurogeneticError::InvalidCell));
+    }
+
 }
