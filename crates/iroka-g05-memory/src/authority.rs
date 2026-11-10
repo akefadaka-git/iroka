@@ -227,7 +227,6 @@ mod tests {
     }
 }
 
-
 /// Concrete bridge from G05's transactional outbox payload to the G11-owned
 /// versioned memory lifecycle stream. The adapter deliberately drops the
 /// content digest: it is not needed for lifecycle assurance and can enable
@@ -265,7 +264,9 @@ impl G11MemoryAuditAuthority for KernelG11MemoryAuditAdapter<'_> {
             event.correlation_ref.clone(),
             event.occurred_at,
         );
-        self.sink.append_memory_event(&versioned).map_err(|_| G05Error::AuditUnavailable)
+        self.sink
+            .append_memory_event(&versioned)
+            .map_err(|_| G05Error::AuditUnavailable)
     }
 }
 
@@ -312,7 +313,10 @@ mod kernel_g11_adapter_tests {
             occurred_at: 100,
             content_sha256: "b".repeat(64),
         };
-        assert_eq!(adapter.append_memory_event(&event), Err(G05Error::AuditUnavailable));
+        assert_eq!(
+            adapter.append_memory_event(&event),
+            Err(G05Error::AuditUnavailable)
+        );
         event.event_type = "memory.created".into();
         event.actor_ref.clear();
         assert_eq!(adapter.append_memory_event(&event), Err(G05Error::AuditUnavailable));
