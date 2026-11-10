@@ -226,3 +226,95 @@ mod tests {
         );
     }
 }
+
+
+/// Concrete bridge from G05's transactional outbox payload to the G11-owned
+/// versioned memory lifecycle stream. The adapter deliberately drops the
+/// content digest: it is not needed for lifecycle assurance and can enable
+/// dictionary attacks against low-entropy memory content.
+pub struct KernelG11MemoryAuditAdapter<'a> {
+    sink: &'a iroka_kernel::SqliteMemoryLifecycleAuditStore,
+}
+
+impl<'a> KernelG11MemoryAuditAdapter<'a> {
+    pub fn new(sink: &'a iroka_kernel::SqliteMemoryLifecycleAuditStore) -> Self {
+        Self { sink }
+    }
+}
+
+impl G11MemoryAuditAuthority for KernelG11MemoryAuditAdapter<'_> {
+    fn append_memory_event(&self, event: &AuditEvent) -> Result<(), G05Error> {
+        use iroka_kernel::MemoryLifecycleAuditSink;
+        let purpose = match event.purpose {
+            Purpose::TaskContinuity => "TASK_CONTINUITY",
+            Purpose::UserPreference => "USER_PREFERENCE",
+            Purpose::ProjectContext => "PROJECT_CONTEXT",
+            Purpose::OrganizationalContext => "ORGANIZATIONAL_CONTEXT",
+            Purpose::OperationalHistory => "OPERATIONAL_HISTORY",
+            Purpose::AuthorizedSystemAssurance => "AUTHORIZED_SYSTEM_ASSURANCE",
+        };
+        let versioned = iroka_kernel::MemoryLifecycleEvent::new(
+            event.event_id.clone(),
+            event.event_type.clone(),
+            event.memory_id.clone(),
+            event.tenant_ref.clone(),
+            event.actor_ref.clone(),
+            purpose,
+            event.record_version,
+            event.outcome.clone(),
+            event.correlation_ref.clone(),
+            event.occurred_at,
+        );
+        self.sink.append_memory_event(&versioned).map_err(|_| G05Error::AuditUnavailable)
+    }
+}
+
+#[cfg(test)]
+mod kernel_g11_adapter_tests {
+    use super::*;
+
+    #[test]
+    fn kernel_g11_adapter_emits_versioned_content_free_events_idempotently() {
+        let sink = iroka_kernel::SqliteMemoryLifecycleAuditStore::open_in_memory().unwrap();
+        let adapter = KernelG11MemoryAuditAdapter::new(&sink);
+        let event = AuditEvent {
+            event_id: "event:consent:1".into(),
+            event_type: "memory.consent.granted".into(),
+            memory_id: "consent:opaque-1".into(),
+            tenant_ref: "tenant:opaque-1".into(),
+            actor_ref: "principal:opaque-1".into(),
+            purpose: Purpose::TaskContinuity,
+            record_version: 1,
+            outcome: "granted".into(),
+            correlation_ref: "trace:opaque-1".into(),
+            occurred_at: 100,
+            content_sha256: "a".repeat(64),
+        };
+        adapter.append_memory_event(&event).unwrap();
+        adapter.append_memory_event(&event).unwrap();
+        sink.verify_integrity().unwrap();
+    }
+
+    #[test]
+    fn kernel_g11_adapter_rejects_invalid_event_and_fails_closed() {
+        let sink = iroka_kernel::SqliteMemoryLifecycleAuditStore::open_in_memory().unwrap();
+        let adapter = KernelG11MemoryAuditAdapter::new(&sink);
+        let mut event = AuditEvent {
+            event_id: "event:1".into(),
+            event_type: "decision.allow".into(),
+            memory_id: "aggregate:1".into(),
+            tenant_ref: "tenant:1".into(),
+            actor_ref: "principal:1".into(),
+            purpose: Purpose::TaskContinuity,
+            record_version: 1,
+            outcome: "accepted".into(),
+            correlation_ref: "trace:1".into(),
+            occurred_at: 100,
+            content_sha256: "b".repeat(64),
+        };
+        assert_eq!(adapter.append_memory_event(&event), Err(G05Error::AuditUnavailable));
+        event.event_type = "memory.created".into();
+        event.actor_ref.clear();
+        assert_eq!(adapter.append_memory_event(&event), Err(G05Error::AuditUnavailable));
+    }
+}
