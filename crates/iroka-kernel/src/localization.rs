@@ -274,9 +274,15 @@ impl GregorianDate {
         Ok(date)
     }
 
-    pub fn year(&self) -> u32 { self.year }
-    pub fn month(&self) -> u8 { self.month }
-    pub fn day(&self) -> u8 { self.day }
+    pub fn year(&self) -> u32 {
+        self.year
+    }
+    pub fn month(&self) -> u8 {
+        self.month
+    }
+    pub fn day(&self) -> u8 {
+        self.day
+    }
 
     fn validate(&self) -> Result<(), CalendarError> {
         if self.year == 0 || !(1..=12).contains(&self.month) {
