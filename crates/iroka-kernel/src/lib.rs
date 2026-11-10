@@ -74,10 +74,10 @@ pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
-pub use tenant::{TenantContext, TenantMembershipResolver, TenantResolutionError};
 pub use teaching_profiles::{
     HumanReviewRequirement, ImpactLevel, TeachingMode, TeachingProfileError, TeachingTaskProfile,
 };
+pub use tenant::{TenantContext, TenantMembershipResolver, TenantResolutionError};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
