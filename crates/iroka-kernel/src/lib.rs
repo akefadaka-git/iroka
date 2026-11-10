@@ -7,12 +7,12 @@ mod assurance;
 mod audit_store;
 mod decision;
 mod ethical_programme;
-mod operational_self_model;
 #[cfg(test)]
 mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod operational_self_model;
 mod owner_approval;
 mod policy;
 mod request;
@@ -26,9 +26,6 @@ pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use ethical_programme::{
     BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EthicalPrinciple,
     EvidenceKind, EvidenceReference, EvidenceValidationError, LicenceStatus, TraitAssessment,
-};
-pub use operational_self_model::{
-    OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
 };
 #[cfg(test)]
 pub(crate) use governance::{
@@ -51,6 +48,9 @@ pub use igacms::{
     verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
+};
+pub use operational_self_model::{
+    OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
