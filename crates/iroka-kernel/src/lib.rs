@@ -10,6 +10,7 @@ mod decision;
 mod ethical_programme;
 #[cfg(test)]
 mod governance;
+mod human_flourishing;
 mod identity;
 mod identity_crypto;
 mod igacms;
@@ -37,6 +38,11 @@ pub use ethical_programme::{
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
+};
+pub use human_flourishing::{
+    ChangeInterpretation, DisclosureDecision, FlourishingDomain, FlourishingMetricError,
+    MetricComparison, MetricDefinition, MetricDirection, MetricUnit, SmallCellSuppressionPolicy,
+    SyntheticAggregateObservation,
 };
 pub use identity::VerifiedPrincipal;
 #[cfg(test)]

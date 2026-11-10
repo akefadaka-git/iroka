@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation]
+    branches: [feat/igacms-a3-implementation, feat/a3-7-flourishing-metrics]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
