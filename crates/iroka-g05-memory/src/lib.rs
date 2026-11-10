@@ -26,7 +26,7 @@ pub use registry::{
 mod authority;
 pub use authority::{
     DesignatedReviewerAuthority, EpisodicConsentAuthority, G02AuthorizationAuthority,
-    G11MemoryAuditAuthority, TrustedGovernanceAdapter,
+    G11MemoryAuditAuthority, KernelG11MemoryAuditAdapter, TrustedGovernanceAdapter,
 };
 
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
