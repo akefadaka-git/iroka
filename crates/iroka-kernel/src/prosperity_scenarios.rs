@@ -87,8 +87,7 @@ impl BusinessScenario {
         let total_cost_minor = variable_cost_minor
             .checked_add(self.fixed_cost_minor)
             .ok_or(ScenarioError::ArithmeticOverflow)?;
-        let operating_profit_minor =
-            i128::from(revenue_minor) - i128::from(total_cost_minor);
+        let operating_profit_minor = i128::from(revenue_minor) - i128::from(total_cost_minor);
 
         Ok(ScenarioResult {
             case: self.case,
