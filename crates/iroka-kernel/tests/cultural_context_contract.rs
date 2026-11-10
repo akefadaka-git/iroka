@@ -66,7 +66,10 @@ fn cultural_context_requires_cultural_tradition_source_kind() {
         CommunityReviewStatus::NotReviewed,
         None,
     );
-    assert_eq!(result, Err(CulturalContextError::SourceIsNotCulturalTradition));
+    assert_eq!(
+        result,
+        Err(CulturalContextError::SourceIsNotCulturalTradition)
+    );
 }
 
 #[test]
@@ -109,10 +112,7 @@ fn reviewed_context_retains_review_evidence_reference() {
         Some(source("review:1", EvidenceKind::EmpiricalEvidence)),
     )
     .unwrap();
-    assert_eq!(
-        context.review_evidence().unwrap().id(),
-        "review:1"
-    );
+    assert_eq!(context.review_evidence().unwrap().id(), "review:1");
 }
 
 #[test]
