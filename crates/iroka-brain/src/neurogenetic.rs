@@ -163,7 +163,9 @@ impl NeuralNetwork {
 
         let mut cell_ids = HashSet::with_capacity(self.cells.len());
         for cell in &self.cells {
-            if cell.cell_id.trim().is_empty() || cell.contract_version != NEUROGENETIC_CONTRACT_VERSION {
+            if cell.cell_id.trim().is_empty()
+                || cell.contract_version != NEUROGENETIC_CONTRACT_VERSION
+            {
                 return Err(NeurogeneticError::InvalidCell);
             }
             if !cell_ids.insert(cell.cell_id.as_str()) {
@@ -191,12 +193,17 @@ impl NeuralNetwork {
             if !synapse_ids.insert(synapse.synapse_id.as_str()) {
                 return Err(NeurogeneticError::DuplicateSynapse);
             }
-            if !edges.insert((synapse.source_cell_id.as_str(), synapse.destination_cell_id.as_str())) {
+            if !edges.insert((
+                synapse.source_cell_id.as_str(),
+                synapse.destination_cell_id.as_str(),
+            )) {
                 return Err(NeurogeneticError::DuplicateEdge);
             }
         }
 
-        if self.topology == NetworkTopology::FeedForward && contains_cycle(&self.cells, &self.synapses) {
+        if self.topology == NetworkTopology::FeedForward
+            && contains_cycle(&self.cells, &self.synapses)
+        {
             return Err(NeurogeneticError::CycleInFeedForwardNetwork);
         }
         Ok(())
@@ -212,7 +219,9 @@ fn contains_cycle(cells: &[ComputationalCell], synapses: &[Synapse]) -> bool {
         outgoing.insert(cell.cell_id.as_str(), Vec::new());
     }
     for edge in synapses {
-        *indegree.entry(edge.destination_cell_id.as_str()).or_default() += 1;
+        *indegree
+            .entry(edge.destination_cell_id.as_str())
+            .or_default() += 1;
         outgoing
             .entry(edge.source_cell_id.as_str())
             .or_default()
@@ -364,11 +373,13 @@ impl LearningProposal {
         if !self.owner_approval_required || self.activation_permitted {
             return Err(NeurogeneticError::GovernanceBoundaryViolation);
         }
-        if matches!(self.status, ProposalStatus::EvaluationAuthorized | ProposalStatus::Evaluated)
-            && self
-                .g10_authority_ref
-                .as_deref()
-                .map_or(true, |reference| reference.trim().is_empty())
+        if matches!(
+            self.status,
+            ProposalStatus::EvaluationAuthorized | ProposalStatus::Evaluated
+        ) && self
+            .g10_authority_ref
+            .as_deref()
+            .map_or(true, |reference| reference.trim().is_empty())
         {
             return Err(NeurogeneticError::InvalidLearningProposal);
         }
@@ -528,7 +539,10 @@ mod tests {
             network_id: "synthetic-network".to_owned(),
             topology: NetworkTopology::FeedForward,
             cells: vec![cell("input"), cell("hidden"), cell("output")],
-            synapses: vec![edge("s1", "input", "hidden"), edge("s2", "hidden", "output")],
+            synapses: vec![
+                edge("s1", "input", "hidden"),
+                edge("s2", "hidden", "output"),
+            ],
         };
         assert_eq!(network.validate(), Ok(()));
     }
@@ -576,7 +590,10 @@ mod tests {
             cells: vec![cell("a"), cell("b")],
             synapses: vec![edge("s1", "a", "b"), edge("s2", "b", "a")],
         };
-        assert_eq!(network.validate(), Err(NeurogeneticError::CycleInFeedForwardNetwork));
+        assert_eq!(
+            network.validate(),
+            Err(NeurogeneticError::CycleInFeedForwardNetwork)
+        );
     }
 
     #[test]
@@ -617,7 +634,10 @@ mod tests {
         };
         assert_eq!(proposal.validate(), Ok(()));
         proposal.activation_permitted = true;
-        assert_eq!(proposal.validate(), Err(NeurogeneticError::GovernanceBoundaryViolation));
+        assert_eq!(
+            proposal.validate(),
+            Err(NeurogeneticError::GovernanceBoundaryViolation)
+        );
     }
 
     #[test]
@@ -686,7 +706,10 @@ mod tests {
             owner_approval_required: true,
             activation_permitted: false,
         };
-        assert_eq!(proposal.validate(), Err(NeurogeneticError::InvalidLearningProposal));
+        assert_eq!(
+            proposal.validate(),
+            Err(NeurogeneticError::InvalidLearningProposal)
+        );
     }
 
     #[test]
@@ -698,7 +721,10 @@ mod tests {
             purpose: "knowledge retrieval".to_owned(),
             g05_authority_receipt_ref: None,
         };
-        assert_eq!(proposal.validate(), Err(NeurogeneticError::InvalidMemoryProposal));
+        assert_eq!(
+            proposal.validate(),
+            Err(NeurogeneticError::InvalidMemoryProposal)
+        );
     }
 
     #[test]
