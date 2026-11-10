@@ -179,7 +179,13 @@ mod tests {
         issued_at: u64,
     ) -> SignedOwnerSecurityCommand {
         command_for(
-            signer, command_id, "principal:alice", "tenant:alpha", active, version, issued_at,
+            signer,
+            command_id,
+            "principal:alice",
+            "tenant:alpha",
+            active,
+            version,
+            issued_at,
         )
     }
 
@@ -306,13 +312,29 @@ mod tests {
         );
         owner
             .apply_security_command(
-                &command_for(&signer, "alice-alpha", "principal:alice", "tenant:alpha", true, 1, 1_100),
+                &command_for(
+                    &signer,
+                    "alice-alpha",
+                    "principal:alice",
+                    "tenant:alpha",
+                    true,
+                    1,
+                    1_100,
+                ),
                 1_200,
             )
             .unwrap();
         owner
             .apply_security_command(
-                &command_for(&signer, "bob-beta", "principal:bob", "tenant:beta", true, 1, 1_100),
+                &command_for(
+                    &signer,
+                    "bob-beta",
+                    "principal:bob",
+                    "tenant:beta",
+                    true,
+                    1,
+                    1_100,
+                ),
                 1_200,
             )
             .unwrap();
@@ -320,9 +342,7 @@ mod tests {
         let alice_context = resolver
             .resolve(&alice, "tenant:alpha", 1_200, 600)
             .unwrap();
-        let bob_context = resolver
-            .resolve(&bob, "tenant:beta", 1_200, 600)
-            .unwrap();
+        let bob_context = resolver.resolve(&bob, "tenant:beta", 1_200, 600).unwrap();
         assert_eq!(alice_context.subject(), "principal:alice");
         assert_eq!(alice_context.tenant_id(), "tenant:alpha");
         assert_eq!(bob_context.subject(), "principal:bob");
@@ -344,7 +364,9 @@ mod tests {
             .apply_security_command(&command(&signer, "fresh-boundary", true, 1, 1_100), 1_200)
             .unwrap();
 
-        assert!(resolver.resolve(&principal, "tenant:alpha", 1_800, 600).is_ok());
+        assert!(resolver
+            .resolve(&principal, "tenant:alpha", 1_800, 600)
+            .is_ok());
         assert_eq!(
             resolver.resolve(&principal, "tenant:alpha", 1_801, 600),
             Err(TenantResolutionError::MembershipStale)
@@ -363,12 +385,20 @@ mod tests {
     fn newer_owner_revocation_immediately_invalidates_previous_active_membership() {
         let (signer, owner, resolver, principal) = fixture();
         owner
-            .apply_security_command(&command(&signer, "membership-active", true, 1, 1_100), 1_200)
+            .apply_security_command(
+                &command(&signer, "membership-active", true, 1, 1_100),
+                1_200,
+            )
             .unwrap();
-        assert!(resolver.resolve(&principal, "tenant:alpha", 1_200, 600).is_ok());
+        assert!(resolver
+            .resolve(&principal, "tenant:alpha", 1_200, 600)
+            .is_ok());
 
         owner
-            .apply_security_command(&command(&signer, "membership-revoked", false, 2, 1_201), 1_201)
+            .apply_security_command(
+                &command(&signer, "membership-revoked", false, 2, 1_201),
+                1_201,
+            )
             .unwrap();
         assert_eq!(
             resolver.resolve(&principal, "tenant:alpha", 1_201, 600),
