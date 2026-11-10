@@ -87,13 +87,13 @@ The exact-scope evidence is run `42849369832` at commit `93667e78a2e078944c79d85
 
 ### A3.6 — IMPLEMENTED, EXACT-HEAD CI VERIFIED
 
-At current PR head `1b00364f49d8949d10d4aa15e5543c77b50bc57f`, GitHub Actions run [42851519555](https://github.com/akefadaka-git/iroka/actions/runs/42851519555) completed successfully. Job `Format, compile, test and lint` passed checkout, stable Rust setup, formatting, all-target compilation, production-feature bypass check, complete unit/contract tests, Clippy and job completion. This is exact-commit CI evidence, not independent assurance, A4 closure or production readiness.
+At code commit `1b00364f49d8949d10d4aa15e5543c77b50bc57f` (the pre-reconciliation implementation head), GitHub Actions run [42851519555](https://github.com/akefadaka-git/iroka/actions/runs/42851519555) completed successfully. Job `Format, compile, test and lint` passed checkout, stable Rust setup, formatting, all-target compilation, production-feature bypass check, complete unit/contract tests, Clippy and job completion. This is exact-commit CI evidence, not independent assurance, A4 closure or production readiness.
 
 A3.6 remains synthetic-only operating scenario arithmetic. It does not include market-data ingestion, tax, capex, investment advice, guarantees, financial transactions or production forecasting.
 
 ### Reconciled disposition
 
-- A3.4: `PARTIAL — METADATA CONTRACTS CI VERIFIED; LOCALIZATION ADAPTERS AND QUALIFIED MAale REVIEW OUTSTANDING`.
+- A3.4: `PARTIAL — METADATA CONTRACTS CI VERIFIED; LOCALIZATION ADAPTERS AND QUALIFIED MAALE COMMUNITY REVIEW OUTSTANDING`.
 - A3.6: `IMPLEMENTED — EXACT-HEAD CI VERIFIED`.
 - No A2 decision is reopened or changed. No new authority, consent, reviewer or localization registry is created by this reconciliation.
 - A3.7 and A3.8 remain not started. A4 independent verification and A5 activation/deployment remain separate gates. PR #47 remains draft, open and unmerged.
