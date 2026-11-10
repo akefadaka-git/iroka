@@ -7,6 +7,7 @@ mod assurance;
 mod audit_store;
 mod decision;
 mod ethical_programme;
+mod operational_self_model;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -25,6 +26,9 @@ pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use ethical_programme::{
     BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EthicalPrinciple,
     EvidenceKind, EvidenceReference, EvidenceValidationError, LicenceStatus, TraitAssessment,
+};
+pub use operational_self_model::{
+    OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
 };
 #[cfg(test)]
 pub(crate) use governance::{
