@@ -21,7 +21,7 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.1 | Ethical evidence taxonomy, provenance references, validation | Unit/contract tests; source-kind separation; malformed-input rejection | IMPLEMENTED — CI VERIFIED |
 | A3.2 | Observable character traits and evidence-linked assessments | Adversarial tests; no scalar score; missing-evidence rejection | IMPLEMENTED — CI VERIFIED |
 | A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI VERIFIED |
-| A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | NOT STARTED |
+| A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | IMPLEMENTED — CI PENDING |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | NOT STARTED |
 | A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | NOT STARTED |
 | A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
@@ -66,7 +66,7 @@ A4 requires independent review where applicable and is not completed by A3 CI. A
 
 At exact PR head `b20cb0166cb1d720a2b7e5dd191e8ee10defc46c`, GitHub Actions Rust kernel verification run `42848561207` completed successfully. The job passed formatting, all-target compilation, the production-feature bypass check, the complete unit/contract suite and Clippy. This verifies the code at that exact commit only; it is not independent security assurance, A4 closure or production readiness.
 
-A3.1/A3.2 evidence primitives and A3.3 operational self-model contracts are implemented and passed that exact-head CI run. Subsequent commits require their own exact-head verification.
+A3.1/A3.2 evidence primitives and A3.3 operational self-model contracts are implemented and passed that exact-head CI run. A3.4 cultural-context metadata is now implemented; its exact-head verification is pending.
 
 ## 7. Current increment and limitations
 
