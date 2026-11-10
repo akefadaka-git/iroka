@@ -13,6 +13,7 @@ mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod localization;
 mod operational_self_model;
 mod owner_approval;
 mod policy;
@@ -39,6 +40,11 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
+pub use localization::{
+    ethiopian_to_gregorian, gregorian_to_ethiopian, transform_script, CalendarError,
+    EthiopianDate, GregorianDate, LocalizationEntry, LocalizationError,
+    ScriptTransformResult, ScriptTransformStatus, TranslationState,
+};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
