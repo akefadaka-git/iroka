@@ -19,6 +19,7 @@ mod policy;
 mod request;
 mod security_store;
 mod service;
+mod teaching_profiles;
 mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
@@ -65,6 +66,9 @@ pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
+pub use teaching_profiles::{
+    HumanReviewRequirement, ImpactLevel, TeachingMode, TeachingProfileError, TeachingTaskProfile,
+};
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
 pub use trust_lifecycle::{
