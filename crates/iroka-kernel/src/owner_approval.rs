@@ -7,7 +7,9 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::security_store::{ApprovalConsumptionError, ApprovalReceipt, RevocationTarget};
+use crate::security_store::{
+    ApprovalConsumptionError, ApprovalReceipt, RevocationTarget, SecurityCommandReceipt,
+};
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 
@@ -441,12 +443,14 @@ impl OwnerApprovalVerifier {
             }
         };
         let applied = self.store.apply_signed_revocation(
-            &p.command_id,
-            &p.owner_subject,
-            OWNER_ISSUER,
-            &p.key_id,
-            digest.as_slice(),
-            now,
+            SecurityCommandReceipt {
+                command_id: &p.command_id,
+                owner_subject: &p.owner_subject,
+                signer_issuer: OWNER_ISSUER,
+                signer_key_id: &p.key_id,
+                digest: digest.as_slice(),
+                at: now,
+            },
             target,
         )?;
         if applied {
