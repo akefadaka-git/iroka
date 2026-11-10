@@ -235,9 +235,7 @@ impl MetricComparison {
         definition.validate()?;
         baseline.validate()?;
         follow_up.validate()?;
-        if baseline.metric_id() != definition.id()
-            || follow_up.metric_id() != definition.id()
-        {
+        if baseline.metric_id() != definition.id() || follow_up.metric_id() != definition.id() {
             return Err(FlourishingMetricError::MetricIdMismatch);
         }
         if baseline.unit() != definition.unit() || follow_up.unit() != definition.unit() {
@@ -247,10 +245,12 @@ impl MetricComparison {
         let change = i128::from(follow_up.value()) - i128::from(baseline.value());
         let interpretation = match (definition.direction(), change.signum()) {
             (_, 0) => ChangeInterpretation::NoChange,
-            (MetricDirection::HigherIsBetter, 1)
-            | (MetricDirection::LowerIsBetter, -1) => ChangeInterpretation::Improvement,
-            (MetricDirection::HigherIsBetter, -1)
-            | (MetricDirection::LowerIsBetter, 1) => ChangeInterpretation::Deterioration,
+            (MetricDirection::HigherIsBetter, 1) | (MetricDirection::LowerIsBetter, -1) => {
+                ChangeInterpretation::Improvement
+            }
+            (MetricDirection::HigherIsBetter, -1) | (MetricDirection::LowerIsBetter, 1) => {
+                ChangeInterpretation::Deterioration
+            }
             (MetricDirection::MonitorOnly, _) => ChangeInterpretation::MonitorOnly,
             _ => ChangeInterpretation::MonitorOnly,
         };
