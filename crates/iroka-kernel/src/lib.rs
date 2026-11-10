@@ -5,22 +5,35 @@
 
 mod assurance;
 mod audit_store;
+mod cultural_context;
 mod decision;
+mod ethical_programme;
 #[cfg(test)]
 mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod operational_self_model;
 mod owner_approval;
 mod policy;
+mod prosperity_scenarios;
 mod request;
 mod security_store;
 mod service;
+mod teaching_profiles;
 mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
+pub use cultural_context::{
+    CalendarSystem, CommunityReviewStatus, CulturalContextError, CulturalContextRecord,
+    ScriptSystem,
+};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use ethical_programme::{
+    BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EthicalPrinciple,
+    EvidenceKind, EvidenceReference, EvidenceValidationError, LicenceStatus, TraitAssessment,
+};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
@@ -43,16 +56,26 @@ pub use igacms::{
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
 };
+pub use operational_self_model::{
+    OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
+};
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
+pub use prosperity_scenarios::{
+    BusinessScenario, ScenarioCase, ScenarioComparison, ScenarioComparisonResult, ScenarioError,
+    ScenarioResult,
+};
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
+pub use teaching_profiles::{
+    HumanReviewRequirement, ImpactLevel, TeachingMode, TeachingProfileError, TeachingTaskProfile,
+};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
