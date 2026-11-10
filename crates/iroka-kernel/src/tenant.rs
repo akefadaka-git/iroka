@@ -141,9 +141,11 @@ mod tests {
         (signer, verifier, resolver, principal)
     }
 
-    fn command(
+    fn command_for(
         signer: &SigningKey,
         command_id: &str,
+        subject: &str,
+        tenant_id: &str,
         active: bool,
         version: u64,
         issued_at: u64,
@@ -155,8 +157,8 @@ mod tests {
             issued_at,
             expires_at: issued_at + 300,
             action: OwnerSecurityAction::SetTenantMembership {
-                subject: "principal:alice".into(),
-                tenant_id: "tenant:alpha".into(),
+                subject: subject.into(),
+                tenant_id: tenant_id.into(),
                 active,
                 version,
                 reason: "owner-authorized test fixture".into(),
@@ -167,6 +169,18 @@ mod tests {
             .to_bytes()
             .to_vec();
         SignedOwnerSecurityCommand::from_signature(payload, signature)
+    }
+
+    fn command(
+        signer: &SigningKey,
+        command_id: &str,
+        active: bool,
+        version: u64,
+        issued_at: u64,
+    ) -> SignedOwnerSecurityCommand {
+        command_for(
+            signer, command_id, "principal:alice", "tenant:alpha", active, version, issued_at,
+        )
     }
 
     #[test]
@@ -280,5 +294,85 @@ mod tests {
         let signed = command(&signer, "membership-1", true, 1, 1_100);
         owner.apply_security_command(&signed, 1_200).unwrap();
         assert!(owner.apply_security_command(&signed, 1_200).is_err());
+    }
+
+    #[test]
+    fn membership_isolation_prevents_cross_tenant_and_cross_principal_resolution() {
+        let (signer, owner, resolver, alice) = fixture();
+        let bob = VerifiedPrincipal::from_verified_credential(
+            "principal:bob".into(),
+            "issuer:test".into(),
+            "credential:2".into(),
+        );
+        owner
+            .apply_security_command(
+                &command_for(&signer, "alice-alpha", "principal:alice", "tenant:alpha", true, 1, 1_100),
+                1_200,
+            )
+            .unwrap();
+        owner
+            .apply_security_command(
+                &command_for(&signer, "bob-beta", "principal:bob", "tenant:beta", true, 1, 1_100),
+                1_200,
+            )
+            .unwrap();
+
+        let alice_context = resolver
+            .resolve(&alice, "tenant:alpha", 1_200, 600)
+            .unwrap();
+        let bob_context = resolver
+            .resolve(&bob, "tenant:beta", 1_200, 600)
+            .unwrap();
+        assert_eq!(alice_context.subject(), "principal:alice");
+        assert_eq!(alice_context.tenant_id(), "tenant:alpha");
+        assert_eq!(bob_context.subject(), "principal:bob");
+        assert_eq!(bob_context.tenant_id(), "tenant:beta");
+        assert_eq!(
+            resolver.resolve(&alice, "tenant:beta", 1_200, 600),
+            Err(TenantResolutionError::MembershipMissing)
+        );
+        assert_eq!(
+            resolver.resolve(&bob, "tenant:alpha", 1_200, 600),
+            Err(TenantResolutionError::MembershipMissing)
+        );
+    }
+
+    #[test]
+    fn membership_freshness_accepts_exact_age_boundary_and_rejects_older_or_future_records() {
+        let (signer, owner, resolver, principal) = fixture();
+        owner
+            .apply_security_command(&command(&signer, "fresh-boundary", true, 1, 1_100), 1_200)
+            .unwrap();
+
+        assert!(resolver.resolve(&principal, "tenant:alpha", 1_800, 600).is_ok());
+        assert_eq!(
+            resolver.resolve(&principal, "tenant:alpha", 1_801, 600),
+            Err(TenantResolutionError::MembershipStale)
+        );
+        assert_eq!(
+            resolver.resolve(&principal, "tenant:alpha", 1_199, 600),
+            Err(TenantResolutionError::MembershipStale)
+        );
+        assert_eq!(
+            resolver.resolve(&principal, "tenant:alpha", 1_200, 0),
+            Err(TenantResolutionError::Malformed)
+        );
+    }
+
+    #[test]
+    fn newer_owner_revocation_immediately_invalidates_previous_active_membership() {
+        let (signer, owner, resolver, principal) = fixture();
+        owner
+            .apply_security_command(&command(&signer, "membership-active", true, 1, 1_100), 1_200)
+            .unwrap();
+        assert!(resolver.resolve(&principal, "tenant:alpha", 1_200, 600).is_ok());
+
+        owner
+            .apply_security_command(&command(&signer, "membership-revoked", false, 2, 1_201), 1_201)
+            .unwrap();
+        assert_eq!(
+            resolver.resolve(&principal, "tenant:alpha", 1_201, 600),
+            Err(TenantResolutionError::MembershipInactive)
+        );
     }
 }
