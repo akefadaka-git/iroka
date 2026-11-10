@@ -84,10 +84,7 @@ fn generated_synthesis_alone_cannot_support_verified_claim() {
 fn verified_claim_accepts_linked_non_generated_evidence() {
     let model = OperationalSelfModel::new(
         "snapshot:1",
-        vec![claim(
-            SelfClaimStatus::Verified,
-            vec!["source:1".into()],
-        )],
+        vec![claim(SelfClaimStatus::Verified, vec!["source:1".into()])],
         vec![evidence("source:1", EvidenceKind::EmpiricalEvidence)],
     )
     .unwrap();
