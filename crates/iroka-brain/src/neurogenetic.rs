@@ -509,6 +509,22 @@ pub enum NeurogeneticError {
     InvalidAdaptationProposal,
     /// A proposal attempts to bypass a required authority or activation gate.
     GovernanceBoundaryViolation,
+    /// Evaluation is currently defined only for feed-forward networks.
+    UnsupportedEvaluationTopology,
+    /// A quarantined cell cannot participate in an evaluation.
+    QuarantinedCell,
+    /// An input value is outside the supported signed fixed-point range.
+    InputOutOfRange,
+    /// An input references a cell that is not in the network.
+    UnknownInputCell,
+    /// Inputs may be assigned only to zero-in-degree root cells.
+    InputForNonRootCell,
+    /// A root cell has no caller-supplied input.
+    MissingRootInput,
+    /// More than one input was supplied for a cell.
+    DuplicateInput,
+    /// The validated graph could not be evaluated in topological order.
+    EvaluationOrderViolation,
 }
 
 #[cfg(test)]
@@ -740,6 +756,134 @@ mod tests {
             synapses: Vec::new(),
         };
         assert_eq!(network.validate(), Err(NeurogeneticError::InvalidCell));
+    }
+
+
+    fn feed_forward_fixture() -> NeuralNetwork {
+        NeuralNetwork {
+            network_id: "fixed-point-fixture".to_owned(),
+            topology: NetworkTopology::FeedForward,
+            cells: vec![cell("input"), cell("hidden"), cell("output")],
+            synapses: vec![
+                Synapse {
+                    synapse_id: "s1".to_owned(),
+                    source_cell_id: "input".to_owned(),
+                    destination_cell_id: "hidden".to_owned(),
+                    weight_micros: 500_000,
+                    plasticity: PlasticityPolicy::Frozen,
+                },
+                Synapse {
+                    synapse_id: "s2".to_owned(),
+                    source_cell_id: "hidden".to_owned(),
+                    destination_cell_id: "output".to_owned(),
+                    weight_micros: 1_000_000,
+                    plasticity: PlasticityPolicy::Frozen,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn feed_forward_evaluation_is_deterministic_and_fixed_point() {
+        let network = feed_forward_fixture();
+        let input = [CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: 800_000,
+        }];
+        let first = network.evaluate_feed_forward(&input).unwrap();
+        let second = network.evaluate_feed_forward(&input).unwrap();
+        assert_eq!(first, second);
+        assert_eq!(first.network_id, "fixed-point-fixture");
+        assert_eq!(
+            first.activations,
+            vec![
+                CellActivation { cell_id: "hidden".to_owned(), value_micros: 400_000 },
+                CellActivation { cell_id: "input".to_owned(), value_micros: 800_000 },
+                CellActivation { cell_id: "output".to_owned(), value_micros: 400_000 },
+            ]
+        );
+    }
+
+    #[test]
+    fn feed_forward_evaluation_clamps_weighted_sum_to_fixed_point_range() {
+        let mut network = feed_forward_fixture();
+        network.synapses[0].weight_micros = WEIGHT_SCALE;
+        network.synapses[1].weight_micros = WEIGHT_SCALE;
+        let result = network.evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: WEIGHT_SCALE as i32,
+        }]).unwrap();
+        assert_eq!(result.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, WEIGHT_SCALE as i32);
+    }
+
+    #[test]
+    fn feed_forward_evaluation_rejects_missing_root_input() {
+        assert_eq!(
+            feed_forward_fixture().evaluate_feed_forward(&[]),
+            Err(NeurogeneticError::MissingRootInput)
+        );
+    }
+
+    #[test]
+    fn feed_forward_evaluation_rejects_unknown_and_non_root_inputs() {
+        let network = feed_forward_fixture();
+        assert_eq!(
+            network.evaluate_feed_forward(&[CellInput { cell_id: "unknown".to_owned(), value_micros: 0 }]),
+            Err(NeurogeneticError::UnknownInputCell)
+        );
+        assert_eq!(
+            network.evaluate_feed_forward(&[
+                CellInput { cell_id: "input".to_owned(), value_micros: 0 },
+                CellInput { cell_id: "hidden".to_owned(), value_micros: 0 },
+            ]),
+            Err(NeurogeneticError::InputForNonRootCell)
+        );
+    }
+
+    #[test]
+    fn feed_forward_evaluation_rejects_duplicate_and_out_of_range_inputs() {
+        let network = feed_forward_fixture();
+        let duplicate = [
+            CellInput { cell_id: "input".to_owned(), value_micros: 0 },
+            CellInput { cell_id: "input".to_owned(), value_micros: 1 },
+        ];
+        assert_eq!(network.evaluate_feed_forward(&duplicate), Err(NeurogeneticError::DuplicateInput));
+        assert_eq!(
+            network.evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: WEIGHT_SCALE as i32 + 1,
+            }]),
+            Err(NeurogeneticError::InputOutOfRange)
+        );
+    }
+
+    #[test]
+    fn feed_forward_evaluation_rejects_recurrent_topology_and_quarantined_cells() {
+        let mut recurrent = feed_forward_fixture();
+        recurrent.topology = NetworkTopology::Recurrent;
+        assert_eq!(
+            recurrent.evaluate_feed_forward(&[CellInput { cell_id: "input".to_owned(), value_micros: 0 }]),
+            Err(NeurogeneticError::UnsupportedEvaluationTopology)
+        );
+
+        let mut quarantined = feed_forward_fixture();
+        quarantined.cells[1].status = CellStatus::Quarantined;
+        assert_eq!(
+            quarantined.evaluate_feed_forward(&[CellInput { cell_id: "input".to_owned(), value_micros: 0 }]),
+            Err(NeurogeneticError::QuarantinedCell)
+        );
+    }
+
+    #[test]
+    fn negative_inputs_are_supported_without_floating_point_arithmetic() {
+        let result = feed_forward_fixture().evaluate_feed_forward(&[CellInput {
+            cell_id: "input".to_owned(),
+            value_micros: -800_001,
+        }]).unwrap();
+        assert_eq!(
+            result.activations.iter().find(|item| item.cell_id == "hidden").unwrap().value_micros,
+            -400_000
+        );
     }
 
 }
