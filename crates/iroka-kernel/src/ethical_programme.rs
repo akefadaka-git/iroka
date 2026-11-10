@@ -264,7 +264,7 @@ impl BehavioralReview {
             reference
                 .validate()
                 .map_err(BehavioralReviewError::InvalidEvidence)?;
-            if !evidence_ids.insert(reference.id()) {
+            if !evidence_ids.insert(reference.id().to_owned()) {
                 return Err(BehavioralReviewError::DuplicateEvidenceId);
             }
         }
@@ -274,7 +274,7 @@ impl BehavioralReview {
             if assessment
                 .evidence_ids()
                 .iter()
-                .any(|id| !evidence_ids.contains(id.as_str()))
+                .any(|id| !evidence_ids.contains(id))
             {
                 return Err(BehavioralReviewError::UnresolvedEvidenceReference);
             }
