@@ -23,7 +23,7 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.3 | Bounded operational self-model and verified/declared/inferred/unavailable claims | Evidence binding tests; no self-authorization | IMPLEMENTED — CI VERIFIED |
 | A3.4 | Knowledge and cultural provenance, Maale/Amharic localization adapters | Provenance, licence, human-review and ambiguity tests | PARTIAL — metadata contracts CI VERIFIED; localization adapters remain |
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | IMPLEMENTED — CI VERIFIED |
-| A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | NOT STARTED |
+| A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI PENDING |
 | A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
 | A3.8 | Canonical G01–G12 adapter integration and cross-domain adversarial verification | Exact-provider binding, fail-closed, audit and independent review evidence | NOT STARTED |
 
@@ -66,7 +66,7 @@ A4 requires independent review where applicable and is not completed by A3 CI. A
 
 At exact PR head `b20cb0166cb1d720a2b7e5dd191e8ee10defc46c`, GitHub Actions Rust kernel verification run `42848561207` completed successfully. The job passed formatting, all-target compilation, the production-feature bypass check, the complete unit/contract suite and Clippy. This verifies the code at that exact commit only; it is not independent security assurance, A4 closure or production readiness.
 
-A3.1/A3.2 evidence primitives and A3.3 operational self-model contracts are implemented and passed that exact-head CI run. A3.4 cultural-context metadata contracts also passed exact-head CI run `42849369832` at `93667e78a2e078944c79d85da8cc9878656f8aa4`. A3.4 remains partial: actual localization/conversion adapters and authoritative community review are not implemented. A3.5 task-profile and human-review safeguard contracts passed exact-head CI run `42850125260` at `5f5759cb7237a53e5101d433ece99e6980217e21`.
+A3.1/A3.2 evidence primitives and A3.3 operational self-model contracts are implemented and passed that exact-head CI run. A3.4 cultural-context metadata contracts also passed exact-head CI run `42849369832` at `93667e78a2e078944c79d85da8cc9878656f8aa4`. A3.4 remains partial: actual localization/conversion adapters and authoritative community review are not implemented. A3.5 task-profile and human-review safeguard contracts passed exact-head CI run `42850125260` at `5f5759cb7237a53e5101d433ece99e6980217e21`. A3.6 deterministic synthetic scenario arithmetic is implemented; its exact-head verification is pending.
 
 ## 7. Current increment and limitations
 
