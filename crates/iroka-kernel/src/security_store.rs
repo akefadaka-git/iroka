@@ -67,7 +67,6 @@ pub(crate) struct ApprovalReceipt<'a> {
     pub consumed_at: u64,
 }
 
-
 pub(crate) struct SecurityCommandReceipt<'a> {
     pub command_id: &'a str,
     pub owner_subject: &'a str,
