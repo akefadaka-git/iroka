@@ -73,7 +73,11 @@ impl EvidenceReference {
         if self.provenance.trim().is_empty() {
             return Err(EvidenceValidationError::EmptyProvenance);
         }
-        if self.language_tag.as_ref().is_some_and(|value| value.trim().is_empty()) {
+        if self
+            .language_tag
+            .as_ref()
+            .is_some_and(|value| value.trim().is_empty())
+        {
             return Err(EvidenceValidationError::EmptyLanguageTag);
         }
         if self
@@ -203,9 +207,7 @@ impl TraitAssessment {
         {
             return Err(BehavioralReviewError::EmptyEvidenceId);
         }
-        if self.outcome != BehavioralOutcome::InsufficientEvidence
-            && self.evidence_ids.is_empty()
-        {
+        if self.outcome != BehavioralOutcome::InsufficientEvidence && self.evidence_ids.is_empty() {
             return Err(BehavioralReviewError::EvidenceRequired);
         }
         Ok(())
