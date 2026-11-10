@@ -251,7 +251,7 @@ Error responses MUST avoid disclosing unauthorized record content or cross-tenan
 
 ## 8. Required adversarial acceptance tests
 
-The following are additional integration tests; they supplement, not replace, G05-AT-01 through G05-AT-19 in v1.0.0.
+The Owner-approved v1.0.0 contract defines G05-AT-01 through G05-AT-19 in §17. The following are additional integration tests; they supplement, not replace, that approved 19-test baseline.
 
 - **G05-INT-AT-01:** A reviewer key unknown to G01 cannot approve.
 - **G05-INT-AT-02:** A valid signature from a revoked key or credential is rejected.
