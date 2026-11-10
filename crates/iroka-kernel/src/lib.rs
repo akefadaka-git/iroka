@@ -23,8 +23,8 @@ pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use ethical_programme::{
-    BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EvidenceKind,
-    EvidenceReference, EvidenceValidationError, EthicalPrinciple, LicenceStatus, TraitAssessment,
+    BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EthicalPrinciple,
+    EvidenceKind, EvidenceReference, EvidenceValidationError, LicenceStatus, TraitAssessment,
 };
 #[cfg(test)]
 pub(crate) use governance::{
