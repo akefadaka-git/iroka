@@ -6,15 +6,7 @@
 //! preserving the original input. Review evidence is descriptive and is not an
 //! authenticated reviewer credential or an authorization grant.
 
-use crate::{EvidenceKind, EvidenceReference};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ScriptSystem {
-    Latin,
-    Ethiopic,
-    Other,
-    Unspecified,
-}
+use crate::{EvidenceKind, EvidenceReference, ScriptSystem};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScriptTransformStatus {
