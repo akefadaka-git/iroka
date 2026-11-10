@@ -43,7 +43,11 @@ fn all_six_teaching_modes_are_distinct_bounded_profiles() {
 #[test]
 fn high_impact_tasks_require_human_review() {
     assert_eq!(
-        profile(ImpactLevel::High, HumanReviewRequirement::Recommended, vec![]),
+        profile(
+            ImpactLevel::High,
+            HumanReviewRequirement::Recommended,
+            vec![]
+        ),
         Err(TeachingProfileError::HighImpactRequiresHumanReview)
     );
 }
@@ -51,7 +55,11 @@ fn high_impact_tasks_require_human_review() {
 #[test]
 fn critical_tasks_require_human_review() {
     assert_eq!(
-        profile(ImpactLevel::Critical, HumanReviewRequirement::NotRequired, vec![]),
+        profile(
+            ImpactLevel::Critical,
+            HumanReviewRequirement::NotRequired,
+            vec![]
+        ),
         Err(TeachingProfileError::HighImpactRequiresHumanReview)
     );
 }
@@ -59,7 +67,11 @@ fn critical_tasks_require_human_review() {
 #[test]
 fn moderate_impact_tasks_cannot_disable_safeguards() {
     assert_eq!(
-        profile(ImpactLevel::Moderate, HumanReviewRequirement::NotRequired, vec![]),
+        profile(
+            ImpactLevel::Moderate,
+            HumanReviewRequirement::NotRequired,
+            vec![]
+        ),
         Err(TeachingProfileError::ModerateImpactRequiresSafeguard)
     );
 }
@@ -86,7 +98,12 @@ fn high_impact_task_accepts_evidence_and_required_review() {
 
 #[test]
 fn low_impact_task_can_be_self_contained() {
-    let task = profile(ImpactLevel::Low, HumanReviewRequirement::NotRequired, vec![]).unwrap();
+    let task = profile(
+        ImpactLevel::Low,
+        HumanReviewRequirement::NotRequired,
+        vec![],
+    )
+    .unwrap();
     assert_eq!(task.mode(), TeachingMode::Teacher);
 }
 
