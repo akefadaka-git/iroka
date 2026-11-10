@@ -1,14 +1,10 @@
 use iroka_kernel::{
     ChangeInterpretation, DisclosureDecision, FlourishingDomain, FlourishingMetricError,
-    MetricComparison, MetricDefinition, MetricDirection, MetricUnit,
-    SmallCellSuppressionPolicy, SyntheticAggregateObservation,
+    MetricComparison, MetricDefinition, MetricDirection, MetricUnit, SmallCellSuppressionPolicy,
+    SyntheticAggregateObservation,
 };
 
-fn definition(
-    direction: MetricDirection,
-    unit: MetricUnit,
-    adverse: bool,
-) -> MetricDefinition {
+fn definition(direction: MetricDirection, unit: MetricUnit, adverse: bool) -> MetricDefinition {
     MetricDefinition::new(
         "education:completion-rate",
         FlourishingDomain::Education,
@@ -37,7 +33,11 @@ fn observation(value: u64, cohort: u64) -> SyntheticAggregateObservation {
 
 #[test]
 fn metric_definition_retains_domain_unit_direction_and_adverse_flag() {
-    let metric = definition(MetricDirection::HigherIsBetter, MetricUnit::BasisPoints, false);
+    let metric = definition(
+        MetricDirection::HigherIsBetter,
+        MetricUnit::BasisPoints,
+        false,
+    );
     assert_eq!(metric.domain(), FlourishingDomain::Education);
     assert_eq!(metric.unit(), MetricUnit::BasisPoints);
     assert_eq!(metric.direction(), MetricDirection::HigherIsBetter);
@@ -108,12 +108,7 @@ fn rate_metric_rejects_blank_denominator_label() {
 #[test]
 fn synthetic_observation_rejects_zero_cohort() {
     assert_eq!(
-        SyntheticAggregateObservation::new(
-            "metric:1",
-            MetricUnit::Count,
-            10,
-            0,
-        ),
+        SyntheticAggregateObservation::new("metric:1", MetricUnit::Count, 10, 0,),
         Err(FlourishingMetricError::EmptyCohort)
     );
 }
@@ -121,21 +116,12 @@ fn synthetic_observation_rejects_zero_cohort() {
 #[test]
 fn synthetic_rate_is_bounded_to_one_hundred_percent() {
     assert_eq!(
-        SyntheticAggregateObservation::new(
-            "rate:1",
-            MetricUnit::BasisPoints,
-            10_001,
-            100,
-        ),
+        SyntheticAggregateObservation::new("rate:1", MetricUnit::BasisPoints, 10_001, 100,),
         Err(FlourishingMetricError::RateOutOfRange)
     );
-    assert!(SyntheticAggregateObservation::new(
-        "rate:1",
-        MetricUnit::BasisPoints,
-        10_000,
-        100,
-    )
-    .is_ok());
+    assert!(
+        SyntheticAggregateObservation::new("rate:1", MetricUnit::BasisPoints, 10_000, 100,).is_ok()
+    );
 }
 
 #[test]
@@ -162,8 +148,9 @@ fn small_cells_are_suppressed_and_larger_synthetic_cohorts_may_be_disclosed() {
 #[test]
 fn higher_is_better_metric_marks_increase_as_improvement() {
     let metric = definition(MetricDirection::HigherIsBetter, MetricUnit::BasisPoints, false);
-    let result = MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
-        .unwrap();
+    let result =
+        MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
+            .unwrap();
     assert_eq!(result.change(), 1200);
     assert_eq!(result.interpretation(), ChangeInterpretation::Improvement);
 }
@@ -180,20 +167,10 @@ fn lower_is_better_adverse_metric_marks_increase_as_deterioration() {
         true,
     )
     .unwrap();
-    let baseline = SyntheticAggregateObservation::new(
-        metric.id(),
-        MetricUnit::Count,
-        4,
-        30,
-    )
-    .unwrap();
-    let follow_up = SyntheticAggregateObservation::new(
-        metric.id(),
-        MetricUnit::Count,
-        8,
-        32,
-    )
-    .unwrap();
+    let baseline =
+        SyntheticAggregateObservation::new(metric.id(), MetricUnit::Count, 4, 30).unwrap();
+    let follow_up =
+        SyntheticAggregateObservation::new(metric.id(), MetricUnit::Count, 8, 32).unwrap();
     let result = MetricComparison::evaluate(&metric, &baseline, &follow_up).unwrap();
     assert!(metric.is_adverse_outcome_indicator());
     assert_eq!(result.interpretation(), ChangeInterpretation::Deterioration);
@@ -211,15 +188,21 @@ fn lower_is_better_metric_marks_decrease_as_improvement() {
         false,
     )
     .unwrap();
-    let baseline = SyntheticAggregateObservation::new(metric.id(), MetricUnit::Days, 20, 12).unwrap();
-    let follow_up = SyntheticAggregateObservation::new(metric.id(), MetricUnit::Days, 12, 14).unwrap();
+    let baseline =
+        SyntheticAggregateObservation::new(metric.id(), MetricUnit::Days, 20, 12).unwrap();
+    let follow_up =
+        SyntheticAggregateObservation::new(metric.id(), MetricUnit::Days, 12, 14).unwrap();
     let result = MetricComparison::evaluate(&metric, &baseline, &follow_up).unwrap();
     assert_eq!(result.interpretation(), ChangeInterpretation::Improvement);
 }
 
 #[test]
 fn monitor_only_metric_does_not_claim_improvement_or_deterioration() {
-    let metric = definition(MetricDirection::MonitorOnly, MetricUnit::BasisPoints, false);
+    let metric = definition(
+        MetricDirection::MonitorOnly,
+        MetricUnit::BasisPoints,
+        false,
+    );
     let result = MetricComparison::evaluate(&metric, &observation(6000, 20), &observation(7200, 22))
         .unwrap();
     assert_eq!(result.interpretation(), ChangeInterpretation::MonitorOnly);
@@ -228,24 +211,16 @@ fn monitor_only_metric_does_not_claim_improvement_or_deterioration() {
 #[test]
 fn comparison_rejects_metric_identifier_and_unit_mismatch() {
     let metric = definition(MetricDirection::HigherIsBetter, MetricUnit::BasisPoints, false);
-    let wrong_id = SyntheticAggregateObservation::new(
-        "different:metric",
-        MetricUnit::BasisPoints,
-        7000,
-        10,
-    )
-    .unwrap();
+    let wrong_id =
+        SyntheticAggregateObservation::new("different:metric", MetricUnit::BasisPoints, 7000, 10)
+            .unwrap();
     assert_eq!(
         MetricComparison::evaluate(&metric, &observation(6000, 10), &wrong_id),
         Err(FlourishingMetricError::MetricIdMismatch)
     );
-    let wrong_unit = SyntheticAggregateObservation::new(
-        "education:completion-rate",
-        MetricUnit::Count,
-        7,
-        10,
-    )
-    .unwrap();
+    let wrong_unit =
+        SyntheticAggregateObservation::new("education:completion-rate", MetricUnit::Count, 7, 10)
+            .unwrap();
     assert_eq!(
         MetricComparison::evaluate(&metric, &observation(6000, 10), &wrong_unit),
         Err(FlourishingMetricError::UnitMismatch)
