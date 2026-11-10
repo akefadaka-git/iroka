@@ -13,6 +13,7 @@ mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod localization;
 mod operational_self_model;
 mod owner_approval;
 mod policy;
@@ -55,6 +56,11 @@ pub use igacms::{
     verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
+};
+pub use localization::{
+    ethiopian_to_gregorian, gregorian_to_ethiopian, transform_script, CalendarError, EthiopianDate,
+    GregorianDate, LocalizationEntry, LocalizationError, ScriptTransformResult,
+    ScriptTransformStatus, TranslationState,
 };
 pub use operational_self_model::{
     OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
