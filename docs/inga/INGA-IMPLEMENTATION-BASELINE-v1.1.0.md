@@ -184,4 +184,14 @@ Three additional unit tests cover inhibitory contribution, ReLU/leaky-ReLU behav
 **Implementation-record correction:** the earlier commits `71daff4...` and `368e9a9...` recorded test scaffolding and circuit contracts but did not yet contain the feed-forward evaluation method. The executable deterministic evaluation path was added in `dee57b3...`; inhibitory polarity and selectable activation functions were completed in `5334a60...`. The baseline is corrected here so the implementation history does not overstate what those earlier commits contained.
 
 Recurrent-state evaluation, plasticity/weight mutation, training, memory persistence, perception integration, distributed computation and production cognition remain unimplemented and outside this bounded increment.
+## 13. A3 implementation progress — verification gate and test hygiene
+
+**Implementation commits:** `ef0a727994cf9d69aff660201d34b68f7ca2c91a` (require structurally verified cells); `b41e63133e81e3d0f0be6ef97a3c66555c240d3f` (remove duplicate test definitions).  
+**Changed implementation file:** `crates/iroka-brain/src/neurogenetic.rs`
+
+Feed-forward evaluation now rejects `Proposed` cells with `UnverifiedCell`, rejects `Quarantined` cells separately, and accepts only cells marked `StructurallyVerified`. This is a local declared precondition, not an independent assurance attestation or an authorization grant. The test fixture now explicitly marks synthetic evaluation cells structurally verified. Duplicate test function definitions introduced during incremental editing were removed; the current module contains 30 uniquely named unit tests, including 15 tests for the new evaluation and circuit increments.
+
+Synapse polarity and activation behavior are explicit: legacy serialized records default to excitatory synapses and clipped-linear activation. The implementation uses no floating-point arithmetic, model provider, persistent state, or external side effects. These changes are still **NOT RUN**; no Rust compiler or formatter is installed in the current execution environment, and no exact-HEAD GitHub Actions run/status is available.
+
+**Current verification status:** source authored; static review only; `cargo fmt`, `cargo check`, `cargo test`, and `cargo clippy` = **NOT RUN**. A4 independent assurance remains separate and unstarted.
 
