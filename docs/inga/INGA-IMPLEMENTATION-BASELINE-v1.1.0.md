@@ -143,3 +143,23 @@ CI success is not independent A4 assurance. A4 and A5 remain separate gates.
 This file is the canonical implementation planning baseline for INGA v1.1.0 on `feat/inga-neurogenetic-a3-foundation`. The branch begins from B01 exact HEAD `9d68b580e06bb8335a626524d64b345c3a5a38aa`. Every subsequent implementation record must identify its exact base, head SHA, changed files, tests, workflow evidence, unresolved dependencies and authorization boundary.
 
 **Baseline status:** RECORDED — implementation in progress; not yet CI-verified; not merged; not deployed.
+
+## 10. A3 implementation progress — deterministic neural evaluation
+
+**Implementation commit:** `71daff4ec9e094d7cbb355761e33465c843b35f0`  
+**Changed implementation file:** `crates/iroka-brain/src/neurogenetic.rs`
+
+The first bounded computation path now evaluates feed-forward networks using signed fixed-point values:
+
+- Input values and resulting activations are constrained to `-1_000_000..=1_000_000`.
+- Each root cell requires exactly one caller-supplied input; unknown cells, duplicate inputs, non-root inputs and missing root inputs are rejected.
+- Cells are evaluated in deterministic lexicographic topological order.
+- Each destination activation is the normalized weighted sum of incoming source activations, truncated toward zero and clamped to the fixed-point range.
+- Recurrent and general directed-graph topologies are not evaluated by this function.
+- Quarantined cells are rejected.
+- The result is a value object only; no state is persisted and no weights or genome structures are mutated.
+
+Seven targeted unit tests were added for deterministic evaluation, clamping, missing/unknown/non-root/duplicate/out-of-range inputs, unsupported topology, quarantined cells and signed inputs. These tests are **NOT RUN** at this record: the current execution environment has no Rust toolchain, and no workflow run or status check was returned for implementation commit `71daff4ec9e094d7cbb355761e33465c843b35f0`. Compilation, formatting, Clippy and test status therefore remain **UNRESOLVED / NOT RUN**, not PASS.
+
+This increment does not close INGA-02 or the A3 acceptance gate. Additional circuit composition, cross-domain integration and exact-HEAD verification remain outstanding.
+
