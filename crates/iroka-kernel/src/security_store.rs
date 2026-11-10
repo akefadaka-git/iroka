@@ -67,6 +67,16 @@ pub(crate) struct ApprovalReceipt<'a> {
     pub consumed_at: u64,
 }
 
+
+pub(crate) struct SecurityCommandReceipt<'a> {
+    pub command_id: &'a str,
+    pub owner_subject: &'a str,
+    pub signer_issuer: &'a str,
+    pub signer_key_id: &'a str,
+    pub digest: &'a [u8],
+    pub at: u64,
+}
+
 pub struct SqliteSecurityStore {
     connection: Mutex<Connection>,
 }
@@ -343,14 +353,17 @@ impl SqliteSecurityStore {
     /// Atomically records a signed control command and its revocation effect.
     pub(crate) fn apply_signed_revocation(
         &self,
-        command_id: &str,
-        owner_subject: &str,
-        signer_issuer: &str,
-        signer_key_id: &str,
-        digest: &[u8],
-        at: u64,
+        receipt: SecurityCommandReceipt<'_>,
         target: RevocationTarget,
     ) -> Result<bool, SecurityStoreError> {
+        let SecurityCommandReceipt {
+            command_id,
+            owner_subject,
+            signer_issuer,
+            signer_key_id,
+            digest,
+            at,
+        } = receipt;
         if command_id.trim().is_empty() || digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
         }
