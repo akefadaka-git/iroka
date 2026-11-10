@@ -162,4 +162,14 @@ The first bounded computation path now evaluates feed-forward networks using sig
 Seven targeted unit tests were added for deterministic evaluation, clamping, missing/unknown/non-root/duplicate/out-of-range inputs, unsupported topology, quarantined cells and signed inputs. These tests are **NOT RUN** at this record: the current execution environment has no Rust toolchain, and no workflow run or status check was returned for implementation commit `71daff4ec9e094d7cbb355761e33465c843b35f0`. Compilation, formatting, Clippy and test status therefore remain **UNRESOLVED / NOT RUN**, not PASS.
 
 This increment does not close INGA-02 or the A3 acceptance gate. Additional circuit composition, cross-domain integration and exact-HEAD verification remain outstanding.
+## 11. A3 implementation progress — circuit composition
+
+**Implementation commit:** `368e9a9c61f449fd317389e07de39ab209c7258c`  
+**Changed implementation file:** `crates/iroka-brain/src/neurogenetic.rs`
+
+Added `NeuralCircuit` and `CircuitEvaluation` contracts. A circuit binds to one network, declares its functional region, requires an exact match between its declared inputs and all zero-in-degree network cells, and exposes only its declared output activations. Validation rejects unsupported contract versions, mismatched network identity, missing or duplicate input/output identifiers and invalid output references. Evaluation delegates to the deterministic feed-forward evaluator and returns only the circuit interface outputs.
+
+Four additional adversarial unit tests were authored for output projection, incorrect root declarations, duplicate interfaces, network mismatch, unknown outputs and unsupported versions. Together with the seven neural-evaluation tests, eleven new tests have been authored in these two increments. They remain **NOT RUN**; no compilation, formatting, Clippy or exact-HEAD CI result is claimed.
+
+INGA-02 remains **PARTIAL**. Circuit composition currently provides a single-network boundary, not cross-network orchestration, recurrent-state execution, distributed/federated computation or production cognition.
 
