@@ -182,12 +182,12 @@ fn is_valid_language_tag(tag: &str) -> bool {
     let Some(language) = subtags.next() else {
         return false;
     };
-    if !(2..=8).contains(&language.len()) || !language.bytes().all(|byte| byte.is_ascii_alphabetic())
+    if !(2..=8).contains(&language.len())
+        || !language.bytes().all(|byte| byte.is_ascii_alphabetic())
     {
         return false;
     }
     subtags.all(|subtag| {
-        (1..=8).contains(&subtag.len())
-            && subtag.bytes().all(|byte| byte.is_ascii_alphanumeric())
+        (1..=8).contains(&subtag.len()) && subtag.bytes().all(|byte| byte.is_ascii_alphanumeric())
     })
 }
