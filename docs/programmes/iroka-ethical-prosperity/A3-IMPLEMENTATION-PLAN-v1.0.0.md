@@ -25,7 +25,7 @@ The first vertical slice is a pure, deterministic Rust library surface inside `i
 | A3.5 | Teacher/mentor/advisor/researcher/coach/creator task profiles | Learning-quality and high-impact safeguard tests | IMPLEMENTED — CI VERIFIED |
 | A3.6 | Prosperity intelligence and scenario models using synthetic inputs | Formula, sensitivity, downside and no-guarantee tests | IMPLEMENTED — CI VERIFIED |
 | A3.7 | Human-flourishing metric definitions and impact evaluation | Baseline, adverse-outcome, privacy and correlation/causation tests | NOT STARTED |
-| A3.8 | Canonical G01–G12 adapter integration and cross-domain adversarial verification | Exact-provider binding, fail-closed, audit and independent review evidence | NOT STARTED |
+| A3.8 | Canonical G01–G12 adapter integration and cross-domain adversarial verification | Exact-provider binding, fail-closed, audit and independent review evidence | PARTIAL — provider reconciliation complete; G01 reviewer-proof and G02 organization-delegation providers remain missing; G11 memory-lifecycle adapter is a separate unmerged candidate |
 
 ## 3. A3.1/A3.2 implementation constraints
 
@@ -97,3 +97,30 @@ A3.6 remains synthetic-only operating scenario arithmetic. It does not include m
 - A3.6: `IMPLEMENTED — EXACT-HEAD CI VERIFIED`.
 - No A2 decision is reopened or changed. No new authority, consent, reviewer or localization registry is created by this reconciliation.
 - A3.7 and A3.8 remain not started. A4 independent verification and A5 activation/deployment remain separate gates. PR #47 remains draft, open and unmerged.
+
+
+## 11. A3.8 canonical-provider integration readiness — 2026-11-10
+
+A3.8 has undergone a bounded provider-dependency reconciliation. The existing G01 credential, G02 Owner-approval and G11 decision-audit primitives are not equivalent to every cross-domain authority required by G05. Full A3.8 closure must not be claimed by wiring a nearby but semantically different provider.
+
+### Verified available capabilities
+
+- **G01 identity:** the kernel has concrete Ed25519 credential verification, trusted issuer/key snapshots, exact audience and credential validity checks, and fail-closed revocation checks. This authenticates a principal; it does not prove that a designated human approved a particular memory record.
+- **G02 Owner authority:** the kernel has Owner-signed, exact-scope approvals, key/approval revocation checks and replay-protected approval consumption. This is direct Owner authority, not organization-scoped delegation.
+- **G11 decision audit:** the kernel has a durable append-only, hash-chained decision event sink. It is not the memory-lifecycle event stream and must not be overloaded.
+
+### Exact unresolved integration dependencies
+
+1. **G01 reviewer-proof verification — MISSING.** The G05 G01ReviewerProofAuthority port has no concrete G01-owned verifier in the inspected integration branch that verifies current reviewer-to-key binding, canonical signed approval bytes/domain separation, exact tenant/organization/reviewer/designation-version/memory/record/digest/purpose/classification scope and current revocation at use. A verified credential or Owner signature cannot substitute for this proof.
+2. **G02 organization-scoped delegation — MISSING.** The inspected kernel security store has tenant membership and policy/revocation state but no canonical organization-delegation registry or designation/revocation action. Global capability and tenant membership are not organization roles. The authoritative organization source/provider and its governance owner remain unidentified; no new registry is invented here.
+3. **G11 memory-lifecycle integration — CANDIDATE IN SEPARATE PR.** PR #43 implements a distinct versioned, content-free G11 memory lifecycle event stream and a G05 adapter with outbox/idempotency tests. Exact head 84b56386879928d28040d0a2c4e502efd1b2ae2c passed workflow run [42820878358](https://github.com/akefadaka-git/iroka/actions/runs/42820878358). PR #43 remains OPEN, DRAFT and UNMERGED on a separate G05 branch; its implementation is not yet part of this programme branch. It does not provide cross-database atomicity or multi-node guarantees.
+
+### Safe disposition
+
+- Reuse existing G01 credentials/revocation, G02 Owner approval, and G11 decision-audit primitives only for their documented semantics.
+- Keep organization-scoped reviewer approval and durable memory activation fail-closed until the missing canonical providers exist and pass adversarial integration tests.
+- Do not create a parallel identity, reviewer, consent, delegation, memory or audit registry in this programme.
+- Do not treat PR #43's separate G11 candidate as integrated into the programme until its branch dependency and review disposition are resolved.
+- A3.8 remains PARTIAL. A4 independent assurance and A5 activation/deployment remain separate.
+
+This readiness record is an evidence disposition, not an authorization to change G01/G02 ownership or invent an organization-authority source.
