@@ -128,3 +128,10 @@ A3.8 has undergone a bounded provider-dependency reconciliation. The existing G0
 - A3.8 remains PARTIAL. A4 independent assurance and A5 activation/deployment remain separate.
 
 This readiness record is an evidence disposition, not an authorization to change G01/G02 ownership or invent an organization-authority source.
+
+
+## 12. A3.8 Owner-governed organization authority decision — 2026-11-10
+
+The Owner selected model A. G02 is the single canonical authority provider for organization creation, administrator appointment, scoped delegation and revocation, all by Owner-signed, versioned commands. The binding contract is `docs/architecture/G02-OWNER-GOVERNED-ORGANIZATION-AUTHORITY-CONTRACT-v0.1.0.md`.
+
+Implementation is isolated on `feat/a3-8-g02-owner-organization-authority`, based on the current A3 foundation branch. The decision resolves the authority-model question only; G02 provider code and adversarial CI verification are not yet claimed complete. G01 reviewer-proof verification and G05/G11 adapter reconciliation remain separate A3.8 dependencies. A3.8 remains PARTIAL. No production keys/data, memory activation, protected execution, merge, deployment, A4 closure or A5 activation is authorized.
