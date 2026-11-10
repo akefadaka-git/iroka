@@ -320,7 +320,7 @@ pub fn gregorian_to_ethiopian(date: GregorianDate) -> Result<EthiopianDate, Cale
     date.validate()?;
     let jdn = gregorian_jdn(date);
     let elapsed = jdn - 1_724_220_i64;
-    let year = (4 * elapsed + 1_463) / 1_461;
+    let year = (4 * elapsed + 1_459) / 1_461;
     if year <= 0 || year > i64::from(u32::MAX) {
         return Err(CalendarError::OutOfSupportedRange);
     }
