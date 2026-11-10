@@ -1,6 +1,4 @@
-use iroka_kernel::{
-    BusinessScenario, ScenarioCase, ScenarioComparison, ScenarioError,
-};
+use iroka_kernel::{BusinessScenario, ScenarioCase, ScenarioComparison, ScenarioError};
 
 fn scenario(
     id: &str,
@@ -10,16 +8,7 @@ fn scenario(
     variable_cost: u64,
     fixed_cost: u64,
 ) -> BusinessScenario {
-    BusinessScenario::new(
-        id,
-        case,
-        "ETB",
-        units,
-        price,
-        variable_cost,
-        fixed_cost,
-    )
-    .unwrap()
+    BusinessScenario::new(id, case, "ETB", units, price, variable_cost, fixed_cost).unwrap()
 }
 
 #[test]
@@ -44,47 +33,23 @@ fn scenario_preserves_operating_loss_as_negative_result() {
 
 #[test]
 fn scenario_rejects_revenue_overflow() {
-    let result = BusinessScenario::new(
-        "overflow:1",
-        ScenarioCase::Base,
-        "ETB",
-        u64::MAX,
-        2,
-        0,
-        0,
-    )
-    .unwrap()
-    .calculate();
+    let result = BusinessScenario::new("overflow:1", ScenarioCase::Base, "ETB", u64::MAX, 2, 0, 0)
+        .unwrap()
+        .calculate();
     assert_eq!(result, Err(ScenarioError::ArithmeticOverflow));
 }
 
 #[test]
 fn scenario_rejects_total_cost_overflow() {
-    let result = BusinessScenario::new(
-        "overflow:2",
-        ScenarioCase::Base,
-        "ETB",
-        1,
-        1,
-        u64::MAX,
-        1,
-    )
-    .unwrap()
-    .calculate();
+    let result = BusinessScenario::new("overflow:2", ScenarioCase::Base, "ETB", 1, 1, u64::MAX, 1)
+        .unwrap()
+        .calculate();
     assert_eq!(result, Err(ScenarioError::ArithmeticOverflow));
 }
 
 #[test]
 fn scenario_rejects_non_iso_style_currency_code() {
-    let result = BusinessScenario::new(
-        "currency:1",
-        ScenarioCase::Base,
-        "etb",
-        1,
-        1,
-        0,
-        0,
-    );
+    let result = BusinessScenario::new("currency:1", ScenarioCase::Base, "etb", 1, 1, 0, 0);
     assert_eq!(result, Err(ScenarioError::InvalidCurrencyCode));
 }
 
@@ -100,36 +65,11 @@ fn comparison_rejects_mislabelled_cases() {
 
 #[test]
 fn comparison_rejects_mixed_currencies() {
-    let downside = BusinessScenario::new(
-        "down:1",
-        ScenarioCase::Downside,
-        "ETB",
-        1,
-        100,
-        20,
-        10,
-    )
-    .unwrap();
-    let base = BusinessScenario::new(
-        "base:1",
-        ScenarioCase::Base,
-        "USD",
-        2,
-        100,
-        20,
-        10,
-    )
-    .unwrap();
-    let upside = BusinessScenario::new(
-        "up:1",
-        ScenarioCase::Upside,
-        "USD",
-        3,
-        100,
-        20,
-        10,
-    )
-    .unwrap();
+    let downside =
+        BusinessScenario::new("down:1", ScenarioCase::Downside, "ETB", 1, 100, 20, 10).unwrap();
+    let base = BusinessScenario::new("base:1", ScenarioCase::Base, "USD", 2, 100, 20, 10).unwrap();
+    let upside =
+        BusinessScenario::new("up:1", ScenarioCase::Upside, "USD", 3, 100, 20, 10).unwrap();
     assert_eq!(
         ScenarioComparison::new(downside, base, upside),
         Err(ScenarioError::CurrencyMismatch)
