@@ -58,9 +58,9 @@ pub use igacms::{
     ValidatedGenome, VerifiedGenesis,
 };
 pub use localization::{
-    ethiopian_to_gregorian, gregorian_to_ethiopian, transform_script, CalendarError,
-    EthiopianDate, GregorianDate, LocalizationEntry, LocalizationError,
-    ScriptTransformResult, ScriptTransformStatus, TranslationState,
+    ethiopian_to_gregorian, gregorian_to_ethiopian, transform_script, CalendarError, EthiopianDate,
+    GregorianDate, LocalizationEntry, LocalizationError, ScriptTransformResult,
+    ScriptTransformStatus, TranslationState,
 };
 pub use operational_self_model::{
     OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
