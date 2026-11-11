@@ -66,9 +66,9 @@ pub use request::AuthorizationRequest;
 pub use reviewer_proof::{
     IssuerReviewerKeyBindingSource, KernelReviewerIssuerTrustProvider,
     KernelReviewerKeyBindingResolver, ReviewerIssuerTrustKey, ReviewerIssuerTrustProvider,
-    ReviewerKeyBinding, ReviewerKeyBindingResolver, ReviewerKeyBindingStatus,
-    ReviewerProofError, ReviewerProofPayload, ReviewerProofVerifier,
-    SignedReviewerKeyBinding, SignedReviewerProof, VerifiedReviewerProof,
+    ReviewerKeyBinding, ReviewerKeyBindingResolver, ReviewerKeyBindingStatus, ReviewerProofError,
+    ReviewerProofPayload, ReviewerProofVerifier, SignedReviewerKeyBinding, SignedReviewerProof,
+    VerifiedReviewerProof,
 };
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
