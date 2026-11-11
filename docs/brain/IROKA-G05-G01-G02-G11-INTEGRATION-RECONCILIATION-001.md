@@ -104,6 +104,6 @@ No missing authority is replaced with a G05-local registry, test stub, caller-su
 
 ### Exact-head verification evidence — 2026-11-11
 
-The combined G01/G05/G11 integration candidate at `444901f36f03a4444174a0e3e4a09bf2be3d2a6a` passed GitHub Actions [run #42957771604](https://github.com/akefadaka-git/iroka/actions/runs/42957771604): formatting PASS, workspace/all-target compilation PASS, production feature-set safeguard PASS, **140 tests passed / 0 failed**, and Clippy PASS. The run covers the exact current implementation head; subsequent documentation-only updates do not change the tested code.
+The combined G01/G05/G11 integration candidate at `37102027c7bc102733c8f734c73126ccbec16ead` passed GitHub Actions [run #42958296512](https://github.com/akefadaka-git/iroka/actions/runs/42958296512): formatting PASS, workspace/all-target compilation PASS, production feature-set safeguard PASS, **140 tests passed / 0 failed**, and Clippy PASS. The run covers the exact current implementation head; subsequent documentation-only updates do not change the tested code.
 
 This is kernel/G05 integration verification, not production trust-adapter provisioning or independent A4 assurance. PR #43 remains draft and unmerged.
