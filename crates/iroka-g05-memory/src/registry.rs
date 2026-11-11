@@ -1140,13 +1140,13 @@ mod tests {
     use super::*;
     struct G01;
     impl G01ReviewerProofAuthority for G01 {
-        fn validate_reviewer_key_binding(&self, r: &VerifiedPrincipal, k: &str, _: u64) -> Result<(), G05Error> {
-            if r.subject() == "reviewer:1" && k == "key:1" { Ok(()) }
+        fn validate_reviewer_key_binding(&self, reviewer: &str, key: &str, _: u64) -> Result<(), G05Error> {
+            if reviewer == "reviewer:1" && key == "key:1" { Ok(()) }
             else { Err(G05Error::ReviewerNotAuthorized) }
         }
         fn verify_approval_proof(
-            &self, _principal: &VerifiedPrincipal, _record: &MemoryRecord,
-            _receipt: &DurableApprovalReceipt, _d: &ReviewerDesignation, _now: u64,
+            &self, _record: &MemoryRecord, _receipt: &DurableApprovalReceipt,
+            _designation: &ReviewerDesignation, _now: u64,
         ) -> Result<VerifiedReviewerProof, G05Error> {
             Err(G05Error::ReviewerNotAuthorized)
         }
