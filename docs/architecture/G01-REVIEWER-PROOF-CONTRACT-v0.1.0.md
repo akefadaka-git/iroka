@@ -21,13 +21,15 @@ The canonical JCS payload is signed under the domain-separated bytes:
 Required fields bind:
 - unique proof ID;
 - verified issuer, subject and credential ID;
-- reviewer designation ID and reviewer signing-key ID;
+- reviewer designation ID and immutable designation version, plus reviewer signing-key ID;
 - approval ID;
 - tenant and organization;
+- memory ID, record version and SHA-256 content digest;
+- purpose and classification;
 - capability, resource and policy version;
 - issue and expiry times.
 
-Maximum proof lifetime is 300 seconds. The verifier checks exact principal tuple, exact expected approval scope, issue/expiry and key validity windows, current binding freshness (30 seconds), credential/key revocation, Ed25519 signature, and one-time proof consumption.
+Maximum proof lifetime is 300 seconds. Designation and record versions must be nonzero and the content digest must be exactly 64 hexadecimal characters. The verifier checks exact principal tuple, exact expected approval scope, issue/expiry and key validity windows, current binding freshness (30 seconds), credential/key revocation, Ed25519 signature, and one-time proof consumption.
 
 ## Replay
 
@@ -43,4 +45,4 @@ This contract does not appoint reviewers, establish community authority, grant o
 
 ## Verification status
 
-The unit tests exercise identity binding, exact scope, signature integrity, time bounds, revocation and replay with a deterministic test adapter. Production assurance requires an independently reviewed authoritative `ReviewerKeyBindingResolver` implementation, live revocation guarantees, G05 integration tests, and A4 security review.
+The unit tests exercise identity binding, exact designation and record scope, signature integrity, time bounds, revocation and replay with a deterministic test adapter. Exact implementation commit `334a7113eb189b04ff3b1bdcf11909adc301da5d` passed GitHub Actions run [42951439361](https://github.com/akefadaka-git/iroka/actions/runs/42951439361): formatting, compilation, production feature-set safeguard, 139 tests passed with 0 failures, and Clippy. Production assurance requires an independently reviewed authoritative `ReviewerKeyBindingResolver` implementation, live revocation guarantees, G05 integration tests, and A4 security review.
