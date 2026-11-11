@@ -19,8 +19,8 @@ use std::collections::BTreeSet;
 
 mod registry;
 pub use registry::{
-    G01ReviewerProofAuthority, KernelG01ReviewerProofAuthority, KernelG02AuthorizationAdapter, RegistryDesignatedReviewerAuthority,
-    ReviewerDesignation, SqliteG05AuthorityRegistry,
+    G01ReviewerProofAuthority, KernelG01ReviewerProofAuthority, KernelG02AuthorizationAdapter,
+    RegistryDesignatedReviewerAuthority, ReviewerDesignation, SqliteG05AuthorityRegistry,
 };
 
 mod authority;
@@ -611,7 +611,8 @@ pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: Gove
         return Err(G05Error::ApprovalBindingMismatch);
     }
     governance.authorize(request)?;
-    let metadata = repository.get_metadata(&receipt.memory_id)?
+    let metadata = repository
+        .get_metadata(&receipt.memory_id)?
         .ok_or(G05Error::RecordNotFound)?;
     if metadata.memory_id != receipt.memory_id
         || metadata.tenant_ref != receipt.tenant_ref
@@ -624,7 +625,8 @@ pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: Gove
     {
         return Err(G05Error::ApprovalBindingMismatch);
     }
-    let record = repository.get_content(&receipt.memory_id)?
+    let record = repository
+        .get_content(&receipt.memory_id)?
         .ok_or(G05Error::RecordNotFound)?;
     if record.candidate.memory_id != metadata.memory_id
         || record.candidate.tenant_ref != metadata.tenant_ref
@@ -653,10 +655,15 @@ pub fn prepare_durable_activation_from_repository<R: MemoryRepository, G: Govern
     governance: &G,
     now: u64,
 ) -> Result<MemoryRecord, G05Error> {
-    let record = authorize_durable_activation_from_repository(repository, receipt, request, governance, now)?;
+    let record = authorize_durable_activation_from_repository(
+        repository, receipt, request, governance, now,
+    )?;
     let mut activated = record.clone();
-    activated.candidate.record_version = record.candidate.record_version
-        .checked_add(1).ok_or(G05Error::VersionConflict)?;
+    activated.candidate.record_version = record
+        .candidate
+        .record_version
+        .checked_add(1)
+        .ok_or(G05Error::VersionConflict)?;
     activated.lifecycle_state = LifecycleState::Active;
     activated.approval_ref = Some(receipt.approval_ref.clone());
     activated.approved_by_ref = Some(receipt.reviewer_ref.clone());
