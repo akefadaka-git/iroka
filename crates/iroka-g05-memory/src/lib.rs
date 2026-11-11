@@ -22,7 +22,7 @@ mod registry;
 pub use registry::{
     CanonicalMemoryMetadataResolver, G01ReviewerProofAuthority, KernelG01ReviewerProofAdapter,
     KernelG02AuthorizationAdapter, RegistryDesignatedReviewerAuthority, ReviewerDesignation,
-    ReviewerDesignationKeyResolver, SqliteG05AuthorityRegistry,
+    ReviewerDesignationIdentity, ReviewerDesignationKeyResolver, SqliteG05AuthorityRegistry,
 };
 
 mod authority;
