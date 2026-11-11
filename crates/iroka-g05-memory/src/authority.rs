@@ -51,6 +51,8 @@ pub trait EpisodicConsentAuthority: Send + Sync {
 pub trait DesignatedReviewerAuthority: Send + Sync {
     fn verify_designated_reviewer(
         &self,
+        principal: &iroka_kernel::VerifiedPrincipal,
+        record: &crate::MemoryRecord,
         receipt: &DurableApprovalReceipt,
         organization_ref: &str,
         now: u64,
@@ -109,11 +111,13 @@ where
     }
     fn verify_durable_approval(
         &self,
+        principal: &iroka_kernel::VerifiedPrincipal,
+        record: &crate::MemoryRecord,
         receipt: &DurableApprovalReceipt,
         now: u64,
     ) -> Result<(), G05Error> {
         self.reviewers
-            .verify_designated_reviewer(receipt, &receipt.subject_ref, now)
+            .verify_designated_reviewer(principal, record, receipt, &receipt.subject_ref, now)
     }
     fn append_audit(&self, event: &AuditEvent) -> Result<(), G05Error> {
         self.g11.append_memory_event(event)
