@@ -731,6 +731,8 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
     fn verify_designated_reviewer(
         &self,
         receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
+        reviewer_principal: &VerifiedPrincipal,
         org: &str,
         now: u64,
     ) -> Result<(), G05Error> {
@@ -758,16 +760,46 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
         {
             return Err(G05Error::ApprovalExpired);
         }
+        if reviewer_principal.subject() != receipt.reviewer_ref
+            || record.candidate.memory_class != crate::MemoryClass::Durable
+            || record.lifecycle_state != crate::LifecycleState::PendingReview
+            || record.candidate.memory_id != receipt.memory_id
+            || record.candidate.tenant_ref != receipt.tenant_ref
+            || record.candidate.subject_ref != receipt.subject_ref
+            || record.candidate.content_sha256 != receipt.content_sha256
+            || crate::sha256_hex(record.candidate.content.as_bytes()) != record.candidate.content_sha256
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
         let d = self.registry.active_designation(
-            &receipt.tenant_ref,
+            &record.candidate.tenant_ref,
             org,
             &receipt.reviewer_ref,
             now,
         )?;
-        if receipt.issued_at < d.valid_from || receipt.expires_at > d.valid_until {
+        if d.tenant_ref != record.candidate.tenant_ref
+            || d.organization_ref != org
+            || receipt.issued_at < d.valid_from
+            || receipt.expires_at > d.valid_until
+        {
             return Err(G05Error::ReviewerNotAuthorized);
         }
-        self.g01.verify_approval_proof(receipt, &d, now)?;
+        let verified = self.g01.verify_approval_proof(
+            &receipt.signed_proof, reviewer_principal, receipt, &d, record, now,
+        )?;
+        if verified.reviewer_id() != d.reviewer_ref
+            || verified.subject() != reviewer_principal.subject()
+            || verified.approval_id() != receipt.approval_ref
+            || verified.designation_id() != d.designation_ref
+            || verified.designation_version() != d.version
+            || verified.tenant_id() != record.candidate.tenant_ref
+            || verified.organization_id() != org
+            || verified.memory_id() != record.candidate.memory_id
+            || verified.record_version() != record.candidate.record_version
+            || verified.content_sha256() != record.candidate.content_sha256
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
         self.registry.consume_approval(receipt, &d, now)
     }
 }
