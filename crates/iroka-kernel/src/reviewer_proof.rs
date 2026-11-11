@@ -543,4 +543,22 @@ mod tests {
         );
     }
 
+    #[test]
+    fn rejects_designation_binding_version_mismatch_before_consumption() {
+        let (key, verifier, principal) = fixture(false);
+        let proof = signed(&key, "proof:binding-version");
+        let result = verifier.verify_and_consume(
+            &proof, &principal, "reviewer:maale-01", "binding:stale", 2,
+            "approval:17", "tenant:alpha", "org:alpha", "designation:1", 3,
+            "memory:1", 4, &"a".repeat(64), "ORGANIZATIONAL_CONTEXT", "CONFIDENTIAL",
+            "content.review", "translation:chapter-1", "policy:v1", 1200,
+        );
+        assert_eq!(result, Err(ReviewerProofError::ScopeMismatch));
+        assert_eq!(
+            verify(&verifier, &proof, &principal).unwrap().binding_version(),
+            3,
+            "a rejected mismatched binding must not consume the proof"
+        );
+    }
+
 }
