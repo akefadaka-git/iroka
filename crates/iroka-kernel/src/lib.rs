@@ -63,7 +63,7 @@ pub use operational_self_model::{
 };
 pub use organization_authority::{
     OrganizationAuthorityAction, OrganizationAuthorityError, OrganizationAuthorityPayload,
-    OrganizationAuthorityResolver, OrganizationContext, SignedOrganizationAuthorityCommand,
+    DelegationContext, OrganizationAuthorityResolver, OrganizationContext, SignedOrganizationAuthorityCommand,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
