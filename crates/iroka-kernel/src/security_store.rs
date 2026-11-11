@@ -1035,6 +1035,27 @@ impl SqliteSecurityStore {
             .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         Ok(true)
     }
+    #[rustfmt::skip]
+    pub(crate) fn consume_reviewer_proof(
+        &self, issuer: &str, credential_id: &str, proof_id: &str, digest: &[u8], now: u64,
+    ) -> Result<(), SecurityStoreError> {
+        if issuer.trim().is_empty() || credential_id.trim().is_empty() || proof_id.trim().is_empty() || digest.len() != 32 {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let now_i = i64::try_from(now).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        match connection.execute(
+            "INSERT INTO reviewer_proof_consumptions(issuer,credential_id,proof_id,digest,consumed_at) VALUES(?1,?2,?3,?4,?5)",
+            params![issuer,credential_id,proof_id,digest,now_i],
+        ) {
+            Ok(1) => Ok(()),
+            Ok(_) => Err(SecurityStoreError::ConflictingVersion),
+            Err(rusqlite::Error::SqliteFailure(code, _)) if code.code == rusqlite::ErrorCode::ConstraintViolation => Err(SecurityStoreError::ConflictingVersion),
+            Err(_) => Err(SecurityStoreError::Unavailable),
+        }
+    }
+
+
 }
 
 impl RevocationChecker for SqliteSecurityStore {
@@ -1066,27 +1087,7 @@ impl RevocationChecker for SqliteSecurityStore {
             |row| row.get(0),
         )
         .map_err(|_| RevocationError::Unavailable)
-    }
-    #[rustfmt::skip]
-    pub(crate) fn consume_reviewer_proof(
-        &self, issuer: &str, credential_id: &str, proof_id: &str, digest: &[u8], now: u64,
-    ) -> Result<(), SecurityStoreError> {
-        if issuer.trim().is_empty() || credential_id.trim().is_empty() || proof_id.trim().is_empty() || digest.len() != 32 {
-            return Err(SecurityStoreError::InvalidVersion);
-        }
-        let now_i = i64::try_from(now).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        match connection.execute(
-            "INSERT INTO reviewer_proof_consumptions(issuer,credential_id,proof_id,digest,consumed_at) VALUES(?1,?2,?3,?4,?5)",
-            params![issuer,credential_id,proof_id,digest,now_i],
-        ) {
-            Ok(1) => Ok(()),
-            Ok(_) => Err(SecurityStoreError::ConflictingVersion),
-            Err(rusqlite::Error::SqliteFailure(code, _)) if code.code == rusqlite::ErrorCode::ConstraintViolation => Err(SecurityStoreError::ConflictingVersion),
-            Err(_) => Err(SecurityStoreError::Unavailable),
-        }
-    }
-}
+    }}
 
 #[cfg(test)]
 mod tests {
