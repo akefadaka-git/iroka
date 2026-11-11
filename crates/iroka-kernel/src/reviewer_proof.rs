@@ -86,6 +86,7 @@ pub struct VerifiedReviewerProof {
     resource: String,
     policy_version: String,
     proof_id: String,
+    issued_at: u64,
     expires_at: u64,
     verified_at: u64,
 }
@@ -110,6 +111,7 @@ impl VerifiedReviewerProof {
     pub fn resource(&self) -> &str { &self.resource }
     pub fn policy_version(&self) -> &str { &self.policy_version }
     pub fn proof_id(&self) -> &str { &self.proof_id }
+    pub fn issued_at(&self) -> u64 { self.issued_at }
     pub fn expires_at(&self) -> u64 { self.expires_at }
     pub fn verified_at(&self) -> u64 { self.verified_at }
 }
@@ -249,7 +251,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             approval_id: p.approval_id.clone(), tenant_id: p.tenant_id.clone(),
             organization_id: p.organization_id.clone(), capability: p.capability.clone(),
             resource: p.resource.clone(), policy_version: p.policy_version.clone(),
-            proof_id: p.proof_id.clone(), expires_at: p.expires_at, verified_at: now,
+            proof_id: p.proof_id.clone(), issued_at: p.issued_at, expires_at: p.expires_at, verified_at: now,
         })
     }
 }
