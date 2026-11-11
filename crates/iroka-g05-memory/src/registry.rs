@@ -105,6 +105,9 @@ impl SqliteG05AuthorityRegistry {
         now: u64,
     ) -> Result<(), G05Error> {
         crate::validate_approval_binding(record, receipt, now)?;
+        if crate::sha256_hex(record.candidate.content.as_bytes()) != record.candidate.content_sha256 {
+            return Err(G05Error::DigestMismatch);
+        }
         if record.lifecycle_state != crate::LifecycleState::PendingReview
             || record.candidate.memory_class != crate::MemoryClass::Durable
             || receipt.proof_ref.len() > 32_768
@@ -749,6 +752,7 @@ impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01Revie
             || receipt.subject_ref != record.candidate.subject_ref
             || receipt.subject_ref != designation.organization_ref
             || receipt.content_sha256 != record.candidate.content_sha256
+            || crate::sha256_hex(record.candidate.content.as_bytes()) != record.candidate.content_sha256
             || receipt.reviewer_ref != designation.reviewer_ref
             || designation.tenant_ref != record.candidate.tenant_ref
             || designation.organization_ref != receipt.subject_ref
@@ -1220,7 +1224,7 @@ mod tests {
                 actor_ref: "reviewer:1".into(),
                 memory_class: crate::MemoryClass::Durable,
                 content: "synthetic".into(),
-                content_sha256: "a".repeat(64),
+                content_sha256: crate::sha256_hex(b"synthetic"),
                 purpose: Purpose::OrganizationalContext,
                 classification: Classification::Confidential,
                 provenance: crate::Provenance {
@@ -1250,7 +1254,7 @@ mod tests {
                 "credential_id":"credential:1","reviewer_id":"reviewer:1",
                 "designation_id":"d1","designation_version":1,"key_id":"key:1",
                 "approval_id":"a1","tenant_id":"t1","organization_id":"org1",
-                "memory_id":"m1","record_version":4,"content_sha256":"a".repeat(64),
+                "memory_id":"m1","record_version":4,"content_sha256":crate::sha256_hex(b"synthetic"),
                 "purpose":"ORGANIZATIONAL_CONTEXT","classification":"CONFIDENTIAL",
                 "capability":"g05.memory.durable.activate",
                 "resource":"g05:durable.activate:t1:org1:m1:4:".to_owned()+"&".repeat(64),
@@ -1260,7 +1264,7 @@ mod tests {
         }).to_string();
         let receipt = DurableApprovalReceipt {
             approval_ref: "a1".into(), memory_id: "m1".into(), tenant_ref: "t1".into(),
-            subject_ref: "org1".into(), content_sha256: "a".repeat(64),
+            subject_ref: "org1".into(), content_sha256: crate::sha256_hex(b"synthetic"),
             reviewer_ref: "reviewer:1".into(), issued_at: 120, expires_at: 200,
             proof_ref: proof,
         };
