@@ -255,7 +255,7 @@ mod tests {
         let payload=ReviewerProofPayload {
             proof_id:id.into(),issuer:"issuer:community".into(),subject:"reviewer:alice".into(),
             credential_id:"credential:42".into(),reviewer_id:"reviewer:maale-01".into(),
-            key_id:"designation:1".into(),designation_version:3,key_id:"reviewer-key-01".into(),approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),
+            designation_id:"designation:1".into(),designation_version:3,key_id:"reviewer-key-01".into(),approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),
             organization_id:"org:alpha".into(),memory_id:"memory:1".into(),record_version:4,content_sha256:"a".repeat(64),purpose:"ORGANIZATIONAL_CONTEXT".into(),classification:"CONFIDENTIAL".into(),capability:"content.review".into(),resource:"translation:chapter-1".into(),
             policy_version:"policy:v1".into(),issued_at:1100,expires_at:1300,
         };
