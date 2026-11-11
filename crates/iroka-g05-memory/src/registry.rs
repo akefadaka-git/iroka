@@ -809,6 +809,26 @@ fn enqueue_authority_event(
     .map_err(|_| G05Error::AuthorityUnavailable)?;
     Ok(())
 }
+fn g05_capability(operation: Operation) -> &'static str {
+    match operation {
+        Operation::Propose => "g05.memory.propose",
+        Operation::CreateWorking => "g05.memory.working.create",
+        Operation::CreateEpisodic => "g05.memory.episodic.create",
+        Operation::ActivateDurable => "g05.memory.durable.activate",
+        Operation::Retrieve => "g05.memory.retrieve",
+        Operation::InspectMetadata => "g05.memory.metadata.inspect",
+        Operation::Correct => "g05.memory.correct",
+        Operation::Restrict => "g05.memory.restrict",
+        Operation::RequestDeletion => "g05.memory.deletion.request",
+        Operation::VerifyDeletion => "g05.memory.deletion.verify",
+        Operation::Share => "g05.memory.share",
+        Operation::GrantEpisodicConsent => "g05.memory.consent.grant",
+        Operation::WithdrawEpisodicConsent => "g05.memory.consent.withdraw",
+        Operation::DesignateReviewer => "g05.memory.reviewer.designate",
+        Operation::RevokeReviewerDesignation => "g05.memory.reviewer.revoke",
+    }
+}
+
 fn purpose_from_key(value: &str) -> Result<Purpose, G05Error> {
     match value {
         "TASK_CONTINUITY" => Ok(Purpose::TaskContinuity),
@@ -1022,7 +1042,7 @@ mod tests {
             authority.verify_designated_reviewer(&wrong_tenant, &proof, &record, "org1", 152),
             Err(G05Error::ApprovalBindingMismatch)
         );
-        let mut wrong_org = receipt.clone();
+        let wrong_org = receipt.clone();
         assert_eq!(
             authority.verify_designated_reviewer(&wrong_org, &proof, &record, "other-org", 152),
             Err(G05Error::ApprovalBindingMismatch)
