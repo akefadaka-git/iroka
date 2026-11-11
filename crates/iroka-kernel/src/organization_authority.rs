@@ -195,6 +195,7 @@ pub struct DelegationContext {
     resolved_at: u64,
 }
 
+#[rustfmt::skip]
 impl DelegationContext {
     pub fn delegation_id(&self) -> &str { &self.delegation_id }
     pub fn delegator(&self) -> &str { &self.delegator }
@@ -255,6 +256,7 @@ impl OrganizationAuthorityResolver {
     /// Resolve a current Owner-signed delegation grant. This verifies the
     /// exact delegate, tenant, organization, capability and live delegator
     /// designation; it does not itself execute a delegated mutation.
+    #[rustfmt::skip]
     pub fn resolve_delegation(
         &self,
         delegate: &VerifiedPrincipal,
@@ -864,6 +866,7 @@ mod tests {
             Err(crate::OwnerApprovalError::Revoked)
         );
     }
+    #[rustfmt::skip]
     fn signed_delegation(
         signer: &SigningKey,
         command_id: &str,
@@ -888,6 +891,7 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn owner_delegation_is_exact_scope_versioned_and_revocable() {
         let (signer, owner, store, alice) = fixture();
         let alice_tenant = tenant_context(&signer, &owner, &alice, store.clone());
