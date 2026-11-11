@@ -566,6 +566,7 @@ pub fn authorize_retrieval_metadata<G: GovernancePort>(
 pub fn authorize_durable_activation<G: GovernancePort>(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
+    principal: &iroka_kernel::VerifiedPrincipal,
     request: &AuthorizationRequest,
     governance: &G,
     now: u64,
@@ -576,14 +577,15 @@ pub fn authorize_durable_activation<G: GovernancePort>(
         || request.subject_ref != record.candidate.subject_ref
         || request.purpose != record.candidate.purpose
         || request.classification != record.candidate.classification
-        || request.principal_ref != receipt.reviewer_ref
+        || request.principal_ref != principal.subject()
+        || principal.subject() != receipt.reviewer_ref
         || !valid_ref(&request.correlation_ref)
     {
         return Err(G05Error::ApprovalBindingMismatch);
     }
     validate_durable_activation_binding(record, receipt, now)?;
     governance.authorize(request)?;
-    governance.verify_durable_approval(receipt, now)?;
+    governance.verify_durable_approval(principal, record, receipt, now)?;
     Ok(())
 }
 
@@ -593,11 +595,12 @@ pub fn authorize_durable_activation<G: GovernancePort>(
 pub fn prepare_durable_activation<G: GovernancePort>(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
+    principal: &iroka_kernel::VerifiedPrincipal,
     request: &AuthorizationRequest,
     governance: &G,
     now: u64,
 ) -> Result<MemoryRecord, G05Error> {
-    authorize_durable_activation(record, receipt, request, governance, now)?;
+    authorize_durable_activation(record, receipt, principal, request, governance, now)?;
     let mut activated = record.clone();
     activated.candidate.record_version = record
         .candidate
@@ -684,6 +687,8 @@ pub trait GovernancePort {
 
     fn verify_durable_approval(
         &self,
+        principal: &iroka_kernel::VerifiedPrincipal,
+        record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         now: u64,
     ) -> Result<(), G05Error>;
