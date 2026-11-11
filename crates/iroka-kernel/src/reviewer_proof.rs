@@ -135,6 +135,7 @@ impl From<SecurityStoreError> for ReviewerProofError {
 }
 
 /// Current issuer-signed reviewer identity-to-key binding.
+#[rustfmt::skip]
 pub trait ReviewerKeyBindingResolver: Send + Sync {
     fn resolve_current_binding(
         &self,
@@ -176,6 +177,7 @@ impl ReviewerKeyBinding {
 }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[rustfmt::skip]
 pub enum ReviewerKeyBindingStatus {
     Active,
     Revoked,
@@ -201,6 +203,7 @@ pub struct ReviewerIssuerTrustKey {
     pub trust_version: u64,
     pub resolved_at: u64,
 }
+#[rustfmt::skip]
 pub trait ReviewerIssuerTrustProvider: Send + Sync {
     fn resolve_current_issuer_key(
         &self,
