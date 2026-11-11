@@ -282,7 +282,8 @@ impl SqliteG05AuthorityRegistry {
             || organization_ref.len() > 512
             || reviewer_ref.trim().is_empty()
             || reviewer_ref.len() > 512
-            || reviewer.subject() != reviewer_ref
+            || reviewer_ref.trim().is_empty()
+            || reviewer_ref.len() > 512
             || reviewer_key_ref.trim().is_empty()
             || reviewer_key_ref.len() > 512
             || designation_ref.trim().is_empty()
@@ -309,7 +310,7 @@ impl SqliteG05AuthorityRegistry {
         // reviewer's identity/key binding; denied callers must not probe G01.
         g02.authorize_g05(&req)?;
         g02.authorize_organization_scope(&req, organization_ref)?;
-        g01.validate_reviewer_key_binding(reviewer, reviewer_key_ref, now)?;
+        g01.validate_reviewer_key_binding(reviewer_ref, reviewer_key_ref, now)?;
         let mut c = self
             .connection
             .lock()
@@ -616,13 +617,12 @@ impl EpisodicConsentAuthority for SqliteG05AuthorityRegistry {
 pub trait G01ReviewerProofAuthority: Send + Sync {
     fn validate_reviewer_key_binding(
         &self,
-        principal: &VerifiedPrincipal,
+        reviewer: &str,
         key_ref: &str,
         now: u64,
     ) -> Result<(), G05Error>;
     fn verify_approval_proof(
         &self,
-        principal: &VerifiedPrincipal,
         record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         designation: &ReviewerDesignation,
@@ -634,21 +634,22 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
 /// signature, exact-scope, freshness, revocation and replay checks.
 pub struct KernelG01ReviewerProofAuthority<R: ReviewerKeyBindingResolver> {
     verifier: ReviewerProofVerifier<R>,
+    principal: VerifiedPrincipal,
 }
 impl<R: ReviewerKeyBindingResolver> KernelG01ReviewerProofAuthority<R> {
-    pub fn new(verifier: ReviewerProofVerifier<R>) -> Self { Self { verifier } }
+    pub fn new(verifier: ReviewerProofVerifier<R>, principal: VerifiedPrincipal) -> Self { Self { verifier, principal } }
 }
 impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01ReviewerProofAuthority<R> {
     fn validate_reviewer_key_binding(
-        &self, principal: &VerifiedPrincipal, key_ref: &str, now: u64,
+        &self, reviewer: &str, key_ref: &str, now: u64,
     ) -> Result<(), G05Error> {
-        self.verifier.validate_current_key_binding(principal, key_ref, now)
+        if self.principal.subject() != reviewer { return Err(G05Error::ReviewerNotAuthorized); }
+        self.verifier.validate_current_key_binding(&self.principal, key_ref, now)
             .map_err(map_reviewer_proof_error)
     }
 
     fn verify_approval_proof(
         &self,
-        principal: &VerifiedPrincipal,
         record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         designation: &ReviewerDesignation,
@@ -688,7 +689,7 @@ impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01Revie
         );
         let verified = self.verifier.verify_and_consume(
             &signed,
-            principal,
+            &self.principal,
             &designation.reviewer_ref,
             &designation.reviewer_key_ref,
             &receipt.approval_ref,
@@ -718,7 +719,7 @@ impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01Revie
             || verified.approval_id() != receipt.approval_ref
             || verified.tenant_id() != receipt.tenant_ref
             || verified.organization_id() != receipt.subject_ref
-            || verified.subject() != principal.subject()
+            || verified.subject() != self.principal.subject()
         {
             return Err(G05Error::ApprovalBindingMismatch);
         }
@@ -771,7 +772,6 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
 {
     fn verify_designated_reviewer(
         &self,
-        principal: &VerifiedPrincipal,
         record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         org: &str,
@@ -811,7 +811,7 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
         if receipt.issued_at < d.valid_from || receipt.expires_at > d.valid_until {
             return Err(G05Error::ReviewerNotAuthorized);
         }
-        let verified = self.g01.verify_approval_proof(principal, record, receipt, &d, now)?;
+        let verified = self.g01.verify_approval_proof(record, receipt, &d, now)?;
         self.registry.consume_approval(receipt, record, &d, &verified, now)
     }
 }
