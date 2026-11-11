@@ -610,7 +610,7 @@ impl SqliteSecurityStore {
                     "SELECT designation_id,version,digest FROM organization_designations WHERE organization_id=?1 AND principal=?2",
                     params![organization_id,principal], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))
                 ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-                if !active && current.as_ref().is_none_or(|(current_id,_,_)| current_id != &designation_id) {
+                if !active && current.as_ref().map_or(true, |(current_id,_,_)| current_id != &designation_id) {
                     return Err(SecurityStoreError::ConflictingVersion);
                 }
                 if let Some((_,v,d)) = current {
