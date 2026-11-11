@@ -492,6 +492,18 @@ mod tests {
         let other=VerifiedPrincipal::from_verified_credential("reviewer:bob".into(),"issuer:community".into(),"credential:43".into());
         assert_eq!(verify(&v,&signed(&key,"proof:principal"),&other),Err(ReviewerProofError::PrincipalMismatch));
     }
+    #[test]
+    fn rejects_proof_not_bound_to_current_key_binding_version() {
+        let (key, verifier, principal) = fixture(false);
+        let mut proof = signed(&key, "proof:stale-binding-version");
+        proof.payload.binding_version = 2;
+        proof.signature = key.sign(&proof.payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        assert_eq!(verify(&verifier, &proof, &principal), Err(ReviewerProofError::ScopeMismatch));
+        let mut proof = signed(&key, "proof:wrong-binding-id");
+        proof.payload.binding_id = "binding:old".into();
+        proof.signature = key.sign(&proof.payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        assert_eq!(verify(&verifier, &proof, &principal), Err(ReviewerProofError::ScopeMismatch));
+    }
     #[test] fn rejects_revoked_binding_and_tampered_proof() {
         let (key,v,principal)=fixture(true);
         assert_eq!(verify(&v,&signed(&key,"proof:revoked"),&principal),Err(ReviewerProofError::Revoked));
