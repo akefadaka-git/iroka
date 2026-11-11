@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation, feat/brain-a3-b02-signed-policy-lifecycle]
+    branches: [feat/igacms-a3-implementation, feat/brain-a3-b02-signed-policy-lifecycle, feat/a3-8-g05-verified-reviewer-integration]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -10,7 +10,7 @@ on:
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base]
+    branches: [main, architecture/igacms-a2-ci-base, ci/a3-8-g05-reviewer-integration-base]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
