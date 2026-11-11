@@ -20,8 +20,9 @@ use iroka_kernel::{ReviewerProofPayload, SignedReviewerProof, VerifiedPrincipal}
 
 mod registry;
 pub use registry::{
-    G01ReviewerProofAuthority, KernelG02AuthorizationAdapter, RegistryDesignatedReviewerAuthority,
-    ReviewerDesignation, SqliteG05AuthorityRegistry,
+    G01ReviewerProofAuthority, KernelG01ReviewerProofAdapter, KernelG02AuthorizationAdapter,
+    RegistryDesignatedReviewerAuthority, ReviewerDesignation, ReviewerDesignationKeyResolver,
+    SqliteG05AuthorityRegistry,
 };
 
 mod authority;
