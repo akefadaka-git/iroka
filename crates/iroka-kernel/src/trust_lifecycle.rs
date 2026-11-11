@@ -300,7 +300,7 @@ impl TrustSnapshotManager {
         store: &SqliteSecurityStore,
         now: u64,
     ) -> Result<u64, TrustBundleError> {
-        self.install_using(bundle.payload.version, || {
+        self.install_using(bundle.payload.version, bundle.payload.expires_at, || {
             verify_and_install_trust_bundle_with_roots(bundle, roots, store, now)
         })
     }
