@@ -182,6 +182,10 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             expected_policy_version] {
             if value.trim().is_empty() || value.len() > 512 { return Err(ReviewerProofError::Malformed); }
         }
+        if p.designation_version == 0 || p.record_version == 0
+            || p.content_sha256.len() != 64
+            || !p.content_sha256.bytes().all(|b| b.is_ascii_hexdigit())
+        { return Err(ReviewerProofError::Malformed); }
         if p.issued_at >= p.expires_at || p.expires_at - p.issued_at > MAX_PROOF_TTL_SECS {
             return Err(ReviewerProofError::Malformed);
         }
