@@ -153,6 +153,7 @@ pub trait ReviewerKeyBindingResolver: Send + Sync {
 /// Issuer-side source contract. Production implementations must read the
 /// authoritative current registry, not a caller-supplied document or stale
 /// replica, and must return a short-lived issuer-signed binding assertion.
+#[rustfmt::skip]
 pub trait IssuerReviewerKeyBindingSource: Send + Sync {
     fn fetch_current_binding(
         &self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64,
@@ -165,9 +166,11 @@ pub trait IssuerReviewerKeyBindingSource: Send + Sync {
 pub struct KernelReviewerKeyBindingResolver<S> {
     source: S,
 }
+#[rustfmt::skip]
 impl<S> KernelReviewerKeyBindingResolver<S> {
     pub fn new(source: S) -> Self { Self { source } }
 }
+#[rustfmt::skip]
 impl<S: IssuerReviewerKeyBindingSource> ReviewerKeyBindingResolver for KernelReviewerKeyBindingResolver<S> {
     fn resolve_current_binding(
         &self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64,
@@ -256,11 +259,13 @@ pub struct KernelReviewerIssuerTrustProvider<R> {
     snapshots: std::sync::Arc<TrustSnapshotManager>,
     revocations: R,
 }
+#[rustfmt::skip]
 impl<R> KernelReviewerIssuerTrustProvider<R> {
     pub fn new(snapshots: std::sync::Arc<TrustSnapshotManager>, revocations: R) -> Self {
         Self { snapshots, revocations }
     }
 }
+#[rustfmt::skip]
 impl<R: RevocationChecker> ReviewerIssuerTrustProvider for KernelReviewerIssuerTrustProvider<R> {
     fn resolve_current_issuer_key(
         &self,
