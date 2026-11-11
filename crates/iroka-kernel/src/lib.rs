@@ -64,7 +64,8 @@ pub use policy_lifecycle::{
 };
 pub use request::AuthorizationRequest;
 pub use reviewer_proof::{
-    KernelReviewerIssuerTrustProvider, ReviewerIssuerTrustKey, ReviewerIssuerTrustProvider,
+    IssuerReviewerKeyBindingSource, KernelReviewerIssuerTrustProvider,
+    KernelReviewerKeyBindingResolver, ReviewerIssuerTrustKey, ReviewerIssuerTrustProvider,
     ReviewerKeyBinding,
     ReviewerKeyBindingResolver, ReviewerKeyBindingStatus, ReviewerProofError, ReviewerProofPayload,
     ReviewerProofVerifier, SignedReviewerKeyBinding, SignedReviewerProof, VerifiedReviewerProof,
