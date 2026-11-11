@@ -238,6 +238,11 @@ impl SqliteSecurityStore {
                version INTEGER NOT NULL CHECK(version > 0),
                updated_at INTEGER NOT NULL, command_id TEXT NOT NULL,
                PRIMARY KEY(subject, tenant_id)
+             );
+             CREATE TABLE IF NOT EXISTS reviewer_proof_consumptions (
+               issuer TEXT NOT NULL, credential_id TEXT NOT NULL, proof_id TEXT NOT NULL,
+               digest BLOB NOT NULL, consumed_at INTEGER NOT NULL,
+               PRIMARY KEY(issuer, credential_id, proof_id)
              );"
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(Self {
@@ -872,6 +877,25 @@ impl SqliteSecurityStore {
             u64::try_from(valid_until).map_err(|_|SecurityStoreError::Unavailable)?,
             u64::try_from(updated).map_err(|_|SecurityStoreError::Unavailable)?,
         ))).transpose()
+    }
+
+    pub(crate) fn consume_reviewer_proof(
+        &self, issuer: &str, credential_id: &str, proof_id: &str, digest: &[u8], now: u64,
+    ) -> Result<(), SecurityStoreError> {
+        if issuer.trim().is_empty() || credential_id.trim().is_empty() || proof_id.trim().is_empty() || digest.len() != 32 {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let now_i = i64::try_from(now).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        match connection.execute(
+            "INSERT INTO reviewer_proof_consumptions(issuer,credential_id,proof_id,digest,consumed_at) VALUES(?1,?2,?3,?4,?5)",
+            params![issuer,credential_id,proof_id,digest,now_i],
+        ) {
+            Ok(1) => Ok(()),
+            Ok(_) => Err(SecurityStoreError::ConflictingVersion),
+            Err(rusqlite::Error::SqliteFailure(code, _)) if code.code == rusqlite::ErrorCode::ConstraintViolation => Err(SecurityStoreError::ConflictingVersion),
+            Err(_) => Err(SecurityStoreError::Unavailable),
+        }
     }
 
     pub(crate) fn tenant_membership(
