@@ -150,6 +150,39 @@ pub trait ReviewerKeyBindingResolver: Send + Sync {
     ) -> Result<Option<SignedReviewerKeyBinding>, ReviewerProofError>;
 }
 
+/// Issuer-side source contract. Production implementations must read the
+/// authoritative current registry, not a caller-supplied document or stale
+/// replica, and must return a short-lived issuer-signed binding assertion.
+pub trait IssuerReviewerKeyBindingSource: Send + Sync {
+    fn fetch_current_binding(
+        &self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64,
+    ) -> Result<Option<SignedReviewerKeyBinding>, ReviewerProofError>;
+}
+
+/// G01 adapter that constrains issuer-source responses to the exact requested
+/// identity tuple. Cryptographic attestation verification remains in the
+/// Kernel verifier and uses the separately root-trusted issuer key provider.
+pub struct KernelReviewerKeyBindingResolver<S> {
+    source: S,
+}
+impl<S> KernelReviewerKeyBindingResolver<S> {
+    pub fn new(source: S) -> Self { Self { source } }
+}
+impl<S: IssuerReviewerKeyBindingSource> ReviewerKeyBindingResolver for KernelReviewerKeyBindingResolver<S> {
+    fn resolve_current_binding(
+        &self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64,
+    ) -> Result<Option<SignedReviewerKeyBinding>, ReviewerProofError> {
+        let result = self.source.fetch_current_binding(issuer, subject, credential_id, key_id, now)?;
+        if let Some(signed) = &result {
+            let b = &signed.binding;
+            if b.issuer != issuer || b.subject != subject || b.credential_id != credential_id || b.key_id != key_id {
+                return Err(ReviewerProofError::BindingMissing);
+            }
+        }
+        Ok(result)
+    }
+}
+
 const BINDING_DOMAIN: &[u8] = b"IROKA:G01:REVIEWER_KEY_BINDING:V1\0";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -320,7 +353,8 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
             || binding.binding_version == 0 || binding.issuer_key_id.trim().is_empty()
             || binding.not_before >= binding.not_after || binding.issued_at >= binding.expires_at
             || binding.expires_at - binding.issued_at > MAX_PROOF_TTL_SECS
-            || binding.issued_at > now.saturating_add(CLOCK_SKEW_SECS) || binding.expires_at <= now {
+            || binding.issued_at > now.saturating_add(CLOCK_SKEW_SECS)
+            || now.saturating_sub(binding.issued_at) > 30 || binding.expires_at <= now {
             return Err(ReviewerProofError::BindingMissing);
         }
         if binding.status != ReviewerKeyBindingStatus::Active { return Err(ReviewerProofError::Revoked); }
@@ -397,7 +431,7 @@ mod tests {
             key_id:"reviewer-key-01".into(), binding_id:"binding:1".into(), binding_version:3,
             public_key:key.verifying_key().to_bytes(), not_before:100, not_after:2000,
             status:if revoked {ReviewerKeyBindingStatus::Revoked} else {ReviewerKeyBindingStatus::Active},
-            issued_at:1100, expires_at:1250, issuer_key_id:"issuer-key-01".into() };
+            issued_at:1190, expires_at:1290, issuer_key_id:"issuer-key-01".into() };
         let issuer_signature=issuer.sign(&binding.signing_bytes().unwrap()).to_bytes().to_vec();
         let verifier=ReviewerProofVerifier::new(Bindings {signed:SignedReviewerKeyBinding {binding,issuer_signature}},
             IssuerTrust {key:issuer.verifying_key().to_bytes(),revoked:false},
@@ -413,7 +447,7 @@ mod tests {
             memory_id:"memory:1".into(),record_version:4,content_sha256:"a".repeat(64),
             purpose:"ORGANIZATIONAL_CONTEXT".into(),classification:"CONFIDENTIAL".into(),
             capability:"content.review".into(),resource:"translation:chapter-1".into(),policy_version:"policy:v1".into(),
-            issued_at:1100,expires_at:1300 };
+            issued_at:1195,expires_at:1290 };
         let signature=key.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
         SignedReviewerProof::from_signature(payload,signature)
     }
