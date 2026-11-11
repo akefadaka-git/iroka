@@ -1078,7 +1078,7 @@ mod tests {
         let prior_proof = verified_fixture(&record, &prior, &designation, 150);
         assert_eq!(
             authority.verify_designated_reviewer(&prior, &prior_proof, &record, "org1", 152),
-            Err(G05Error::ApprovalBindingMismatch)
+            Err(G05Error::ReviewerNotAuthorized)
         );
         let c = r.connection.lock().unwrap();
         c.execute(
