@@ -314,7 +314,9 @@ impl OrganizationAuthorityResolver {
         }
         let designation_caps: Vec<String> = serde_json::from_str(&designation_caps_json)
             .map_err(|_| OrganizationAuthorityError::StoreUnavailable)?;
-        if !designation_caps.iter().any(|item| item == "organization.designation.delegate") {
+        if !designation_caps.iter().any(|item| item == "organization.designation.delegate")
+            || !delegation_caps.iter().all(|cap| designation_caps.iter().any(|owned| owned == cap))
+        {
             return Err(OrganizationAuthorityError::CapabilityDenied);
         }
         if stored_delegate != delegate.subject() || stored_tenant != tenant.tenant_id() || stored_org != organization_id {
@@ -907,7 +909,7 @@ mod tests {
         ).unwrap();
         owner.apply_organization_command(
             &signed_org(&signer,"org:designate-alice",OrganizationAuthorityAction::SetDesignation,
-                Some(alice.subject()),Some("designation:alice"),vec!["organization.designation.delegate"],1),1200,
+                Some(alice.subject()),Some("designation:alice"),vec!["organization.designation.delegate","records.review"],1),1200,
         ).unwrap();
         let grant = signed_delegation(&signer,"delegation:grant",OrganizationAuthorityAction::SetDelegation,
             "delegation:alice-bob",alice.subject(),bob.subject(),vec!["records.review"],1,Some(1300));
