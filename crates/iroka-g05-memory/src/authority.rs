@@ -141,7 +141,7 @@ mod tests {
                 content: "test".into(),
                 content_sha256: receipt.content_sha256.clone(),
                 purpose: Purpose::OrganizationalContext,
-                classification: Classification::Confidential,
+                classification: crate::Classification::Confidential,
                 provenance: crate::Provenance { kind: crate::ProvenanceKind::OwnerApproved,
                     source_refs: vec![], source_revision_refs: vec![], derived_from: vec![],
                     recorded_by_ref: "actor:owner".into(), recorded_at: 100 },
