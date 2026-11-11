@@ -207,6 +207,7 @@ impl DelegationContext {
     pub fn resolved_at(&self) -> u64 { self.resolved_at }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrganizationContext {
     subject: String,
     tenant_id: String,
