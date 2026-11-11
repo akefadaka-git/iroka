@@ -1056,7 +1056,6 @@ impl SqliteSecurityStore {
             Err(_) => Err(SecurityStoreError::Unavailable),
         }
     }
-
 }
 
 impl RevocationChecker for SqliteSecurityStore {
