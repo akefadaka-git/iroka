@@ -373,7 +373,8 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
             || binding.not_before >= binding.not_after || binding.issued_at >= binding.expires_at
             || binding.expires_at - binding.issued_at > MAX_PROOF_TTL_SECS
             || binding.issued_at > now.saturating_add(CLOCK_SKEW_SECS)
-            || now.saturating_sub(binding.issued_at) > 30 || binding.expires_at <= now {
+            || now.saturating_sub(binding.issued_at) > 30 || binding.expires_at <= now
+            || p.expires_at > binding.expires_at || p.expires_at > binding.not_after {
             return Err(ReviewerProofError::BindingMissing);
         }
         if binding.status != ReviewerKeyBindingStatus::Active { return Err(ReviewerProofError::Revoked); }
@@ -390,7 +391,8 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
         }
         if issuer_key.resolved_at > now || now.saturating_sub(issuer_key.resolved_at) > 30
             || now < issuer_key.not_before || now >= issuer_key.not_after
-            || binding.issued_at < issuer_key.not_before || binding.issued_at >= issuer_key.not_after {
+            || binding.issued_at < issuer_key.not_before || binding.issued_at >= issuer_key.not_after
+            || p.expires_at > issuer_key.not_after {
             return Err(ReviewerProofError::IssuerTrustUnavailable);
         }
         let issuer_vk = VerifyingKey::from_bytes(&issuer_key.public_key)
