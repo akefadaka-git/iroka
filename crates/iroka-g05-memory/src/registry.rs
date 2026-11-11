@@ -632,7 +632,7 @@ impl SqliteG05AuthorityRegistry {
                 aggregate_ref: &receipt.approval_ref,
                 tenant_ref: &receipt.tenant_ref,
                 actor_ref: &receipt.reviewer_ref,
-                purpose: Purpose::OrganizationalContext,
+                purpose: record.candidate.purpose,
                 version: d.version,
                 outcome: "consumed",
                 correlation_ref: &receipt.approval_ref,
