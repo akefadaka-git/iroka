@@ -1,0 +1,195 @@
+//! G01 cryptographic reviewer-proof boundary.
+//!
+//! A verified login is not reviewer evidence. This module requires a current,
+//! authoritative identity-to-reviewer-key binding, a signature over the exact
+//! approval scope, freshness and revocation checks, and one-time proof use.
+//! The binding adapter is part of the trusted computing base and must read the
+//! issuer's authoritative current key-binding/revocation state.
+
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::{SecurityStoreError, SqliteSecurityStore, VerifiedPrincipal};
+
+const DOMAIN: &[u8] = b"IROKA:G01:REVIEWER_PROOF:V1\\0";
+const MAX_PROOF_TTL_SECS: u64 = 300;
+const CLOCK_SKEW_SECS: u64 = 30;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewerProofPayload {
+    pub proof_id: String,
+    pub issuer: String,
+    pub subject: String,
+    pub credential_id: String,
+    pub reviewer_id: String,
+    pub key_id: String,
+    pub approval_id: String,
+    pub tenant_id: String,
+    pub organization_id: String,
+    pub capability: String,
+    pub resource: String,
+    pub policy_version: String,
+    pub issued_at: u64,
+    pub expires_at: u64,
+}
+
+impl ReviewerProofPayload {
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, ReviewerProofError> {
+        let body = serde_jcs::to_vec(self).map_err(|_| ReviewerProofError::Malformed)?;
+        let mut bytes = DOMAIN.to_vec();
+        bytes.extend_from_slice(&body);
+        Ok(bytes)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedReviewerProof {
+    pub payload: ReviewerProofPayload,
+    pub signature: Vec<u8>,
+}
+
+impl SignedReviewerProof {
+    pub fn from_signature(payload: ReviewerProofPayload, signature: Vec<u8>) -> Self {
+        Self { payload, signature }
+    }
+}
+
+/// Returned only after signature, binding, scope, freshness, revocation and
+/// replay checks succeed. Fields are private to prevent caller fabrication.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedReviewerProof {
+    reviewer_id: String,
+    subject: String,
+    issuer: String,
+    approval_id: String,
+    tenant_id: String,
+    organization_id: String,
+    capability: String,
+    resource: String,
+    policy_version: String,
+    proof_id: String,
+    verified_at: u64,
+}
+
+impl VerifiedReviewerProof {
+    pub fn reviewer_id(&self) -> &str { &self.reviewer_id }
+    pub fn subject(&self) -> &str { &self.subject }
+    pub fn issuer(&self) -> &str { &self.issuer }
+    pub fn approval_id(&self) -> &str { &self.approval_id }
+    pub fn tenant_id(&self) -> &str { &self.tenant_id }
+    pub fn organization_id(&self) -> &str { &self.organization_id }
+    pub fn capability(&self) -> &str { &self.capability }
+    pub fn resource(&self) -> &str { &self.resource }
+    pub fn policy_version(&self) -> &str { &self.policy_version }
+    pub fn proof_id(&self) -> &str { &self.proof_id }
+    pub fn verified_at(&self) -> u64 { self.verified_at }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReviewerProofError {
+    Malformed,
+    PrincipalMismatch,
+    BindingMissing,
+    BindingInactive,
+    KeyOutsideValidity,
+    InvalidSignature,
+    ScopeMismatch,
+    NotYetValid,
+    Expired,
+    Revoked,
+    Replay,
+    StoreUnavailable,
+}
+
+impl From<SecurityStoreError> for ReviewerProofError {
+    fn from(_: SecurityStoreError) -> Self { Self::StoreUnavailable }
+}
+
+/// Implement using the identity issuer's authoritative reviewer-key registry.
+/// A successful lookup must prove this exact issuer/subject/credential/key tuple
+/// is active now; absence, stale cache or registry failure must fail closed.
+pub trait ReviewerKeyBindingResolver: Send + Sync {
+    fn resolve_current_binding(
+        &self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64,
+    ) -> Result<Option<ReviewerKeyBinding>, ReviewerProofError>;
+}
+
+#[derive(Debug, Clone)]
+pub struct ReviewerKeyBinding {
+    pub public_key: [u8; 32],
+    pub not_before: u64,
+    pub not_after: u64,
+    pub revoked: bool,
+}
+
+pub struct ReviewerProofVerifier<R> {
+    bindings: R,
+    store: std::sync::Arc<SqliteSecurityStore>,
+}
+
+impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
+    pub fn new(bindings: R, store: std::sync::Arc<SqliteSecurityStore>) -> Self {
+        Self { bindings, store }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn verify_and_consume(
+        &self,
+        proof: &SignedReviewerProof,
+        principal: &VerifiedPrincipal,
+        expected_reviewer_id: &str,
+        expected_approval_id: &str,
+        expected_tenant_id: &str,
+        expected_organization_id: &str,
+        expected_capability: &str,
+        expected_resource: &str,
+        expected_policy_version: &str,
+        now: u64,
+    ) -> Result<VerifiedReviewerProof, ReviewerProofError> {
+        let p = &proof.payload;
+        for value in [p.proof_id.as_str(), p.issuer.as_str(), p.subject.as_str(),
+            p.credential_id.as_str(), p.reviewer_id.as_str(), p.key_id.as_str(),
+            p.approval_id.as_str(), p.tenant_id.as_str(), p.organization_id.as_str(),
+            p.capability.as_str(), p.resource.as_str(), p.policy_version.as_str(),
+            expected_reviewer_id, expected_approval_id, expected_tenant_id,
+            expected_organization_id, expected_capability, expected_resource,
+            expected_policy_version] {
+            if value.trim().is_empty() || value.len() > 512 { return Err(ReviewerProofError::Malformed); }
+        }
+        if p.issued_at >= p.expires_at || p.expires_at - p.issued_at > MAX_PROOF_TTL_SECS {
+            return Err(ReviewerProofError::Malformed);
+        }
+        if p.issued_at > now.saturating_add(CLOCK_SKEW_SECS) { return Err(ReviewerProofError::NotYetValid); }
+        if p.expires_at <= now { return Err(ReviewerProofError::Expired); }
+        if p.issuer != principal.issuer() || p.subject != principal.subject()
+            || p.credential_id != principal.credential_id() { return Err(ReviewerProofError::PrincipalMismatch); }
+        if p.reviewer_id != expected_reviewer_id || p.approval_id != expected_approval_id
+            || p.tenant_id != expected_tenant_id || p.organization_id != expected_organization_id
+            || p.capability != expected_capability || p.resource != expected_resource
+            || p.policy_version != expected_policy_version { return Err(ReviewerProofError::ScopeMismatch); }
+        let binding = self.bindings.resolve_current_binding(
+            &p.issuer, &p.subject, &p.credential_id, &p.key_id, now,
+        )?.ok_or(ReviewerProofError::BindingMissing)?;
+        if binding.revoked { return Err(ReviewerProofError::Revoked); }
+        if now < binding.not_before || now >= binding.not_after
+            || p.issued_at < binding.not_before || p.issued_at >= binding.not_after {
+            return Err(ReviewerProofError::KeyOutsideValidity);
+        }
+        let key = VerifyingKey::from_bytes(&binding.public_key).map_err(|_| ReviewerProofError::BindingMissing)?;
+        let bytes = p.signing_bytes()?;
+        let signature = Signature::from_slice(&proof.signature).map_err(|_| ReviewerProofError::Malformed)?;
+        key.verify(&bytes, &signature).map_err(|_| ReviewerProofError::InvalidSignature)?;
+        let digest = Sha256::digest(&bytes);
+        self.store.consume_reviewer_proof(&p.issuer, &p.credential_id, &p.proof_id, digest.as_slice(), now)?;
+        Ok(VerifiedReviewerProof {
+            reviewer_id: p.reviewer_id.clone(), subject: p.subject.clone(), issuer: p.issuer.clone(),
+            approval_id: p.approval_id.clone(), tenant_id: p.tenant_id.clone(),
+            organization_id: p.organization_id.clone(), capability: p.capability.clone(),
+            resource: p.resource.clone(), policy_version: p.policy_version.clone(),
+            proof_id: p.proof_id.clone(), verified_at: now,
+        })
+    }
+}
