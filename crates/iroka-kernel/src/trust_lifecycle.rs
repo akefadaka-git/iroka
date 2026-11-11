@@ -219,6 +219,7 @@ pub struct TrustSnapshotManager {
     installation: Mutex<()>,
     current: RwLock<Arc<TrustStore>>,
     current_version: AtomicU64,
+    current_expires_at: AtomicU64,
 }
 
 impl TrustSnapshotManager {
@@ -228,15 +229,27 @@ impl TrustSnapshotManager {
 
     /// Use when the initial snapshot's verified bundle version is known.
     pub fn new_with_version(initial: TrustStore, version: u64) -> Self {
+        Self::new_with_expiry(initial, version, 0)
+    }
+
+    /// Construct an initial active snapshot only when its verified bundle
+    /// version and signed bundle expiry are both known. Unknown expiry fails closed.
+    pub fn new_with_expiry(initial: TrustStore, version: u64, expires_at: u64) -> Self {
         Self {
             installation: Mutex::new(()),
             current: RwLock::new(Arc::new(initial)),
             current_version: AtomicU64::new(version),
+            current_expires_at: AtomicU64::new(expires_at),
         }
     }
 
     pub fn version(&self) -> u64 {
         self.current_version.load(Ordering::Acquire)
+    }
+
+    pub fn is_current(&self, now: u64) -> bool {
+        let expiry = self.current_expires_at.load(Ordering::Acquire);
+        expiry != 0 && now < expiry
     }
 
     pub fn snapshot(&self) -> Result<Arc<TrustStore>, TrustBundleError> {
@@ -246,7 +259,7 @@ impl TrustSnapshotManager {
             .map_err(|_| TrustBundleError::StoreUnavailable)
     }
 
-    fn install_using<F>(&self, version: u64, install: F) -> Result<u64, TrustBundleError>
+    fn install_using<F>(&self, version: u64, expires_at: u64, install: F) -> Result<u64, TrustBundleError>
     where
         F: FnOnce() -> Result<TrustStore, TrustBundleError>,
     {
@@ -264,6 +277,7 @@ impl TrustSnapshotManager {
             .map_err(|_| TrustBundleError::StoreUnavailable)?;
         *current = Arc::new(next);
         self.current_version.store(version, Ordering::Release);
+        self.current_expires_at.store(expires_at, Ordering::Release);
         Ok(version)
     }
 
@@ -274,7 +288,7 @@ impl TrustSnapshotManager {
         store: &SqliteSecurityStore,
         now: u64,
     ) -> Result<u64, TrustBundleError> {
-        self.install_using(bundle.payload.version, || {
+        self.install_using(bundle.payload.version, bundle.payload.expires_at, || {
             verify_and_install_trust_bundle(bundle, root, store, now)
         })
     }
