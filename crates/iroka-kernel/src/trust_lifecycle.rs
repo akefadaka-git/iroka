@@ -1,6 +1,7 @@
 //! Root-signed trust-bundle lifecycle: verification, expiry and rollback protection.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -217,14 +218,25 @@ pub struct TrustSnapshotManager {
     // must never be published in different orders.
     installation: Mutex<()>,
     current: RwLock<Arc<TrustStore>>,
+    current_version: AtomicU64,
 }
 
 impl TrustSnapshotManager {
     pub fn new(initial: TrustStore) -> Self {
+        Self::new_with_version(initial, 1)
+    }
+
+    /// Use when the initial snapshot's verified bundle version is known.
+    pub fn new_with_version(initial: TrustStore, version: u64) -> Self {
         Self {
             installation: Mutex::new(()),
             current: RwLock::new(Arc::new(initial)),
+            current_version: AtomicU64::new(version),
         }
+    }
+
+    pub fn version(&self) -> u64 {
+        self.current_version.load(Ordering::Acquire)
     }
 
     pub fn snapshot(&self) -> Result<Arc<TrustStore>, TrustBundleError> {
@@ -251,6 +263,7 @@ impl TrustSnapshotManager {
             .write()
             .map_err(|_| TrustBundleError::StoreUnavailable)?;
         *current = Arc::new(next);
+        self.current_version.store(version, Ordering::Release);
         Ok(version)
     }
 
