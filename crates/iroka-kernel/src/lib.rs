@@ -5,10 +5,8 @@
 
 mod assurance;
 mod audit_store;
-mod cultural_context;
-mod policy_lifecycle;
-mod memory_audit;
 mod composition;
+mod cultural_context;
 mod decision;
 mod ethical_programme;
 #[cfg(test)]
@@ -16,10 +14,12 @@ mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod memory_audit;
 mod operational_self_model;
 mod organization_authority;
 mod owner_approval;
 mod policy;
+mod policy_lifecycle;
 mod prosperity_scenarios;
 mod request;
 mod reviewer_proof;
@@ -28,23 +28,14 @@ mod service;
 mod teaching_profiles;
 mod tenant;
 mod trust_lifecycle;
-
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
+pub use composition::authorize_compact_in_tenant;
 pub use cultural_context::{
     CalendarSystem, CommunityReviewStatus, CulturalContextError, CulturalContextRecord,
     ScriptSystem,
 };
 pub use decision::{Decision, DecisionCode, DecisionReason};
-pub use policy_lifecycle::{
-    PolicyActivationCoordinator, PolicyLifecycleError, PolicySnapshotPayload, SignedPolicySnapshot,
-    VerifiedPolicyContext, VerifiedPolicySnapshot,
-};
-pub use memory_audit::{
-    MemoryAuditError, MemoryLifecycleAuditSink, MemoryLifecycleEvent,
-    SqliteMemoryLifecycleAuditStore, MEMORY_EVENT_SCHEMA_ID, MEMORY_EVENT_SCHEMA_VERSION,
-};
-pub use composition::authorize_compact_in_tenant;
 pub use ethical_programme::{
     BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EthicalPrinciple,
     EvidenceKind, EvidenceReference, EvidenceValidationError, LicenceStatus, TraitAssessment,
@@ -71,6 +62,10 @@ pub use igacms::{
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
 };
+pub use memory_audit::{
+    MemoryAuditError, MemoryLifecycleAuditSink, MemoryLifecycleEvent,
+    SqliteMemoryLifecycleAuditStore, MEMORY_EVENT_SCHEMA_ID, MEMORY_EVENT_SCHEMA_VERSION,
+};
 pub use operational_self_model::{
     OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
 };
@@ -84,6 +79,10 @@ pub use owner_approval::{
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
+pub use policy_lifecycle::{
+    PolicyActivationCoordinator, PolicyLifecycleError, PolicySnapshotPayload, SignedPolicySnapshot,
+    VerifiedPolicyContext, VerifiedPolicySnapshot,
+};
 pub use prosperity_scenarios::{
     BusinessScenario, ScenarioCase, ScenarioComparison, ScenarioComparisonResult, ScenarioError,
     ScenarioResult,
