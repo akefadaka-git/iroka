@@ -1428,7 +1428,8 @@ mod tests {
                 "policy_version":crate::CONTRACT_VERSION,"issued_at":110,"expires_at":200
             },
             "signature":[]
-        }).to_string();
+        })
+        .to_string();
         let receipt = DurableApprovalReceipt {
             approval_ref: "a-expired".into(),
             memory_id: "m".into(),
