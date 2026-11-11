@@ -590,6 +590,7 @@ impl SqliteSecurityStore {
 
     /// Atomically consume a G02 Owner command and mutate the canonical organization
     /// and designation tables. The caller verifies the dedicated G02 signature domain.
+    #[rustfmt::skip]
     pub(crate) fn apply_organization_mutation(
         &self,
         receipt: SecurityCommandReceipt<'_>,
@@ -841,6 +842,7 @@ impl SqliteSecurityStore {
         .transpose()
     }
 
+    #[rustfmt::skip]
     pub(crate) fn organization_delegation(
         &self, delegation_id: &str,
     ) -> Result<Option<(String,String,String,String,bool,String,u64,u64,u64)>, SecurityStoreError> {
