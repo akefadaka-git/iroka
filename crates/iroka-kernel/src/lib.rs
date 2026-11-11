@@ -19,6 +19,7 @@ mod owner_approval;
 mod policy;
 mod prosperity_scenarios;
 mod request;
+mod reviewer_proof;
 mod security_store;
 mod service;
 mod teaching_profiles;
@@ -76,6 +77,10 @@ pub use prosperity_scenarios::{
     ScenarioResult,
 };
 pub use request::AuthorizationRequest;
+pub use reviewer_proof::{
+    ReviewerKeyBinding, ReviewerKeyBindingResolver, ReviewerProofError, ReviewerProofPayload,
+    ReviewerProofVerifier, SignedReviewerProof, VerifiedReviewerProof,
+};
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
