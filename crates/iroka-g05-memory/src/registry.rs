@@ -1131,7 +1131,7 @@ mod tests {
         SignedReviewerProof::from_signature(iroka_kernel::ReviewerProofPayload {
             proof_id:id.into(), issuer:"issuer:test".into(), subject:"reviewer:1".into(),
             credential_id:"credential:test".into(), reviewer_id:"reviewer:1".into(),
-            designation_id:"d1".into(), designation_version:1, key_id:"key:1".into(),
+            binding_id:"binding:1".into(), binding_version:1, designation_id:"d1".into(), designation_version:1, key_id:"key:1".into(),
             approval_id:"a1".into(), tenant_id:"t1".into(), organization_id:"org1".into(),
             memory_id:"m1".into(), record_version:1, content_sha256:"a".repeat(64),
             purpose:"ORGANIZATIONAL_CONTEXT".into(), classification:"CONFIDENTIAL".into(),
