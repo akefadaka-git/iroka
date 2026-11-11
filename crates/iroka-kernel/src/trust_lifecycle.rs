@@ -474,7 +474,7 @@ mod tests {
         let first_store = Arc::clone(&store);
         let first_root = root.clone();
         let first = std::thread::spawn(move || {
-            first_manager.install_using(2, || {
+            first_manager.install_using(2, 5_000, || {
                 let trust = verify_and_install_trust_bundle(
                     &middle_bundle,
                     &first_root,
@@ -493,7 +493,7 @@ mod tests {
         let second_store = Arc::clone(&store);
         let second_root = root.clone();
         let second = std::thread::spawn(move || {
-            second_manager.install_using(3, || {
+            second_manager.install_using(3, 5_000, || {
                 second_entered_tx.send(()).unwrap();
                 verify_and_install_trust_bundle(&newest_bundle, &second_root, &second_store, 1_300)
             })
