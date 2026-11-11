@@ -730,5 +730,4 @@ mod tests {
             Err(crate::OwnerApprovalError::Revoked)
         );
     }
-
 }
