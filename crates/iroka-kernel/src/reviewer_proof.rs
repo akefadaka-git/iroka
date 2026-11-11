@@ -578,4 +578,16 @@ mod tests {
         );
     }
 
+    #[test]
+    fn rejects_proof_expiry_beyond_current_binding_lifetime() {
+        let (key, verifier, principal) = fixture(false);
+        let mut proof = signed(&key, "proof:binding-expiry");
+        proof.payload.expires_at = 1291;
+        proof.signature = key.sign(&proof.payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        assert_eq!(
+            verify(&verifier, &proof, &principal),
+            Err(ReviewerProofError::BindingMissing)
+        );
+    }
+
 }
