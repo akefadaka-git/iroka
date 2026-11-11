@@ -670,8 +670,7 @@ where
     ) -> Result<ReviewerDesignationIdentity, G05Error> {
         let binding = self.designation_keys.resolve_current_identity(reviewer, key_ref, now)?
             .ok_or(G05Error::ReviewerNotAuthorized)?;
-        if binding.reviewer_ref != reviewer || binding.subject_ref != reviewer
-            || binding.key_ref != key_ref || binding.issuer_ref.trim().is_empty()
+        if binding.reviewer_ref != reviewer || binding.key_ref != key_ref || binding.issuer_ref.trim().is_empty()
             || binding.credential_ref.trim().is_empty() || binding.binding_ref.trim().is_empty()
             || binding.binding_version == 0 || binding.resolved_at > now
             || now.saturating_sub(binding.resolved_at) > 30 {
@@ -705,7 +704,8 @@ where
         let resource = format!("g05:durable.activate:{}:{}", record.candidate.memory_id, record.candidate.record_version);
         let verified = self.verifier.verify_and_consume(
             proof, principal,
-            &designation.reviewer_ref, &receipt.approval_ref,
+            &designation.reviewer_ref, &identity.binding_ref, identity.binding_version,
+            &receipt.approval_ref,
             &record.candidate.tenant_ref, &designation.organization_ref,
             &designation.designation_ref, designation.version,
             &record.candidate.memory_id, record.candidate.record_version,
@@ -714,6 +714,8 @@ where
             "g05.memory.durable.activate", &resource, "g05-memory-v1", now,
         ).map_err(|_| G05Error::ReviewerNotAuthorized)?;
         if verified.reviewer_id() != designation.reviewer_ref
+            || verified.binding_id() != identity.binding_ref
+            || verified.binding_version() != identity.binding_version
             || verified.issuer() != principal.issuer()
             || verified.proof_id() != receipt.proof_ref
             || verified.subject() != principal.subject()
@@ -828,8 +830,7 @@ impl<P: G01ReviewerProofAuthority, M: CanonicalMemoryMetadataResolver> Designate
         {
             return Err(G05Error::ApprovalBindingMismatch);
         }
-        if reviewer_principal.subject() != receipt.reviewer_ref
-            || record.candidate.memory_class != crate::MemoryClass::Durable
+        if record.candidate.memory_class != crate::MemoryClass::Durable
             || record.lifecycle_state != crate::LifecycleState::PendingReview
             || record.candidate.memory_id != receipt.memory_id
             || record.candidate.tenant_ref != receipt.tenant_ref
