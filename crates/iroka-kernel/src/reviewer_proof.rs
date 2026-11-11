@@ -124,6 +124,9 @@ pub enum ReviewerProofError {
     Revoked,
     Replay,
     StoreUnavailable,
+    IssuerTrustUnavailable,
+    IssuerKeyRevoked,
+    InvalidBindingSignature,
 }
 
 #[rustfmt::skip]
@@ -131,58 +134,88 @@ impl From<SecurityStoreError> for ReviewerProofError {
     fn from(_: SecurityStoreError) -> Self { Self::StoreUnavailable }
 }
 
-/// Implement using the identity issuer's authoritative reviewer-key registry.
-/// A successful lookup must prove this exact issuer/subject/credential/key tuple
-/// is active now; absence, stale cache or registry failure must fail closed.
-#[rustfmt::skip]
+/// Current issuer-signed reviewer identity-to-key binding.
 pub trait ReviewerKeyBindingResolver: Send + Sync {
-    fn resolve_current_binding(
-        &self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64,
-    ) -> Result<Option<ReviewerKeyBinding>, ReviewerProofError>;
+    fn resolve_current_binding(&self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64)
+        -> Result<Option<SignedReviewerKeyBinding>, ReviewerProofError>;
 }
 
-#[derive(Debug, Clone)]
+const BINDING_DOMAIN: &[u8] = b"IROKA:G01:REVIEWER_KEY_BINDING:V1\0";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ReviewerKeyBinding {
+    pub issuer: String,
+    pub subject: String,
+    pub credential_id: String,
+    pub reviewer_id: String,
+    pub key_id: String,
+    pub binding_id: String,
+    pub binding_version: u64,
+    pub public_key: [u8; 32],
+    pub not_before: u64,
+    pub not_after: u64,
+    pub status: ReviewerKeyBindingStatus,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub issuer_key_id: String,
+}
+impl ReviewerKeyBinding {
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, ReviewerProofError> {
+        let body = serde_jcs::to_vec(self).map_err(|_| ReviewerProofError::Malformed)?;
+        let mut bytes = BINDING_DOMAIN.to_vec();
+        bytes.extend_from_slice(&body);
+        Ok(bytes)
+    }
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewerKeyBindingStatus { Active, Revoked, Suspended }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedReviewerKeyBinding {
+    pub binding: ReviewerKeyBinding,
+    pub issuer_signature: Vec<u8>,
+}
+
+/// Resolves issuer signing keys from G01's root-signed trust snapshot and
+/// current revocation source. Caller-supplied keys are never trusted.
+#[derive(Debug, Clone)]
+pub struct ReviewerIssuerTrustKey {
+    pub issuer: String,
+    pub key_id: String,
     pub public_key: [u8; 32],
     pub not_before: u64,
     pub not_after: u64,
     pub revoked: bool,
-    pub credential_revoked: bool,
-    /// Time at which the authoritative adapter checked this binding/revocation state.
+    pub trust_version: u64,
     pub resolved_at: u64,
 }
-
-pub struct ReviewerProofVerifier<R> {
-    bindings: R,
-    store: std::sync::Arc<SqliteSecurityStore>,
+pub trait ReviewerIssuerTrustProvider: Send + Sync {
+    fn resolve_current_issuer_key(&self, issuer: &str, key_id: &str, now: u64)
+        -> Result<Option<ReviewerIssuerTrustKey>, ReviewerProofError>;
 }
 
+pub struct ReviewerProofVerifier<R, I> {
+    bindings: R,
+    issuer_trust: I,
+    store: std::sync::Arc<SqliteSecurityStore>,
+}
 #[rustfmt::skip]
-impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
-    pub fn new(bindings: R, store: std::sync::Arc<SqliteSecurityStore>) -> Self {
-        Self { bindings, store }
+impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProofVerifier<R, I> {
+    pub fn new(bindings: R, issuer_trust: I, store: std::sync::Arc<SqliteSecurityStore>) -> Self {
+        Self { bindings, issuer_trust, store }
     }
-
     #[allow(clippy::too_many_arguments)]
     pub fn verify_and_consume(
-        &self,
-        proof: &SignedReviewerProof,
-        principal: &VerifiedPrincipal,
-        expected_reviewer_id: &str,
-        expected_approval_id: &str,
-        expected_tenant_id: &str,
-        expected_organization_id: &str,
-        expected_designation_id: &str,
-        expected_designation_version: u64,
-        expected_memory_id: &str,
-        expected_record_version: u64,
-        expected_content_sha256: &str,
-        expected_purpose: &str,
-        expected_classification: &str,
-        expected_capability: &str,
-        expected_resource: &str,
-        expected_policy_version: &str,
-        now: u64,
+        &self, proof: &SignedReviewerProof, principal: &VerifiedPrincipal,
+        expected_reviewer_id: &str, expected_approval_id: &str, expected_tenant_id: &str,
+        expected_organization_id: &str, expected_designation_id: &str,
+        expected_designation_version: u64, expected_memory_id: &str,
+        expected_record_version: u64, expected_content_sha256: &str,
+        expected_purpose: &str, expected_classification: &str,
+        expected_capability: &str, expected_resource: &str,
+        expected_policy_version: &str, now: u64,
     ) -> Result<VerifiedReviewerProof, ReviewerProofError> {
         let p = &proof.payload;
         for value in [p.proof_id.as_str(), p.issuer.as_str(), p.subject.as_str(),
@@ -192,14 +225,14 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             p.capability.as_str(), p.resource.as_str(), p.policy_version.as_str(),
             expected_reviewer_id, expected_approval_id, expected_tenant_id,
             expected_organization_id, expected_designation_id, expected_memory_id,
-            expected_content_sha256, expected_purpose, expected_classification, expected_capability, expected_resource,
-            expected_policy_version] {
+            expected_content_sha256, expected_purpose, expected_classification, expected_capability,
+            expected_resource, expected_policy_version] {
             if value.trim().is_empty() || value.len() > 512 { return Err(ReviewerProofError::Malformed); }
         }
-        if p.designation_version == 0 || p.record_version == 0
-            || p.content_sha256.len() != 64
-            || !p.content_sha256.bytes().all(|b| b.is_ascii_hexdigit())
-        { return Err(ReviewerProofError::Malformed); }
+        if p.designation_version == 0 || p.record_version == 0 || p.content_sha256.len() != 64
+            || !p.content_sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(ReviewerProofError::Malformed);
+        }
         if p.issued_at >= p.expires_at || p.expires_at - p.issued_at > MAX_PROOF_TTL_SECS {
             return Err(ReviewerProofError::Malformed);
         }
@@ -212,19 +245,45 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             || p.designation_id != expected_designation_id || p.designation_version != expected_designation_version
             || p.memory_id != expected_memory_id || p.record_version != expected_record_version
             || p.content_sha256 != expected_content_sha256 || p.purpose != expected_purpose
-            || p.classification != expected_classification || p.capability != expected_capability || p.resource != expected_resource
-            || p.policy_version != expected_policy_version { return Err(ReviewerProofError::ScopeMismatch); }
-        let binding = self.bindings.resolve_current_binding(
-            &p.issuer, &p.subject, &p.credential_id, &p.key_id, now,
-        )?.ok_or(ReviewerProofError::BindingMissing)?;
-        if binding.revoked || binding.credential_revoked { return Err(ReviewerProofError::Revoked); }
-        if binding.resolved_at > now || now.saturating_sub(binding.resolved_at) > 30 {
+            || p.classification != expected_classification || p.capability != expected_capability
+            || p.resource != expected_resource || p.policy_version != expected_policy_version {
+            return Err(ReviewerProofError::ScopeMismatch);
+        }
+        let signed = self.bindings.resolve_current_binding(&p.issuer, &p.subject, &p.credential_id, &p.key_id, now)?
+            .ok_or(ReviewerProofError::BindingMissing)?;
+        let binding = &signed.binding;
+        if binding.issuer != p.issuer || binding.subject != p.subject
+            || binding.credential_id != p.credential_id || binding.reviewer_id != p.reviewer_id
+            || binding.key_id != p.key_id || binding.binding_id.trim().is_empty()
+            || binding.binding_version == 0 || binding.issuer_key_id.trim().is_empty()
+            || binding.not_before >= binding.not_after || binding.issued_at >= binding.expires_at
+            || binding.expires_at - binding.issued_at > MAX_PROOF_TTL_SECS
+            || binding.issued_at > now.saturating_add(CLOCK_SKEW_SECS) || binding.expires_at <= now {
             return Err(ReviewerProofError::BindingMissing);
         }
+        if binding.status != ReviewerKeyBindingStatus::Active { return Err(ReviewerProofError::Revoked); }
         if now < binding.not_before || now >= binding.not_after
+            || binding.issued_at < binding.not_before || binding.issued_at >= binding.not_after
             || p.issued_at < binding.not_before || p.issued_at >= binding.not_after {
             return Err(ReviewerProofError::KeyOutsideValidity);
         }
+        let issuer_key = self.issuer_trust.resolve_current_issuer_key(&p.issuer, &binding.issuer_key_id, now)?
+            .ok_or(ReviewerProofError::IssuerTrustUnavailable)?;
+        if issuer_key.issuer != p.issuer || issuer_key.key_id != binding.issuer_key_id
+            || issuer_key.revoked || issuer_key.trust_version == 0 {
+            return Err(ReviewerProofError::IssuerKeyRevoked);
+        }
+        if issuer_key.resolved_at > now || now.saturating_sub(issuer_key.resolved_at) > 30
+            || now < issuer_key.not_before || now >= issuer_key.not_after
+            || binding.issued_at < issuer_key.not_before || binding.issued_at >= issuer_key.not_after {
+            return Err(ReviewerProofError::IssuerTrustUnavailable);
+        }
+        let issuer_vk = VerifyingKey::from_bytes(&issuer_key.public_key)
+            .map_err(|_| ReviewerProofError::IssuerTrustUnavailable)?;
+        let issuer_sig = Signature::from_slice(&signed.issuer_signature).map_err(|_| ReviewerProofError::Malformed)?;
+        issuer_vk.verify(&binding.signing_bytes()?, &issuer_sig)
+            .map_err(|_| ReviewerProofError::InvalidBindingSignature)?;
+        if binding.public_key == [0u8; 32] { return Err(ReviewerProofError::BindingMissing); }
         let key = VerifyingKey::from_bytes(&binding.public_key).map_err(|_| ReviewerProofError::BindingMissing)?;
         let bytes = p.signing_bytes()?;
         let signature = Signature::from_slice(&proof.signature).map_err(|_| ReviewerProofError::Malformed)?;
@@ -254,70 +313,76 @@ mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
     use std::sync::Arc;
-    struct Bindings { key: [u8;32], revoked: bool }
+    struct Bindings { signed: SignedReviewerKeyBinding }
     impl ReviewerKeyBindingResolver for Bindings {
         fn resolve_current_binding(&self, _: &str, _: &str, _: &str, _: &str, _: u64)
-            -> Result<Option<ReviewerKeyBinding>, ReviewerProofError> {
-            Ok(Some(ReviewerKeyBinding { public_key:self.key, not_before:100, not_after:2000, revoked:self.revoked, credential_revoked:false, resolved_at:1200 }))
+            -> Result<Option<SignedReviewerKeyBinding>, ReviewerProofError> { Ok(Some(self.signed.clone())) }
+    }
+    struct IssuerTrust { key: [u8;32], revoked: bool }
+    impl ReviewerIssuerTrustProvider for IssuerTrust {
+        fn resolve_current_issuer_key(&self, issuer: &str, key_id: &str, now: u64)
+            -> Result<Option<ReviewerIssuerTrustKey>, ReviewerProofError> {
+            Ok(Some(ReviewerIssuerTrustKey { issuer:issuer.into(), key_id:key_id.into(),
+                public_key:self.key, not_before:100, not_after:2000, revoked:self.revoked,
+                trust_version:4, resolved_at:now }))
         }
     }
-    fn fixture(revoked: bool) -> (SigningKey, ReviewerProofVerifier<Bindings>, VerifiedPrincipal) {
+    fn fixture(revoked: bool) -> (SigningKey, ReviewerProofVerifier<Bindings,IssuerTrust>, VerifiedPrincipal) {
         let key=SigningKey::from_bytes(&[91u8;32]);
-        let store=Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
-        let verifier=ReviewerProofVerifier::new(Bindings {key:key.verifying_key().to_bytes(),revoked},store);
+        let issuer=SigningKey::from_bytes(&[92u8;32]);
+        let binding=ReviewerKeyBinding { issuer:"issuer:community".into(), subject:"reviewer:alice".into(),
+            credential_id:"credential:42".into(), reviewer_id:"reviewer:maale-01".into(),
+            key_id:"reviewer-key-01".into(), binding_id:"binding:1".into(), binding_version:3,
+            public_key:key.verifying_key().to_bytes(), not_before:100, not_after:2000,
+            status:if revoked {ReviewerKeyBindingStatus::Revoked} else {ReviewerKeyBindingStatus::Active},
+            issued_at:1100, expires_at:1250, issuer_key_id:"issuer-key-01".into() };
+        let issuer_signature=issuer.sign(&binding.signing_bytes().unwrap()).to_bytes().to_vec();
+        let verifier=ReviewerProofVerifier::new(Bindings {signed:SignedReviewerKeyBinding {binding,issuer_signature}},
+            IssuerTrust {key:issuer.verifying_key().to_bytes(),revoked:false},
+            Arc::new(SqliteSecurityStore::open_in_memory().unwrap()));
         let principal=VerifiedPrincipal::from_verified_credential("reviewer:alice".into(),"issuer:community".into(),"credential:42".into());
         (key,verifier,principal)
     }
     fn signed(key:&SigningKey,id:&str)->SignedReviewerProof {
-        let payload=ReviewerProofPayload {
-            proof_id:id.into(),issuer:"issuer:community".into(),subject:"reviewer:alice".into(),
-            credential_id:"credential:42".into(),reviewer_id:"reviewer:maale-01".into(),
-            designation_id:"designation:1".into(),designation_version:3,key_id:"reviewer-key-01".into(),approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),
-            organization_id:"org:alpha".into(),memory_id:"memory:1".into(),record_version:4,content_sha256:"a".repeat(64),purpose:"ORGANIZATIONAL_CONTEXT".into(),classification:"CONFIDENTIAL".into(),capability:"content.review".into(),resource:"translation:chapter-1".into(),
-            policy_version:"policy:v1".into(),issued_at:1100,expires_at:1300,
-        };
+        let payload=ReviewerProofPayload { proof_id:id.into(),issuer:"issuer:community".into(),
+            subject:"reviewer:alice".into(),credential_id:"credential:42".into(),reviewer_id:"reviewer:maale-01".into(),
+            designation_id:"designation:1".into(),designation_version:3,key_id:"reviewer-key-01".into(),
+            approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),organization_id:"org:alpha".into(),
+            memory_id:"memory:1".into(),record_version:4,content_sha256:"a".repeat(64),
+            purpose:"ORGANIZATIONAL_CONTEXT".into(),classification:"CONFIDENTIAL".into(),
+            capability:"content.review".into(),resource:"translation:chapter-1".into(),policy_version:"policy:v1".into(),
+            issued_at:1100,expires_at:1300 };
         let signature=key.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
         SignedReviewerProof::from_signature(payload,signature)
     }
-    fn verify(v:&ReviewerProofVerifier<Bindings>,p:&SignedReviewerProof,principal:&VerifiedPrincipal)
+    fn verify(v:&ReviewerProofVerifier<Bindings,IssuerTrust>,p:&SignedReviewerProof,principal:&VerifiedPrincipal)
         -> Result<VerifiedReviewerProof,ReviewerProofError> {
-        v.verify_and_consume(p,principal,"reviewer:maale-01","approval:17","tenant:alpha",
-            "org:alpha","designation:1",3,"memory:1",4,&"a".repeat(64),"ORGANIZATIONAL_CONTEXT",
-            "CONFIDENTIAL","content.review","translation:chapter-1","policy:v1",1200)
+        v.verify_and_consume(p,principal,"reviewer:maale-01","approval:17","tenant:alpha","org:alpha",
+            "designation:1",3,"memory:1",4,&"a".repeat(64),"ORGANIZATIONAL_CONTEXT","CONFIDENTIAL",
+            "content.review","translation:chapter-1","policy:v1",1200)
     }
-    #[test]
-    fn verifies_exact_reviewer_identity_and_scope_then_consumes_once() {
-        let (key,v,principal)=fixture(false);
-        let proof=signed(&key,"proof:once");
-        let result=verify(&v,&proof,&principal).unwrap();
-        assert_eq!(result.reviewer_id(),"reviewer:maale-01");
-        assert_eq!(result.capability(),"content.review");
-        assert_eq!(result.resource(),"translation:chapter-1");
+    #[test] fn verifies_issuer_signed_binding_and_consumes_once() {
+        let (key,v,principal)=fixture(false); let proof=signed(&key,"proof:once");
+        assert_eq!(verify(&v,&proof,&principal).unwrap().reviewer_id(),"reviewer:maale-01");
         assert_eq!(verify(&v,&proof,&principal),Err(ReviewerProofError::Replay));
     }
-    #[test]
-    fn rejects_wrong_approval_scope_and_wrong_principal() {
-        let (key,v,principal)=fixture(false);
-        let mut proof=signed(&key,"proof:scope");
+    #[test] fn rejects_wrong_scope_and_principal() {
+        let (key,v,principal)=fixture(false); let mut proof=signed(&key,"proof:scope");
         proof.payload.resource="translation:chapter-2".into();
         proof.signature=key.sign(&proof.payload.signing_bytes().unwrap()).to_bytes().to_vec();
         assert_eq!(verify(&v,&proof,&principal),Err(ReviewerProofError::ScopeMismatch));
         let other=VerifiedPrincipal::from_verified_credential("reviewer:bob".into(),"issuer:community".into(),"credential:43".into());
         assert_eq!(verify(&v,&signed(&key,"proof:principal"),&other),Err(ReviewerProofError::PrincipalMismatch));
     }
-    #[test]
-    fn rejects_revoked_key_and_tampered_signature() {
+    #[test] fn rejects_revoked_binding_and_tampered_proof() {
         let (key,v,principal)=fixture(true);
         assert_eq!(verify(&v,&signed(&key,"proof:revoked"),&principal),Err(ReviewerProofError::Revoked));
-        let (_,v2,p2)=fixture(false);
-        let mut tampered=signed(&key,"proof:tampered");
-        tampered.signature[0] ^= 0x01;
+        let (_,v2,p2)=fixture(false); let mut tampered=signed(&key,"proof:tampered"); tampered.signature[0]^=1;
         assert_eq!(verify(&v2,&tampered,&p2),Err(ReviewerProofError::InvalidSignature));
     }
-    #[test]
-    fn rejects_expired_and_future_dated_proofs() {
-        let (key,v,principal)=fixture(false);
-        let mut expired=signed(&key,"proof:expired"); expired.payload.expires_at=1199;
+    #[test] fn rejects_expired_and_future_proofs() {
+        let (key,v,principal)=fixture(false); let mut expired=signed(&key,"proof:expired");
+        expired.payload.expires_at=1199;
         assert_eq!(verify(&v,&expired,&principal),Err(ReviewerProofError::Expired));
         let mut future=signed(&key,"proof:future"); future.payload.issued_at=1300; future.payload.expires_at=1400;
         assert_eq!(verify(&v,&future,&principal),Err(ReviewerProofError::NotYetValid));
