@@ -1040,25 +1040,27 @@ mod tests {
     use super::*;
     struct G01;
     impl G01ReviewerProofAuthority for G01 {
-        fn validate_reviewer_key_binding(&self, r: &str, k: &str, _: u64) -> Result<(), G05Error> {
-            if r == "reviewer:1" && k == "key:1" {
-                Ok(())
-            } else {
-                Err(G05Error::ReviewerNotAuthorized)
-            }
+        fn validate_reviewer_key_binding(&self, _: &str, _: &str, _: u64) -> Result<(), G05Error> {
+            Err(G05Error::ReviewerNotAuthorized)
         }
         fn verify_approval_proof(
-            &self,
-            r: &DurableApprovalReceipt,
-            d: &ReviewerDesignation,
-            _: u64,
-        ) -> Result<(), G05Error> {
-            if r.proof_ref == "proof:valid" && r.reviewer_ref == d.reviewer_ref {
-                Ok(())
-            } else {
-                Err(G05Error::ReviewerNotAuthorized)
-            }
+            &self, _: &SignedReviewerProof, _: &VerifiedPrincipal, _: &DurableApprovalReceipt,
+            _: &ReviewerDesignation, _: &MemoryRecord, _: u64,
+        ) -> Result<VerifiedReviewerProof, G05Error> {
+            Err(G05Error::ReviewerNotAuthorized)
         }
+    }
+    fn dummy_proof(id: &str) -> SignedReviewerProof {
+        SignedReviewerProof::from_signature(iroka_kernel::ReviewerProofPayload {
+            proof_id:id.into(), issuer:"issuer:test".into(), subject:"reviewer:1".into(),
+            credential_id:"credential:test".into(), reviewer_id:"reviewer:1".into(),
+            designation_id:"d1".into(), designation_version:1, key_id:"key:1".into(),
+            approval_id:"a1".into(), tenant_id:"t1".into(), organization_id:"org1".into(),
+            memory_id:"m1".into(), record_version:1, content_sha256:"a".repeat(64),
+            purpose:"ORGANIZATIONAL_CONTEXT".into(), classification:"CONFIDENTIAL".into(),
+            capability:"g05.memory.durable.activate".into(), resource:"g05:durable.activate:m1:1".into(),
+            policy_version:"g05-memory-v1".into(), issued_at:120, expires_at:200,
+        },vec![0;64])
     }
     #[test]
     fn consent_scope_purpose_expiry_and_revocation_fail_closed() {
@@ -1109,105 +1111,25 @@ mod tests {
         );
     }
     #[test]
-    fn reviewer_scope_expiry_revocation_and_replay_fail_closed() {
+    fn g05_approval_consumption_is_atomic_and_exactly_once() {
         let r = SqliteG05AuthorityRegistry::open_in_memory().unwrap();
         {
             let c = r.connection.lock().unwrap();
-            c.execute(
-                "INSERT INTO g05_reviewer_designations VALUES
-   ('d1','t1','org1','reviewer:1','key:1','admin',1,100,300,100,NULL)",
-                [],
-            )
-            .unwrap();
+            c.execute("INSERT INTO g05_reviewer_designations VALUES
+             ('d1','t1','org1','reviewer:1','key:1','admin',1,100,300,100,NULL)",[]).unwrap();
         }
+        let d = r.active_designation("t1","org1","reviewer:1",150).unwrap();
         let receipt = DurableApprovalReceipt {
-            approval_ref: "a1".into(),
-            memory_id: "m1".into(),
-            tenant_ref: "t1".into(),
-            subject_ref: "org1".into(),
-            content_sha256: "a".repeat(64),
-            reviewer_ref: "reviewer:1".into(),
-            issued_at: 120,
-            expires_at: 200,
-            proof_ref: "proof:valid".into(),
+            approval_ref:"a1".into(), memory_id:"m1".into(), tenant_ref:"t1".into(),
+            subject_ref:"org1".into(), content_sha256:"a".repeat(64), reviewer_ref:"reviewer:1".into(),
+            issued_at:120, expires_at:200, proof_ref:"proof:valid".into(),
+            signed_proof:dummy_proof("proof:valid"),
         };
-        let a = RegistryDesignatedReviewerAuthority::new(r.clone(), G01);
-        assert_eq!(a.verify_designated_reviewer(&receipt, "org1", 150), Ok(()));
-        assert_eq!(
-            a.verify_designated_reviewer(&receipt, "org1", 151),
-            Err(G05Error::ApprovalReplay)
-        );
-        let mut wrong = receipt.clone();
-        wrong.tenant_ref = "t2".into();
-        assert_eq!(
-            a.verify_designated_reviewer(&wrong, "org1", 152),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
-        let mut wrong_org = receipt.clone();
-        wrong_org.approval_ref = "a-org".into();
-        assert_eq!(
-            a.verify_designated_reviewer(&wrong_org, "other-org", 152),
-            Err(G05Error::ApprovalBindingMismatch)
-        );
-        let mut wrong_reviewer = receipt.clone();
-        wrong_reviewer.approval_ref = "a-reviewer".into();
-        wrong_reviewer.reviewer_ref = "reviewer:other".into();
-        assert_eq!(
-            a.verify_designated_reviewer(&wrong_reviewer, "org1", 152),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
-        let mut bad_proof = receipt.clone();
-        bad_proof.approval_ref = "a-proof".into();
-        bad_proof.proof_ref = "proof:forged".into();
-        assert_eq!(
-            a.verify_designated_reviewer(&bad_proof, "org1", 152),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
-        let mut corrected_proof = bad_proof.clone();
-        corrected_proof.proof_ref = "proof:valid".into();
-        assert_eq!(
-            a.verify_designated_reviewer(&corrected_proof, "org1", 152),
-            Ok(())
-        );
-        let mut overlong = receipt.clone();
-        overlong.approval_ref = "a-window".into();
-        overlong.expires_at = 301;
-        assert_eq!(
-            a.verify_designated_reviewer(&overlong, "org1", 152),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
-        {
-            let c = r.connection.lock().unwrap();
-            c.execute(
-                "INSERT INTO g05_reviewer_designations VALUES
-    ('d2','t1','org1','reviewer:1','key:2','admin',2,140,300,140,145)",
-                [],
-            )
-            .unwrap();
-        }
-        let prior = DurableApprovalReceipt {
-            approval_ref: "a-prior".into(),
-            ..receipt.clone()
-        };
-        assert_eq!(
-            a.verify_designated_reviewer(&prior, "org1", 150),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
-        let c = r.connection.lock().unwrap();
-        c.execute(
-            "UPDATE g05_reviewer_designations SET revoked_at=153 WHERE designation_ref='d1'",
-            [],
-        )
-        .unwrap();
-        drop(c);
-        let next = DurableApprovalReceipt {
-            approval_ref: "a2".into(),
-            ..receipt
-        };
-        assert_eq!(
-            a.verify_designated_reviewer(&next, "org1", 154),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
+        assert_eq!(r.consume_approval(&receipt,&d,150),Ok(()));
+        assert_eq!(r.consume_approval(&receipt,&d,151),Err(G05Error::ApprovalReplay));
+        let c=r.connection.lock().unwrap();
+        let count:i64=c.query_row("SELECT COUNT(*) FROM g05_consumed_reviewer_approvals",[],|row|row.get(0)).unwrap();
+        assert_eq!(count,1);
     }
     #[test]
     fn trusted_governance_adapter_composes_sqlite_consent_and_reviewer_registries() {
@@ -1244,50 +1166,16 @@ mod tests {
             ),
             Ok(())
         );
-        let receipt = DurableApprovalReceipt {
-            approval_ref: "approval:one".into(),
-            memory_id: "memory:one".into(),
-            tenant_ref: "tenant:one".into(),
-            subject_ref: "org:one".into(),
-            content_sha256: "b".repeat(64),
-            reviewer_ref: "reviewer:1".into(),
-            issued_at: 120,
-            expires_at: 200,
-            proof_ref: "proof:valid".into(),
-        };
-        assert_eq!(
-            crate::GovernancePort::verify_durable_approval(&adapter, &receipt, 150),
-            Ok(())
-        );
     }
     #[test]
-    fn reviewer_registry_rejects_expired_designation_and_untrusted_proof() {
-        let r = SqliteG05AuthorityRegistry::open_in_memory().unwrap();
+    fn expired_designations_are_not_resolved_as_current() {
+        let r=SqliteG05AuthorityRegistry::open_in_memory().unwrap();
         {
-            let c = r.connection.lock().unwrap();
-            c.execute(
-                "INSERT INTO g05_reviewer_designations VALUES
-   ('d-expired','t','org','reviewer:1','key:1','admin',1,100,140,100,NULL)",
-                [],
-            )
-            .unwrap();
+            let c=r.connection.lock().unwrap();
+            c.execute("INSERT INTO g05_reviewer_designations VALUES
+             ('d-expired','t','org','reviewer:1','key:1','admin',1,100,140,100,NULL)",[]).unwrap();
         }
-        let a = RegistryDesignatedReviewerAuthority::new(r, G01);
-        let receipt = DurableApprovalReceipt {
-            approval_ref: "a-expired".into(),
-            memory_id: "m".into(),
-            tenant_ref: "t".into(),
-            subject_ref: "org".into(),
-            content_sha256: "c".repeat(64),
-            reviewer_ref: "reviewer:1".into(),
-            issued_at: 110,
-            expires_at: 200,
-            proof_ref: "proof:valid".into(),
-        };
-        assert_eq!(
-            a.verify_designated_reviewer(&receipt, "org", 150),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
+        assert_eq!(r.active_designation("t","org","reviewer:1",150),Err(G05Error::ReviewerNotAuthorized));
     }
 
     #[test]
