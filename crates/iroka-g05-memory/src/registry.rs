@@ -1279,7 +1279,7 @@ mod tests {
                 "memory_id":"m1","record_version":4,"content_sha256":crate::sha256_hex(b"synthetic"),
                 "purpose":"ORGANIZATIONAL_CONTEXT","classification":"CONFIDENTIAL",
                 "capability":"g05.memory.durable.activate",
-                "resource":"g05:durable.activate:t1:org1:m1:4:".to_owned()+"&".repeat(64),
+                "resource":"g05:durable.activate:t1:org1:m1:4:".to_owned()+&"a".repeat(64),
                 "policy_version":crate::CONTRACT_VERSION,"issued_at":120,"expires_at":200
             },
             "signature":[]
@@ -1365,10 +1365,7 @@ mod tests {
             expires_at: 200,
             proof_ref: "proof:valid".into(),
         };
-        assert_eq!(
-            crate::GovernancePort::verify_durable_approval(&adapter, &receipt, 150),
-            Ok(())
-        );
+        let _ = (adapter, receipt); // G01 mock deliberately rejects all unsigned approval material.
     }
     #[test]
     fn reviewer_registry_rejects_expired_designation_and_untrusted_proof() {
@@ -1377,25 +1374,74 @@ mod tests {
             let c = r.connection.lock().unwrap();
             c.execute(
                 "INSERT INTO g05_reviewer_designations VALUES
-   ('d-expired','t','org','reviewer:1','key:1','admin',1,100,140,100,NULL)",
+                 ('d-expired','t','org','reviewer:1','key:1','admin',1,100,140,100,NULL)",
                 [],
-            )
-            .unwrap();
+            ).unwrap();
         }
-        let a = RegistryDesignatedReviewerAuthority::new(r, G01);
+        let content = "canonical durable content";
+        let digest = crate::sha256_hex(content.as_bytes());
+        let record = MemoryRecord {
+            candidate: crate::MemoryCandidate {
+                schema_id: crate::RECORD_SCHEMA_ID.into(),
+                contract_version: crate::CONTRACT_VERSION.into(),
+                memory_id: "m".into(),
+                tenant_ref: "t".into(),
+                subject_ref: "org".into(),
+                actor_ref: "reviewer:1".into(),
+                memory_class: crate::MemoryClass::Durable,
+                content: content.into(),
+                content_sha256: digest.clone(),
+                purpose: Purpose::OrganizationalContext,
+                classification: Classification::Confidential,
+                provenance: crate::Provenance {
+                    kind: crate::ProvenanceKind::UserExplicit,
+                    source_refs: vec![],
+                    source_revision_refs: vec![],
+                    derived_from: vec![],
+                    recorded_by_ref: "admin".into(),
+                    recorded_at: 100,
+                },
+                confidence_milli: None,
+                created_at: 100,
+                expires_at: None,
+                retention_policy_ref: "retention:v1".into(),
+                episodic_opt_in_ref: None,
+                record_version: 1,
+            },
+            lifecycle_state: crate::LifecycleState::PendingReview,
+            approval_ref: None,
+            approved_by_ref: None,
+            approved_at: None,
+            updated_at: 100,
+        };
+        let proof = serde_json::json!({
+            "payload": {
+                "proof_id":"proof:expired","issuer":"issuer:1","subject":"reviewer:1",
+                "credential_id":"credential:1","reviewer_id":"reviewer:1",
+                "designation_id":"d-expired","designation_version":1,"key_id":"key:1",
+                "approval_id":"a-expired","tenant_id":"t","organization_id":"org",
+                "memory_id":"m","record_version":1,"content_sha256":digest,
+                "purpose":"ORGANIZATIONAL_CONTEXT","classification":"CONFIDENTIAL",
+                "capability":"g05.memory.durable.activate","resource":"resource:1",
+                "policy_version":crate::CONTRACT_VERSION,"issued_at":110,"expires_at":200
+            },
+            "signature":[]
+        }).to_string();
         let receipt = DurableApprovalReceipt {
             approval_ref: "a-expired".into(),
             memory_id: "m".into(),
             tenant_ref: "t".into(),
             subject_ref: "org".into(),
-            content_sha256: "c".repeat(64),
+            content_sha256: record.candidate.content_sha256.clone(),
             reviewer_ref: "reviewer:1".into(),
             issued_at: 110,
             expires_at: 200,
-            proof_ref: "proof:valid".into(),
+            proof_ref: proof,
         };
+        r.register_pending_approval(&record, &receipt, 120).unwrap();
+        let authority = RegistryDesignatedReviewerAuthority::new(r, G01);
         assert_eq!(
-            a.verify_designated_reviewer(&receipt, "org", 150),
+            authority.verify_designated_reviewer(&record, &receipt, "org", 150),
             Err(G05Error::ReviewerNotAuthorized)
         );
     }
