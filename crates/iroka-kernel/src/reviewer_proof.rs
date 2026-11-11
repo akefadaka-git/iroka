@@ -483,4 +483,47 @@ mod tests {
         let mut future=signed(&key,"proof:future"); future.payload.issued_at=1300; future.payload.expires_at=1400;
         assert_eq!(verify(&v,&future,&principal),Err(ReviewerProofError::NotYetValid));
     }
+    #[test]
+    fn rejects_tampered_or_stale_issuer_binding_attestation() {
+        let (key, mut verifier, principal) = fixture(false);
+        verifier.bindings.signed.issuer_signature[0] ^= 1;
+        assert_eq!(
+            verify(&verifier, &signed(&key, "proof:binding-tampered"), &principal),
+            Err(ReviewerProofError::InvalidBindingSignature)
+        );
+
+        let (key, mut stale, principal) = fixture(false);
+        stale.bindings.signed.binding.issued_at = 1_000;
+        assert_eq!(
+            verify(&stale, &signed(&key, "proof:binding-stale"), &principal),
+            Err(ReviewerProofError::BindingMissing)
+        );
+    }
+
+    #[test]
+    fn kernel_issuer_provider_uses_versioned_trust_snapshot() {
+        let signing = SigningKey::from_bytes(&[93u8; 32]);
+        let trust = crate::TrustStore::new(
+            ["issuer:community"],
+            vec![crate::TrustedKey {
+                issuer: "issuer:community".into(),
+                key_id: "issuer-key-01".into(),
+                public_key: signing.verifying_key().to_bytes(),
+                not_before: 100,
+                not_after: 2_000,
+            }],
+        ).unwrap();
+        let snapshots = std::sync::Arc::new(TrustSnapshotManager::new_with_version(trust, 7));
+        let provider = KernelReviewerIssuerTrustProvider::new(snapshots, crate::NoRevocations);
+        let resolved = provider.resolve_current_issuer_key("issuer:community", "issuer-key-01", 1_200)
+            .unwrap().unwrap();
+        assert_eq!(resolved.trust_version, 7);
+        assert_eq!(resolved.public_key, signing.verifying_key().to_bytes());
+        assert!(!resolved.revoked);
+        assert_eq!(
+            provider.resolve_current_issuer_key("issuer:community", "unknown-key", 1_200).unwrap(),
+            None
+        );
+    }
+
 }
