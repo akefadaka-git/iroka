@@ -591,6 +591,7 @@ pub fn authorize_durable_activation<G: GovernancePort>(
 /// Resolve and verify durable activation against the canonical G05 repository.
 /// G02 authorization occurs before content access. The repository record and its
 /// metadata must agree exactly; caller-supplied record fields are never accepted.
+#[rustfmt::skip]
 pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: GovernancePort>(
     repository: &R,
     receipt: &DurableApprovalReceipt,
@@ -644,6 +645,7 @@ pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: Gove
 /// Prepare the next canonical record version after the approval was verified
 /// and consumed. The caller must persist it with replace_with_audit using
 /// the old record version; failure leaves the approval consumed (fail closed).
+#[rustfmt::skip]
 pub fn prepare_durable_activation_from_repository<R: MemoryRepository, G: GovernancePort>(
     repository: &R,
     receipt: &DurableApprovalReceipt,
