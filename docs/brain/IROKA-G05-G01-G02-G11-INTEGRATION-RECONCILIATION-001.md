@@ -22,9 +22,21 @@ G05's `G01ReviewerProofAuthority` port in `crates/iroka-g05-memory/src/registry.
 
 The existing G01 credential proves authenticated identity; it is not itself proof that a human approved a specific memory record. G02 Owner approvals are Owner-level approvals and are not interchangeable with organization reviewer proofs.
 
-### Disposition
+### Implemented G01/G05 integration candidate
 
-Reuse G01's existing credential and revocation primitives. The proof envelope, canonical bytes, signing domain, current key binding and proof verifier must be implemented and owned by G01. G05 retains only the opaque proof reference and exact scope binding. Until the G01-owned verifier exists, durable reviewer approval remains denied. No G05-local trust roots, reviewer keys or proof cryptography are introduced.
+The integration branch now carries the G01 proof verifier in `crates/iroka-kernel/src/reviewer_proof.rs` and exports the typed `SignedReviewerProof` / `VerifiedReviewerProof` boundary. The proof is Ed25519-signed over deterministic JCS bytes under the dedicated NUL-terminated G01 domain. It binds issuer, subject, credential, reviewer, key, approval, tenant, organization, designation ID/version, memory ID, record version, content digest, purpose, classification, capability, resource and policy version. G01 rechecks current key and credential revocation, binding freshness, validity, exact scope and proof replay.
+
+G05's `G01ReviewerProofAuthority` now accepts the typed signed proof, G01-minted `VerifiedPrincipal`, current designation, receipt and candidate record, and returns `VerifiedReviewerProof`. The concrete `KernelG01ReviewerProofAdapter` delegates cryptographic verification to the Kernel verifier. G05 then independently compares the verified result to its own approval and record fields.
+
+G05 no longer treats `proof_ref` as proof: `DurableApprovalReceipt` carries the typed signed envelope and requires `proof_ref == payload.proof_id`; receipt issue/expiry times must equal the signed values. Durable activation requires the verified reviewer principal, and the principal subject must equal the designated reviewer.
+
+Before cryptographic verification, G05 re-resolves the current active designation from its canonical designation registry. It also re-resolves current memory metadata through `CanonicalMemoryMetadataResolver` (blanket-adapted from the `MemoryRepository::get_metadata` port) and compares memory ID, tenant, subject, class, digest, purpose, classification, lifecycle state, record version, expiry and retention policy with the record being activated. The supplied record content is re-hashed against its digest.
+
+After proof verification, G05 rechecks designation currency inside an immediate SQLite transaction and inserts the approval ID into a primary-key-protected consumed-approval table. The consumption record and G05 authority outbox event commit in the same transaction. Duplicate approval use returns `ApprovalReplay`. G01 proof-ID replay is separately rejected by the Kernel security store.
+
+### Remaining trust boundary
+
+The code defines the production adapter contracts but does not provision the issuer-side authoritative reviewer-key binding service or the designation-time reviewer identity/key resolver. A production G05 repository must implement `MemoryRepository` against the canonical store; no in-memory or caller-authored metadata is accepted as canonical by the reviewer authority. The SQLite adapters remain single-node only. Cross-store G01-proof and G05-approval consumption is fail-closed but is not a distributed transaction: if G01 consumes a proof and a later G05 transaction fails, the proof cannot be retried with the same proof ID. No G05-local trust roots or reviewer keys are introduced.
 
 ## 2. G02 organization authority and exact-tuple authorization
 
@@ -74,7 +86,10 @@ The new stream does not change or overload G11 decision-event compatibility. The
 | Area | Result |
 |---|---|
 | G01 existing credential/revocation primitives | **RECONCILED** |
-| G01 reviewer-proof verifier | **MISSING — fail-closed** |
+| G01 cryptographic reviewer-proof verifier | **IMPLEMENTED — exact-head CI pending; production issuer adapter pending** |
+| G05 typed proof adapter and verified-principal binding | **IMPLEMENTED — exact-head CI pending** |
+| G05 current designation + canonical memory metadata re-resolution | **IMPLEMENTED — repository adapter/provisioning pending** |
+| G05 exactly-once approval consumption + outbox transaction | **IMPLEMENTED — exact-head CI pending** |
 | G02 Owner policy and tenant authority | **RECONCILED** |
 | G02 canonical organization-delegation provider | **MISSING — fail-closed** |
 | G02 exact delegation tuple enforcement | **MISSING — fail-closed** |
