@@ -98,6 +98,7 @@ impl SqliteG05AuthorityRegistry {
 
     /// Store an immutable, pending approval envelope against the current canonical
     /// memory record. Signature verification and consumption happen only during activation.
+#[rustfmt::skip]
     pub fn register_pending_approval(
         &self,
         record: &MemoryRecord,
@@ -470,6 +471,7 @@ impl SqliteG05AuthorityRegistry {
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
 
+#[rustfmt::skip]
     fn pending_approval_matches(
         &self,
         record: &MemoryRecord,
@@ -520,6 +522,7 @@ impl SqliteG05AuthorityRegistry {
           .ok_or(G05Error::ReviewerNotAuthorized)
     }
 
+#[rustfmt::skip]
     fn consume_approval(
         &self,
         receipt: &DurableApprovalReceipt,
@@ -726,9 +729,11 @@ pub struct KernelG01ReviewerProofAuthority<R: ReviewerKeyBindingResolver> {
     verifier: ReviewerProofVerifier<R>,
     principal: VerifiedPrincipal,
 }
+#[rustfmt::skip]
 impl<R: ReviewerKeyBindingResolver> KernelG01ReviewerProofAuthority<R> {
     pub fn new(verifier: ReviewerProofVerifier<R>, principal: VerifiedPrincipal) -> Self { Self { verifier, principal } }
 }
+#[rustfmt::skip]
 impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01ReviewerProofAuthority<R> {
     fn validate_reviewer_key_binding(
         &self, reviewer: &str, key_ref: &str, now: u64,
@@ -818,6 +823,7 @@ impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01Revie
     }
 }
 
+#[rustfmt::skip]
 fn map_reviewer_proof_error(error: ReviewerProofError) -> G05Error {
     match error {
         ReviewerProofError::Replay => G05Error::ApprovalReplay,
@@ -872,6 +878,7 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
             || receipt.memory_id.trim().is_empty()
             || receipt.reviewer_ref.trim().is_empty()
             || receipt.proof_ref.trim().is_empty()
+            || receipt.proof_ref.len() > 32_768
             || receipt.proof_ref.len() > 32_768
         {
             return Err(G05Error::InvalidReference);
