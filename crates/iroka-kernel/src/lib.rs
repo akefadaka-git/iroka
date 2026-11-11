@@ -28,6 +28,7 @@ mod service;
 mod teaching_profiles;
 mod tenant;
 mod trust_lifecycle;
+
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use composition::authorize_compact_in_tenant;
