@@ -734,7 +734,10 @@ pub trait MemoryRepository: Send + Sync {
 
 
 impl<T: MemoryRepository> CanonicalMemoryMetadataResolver for T {
-    fn resolve_canonical_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error> {
+    fn resolve_canonical_metadata(
+        &self,
+        memory_id: &str,
+    ) -> Result<Option<MemoryMetadata>, G05Error> {
         self.get_metadata(memory_id)
     }
 }
@@ -801,6 +804,7 @@ mod tests {
         }
     }
 
+    #[rustfmt::skip]
     fn test_signed_proof(proof_id: &str) -> SignedReviewerProof {
         SignedReviewerProof::from_signature(ReviewerProofPayload {
             proof_id: proof_id.into(), issuer: "issuer:test".into(), subject: "reviewer:1".into(),
