@@ -732,6 +732,21 @@ pub trait MemoryRepository {
 mod tests {
     use super::*;
 
+    fn test_signed_proof(id: &str, issued_at: u64, expires_at: u64) -> iroka_kernel::SignedReviewerProof {
+        let payload = iroka_kernel::ReviewerProofPayload {
+            proof_id: id.into(), issuer: "issuer:test".into(), subject: "reviewer:test".into(),
+            credential_id: "credential:test".into(), reviewer_id: "reviewer:1".into(),
+            designation_id: "designation:1".into(), designation_version: 1,
+            key_id: "key:1".into(), approval_id: "approval:1".into(), tenant_id: "tenant:1".into(),
+            organization_id: "principal:1".into(), memory_id: "memory:1".into(), record_version: 1,
+            content_sha256: "a".repeat(64), purpose: "TASK_CONTINUITY".into(),
+            classification: "INTERNAL".into(), capability: "g05.memory.durable.approve".into(),
+            resource: "g05:durable-approval:test".into(), policy_version: CONTRACT_VERSION.into(),
+            issued_at, expires_at,
+        };
+        iroka_kernel::SignedReviewerProof::from_signature(payload, vec![0; 64])
+    }
+
     struct AllowGovernance;
     impl GovernancePort for AllowGovernance {
         fn authorize(&self, _request: &AuthorizationRequest) -> Result<(), G05Error> {
@@ -750,6 +765,7 @@ mod tests {
         fn verify_durable_approval(
             &self,
             _receipt: &DurableApprovalReceipt,
+            _record: &MemoryRecord,
             _now: u64,
         ) -> Result<(), G05Error> {
             Ok(())
@@ -982,6 +998,7 @@ mod tests {
             issued_at: 101,
             expires_at: 200,
             proof_ref: "proof:1".to_owned(),
+            signed_proof: test_signed_proof("proof:1", 101, 200),
         };
         assert_eq!(validate_approval_binding(&record, &receipt, 110), Ok(()));
         let request = AuthorizationRequest {
@@ -1038,6 +1055,7 @@ mod tests {
             issued_at: 90,
             expires_at: 100,
             proof_ref: "proof:1".to_owned(),
+            signed_proof: test_signed_proof("proof:1", 90, 100),
         };
         assert_eq!(
             validate_approval_binding(&record, &receipt, 100),
