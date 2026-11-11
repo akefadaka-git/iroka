@@ -615,7 +615,7 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
         reviewer: &str,
         key_ref: &str,
         now: u64,
-    ) -> Result<(), G05Error>;
+    ) -> Result<ReviewerDesignationIdentity, G05Error>;
     fn verify_approval_proof(
         &self,
         proof: &SignedReviewerProof,
@@ -631,7 +631,21 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
 /// must resolve the current issuer-side reviewer identity and key reference.
 #[rustfmt::skip]
 pub trait ReviewerDesignationKeyResolver: Send + Sync {
-    fn validate_reviewer_key_binding(&self, reviewer: &str, key_ref: &str, now: u64) -> Result<(), G05Error>;
+    /// Resolve the issuer-owned current identity/key binding. Implementations
+    /// query authoritative state and fail closed on stale cache or outage.
+    fn resolve_current_identity(&self, reviewer: &str, key_ref: &str, now: u64)
+        -> Result<Option<ReviewerDesignationIdentity>, G05Error>;
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReviewerDesignationIdentity {
+    pub issuer_ref: String,
+    pub subject_ref: String,
+    pub credential_ref: String,
+    pub reviewer_ref: String,
+    pub key_ref: String,
+    pub binding_ref: String,
+    pub binding_version: u64,
+    pub resolved_at: u64,
 }
 
 pub struct KernelG01ReviewerProofAdapter<R, I, D> {
@@ -651,8 +665,19 @@ where
     I: ReviewerIssuerTrustProvider,
     D: ReviewerDesignationKeyResolver,
 {
-    fn validate_reviewer_key_binding(&self, reviewer: &str, key_ref: &str, now: u64) -> Result<(), G05Error> {
-        self.designation_keys.validate_reviewer_key_binding(reviewer, key_ref, now)
+    fn validate_reviewer_key_binding(
+        &self, reviewer: &str, key_ref: &str, now: u64,
+    ) -> Result<ReviewerDesignationIdentity, G05Error> {
+        let binding = self.designation_keys.resolve_current_identity(reviewer, key_ref, now)?
+            .ok_or(G05Error::ReviewerNotAuthorized)?;
+        if binding.reviewer_ref != reviewer || binding.subject_ref != reviewer
+            || binding.key_ref != key_ref || binding.issuer_ref.trim().is_empty()
+            || binding.credential_ref.trim().is_empty() || binding.binding_ref.trim().is_empty()
+            || binding.binding_version == 0 || binding.resolved_at > now
+            || now.saturating_sub(binding.resolved_at) > 30 {
+            return Err(G05Error::ReviewerNotAuthorized);
+        }
+        Ok(binding)
     }
 
     fn verify_approval_proof(
@@ -664,7 +689,12 @@ where
         record: &MemoryRecord,
         now: u64,
     ) -> Result<VerifiedReviewerProof, G05Error> {
-        if principal.subject() != designation.reviewer_ref
+        let identity = self.validate_reviewer_key_binding(
+            &designation.reviewer_ref, &designation.reviewer_key_ref, now,
+        )?;
+        if principal.issuer() != identity.issuer_ref
+            || principal.subject() != identity.subject_ref
+            || principal.credential_id() != identity.credential_ref
             || proof.payload.key_id != designation.reviewer_key_ref
             || receipt.issued_at != proof.payload.issued_at
             || receipt.expires_at != proof.payload.expires_at
@@ -1085,7 +1115,7 @@ mod tests {
     }
     struct G01;
     impl G01ReviewerProofAuthority for G01 {
-        fn validate_reviewer_key_binding(&self, _: &str, _: &str, _: u64) -> Result<(), G05Error> {
+        fn validate_reviewer_key_binding(&self, _: &str, _: &str, _: u64) -> Result<ReviewerDesignationIdentity, G05Error> {
             Err(G05Error::ReviewerNotAuthorized)
         }
         fn verify_approval_proof(
