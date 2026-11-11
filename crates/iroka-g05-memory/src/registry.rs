@@ -864,6 +864,7 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
             return Err(G05Error::DigestMismatch);
         }
         crate::validate_approval_binding(record, receipt, now)?;
+        self.registry.pending_approval_matches(record, receipt)?;
         if receipt.subject_ref != org || record.candidate.subject_ref != org {
             return Err(G05Error::ApprovalBindingMismatch);
         }
