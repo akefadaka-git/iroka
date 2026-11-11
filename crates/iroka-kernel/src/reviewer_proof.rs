@@ -126,6 +126,9 @@ pub struct ReviewerKeyBinding {
     pub not_before: u64,
     pub not_after: u64,
     pub revoked: bool,
+    pub credential_revoked: bool,
+    /// Time at which the authoritative adapter checked this binding/revocation state.
+    pub resolved_at: u64,
 }
 
 pub struct ReviewerProofVerifier<R> {
@@ -177,7 +180,10 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         let binding = self.bindings.resolve_current_binding(
             &p.issuer, &p.subject, &p.credential_id, &p.key_id, now,
         )?.ok_or(ReviewerProofError::BindingMissing)?;
-        if binding.revoked { return Err(ReviewerProofError::Revoked); }
+        if binding.revoked || binding.credential_revoked { return Err(ReviewerProofError::Revoked); }
+        if binding.resolved_at > now || now.saturating_sub(binding.resolved_at) > 30 {
+            return Err(ReviewerProofError::BindingMissing);
+        }
         if now < binding.not_before || now >= binding.not_after
             || p.issued_at < binding.not_before || p.issued_at >= binding.not_after {
             return Err(ReviewerProofError::KeyOutsideValidity);
@@ -212,7 +218,7 @@ mod tests {
     impl ReviewerKeyBindingResolver for Bindings {
         fn resolve_current_binding(&self, _: &str, _: &str, _: &str, _: &str, _: u64)
             -> Result<Option<ReviewerKeyBinding>, ReviewerProofError> {
-            Ok(Some(ReviewerKeyBinding { public_key:self.key, not_before:100, not_after:2000, revoked:self.revoked }))
+            Ok(Some(ReviewerKeyBinding { public_key:self.key, not_before:100, not_after:2000, revoked:self.revoked, credential_revoked:false, resolved_at:1200 }))
         }
     }
     fn fixture(revoked: bool) -> (SigningKey, ReviewerProofVerifier<Bindings>, VerifiedPrincipal) {
