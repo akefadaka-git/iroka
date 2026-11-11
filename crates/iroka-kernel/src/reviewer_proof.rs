@@ -74,6 +74,7 @@ pub struct VerifiedReviewerProof {
     verified_at: u64,
 }
 
+#[rustfmt::skip]
 impl VerifiedReviewerProof {
     pub fn reviewer_id(&self) -> &str { &self.reviewer_id }
     pub fn subject(&self) -> &str { &self.subject }
@@ -104,6 +105,7 @@ pub enum ReviewerProofError {
     StoreUnavailable,
 }
 
+#[rustfmt::skip]
 impl From<SecurityStoreError> for ReviewerProofError {
     fn from(_: SecurityStoreError) -> Self { Self::StoreUnavailable }
 }
@@ -111,6 +113,7 @@ impl From<SecurityStoreError> for ReviewerProofError {
 /// Implement using the identity issuer's authoritative reviewer-key registry.
 /// A successful lookup must prove this exact issuer/subject/credential/key tuple
 /// is active now; absence, stale cache or registry failure must fail closed.
+#[rustfmt::skip]
 pub trait ReviewerKeyBindingResolver: Send + Sync {
     fn resolve_current_binding(
         &self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64,
@@ -130,6 +133,7 @@ pub struct ReviewerProofVerifier<R> {
     store: std::sync::Arc<SqliteSecurityStore>,
 }
 
+#[rustfmt::skip]
 impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
     pub fn new(bindings: R, store: std::sync::Arc<SqliteSecurityStore>) -> Self {
         Self { bindings, store }
@@ -199,6 +203,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
