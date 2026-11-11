@@ -748,6 +748,8 @@ mod tests {
         }
         fn verify_durable_approval(
             &self,
+            _principal: &iroka_kernel::VerifiedPrincipal,
+            _record: &MemoryRecord,
             _receipt: &DurableApprovalReceipt,
             _now: u64,
         ) -> Result<(), G05Error> {
@@ -775,6 +777,8 @@ mod tests {
         }
         fn verify_durable_approval(
             &self,
+            _principal: &iroka_kernel::VerifiedPrincipal,
+            _record: &MemoryRecord,
             _receipt: &DurableApprovalReceipt,
             _now: u64,
         ) -> Result<(), G05Error> {
