@@ -16,6 +16,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use iroka_kernel::{SignedReviewerProof, VerifiedPrincipal};
 
 mod registry;
 pub use registry::{
@@ -214,6 +215,8 @@ pub struct DurableApprovalReceipt {
     pub expires_at: u64,
     /// Opaque signature or approval proof. G05 does not interpret its format.
     pub proof_ref: String,
+    /// Cryptographic proof bytes; proof_ref must equal payload.proof_id.
+    pub signed_proof: SignedReviewerProof,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -455,6 +458,7 @@ pub fn validate_approval_binding(
     if !valid_ref(&receipt.approval_ref)
         || !valid_ref(&receipt.reviewer_ref)
         || !valid_ref(&receipt.proof_ref)
+        || receipt.proof_ref != receipt.signed_proof.payload.proof_id
     {
         return Err(G05Error::InvalidReference);
     }
@@ -566,6 +570,7 @@ pub fn authorize_retrieval_metadata<G: GovernancePort>(
 pub fn authorize_durable_activation<G: GovernancePort>(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
+    reviewer_principal: &VerifiedPrincipal,
     request: &AuthorizationRequest,
     governance: &G,
     now: u64,
@@ -577,13 +582,14 @@ pub fn authorize_durable_activation<G: GovernancePort>(
         || request.purpose != record.candidate.purpose
         || request.classification != record.candidate.classification
         || request.principal_ref != receipt.reviewer_ref
+        || reviewer_principal.subject() != receipt.reviewer_ref
         || !valid_ref(&request.correlation_ref)
     {
         return Err(G05Error::ApprovalBindingMismatch);
     }
     validate_durable_activation_binding(record, receipt, now)?;
     governance.authorize(request)?;
-    governance.verify_durable_approval(receipt, now)?;
+    governance.verify_durable_approval(receipt, record, reviewer_principal, now)?;
     Ok(())
 }
 
@@ -593,11 +599,12 @@ pub fn authorize_durable_activation<G: GovernancePort>(
 pub fn prepare_durable_activation<G: GovernancePort>(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
+    reviewer_principal: &VerifiedPrincipal,
     request: &AuthorizationRequest,
     governance: &G,
     now: u64,
 ) -> Result<MemoryRecord, G05Error> {
-    authorize_durable_activation(record, receipt, request, governance, now)?;
+    authorize_durable_activation(record, receipt, reviewer_principal, request, governance, now)?;
     let mut activated = record.clone();
     activated.candidate.record_version = record
         .candidate
@@ -685,6 +692,8 @@ pub trait GovernancePort {
     fn verify_durable_approval(
         &self,
         receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
+        reviewer_principal: &VerifiedPrincipal,
         now: u64,
     ) -> Result<(), G05Error>;
 
