@@ -27,6 +27,8 @@ pub struct ReviewerProofPayload {
     pub subject: String,
     pub credential_id: String,
     pub reviewer_id: String,
+    pub binding_id: String,
+    pub binding_version: u64,
     pub designation_id: String,
     pub designation_version: u64,
     pub key_id: String,
@@ -327,7 +329,7 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
     ) -> Result<VerifiedReviewerProof, ReviewerProofError> {
         let p = &proof.payload;
         for value in [p.proof_id.as_str(), p.issuer.as_str(), p.subject.as_str(),
-            p.credential_id.as_str(), p.reviewer_id.as_str(), p.designation_id.as_str(), p.key_id.as_str(),
+            p.credential_id.as_str(), p.reviewer_id.as_str(), p.binding_id.as_str(), p.designation_id.as_str(), p.key_id.as_str(),
             p.approval_id.as_str(), p.tenant_id.as_str(), p.organization_id.as_str(),
             p.memory_id.as_str(), p.content_sha256.as_str(), p.purpose.as_str(), p.classification.as_str(),
             p.capability.as_str(), p.resource.as_str(), p.policy_version.as_str(),
@@ -337,7 +339,7 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
             expected_resource, expected_policy_version] {
             if value.trim().is_empty() || value.len() > 512 { return Err(ReviewerProofError::Malformed); }
         }
-        if p.designation_version == 0 || p.record_version == 0 || p.content_sha256.len() != 64
+        if p.binding_version == 0 || p.designation_version == 0 || p.record_version == 0 || p.content_sha256.len() != 64
             || !p.content_sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err(ReviewerProofError::Malformed);
         }
@@ -348,7 +350,8 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
         if p.expires_at <= now { return Err(ReviewerProofError::Expired); }
         if p.issuer != principal.issuer() || p.subject != principal.subject()
             || p.credential_id != principal.credential_id() { return Err(ReviewerProofError::PrincipalMismatch); }
-        if p.reviewer_id != expected_reviewer_id || p.approval_id != expected_approval_id
+        if p.reviewer_id != expected_reviewer_id || p.binding_id != expected_binding_id
+            || p.binding_version != expected_binding_version || p.approval_id != expected_approval_id
             || p.tenant_id != expected_tenant_id || p.organization_id != expected_organization_id
             || p.designation_id != expected_designation_id || p.designation_version != expected_designation_version
             || p.memory_id != expected_memory_id || p.record_version != expected_record_version
@@ -407,8 +410,8 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
                 other => ReviewerProofError::from(other),
             })?;
         Ok(VerifiedReviewerProof {
-            reviewer_id: p.reviewer_id.clone(), binding_id: binding.binding_id.clone(),
-            binding_version: binding.binding_version, subject: p.subject.clone(), issuer: p.issuer.clone(),
+            reviewer_id: p.reviewer_id.clone(), binding_id: p.binding_id.clone(),
+            binding_version: p.binding_version, subject: p.subject.clone(), issuer: p.issuer.clone(),
             approval_id: p.approval_id.clone(), designation_id: p.designation_id.clone(),
             designation_version: p.designation_version, tenant_id: p.tenant_id.clone(),
             organization_id: p.organization_id.clone(), memory_id: p.memory_id.clone(),
@@ -459,7 +462,7 @@ mod tests {
     fn signed(key:&SigningKey,id:&str)->SignedReviewerProof {
         let payload=ReviewerProofPayload { proof_id:id.into(),issuer:"issuer:community".into(),
             subject:"reviewer:alice".into(),credential_id:"credential:42".into(),reviewer_id:"reviewer:maale-01".into(),
-            designation_id:"designation:1".into(),designation_version:3,key_id:"reviewer-key-01".into(),
+            binding_id:"binding:1".into(),binding_version:3,designation_id:"designation:1".into(),designation_version:3,key_id:"reviewer-key-01".into(),
             approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),organization_id:"org:alpha".into(),
             memory_id:"memory:1".into(),record_version:4,content_sha256:"a".repeat(64),
             purpose:"ORGANIZATIONAL_CONTEXT".into(),classification:"CONFIDENTIAL".into(),
