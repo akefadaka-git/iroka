@@ -214,9 +214,9 @@ pub struct DurableApprovalReceipt {
     pub reviewer_ref: String,
     pub issued_at: u64,
     pub expires_at: u64,
-    /// Opaque signature or approval proof. G05 does not interpret its format.
+    /// Stable selector retained for receipt compatibility; must equal payload.proof_id.
     pub proof_ref: String,
-    /// Cryptographic proof bytes; proof_ref must equal payload.proof_id.
+    /// Typed G01-signed approval envelope; G05 accepts no opaque proof assertion.
     pub signed_proof: SignedReviewerProof,
 }
 
