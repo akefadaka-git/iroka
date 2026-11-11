@@ -183,7 +183,11 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         let signature = Signature::from_slice(&proof.signature).map_err(|_| ReviewerProofError::Malformed)?;
         key.verify(&bytes, &signature).map_err(|_| ReviewerProofError::InvalidSignature)?;
         let digest = Sha256::digest(&bytes);
-        self.store.consume_reviewer_proof(&p.issuer, &p.credential_id, &p.proof_id, digest.as_slice(), now)?;
+        self.store.consume_reviewer_proof(&p.issuer, &p.credential_id, &p.proof_id, digest.as_slice(), now)
+            .map_err(|error| match error {
+                SecurityStoreError::ConflictingVersion => ReviewerProofError::Replay,
+                other => ReviewerProofError::from(other),
+            })?;
         Ok(VerifiedReviewerProof {
             reviewer_id: p.reviewer_id.clone(), subject: p.subject.clone(), issuer: p.issuer.clone(),
             approval_id: p.approval_id.clone(), tenant_id: p.tenant_id.clone(),
@@ -237,7 +241,7 @@ mod tests {
         assert_eq!(result.reviewer_id(),"reviewer:maale-01");
         assert_eq!(result.capability(),"content.review");
         assert_eq!(result.resource(),"translation:chapter-1");
-        assert_eq!(verify(&v,&proof,&principal),Err(ReviewerProofError::StoreUnavailable));
+        assert_eq!(verify(&v,&proof,&principal),Err(ReviewerProofError::Replay));
     }
     #[test]
     fn rejects_wrong_approval_scope_and_wrong_principal() {
