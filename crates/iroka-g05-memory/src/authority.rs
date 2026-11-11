@@ -52,6 +52,7 @@ pub trait DesignatedReviewerAuthority: Send + Sync {
     fn verify_designated_reviewer(
         &self,
         receipt: &DurableApprovalReceipt,
+        proof: &iroka_kernel::VerifiedReviewerProof,
         record: &crate::MemoryRecord,
         organization_ref: &str,
         now: u64,
@@ -111,11 +112,12 @@ where
     fn verify_durable_approval(
         &self,
         receipt: &DurableApprovalReceipt,
+        proof: &iroka_kernel::VerifiedReviewerProof,
         record: &crate::MemoryRecord,
         now: u64,
     ) -> Result<(), G05Error> {
         self.reviewers
-            .verify_designated_reviewer(receipt, record, &receipt.subject_ref, now)
+            .verify_designated_reviewer(receipt, proof, record, &receipt.subject_ref, now)
     }
     fn append_audit(&self, event: &AuditEvent) -> Result<(), G05Error> {
         self.g11.append_memory_event(event)
@@ -156,6 +158,7 @@ mod tests {
         fn verify_designated_reviewer(
             &self,
             _: &DurableApprovalReceipt,
+            _: &iroka_kernel::VerifiedReviewerProof,
             _: &crate::MemoryRecord,
             _: &str,
             _: u64,
