@@ -783,6 +783,8 @@ mod tests {
         fn verify_durable_approval(
             &self,
             _receipt: &DurableApprovalReceipt,
+            _record: &MemoryRecord,
+            _reviewer_principal: &VerifiedPrincipal,
             _now: u64,
         ) -> Result<(), G05Error> {
             Ok(())
