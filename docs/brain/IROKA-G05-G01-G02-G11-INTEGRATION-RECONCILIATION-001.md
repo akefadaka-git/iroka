@@ -36,7 +36,15 @@ After proof verification, G05 rechecks designation currency inside an immediate 
 
 ### Remaining trust boundary
 
-The code defines the production adapter contracts but does not provision the issuer-side authoritative reviewer-key binding service or the designation-time reviewer identity/key resolver. A production G05 repository must implement `MemoryRepository` against the canonical store; no in-memory or caller-authored metadata is accepted as canonical by the reviewer authority. The SQLite adapters remain single-node only. Cross-store G01-proof and G05-approval consumption is fail-closed but is not a distributed transaction: if G01 consumes a proof and a later G05 transaction fails, the proof cannot be retried with the same proof ID. No G05-local trust roots or reviewer keys are introduced.
+The production-facing trust contracts and Kernel adapters are now implemented:
+
+- `IssuerReviewerKeyBindingSource` is the issuer-registry source contract. It must return a short-lived, issuer-signed binding for the exact issuer/subject/credential/key tuple from authoritative current state; no caller-supplied assertion or stale replica is acceptable.
+- `KernelReviewerKeyBindingResolver` constrains the source response to the exact requested tuple. The G01 verifier validates the issuer signature over deterministic JCS bytes with a dedicated domain separator, binding identity, reviewer, key, version, status, validity and freshness (maximum 30 seconds), then verifies the reviewer signature.
+- `ReviewerIssuerTrustProvider` resolves issuer signing keys and current revocation. `KernelReviewerIssuerTrustProvider` uses the existing G01 `TrustSnapshotManager` (root-signed, anti-rollback trust bundles) and the existing `RevocationChecker`; trust snapshot version and issuer-key validity are included in the resolved contract. Unknown issuers/keys, revoked keys, stale/unavailable trust state and malformed assertions fail closed.
+- G05's `ReviewerDesignationKeyResolver` now returns a typed `ReviewerDesignationIdentity` containing issuer, subject, credential, reviewer, key, binding ID/version and resolution time. G05 re-resolves this identity at designation and approval time and compares it to the G01-minted principal and proof key.
+- No G05-local trust roots, reviewer keys or independent identity registry were added.
+
+**External provisioning still required:** an issuer must implement `IssuerReviewerKeyBindingSource` and `ReviewerDesignationKeyResolver` against its authoritative reviewer registry and supply its trust bundle through the existing Owner-governed G01 root ceremony. This repository does not contain an issuer endpoint, production issuer keys, or the authority to invent/provision them. The production G05 `MemoryRepository` implementation also remains external. SQLite adapters remain single-node only. Cross-store G01-proof and G05-approval consumption is fail-closed but not a distributed transaction: if G01 consumes a proof and a later G05 transaction fails, a fresh proof is required.
 
 ## 2. G02 organization authority and exact-tuple authorization
 
@@ -86,10 +94,10 @@ The new stream does not change or overload G11 decision-event compatibility. The
 | Area | Result |
 |---|---|
 | G01 existing credential/revocation primitives | **RECONCILED** |
-| G01 cryptographic reviewer-proof verifier | **IMPLEMENTED — CI PASS #42957771604; production issuer adapter pending** |
-| G05 typed proof adapter and verified-principal binding | **IMPLEMENTED — CI PASS #42957771604** |
-| G05 current designation + canonical memory metadata re-resolution | **IMPLEMENTED — CI PASS #42957771604; production repository provisioning pending** |
-| G05 exactly-once approval consumption + outbox transaction | **IMPLEMENTED — exact-head CI pending** |
+| G01 signed reviewer-key binding verifier + issuer trust adapter | **IMPLEMENTED — CI PASS #43065540264; external issuer source provisioning pending** |
+| G05 typed designation identity + verified-principal binding | **IMPLEMENTED — CI PASS #43065540264** |
+| G05 current designation + canonical memory metadata re-resolution | **IMPLEMENTED — CI PASS #43065540264; production repository provisioning pending** |
+| G05 exactly-once approval consumption + outbox transaction | **IMPLEMENTED — CI PASS #43065540264** |
 | G02 Owner policy and tenant authority | **RECONCILED** |
 | G02 canonical organization-delegation provider | **MISSING — fail-closed** |
 | G02 exact delegation tuple enforcement | **MISSING — fail-closed** |
@@ -107,3 +115,10 @@ No missing authority is replaced with a G05-local registry, test stub, caller-su
 The combined G01/G05/G11 integration candidate at `37102027c7bc102733c8f734c73126ccbec16ead` passed GitHub Actions [run #42958296512](https://github.com/akefadaka-git/iroka/actions/runs/42958296512): formatting PASS, workspace/all-target compilation PASS, production feature-set safeguard PASS, **140 tests passed / 0 failed**, and Clippy PASS. The run covers the exact current implementation head; subsequent documentation-only updates do not change the tested code.
 
 This is kernel/G05 integration verification, not production trust-adapter provisioning or independent A4 assurance. PR #43 remains draft and unmerged.
+
+
+### Reviewer trust contract verification — 2026-11-11
+
+Latest code commit `cf29dc162ce8a4292fcb0ee08bde26243d712397` passed [GitHub Actions run #43065540264](https://github.com/akefadaka-git/iroka/actions/runs/43065540264): rustfmt PASS, all-target compile PASS, production feature safeguard PASS, **142 tests passed / 0 failed**, and Clippy PASS. Coverage includes issuer-signed binding verification, exact identity/scope binding, stale/tampered/revoked binding rejection, trust-snapshot issuer-key resolution and proof replay rejection.
+
+The CI validates the Kernel/G05 contracts and adapters using test fixtures. It does not provision an external issuer registry, production issuer trust bundle, production keys or canonical production G05 repository. A4 remains NOT RUN; PR #43 remains draft and unmerged.
