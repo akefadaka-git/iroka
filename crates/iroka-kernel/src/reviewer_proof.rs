@@ -193,3 +193,77 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
+    use std::sync::Arc;
+    struct Bindings { key: [u8;32], revoked: bool }
+    impl ReviewerKeyBindingResolver for Bindings {
+        fn resolve_current_binding(&self, _: &str, _: &str, _: &str, _: &str, _: u64)
+            -> Result<Option<ReviewerKeyBinding>, ReviewerProofError> {
+            Ok(Some(ReviewerKeyBinding { public_key:self.key, not_before:100, not_after:2000, revoked:self.revoked }))
+        }
+    }
+    fn fixture(revoked: bool) -> (SigningKey, ReviewerProofVerifier<Bindings>, VerifiedPrincipal) {
+        let key=SigningKey::from_bytes(&[91u8;32]);
+        let store=Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let verifier=ReviewerProofVerifier::new(Bindings {key:key.verifying_key().to_bytes(),revoked},store);
+        let principal=VerifiedPrincipal::from_verified_credential("reviewer:alice".into(),"issuer:community".into(),"credential:42".into());
+        (key,verifier,principal)
+    }
+    fn signed(key:&SigningKey,id:&str)->SignedReviewerProof {
+        let payload=ReviewerProofPayload {
+            proof_id:id.into(),issuer:"issuer:community".into(),subject:"reviewer:alice".into(),
+            credential_id:"credential:42".into(),reviewer_id:"reviewer:maale-01".into(),
+            key_id:"reviewer-key-01".into(),approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),
+            organization_id:"org:alpha".into(),capability:"content.review".into(),resource:"translation:chapter-1".into(),
+            policy_version:"policy:v1".into(),issued_at:1100,expires_at:1300,
+        };
+        let signature=key.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        SignedReviewerProof::from_signature(payload,signature)
+    }
+    fn verify(v:&ReviewerProofVerifier<Bindings>,p:&SignedReviewerProof,principal:&VerifiedPrincipal)
+        -> Result<VerifiedReviewerProof,ReviewerProofError> {
+        v.verify_and_consume(p,principal,"reviewer:maale-01","approval:17","tenant:alpha",
+            "org:alpha","content.review","translation:chapter-1","policy:v1",1200)
+    }
+    #[test]
+    fn verifies_exact_reviewer_identity_and_scope_then_consumes_once() {
+        let (key,v,principal)=fixture(false);
+        let proof=signed(&key,"proof:once");
+        let result=verify(&v,&proof,&principal).unwrap();
+        assert_eq!(result.reviewer_id(),"reviewer:maale-01");
+        assert_eq!(result.capability(),"content.review");
+        assert_eq!(result.resource(),"translation:chapter-1");
+        assert_eq!(verify(&v,&proof,&principal),Err(ReviewerProofError::StoreUnavailable));
+    }
+    #[test]
+    fn rejects_wrong_approval_scope_and_wrong_principal() {
+        let (key,v,principal)=fixture(false);
+        let mut proof=signed(&key,"proof:scope");
+        proof.payload.resource="translation:chapter-2".into();
+        proof.signature=key.sign(&proof.payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        assert_eq!(verify(&v,&proof,&principal),Err(ReviewerProofError::ScopeMismatch));
+        let other=VerifiedPrincipal::from_verified_credential("reviewer:bob".into(),"issuer:community".into(),"credential:43".into());
+        assert_eq!(verify(&v,&signed(&key,"proof:principal"),&other),Err(ReviewerProofError::PrincipalMismatch));
+    }
+    #[test]
+    fn rejects_revoked_key_and_tampered_signature() {
+        let (key,v,principal)=fixture(true);
+        assert_eq!(verify(&v,&signed(&key,"proof:revoked"),&principal),Err(ReviewerProofError::Revoked));
+        let (_,v2,p2)=fixture(false);
+        let mut tampered=signed(&key,"proof:tampered");
+        tampered.payload.capability="content.publish".into();
+        assert_eq!(verify(&v2,&tampered,&p2),Err(ReviewerProofError::InvalidSignature));
+    }
+    #[test]
+    fn rejects_expired_and_future_dated_proofs() {
+        let (key,v,principal)=fixture(false);
+        let mut expired=signed(&key,"proof:expired"); expired.payload.expires_at=1199;
+        assert_eq!(verify(&v,&expired,&principal),Err(ReviewerProofError::Expired));
+        let mut future=signed(&key,"proof:future"); future.payload.issued_at=1300; future.payload.expires_at=1400;
+        assert_eq!(verify(&v,&future,&principal),Err(ReviewerProofError::NotYetValid));
+    }
+}
