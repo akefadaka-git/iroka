@@ -809,6 +809,7 @@ fn enqueue_authority_event(
     .map_err(|_| G05Error::AuthorityUnavailable)?;
     Ok(())
 }
+#[cfg(test)]
 fn g05_capability(operation: Operation) -> &'static str {
     match operation {
         Operation::Propose => "g05.memory.propose",
@@ -912,6 +913,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn designation_fixture(
         id: &str, tenant: &str, organization: &str, reviewer: &str, key: &str,
         version: u64, valid_from: u64, valid_until: u64,
