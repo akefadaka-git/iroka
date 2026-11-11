@@ -16,6 +16,7 @@ mod owner_approval;
 mod policy;
 mod policy_lifecycle;
 mod request;
+mod reviewer_proof;
 mod security_store;
 mod service;
 mod tenant;
@@ -57,6 +58,7 @@ pub use policy_lifecycle::{
     VerifiedPolicyContext, VerifiedPolicySnapshot,
 };
 pub use request::AuthorizationRequest;
+pub use reviewer_proof::{ReviewerKeyBinding, ReviewerKeyBindingResolver, ReviewerProofError, ReviewerProofPayload, ReviewerProofVerifier, SignedReviewerProof, VerifiedReviewerProof};
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
