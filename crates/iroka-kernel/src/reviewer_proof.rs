@@ -264,7 +264,7 @@ mod tests {
         assert_eq!(verify(&v,&signed(&key,"proof:revoked"),&principal),Err(ReviewerProofError::Revoked));
         let (_,v2,p2)=fixture(false);
         let mut tampered=signed(&key,"proof:tampered");
-        tampered.payload.capability="content.publish".into();
+        tampered.signature[0] ^= 0x01;
         assert_eq!(verify(&v2,&tampered,&p2),Err(ReviewerProofError::InvalidSignature));
     }
     #[test]
