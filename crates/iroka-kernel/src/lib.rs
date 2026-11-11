@@ -5,7 +5,6 @@
 
 mod assurance;
 mod audit_store;
-mod composition;
 mod cultural_context;
 mod decision;
 mod ethical_programme;
@@ -19,7 +18,6 @@ mod operational_self_model;
 mod organization_authority;
 mod owner_approval;
 mod policy;
-mod policy_lifecycle;
 mod prosperity_scenarios;
 mod request;
 mod reviewer_proof;
@@ -31,7 +29,6 @@ mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
-pub use composition::authorize_compact_in_tenant;
 pub use cultural_context::{
     CalendarSystem, CommunityReviewStatus, CulturalContextError, CulturalContextRecord,
     ScriptSystem,
@@ -80,10 +77,6 @@ pub use owner_approval::{
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
-pub use policy_lifecycle::{
-    PolicyActivationCoordinator, PolicyLifecycleError, PolicySnapshotPayload, SignedPolicySnapshot,
-    VerifiedPolicyContext, VerifiedPolicySnapshot,
-};
 pub use prosperity_scenarios::{
     BusinessScenario, ScenarioCase, ScenarioComparison, ScenarioComparisonResult, ScenarioError,
     ScenarioResult,
