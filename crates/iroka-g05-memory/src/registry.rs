@@ -1052,24 +1052,15 @@ mod tests {
     use super::*;
     struct G01;
     impl G01ReviewerProofAuthority for G01 {
-        fn validate_reviewer_key_binding(&self, r: &str, k: &str, _: u64) -> Result<(), G05Error> {
-            if r == "reviewer:1" && k == "key:1" {
-                Ok(())
-            } else {
-                Err(G05Error::ReviewerNotAuthorized)
-            }
+        fn validate_reviewer_key_binding(&self, r: &VerifiedPrincipal, k: &str, _: u64) -> Result<(), G05Error> {
+            if r.subject() == "reviewer:1" && k == "key:1" { Ok(()) }
+            else { Err(G05Error::ReviewerNotAuthorized) }
         }
         fn verify_approval_proof(
-            &self,
-            r: &DurableApprovalReceipt,
-            d: &ReviewerDesignation,
-            _: u64,
-        ) -> Result<(), G05Error> {
-            if r.proof_ref == "proof:valid" && r.reviewer_ref == d.reviewer_ref {
-                Ok(())
-            } else {
-                Err(G05Error::ReviewerNotAuthorized)
-            }
+            &self, _principal: &VerifiedPrincipal, _record: &MemoryRecord,
+            _receipt: &DurableApprovalReceipt, _d: &ReviewerDesignation, _now: u64,
+        ) -> Result<VerifiedReviewerProof, G05Error> {
+            Err(G05Error::ReviewerNotAuthorized)
         }
     }
     #[test]
