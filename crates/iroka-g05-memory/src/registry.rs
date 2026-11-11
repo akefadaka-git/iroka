@@ -7,7 +7,8 @@
 
 use crate::{
     AuthorizationRequest, Classification, DesignatedReviewerAuthority, DurableApprovalReceipt,
-    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryMetadata, MemoryRecord, Operation, Purpose,
+    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryMetadata, MemoryRecord,
+    Operation, Purpose,
 };
 use iroka_kernel::{
     ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof, TenantContext,
@@ -637,6 +638,7 @@ pub struct KernelG01ReviewerProofAdapter<R, D> {
     verifier: ReviewerProofVerifier<R>,
     designation_keys: D,
 }
+#[rustfmt::skip]
 impl<R, D> KernelG01ReviewerProofAdapter<R, D> {
     pub fn new(verifier: ReviewerProofVerifier<R>, designation_keys: D) -> Self {
         Self { verifier, designation_keys }
@@ -734,6 +736,7 @@ pub struct RegistryDesignatedReviewerAuthority<P, M> {
     g01: P,
     records: M,
 }
+#[rustfmt::skip]
 impl<P, M> RegistryDesignatedReviewerAuthority<P, M> {
     pub fn new(registry: SqliteG05AuthorityRegistry, g01: P, records: M) -> Self {
         Self { registry, g01, records }
@@ -1067,6 +1070,7 @@ fn from_i64(v: i64) -> Result<u64, G05Error> {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use super::*;
     struct NoMemoryMetadata;
