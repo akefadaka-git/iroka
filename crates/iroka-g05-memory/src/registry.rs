@@ -77,6 +77,13 @@ impl SqliteG05AuthorityRegistry {
           CREATE TABLE IF NOT EXISTS g05_consumed_reviewer_approvals(
             approval_ref TEXT PRIMARY KEY, receipt_digest BLOB NOT NULL CHECK(length(receipt_digest)=32),
             designation_ref TEXT NOT NULL, designation_version INTEGER NOT NULL, consumed_at INTEGER NOT NULL);
+          CREATE TABLE IF NOT EXISTS g05_pending_durable_approvals(
+            approval_ref TEXT PRIMARY KEY, memory_id TEXT NOT NULL, tenant_ref TEXT NOT NULL,
+            organization_ref TEXT NOT NULL, record_version INTEGER NOT NULL CHECK(record_version>0),
+            content_sha256 TEXT NOT NULL, purpose TEXT NOT NULL, classification TEXT NOT NULL,
+            contract_version TEXT NOT NULL, reviewer_ref TEXT NOT NULL, issued_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL, proof_json TEXT NOT NULL, created_at INTEGER NOT NULL,
+            consumed_at INTEGER);
           CREATE TABLE IF NOT EXISTS g05_authority_outbox(
             event_id TEXT PRIMARY KEY, event_type TEXT NOT NULL, aggregate_ref TEXT NOT NULL,
             tenant_ref TEXT NOT NULL, actor_ref TEXT NOT NULL, purpose TEXT NOT NULL,
