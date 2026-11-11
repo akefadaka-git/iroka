@@ -921,5 +921,4 @@ mod tests {
         assert_eq!(resolver.resolve_delegation(&bob,&bob_tenant,"org:alpha","delegation:alice-bob","records.review",1200,600),Err(OrganizationAuthorityError::DelegationInactive));
         assert_eq!(alice_tenant.tenant_id(),"tenant:alpha");
     }
-
 }
