@@ -259,7 +259,12 @@ impl TrustSnapshotManager {
             .map_err(|_| TrustBundleError::StoreUnavailable)
     }
 
-    fn install_using<F>(&self, version: u64, expires_at: u64, install: F) -> Result<u64, TrustBundleError>
+    fn install_using<F>(
+        &self,
+        version: u64,
+        expires_at: u64,
+        install: F,
+    ) -> Result<u64, TrustBundleError>
     where
         F: FnOnce() -> Result<TrustStore, TrustBundleError>,
     {
