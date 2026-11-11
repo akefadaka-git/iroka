@@ -1418,6 +1418,73 @@ mod tests {
         let _ = (adapter, receipt); // G01 mock deliberately rejects all unsigned approval material.
     }
     #[test]
+    fn approval_consumption_is_transactional_and_exactly_once() {
+        let r = SqliteG05AuthorityRegistry::open_in_memory().unwrap();
+        {
+            let c = r.connection.lock().unwrap();
+            c.execute(
+                "INSERT INTO g05_reviewer_designations VALUES
+                 ('d1','t','org','reviewer:1','key:1','admin',1,100,300,100,NULL)",
+                [],
+            ).unwrap();
+        }
+        let content = "exactly-once record";
+        let digest = crate::sha256_hex(content.as_bytes());
+        let record = MemoryRecord {
+            candidate: crate::MemoryCandidate {
+                schema_id: crate::RECORD_SCHEMA_ID.into(),
+                contract_version: crate::CONTRACT_VERSION.into(),
+                memory_id: "m".into(),
+                tenant_ref: "t".into(),
+                subject_ref: "org".into(),
+                actor_ref: "reviewer:1".into(),
+                memory_class: crate::MemoryClass::Durable,
+                content: content.into(),
+                content_sha256: digest.clone(),
+                purpose: Purpose::OrganizationalContext,
+                classification: Classification::Confidential,
+                provenance: crate::Provenance {
+                    kind: crate::ProvenanceKind::UserExplicit,
+                    source_refs: vec![], source_revision_refs: vec![], derived_from: vec![],
+                    recorded_by_ref: "admin".into(), recorded_at: 100,
+                },
+                confidence_milli: None, created_at: 100, expires_at: None,
+                retention_policy_ref: "retention:v1".into(), episodic_opt_in_ref: None,
+                record_version: 2,
+            },
+            lifecycle_state: crate::LifecycleState::PendingReview,
+            approval_ref: None, approved_by_ref: None, approved_at: None, updated_at: 110,
+        };
+        let proof = serde_json::json!({
+            "payload": {
+                "proof_id":"proof:once","issuer":"issuer:1","subject":"reviewer:1",
+                "credential_id":"credential:1","reviewer_id":"reviewer:1",
+                "designation_id":"d1","designation_version":1,"key_id":"key:1",
+                "approval_id":"a1","tenant_id":"t","organization_id":"org",
+                "memory_id":"m","record_version":2,"content_sha256":digest,
+                "purpose":"ORGANIZATIONAL_CONTEXT","classification":"CONFIDENTIAL",
+                "capability":"g05.memory.durable.activate","resource":"resource:1",
+                "policy_version":crate::CONTRACT_VERSION,"issued_at":110,"expires_at":200
+            },
+            "signature":[]
+        }).to_string();
+        let receipt = DurableApprovalReceipt {
+            approval_ref: "a1".into(), memory_id: "m".into(), tenant_ref: "t".into(),
+            subject_ref: "org".into(), content_sha256: record.candidate.content_sha256.clone(),
+            reviewer_ref: "reviewer:1".into(), issued_at: 110, expires_at: 200, proof_ref: proof,
+        };
+        r.register_pending_approval(&record, &receipt, 120).unwrap();
+        let designation = r.active_designation("t", "org", "reviewer:1", 150).unwrap();
+        assert_eq!(r.consume_approval(&receipt, &record, &designation, "proof:once", 150), Ok(()));
+        assert_eq!(r.consume_approval(&receipt, &record, &designation, "proof:once", 151), Err(G05Error::ApprovalReplay));
+        let c = r.connection.lock().unwrap();
+        let consumed: i64 = c.query_row(
+            "SELECT COUNT(*) FROM g05_pending_durable_approvals WHERE approval_ref='a1' AND consumed_at IS NOT NULL",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(consumed, 1);
+    }
+    #[test]
     fn reviewer_registry_rejects_expired_designation_and_untrusted_proof() {
         let r = SqliteG05AuthorityRegistry::open_in_memory().unwrap();
         {
