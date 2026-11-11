@@ -546,10 +546,9 @@ mod tests {
             Err(crate::OwnerApprovalError::Replay)
         );
     }
-}
 
-#[test]
-fn organization_suspension_and_reactivation_are_versioned_and_enforced() {
+    #[test]
+    fn organization_suspension_and_reactivation_are_versioned_and_enforced() {
     let (signer, owner, store, principal) = fixture();
     let tenant = tenant_context(&signer, &owner, &principal, store.clone());
     owner
@@ -664,4 +663,5 @@ fn designation_revocation_requires_exact_designation_id() {
     assert!(resolver
         .resolve(&principal, &tenant, "org:alpha", "records.read", 1200, 600)
         .is_ok());
+}
 }
