@@ -114,6 +114,35 @@ impl VerifiedReviewerProof {
     pub fn issued_at(&self) -> u64 { self.issued_at }
     pub fn expires_at(&self) -> u64 { self.expires_at }
     pub fn verified_at(&self) -> u64 { self.verified_at }
+
+    /// Test-only fixture constructor. Never enable the `test-support` feature
+    /// in production binaries; production values are emitted only by G01 verification.
+    #[cfg(feature = "test-support")]
+    pub fn for_test(payload: &ReviewerProofPayload, verified_at: u64) -> Self {
+        Self {
+            reviewer_id: payload.reviewer_id.clone(),
+            designation_id: payload.designation_id.clone(),
+            designation_version: payload.designation_version,
+            key_id: payload.key_id.clone(),
+            memory_id: payload.memory_id.clone(),
+            record_version: payload.record_version,
+            content_sha256: payload.content_sha256.clone(),
+            purpose: payload.purpose.clone(),
+            classification: payload.classification.clone(),
+            subject: payload.subject.clone(),
+            issuer: payload.issuer.clone(),
+            approval_id: payload.approval_id.clone(),
+            tenant_id: payload.tenant_id.clone(),
+            organization_id: payload.organization_id.clone(),
+            capability: payload.capability.clone(),
+            resource: payload.resource.clone(),
+            policy_version: payload.policy_version.clone(),
+            proof_id: payload.proof_id.clone(),
+            issued_at: payload.issued_at,
+            expires_at: payload.expires_at,
+            verified_at,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
