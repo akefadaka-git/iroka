@@ -58,12 +58,12 @@ pub use igacms::{
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
 };
+pub use operational_self_model::{
+    OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
+};
 pub use organization_authority::{
     OrganizationAuthorityAction, OrganizationAuthorityError, OrganizationAuthorityPayload,
     OrganizationAuthorityResolver, OrganizationContext, SignedOrganizationAuthorityCommand,
-};
-pub use operational_self_model::{
-    OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
