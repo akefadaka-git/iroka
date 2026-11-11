@@ -734,7 +734,7 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
             || receipt.issued_at > now
             || receipt.expires_at <= now
             || receipt.expires_at <= receipt.issued_at
-            || receipt.issued_at > proof.verified_at()
+            || receipt.issued_at != proof.issued_at()
             || receipt.expires_at != proof.expires_at()
         {
             return Err(G05Error::ApprovalBindingMismatch);
