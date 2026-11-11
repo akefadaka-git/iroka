@@ -672,6 +672,7 @@ impl G01ReviewerProofAuthority for KernelG01ReviewerProofAuthority {
             && proof.verified_at() <= now
             && now.saturating_sub(proof.verified_at()) <= 30
             && proof.expires_at() > now
+            && receipt.issued_at == proof.issued_at()
             && receipt.issued_at <= proof.expires_at()
             && receipt.expires_at == proof.expires_at()
             && record.candidate.memory_class == crate::MemoryClass::Durable
