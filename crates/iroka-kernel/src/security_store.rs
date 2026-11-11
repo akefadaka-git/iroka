@@ -77,9 +77,29 @@ pub(crate) struct SecurityCommandReceipt<'a> {
 }
 
 pub(crate) enum OrganizationMutation {
-    CreateOrganization { organization_id: String, tenant_id: String, version: u64, reason: String },
-    SetOrganizationActive { organization_id: String, tenant_id: String, active: bool, version: u64, reason: String },
-    SetDesignation { organization_id: String, tenant_id: String, principal: String, designation_id: String, active: bool, capabilities_json: String, version: u64, reason: String },
+    CreateOrganization {
+        organization_id: String,
+        tenant_id: String,
+        version: u64,
+        reason: String,
+    },
+    SetOrganizationActive {
+        organization_id: String,
+        tenant_id: String,
+        active: bool,
+        version: u64,
+        reason: String,
+    },
+    SetDesignation {
+        organization_id: String,
+        tenant_id: String,
+        principal: String,
+        designation_id: String,
+        active: bool,
+        capabilities_json: String,
+        version: u64,
+        reason: String,
+    },
 }
 
 pub struct SqliteSecurityStore {
@@ -550,82 +570,162 @@ impl SqliteSecurityStore {
         receipt: SecurityCommandReceipt<'_>,
         mutation: OrganizationMutation,
     ) -> Result<bool, SecurityStoreError> {
-        let SecurityCommandReceipt { command_id, owner_subject, signer_issuer, signer_key_id, digest, at } = receipt;
+        let SecurityCommandReceipt {
+            command_id,
+            owner_subject,
+            signer_issuer,
+            signer_key_id,
+            digest,
+            at,
+        } = receipt;
         if command_id.trim().is_empty() || digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
         }
         let at_i = i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let mut connection = self
+            .connection
+            .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let revoked: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
-            params![signer_issuer, signer_key_id], |row| row.get(0)
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
-        if revoked { return Err(SecurityStoreError::Revoked); }
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params![signer_issuer, signer_key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
         let consumed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id,scope_digest,consumed_at) VALUES(?1,?2,?3)",
             params![format!("security-command:{command_id}"), digest, at_i]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
-        if consumed == 0 { return Ok(false); }
+        if consumed == 0 {
+            return Ok(false);
+        }
 
         let (action, target, reason) = match mutation {
-            OrganizationMutation::CreateOrganization { organization_id, tenant_id, version, reason } => {
-                if version == 0 { return Err(SecurityStoreError::InvalidVersion); }
-                let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+            OrganizationMutation::CreateOrganization {
+                organization_id,
+                tenant_id,
+                version,
+                reason,
+            } => {
+                if version == 0 {
+                    return Err(SecurityStoreError::InvalidVersion);
+                }
+                let version_i =
+                    i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
                 tx.execute(
                     "INSERT INTO organizations(organization_id,tenant_id,active,version,updated_at,command_id,digest) VALUES(?1,?2,1,?3,?4,?5,?6)",
                     params![organization_id,tenant_id,version_i,at_i,command_id,digest]
                 ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
                 ("create_organization".to_owned(), organization_id, reason)
             }
-            OrganizationMutation::SetOrganizationActive { organization_id, tenant_id, active, version, reason } => {
-                if version == 0 { return Err(SecurityStoreError::InvalidVersion); }
-                let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+            OrganizationMutation::SetOrganizationActive {
+                organization_id,
+                tenant_id,
+                active,
+                version,
+                reason,
+            } => {
+                if version == 0 {
+                    return Err(SecurityStoreError::InvalidVersion);
+                }
+                let version_i =
+                    i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
                 let current: Option<(String,i64,Vec<u8>)> = tx.query_row(
                     "SELECT tenant_id,version,digest FROM organizations WHERE organization_id=?1",
                     [&organization_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))
                 ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-                let (bound_tenant,current_version,current_digest) = current.ok_or(SecurityStoreError::InvalidVersion)?;
-                if bound_tenant != tenant_id { return Err(SecurityStoreError::ConflictingVersion); }
-                if version_i < current_version { return Err(SecurityStoreError::Rollback); }
+                let (bound_tenant, current_version, current_digest) =
+                    current.ok_or(SecurityStoreError::InvalidVersion)?;
+                if bound_tenant != tenant_id {
+                    return Err(SecurityStoreError::ConflictingVersion);
+                }
+                if version_i < current_version {
+                    return Err(SecurityStoreError::Rollback);
+                }
                 if version_i == current_version {
-                    return if current_digest == digest { Ok(false) } else { Err(SecurityStoreError::ConflictingVersion) };
+                    return if current_digest == digest {
+                        Ok(false)
+                    } else {
+                        Err(SecurityStoreError::ConflictingVersion)
+                    };
                 }
                 tx.execute(
                     "UPDATE organizations SET active=?2,version=?3,updated_at=?4,command_id=?5,digest=?6 WHERE organization_id=?1",
-                    params![organization_id,i64::from(active),version_i,at_i,command_id,digest]
+                    params![organization_id,if active { 1_i64 } else { 0_i64 },version_i,at_i,command_id,digest]
                 ).map_err(|_| SecurityStoreError::Unavailable)?;
-                ("set_organization_active".to_owned(), organization_id, reason)
+                (
+                    "set_organization_active".to_owned(),
+                    organization_id,
+                    reason,
+                )
             }
-            OrganizationMutation::SetDesignation { organization_id, tenant_id, principal, designation_id, active, capabilities_json, version, reason } => {
-                if version == 0 { return Err(SecurityStoreError::InvalidVersion); }
-                let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
-                let org: Option<String> = tx.query_row(
-                    "SELECT tenant_id FROM organizations WHERE organization_id=?1",
-                    [&organization_id], |row| row.get(0)
-                ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-                if org.as_deref() != Some(tenant_id.as_str()) { return Err(SecurityStoreError::ConflictingVersion); }
+            OrganizationMutation::SetDesignation {
+                organization_id,
+                tenant_id,
+                principal,
+                designation_id,
+                active,
+                capabilities_json,
+                version,
+                reason,
+            } => {
+                if version == 0 {
+                    return Err(SecurityStoreError::InvalidVersion);
+                }
+                let version_i =
+                    i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+                let org: Option<String> = tx
+                    .query_row(
+                        "SELECT tenant_id FROM organizations WHERE organization_id=?1",
+                        [&organization_id],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
+                if org.as_deref() != Some(tenant_id.as_str()) {
+                    return Err(SecurityStoreError::ConflictingVersion);
+                }
                 let current: Option<(String,i64,Vec<u8>)> = tx.query_row(
                     "SELECT designation_id,version,digest FROM organization_designations WHERE organization_id=?1 AND principal=?2",
                     params![organization_id,principal], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))
                 ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-                if !active && current.as_ref().map_or(true, |(current_id,_,_)| current_id != &designation_id) {
+                if !active
+                    && current
+                        .as_ref()
+                        .map_or(true, |(current_id, _, _)| current_id != &designation_id)
+                {
                     return Err(SecurityStoreError::ConflictingVersion);
                 }
-                if let Some((_,v,d)) = current {
-                    if version_i < v { return Err(SecurityStoreError::Rollback); }
+                if let Some((_, v, d)) = current {
+                    if version_i < v {
+                        return Err(SecurityStoreError::Rollback);
+                    }
                     if version_i == v {
-                        return if d == digest { Ok(false) } else { Err(SecurityStoreError::ConflictingVersion) };
+                        return if d == digest {
+                            Ok(false)
+                        } else {
+                            Err(SecurityStoreError::ConflictingVersion)
+                        };
                     }
                 } else if !active {
                     return Err(SecurityStoreError::InvalidVersion);
                 }
                 tx.execute(
                     "INSERT INTO organization_designations(organization_id,principal,designation_id,tenant_id,active,capabilities_json,version,updated_at,command_id,digest) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10) ON CONFLICT(organization_id,principal) DO UPDATE SET designation_id=excluded.designation_id,tenant_id=excluded.tenant_id,active=excluded.active,capabilities_json=excluded.capabilities_json,version=excluded.version,updated_at=excluded.updated_at,command_id=excluded.command_id,digest=excluded.digest",
-                    params![organization_id,principal,designation_id,tenant_id,i64::from(active),capabilities_json,version_i,at_i,command_id,digest]
+                    params![organization_id,principal,designation_id,tenant_id,if active { 1_i64 } else { 0_i64 },capabilities_json,version_i,at_i,command_id,digest]
                 ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
-                ("set_designation".to_owned(), format!("{organization_id}:{principal}:{designation_id}"), reason)
+                (
+                    "set_designation".to_owned(),
+                    format!("{organization_id}:{principal}:{designation_id}"),
+                    reason,
+                )
             }
         };
         tx.execute(
@@ -636,30 +736,52 @@ impl SqliteSecurityStore {
         Ok(true)
     }
 
-    pub(crate) fn organization_state(&self, organization_id: &str) -> Result<Option<(String,bool,u64,u64)>, SecurityStoreError> {
-        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+    pub(crate) fn organization_state(
+        &self,
+        organization_id: &str,
+    ) -> Result<Option<(String, bool, u64, u64)>, SecurityStoreError> {
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         let row: Option<(String,i64,i64,i64)> = c.query_row(
             "SELECT tenant_id,active,version,updated_at FROM organizations WHERE organization_id=?1",
             [organization_id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))
         ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-        row.map(|(tenant,active,version,updated)| Ok((
-            tenant, active == 1,
-            u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
-            u64::try_from(updated).map_err(|_| SecurityStoreError::Unavailable)?
-        ))).transpose()
+        row.map(|(tenant, active, version, updated)| {
+            Ok((
+                tenant,
+                active == 1,
+                u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
+                u64::try_from(updated).map_err(|_| SecurityStoreError::Unavailable)?,
+            ))
+        })
+        .transpose()
     }
 
-    pub(crate) fn organization_designation(&self, organization_id: &str, principal: &str) -> Result<Option<(String,bool,String,u64,u64)>, SecurityStoreError> {
-        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+    pub(crate) fn organization_designation(
+        &self,
+        organization_id: &str,
+        principal: &str,
+    ) -> Result<Option<(String, bool, String, u64, u64)>, SecurityStoreError> {
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         let row: Option<(String,i64,String,i64,i64)> = c.query_row(
             "SELECT designation_id,active,capabilities_json,version,updated_at FROM organization_designations WHERE organization_id=?1 AND principal=?2",
             params![organization_id,principal], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))
         ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-        row.map(|(id,active,caps,version,updated)| Ok((
-            id, active == 1, caps,
-            u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
-            u64::try_from(updated).map_err(|_| SecurityStoreError::Unavailable)?
-        ))).transpose()
+        row.map(|(id, active, caps, version, updated)| {
+            Ok((
+                id,
+                active == 1,
+                caps,
+                u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
+                u64::try_from(updated).map_err(|_| SecurityStoreError::Unavailable)?,
+            ))
+        })
+        .transpose()
     }
 
     pub(crate) fn tenant_membership(
