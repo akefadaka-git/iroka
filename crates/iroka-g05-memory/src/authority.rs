@@ -157,6 +157,8 @@ mod tests {
     impl DesignatedReviewerAuthority for DenyReviewer {
         fn verify_designated_reviewer(
             &self,
+            _: &iroka_kernel::VerifiedPrincipal,
+            _: &crate::MemoryRecord,
             _: &DurableApprovalReceipt,
             _: &str,
             _: u64,
