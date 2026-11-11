@@ -465,6 +465,7 @@ impl OwnerApprovalVerifier {
     }
 
     /// Verify and atomically apply a G02-domain-separated Owner organization command.
+    #[rustfmt::skip]
     pub fn apply_organization_command(
         &self,
         command: &SignedOrganizationAuthorityCommand,
