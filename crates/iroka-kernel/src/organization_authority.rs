@@ -664,4 +664,71 @@ mod tests {
             .resolve(&principal, &tenant, "org:alpha", "records.read", 1200, 600)
             .is_ok());
     }
+
+    #[test]
+    fn owner_command_rejects_expired_future_and_revoked_signer() {
+        let (signer, owner, _, _) = fixture();
+
+        let mut expired = signed_org(
+            &signer,
+            "org:expired",
+            OrganizationAuthorityAction::CreateOrganization,
+            None,
+            None,
+            vec![],
+            1,
+        );
+        expired.payload.expires_at = 1_199;
+        expired.signature = signer
+            .sign(&expired.payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        assert_eq!(
+            owner.apply_organization_command(&expired, 1_200),
+            Err(crate::OwnerApprovalError::Expired)
+        );
+
+        let mut future = signed_org(
+            &signer,
+            "org:future",
+            OrganizationAuthorityAction::CreateOrganization,
+            None,
+            None,
+            vec![],
+            1,
+        );
+        future.payload.issued_at = 1_231;
+        future.signature = signer
+            .sign(&future.payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        assert_eq!(
+            owner.apply_organization_command(&future, 1_200),
+            Err(crate::OwnerApprovalError::NotYetValid)
+        );
+
+        owner
+            .store
+            .revoke_key(
+                "iroka:owner-authority",
+                "owner-key",
+                1_150,
+                "test key compromise",
+            )
+            .unwrap();
+        let revoked = signed_org(
+            &signer,
+            "org:revoked-key",
+            OrganizationAuthorityAction::CreateOrganization,
+            None,
+            None,
+            vec![],
+            1,
+        );
+        assert_eq!(
+            owner.apply_organization_command(&revoked, 1_200),
+            Err(crate::OwnerApprovalError::Revoked)
+        );
+    }
+
 }
