@@ -9,7 +9,10 @@ use crate::{
     AuthorizationRequest, Classification, DesignatedReviewerAuthority, DurableApprovalReceipt,
     EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryMetadata, MemoryRecord, Operation, Purpose,
 };
-use iroka_kernel::{ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof, TenantContext, VerifiedPrincipal, VerifiedReviewerProof};
+use iroka_kernel::{
+    ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof, TenantContext,
+    VerifiedPrincipal, VerifiedReviewerProof,
+};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::Digest;
 use std::path::Path;
@@ -625,6 +628,7 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
 
 /// Authoritative designation-time identity/key lookup. Production implementations
 /// must resolve the current issuer-side reviewer identity and key reference.
+#[rustfmt::skip]
 pub trait ReviewerDesignationKeyResolver: Send + Sync {
     fn validate_reviewer_key_binding(&self, reviewer: &str, key_ref: &str, now: u64) -> Result<(), G05Error>;
 }
@@ -638,6 +642,7 @@ impl<R, D> KernelG01ReviewerProofAdapter<R, D> {
         Self { verifier, designation_keys }
     }
 }
+#[rustfmt::skip]
 impl<R, D> G01ReviewerProofAuthority for KernelG01ReviewerProofAdapter<R, D>
 where
     R: ReviewerKeyBindingResolver,
@@ -697,6 +702,7 @@ where
     }
 }
 
+#[rustfmt::skip]
 fn classification_key(value: Classification) -> &'static str {
     match value {
         Classification::Public => "PUBLIC",
@@ -718,6 +724,7 @@ pub struct ReviewerDesignation {
 }
 /// Trusted read-only projection of the canonical G05 memory repository.
 /// Implementations must read the current persisted metadata, not caller input.
+#[rustfmt::skip]
 pub trait CanonicalMemoryMetadataResolver: Send + Sync {
     fn resolve_canonical_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error>;
 }
@@ -732,6 +739,7 @@ impl<P, M> RegistryDesignatedReviewerAuthority<P, M> {
         Self { registry, g01, records }
     }
 }
+#[rustfmt::skip]
 impl<P: G01ReviewerProofAuthority, M: CanonicalMemoryMetadataResolver> DesignatedReviewerAuthority
     for RegistryDesignatedReviewerAuthority<P, M>
 {
@@ -1077,6 +1085,7 @@ mod tests {
             Err(G05Error::ReviewerNotAuthorized)
         }
     }
+    #[rustfmt::skip]
     fn dummy_proof(id: &str) -> SignedReviewerProof {
         SignedReviewerProof::from_signature(iroka_kernel::ReviewerProofPayload {
             proof_id:id.into(), issuer:"issuer:test".into(), subject:"reviewer:1".into(),
@@ -1138,6 +1147,7 @@ mod tests {
         );
     }
     #[test]
+    #[rustfmt::skip]
     fn g05_approval_consumption_is_atomic_and_exactly_once() {
         let r = SqliteG05AuthorityRegistry::open_in_memory().unwrap();
         {
