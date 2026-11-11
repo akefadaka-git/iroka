@@ -1086,8 +1086,6 @@ impl RevocationChecker for SqliteSecurityStore {
             Err(_) => Err(SecurityStoreError::Unavailable),
         }
     }
-
-
 }
 
 #[cfg(test)]
