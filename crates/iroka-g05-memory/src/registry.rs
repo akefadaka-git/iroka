@@ -7,7 +7,8 @@
 
 use crate::{
     AuthorizationRequest, Classification, DesignatedReviewerAuthority, DurableApprovalReceipt,
-    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryRecord, Operation, Purpose,
+    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryRecord, Operation,
+    Purpose,
 };
 use iroka_kernel::{
     ReviewerKeyBindingResolver, ReviewerProofError, ReviewerProofVerifier, SignedReviewerProof,
@@ -912,7 +913,8 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
             return Err(G05Error::ReviewerNotAuthorized);
         }
         let verified = self.g01.verify_approval_proof(record, receipt, &d, now)?;
-        self.registry.consume_approval(receipt, record, &d, &verified, now)
+        self.registry
+            .consume_approval(receipt, record, &d, &verified, now)
     }
 }
 
@@ -1152,13 +1154,24 @@ mod tests {
     use super::*;
     struct G01;
     impl G01ReviewerProofAuthority for G01 {
-        fn validate_reviewer_key_binding(&self, reviewer: &str, key: &str, _: u64) -> Result<(), G05Error> {
-            if reviewer == "reviewer:1" && key == "key:1" { Ok(()) }
-            else { Err(G05Error::ReviewerNotAuthorized) }
+        fn validate_reviewer_key_binding(
+            &self,
+            reviewer: &str,
+            key: &str,
+            _: u64,
+        ) -> Result<(), G05Error> {
+            if reviewer == "reviewer:1" && key == "key:1" {
+                Ok(())
+            } else {
+                Err(G05Error::ReviewerNotAuthorized)
+            }
         }
         fn verify_approval_proof(
-            &self, _record: &MemoryRecord, _receipt: &DurableApprovalReceipt,
-            _designation: &ReviewerDesignation, _now: u64,
+            &self,
+            _record: &MemoryRecord,
+            _receipt: &DurableApprovalReceipt,
+            _designation: &ReviewerDesignation,
+            _now: u64,
         ) -> Result<VerifiedReviewerProof, G05Error> {
             Err(G05Error::ReviewerNotAuthorized)
         }
@@ -1220,7 +1233,8 @@ mod tests {
                 "INSERT INTO g05_reviewer_designations VALUES
                  ('d1','t1','org1','reviewer:1','key:1','admin',1,100,300,100,NULL)",
                 [],
-            ).unwrap();
+            )
+            .unwrap();
         }
         let record = MemoryRecord {
             candidate: crate::MemoryCandidate {
@@ -1271,13 +1285,21 @@ mod tests {
             "signature":[]
         }).to_string();
         let receipt = DurableApprovalReceipt {
-            approval_ref: "a1".into(), memory_id: "m1".into(), tenant_ref: "t1".into(),
-            subject_ref: "org1".into(), content_sha256: crate::sha256_hex(b"synthetic"),
-            reviewer_ref: "reviewer:1".into(), issued_at: 120, expires_at: 200,
+            approval_ref: "a1".into(),
+            memory_id: "m1".into(),
+            tenant_ref: "t1".into(),
+            subject_ref: "org1".into(),
+            content_sha256: crate::sha256_hex(b"synthetic"),
+            reviewer_ref: "reviewer:1".into(),
+            issued_at: 120,
+            expires_at: 200,
             proof_ref: proof,
         };
         r.register_pending_approval(&record, &receipt, 150).unwrap();
-        assert_eq!(r.register_pending_approval(&record, &receipt, 150), Err(G05Error::DuplicateRecord));
+        assert_eq!(
+            r.register_pending_approval(&record, &receipt, 150),
+            Err(G05Error::DuplicateRecord)
+        );
         let authority = RegistryDesignatedReviewerAuthority::new(r.clone(), G01);
         assert_eq!(
             authority.verify_designated_reviewer(&record, &receipt, "org1", 150),
