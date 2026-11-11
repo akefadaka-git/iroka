@@ -170,6 +170,8 @@ impl SqliteG05AuthorityRegistry {
             || metadata.tenant_ref != receipt.tenant_ref
             || metadata.subject_ref != receipt.subject_ref
             || metadata.content_sha256 != receipt.content_sha256
+            || request.purpose != metadata.purpose
+            || request.classification != metadata.classification
             || metadata.lifecycle_state != crate::LifecycleState::PendingReview
             || metadata.memory_class != crate::MemoryClass::Durable
         {
