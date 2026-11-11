@@ -90,6 +90,23 @@ impl TrustStore {
         })
     }
 
+    /// Resolve a key only from this already-verified immutable G01 trust snapshot.
+    pub fn resolve_trusted_key(
+        &self,
+        issuer: &str,
+        kid: &str,
+        now: u64,
+    ) -> Result<TrustedKey, CredentialError> {
+        let record = self.key(issuer, kid, now)?;
+        Ok(TrustedKey {
+            issuer: issuer.to_owned(),
+            key_id: kid.to_owned(),
+            public_key: record.key.to_bytes(),
+            not_before: record.not_before,
+            not_after: record.not_after,
+        })
+    }
+
     fn key(&self, issuer: &str, kid: &str, now: u64) -> Result<&KeyRecord, CredentialError> {
         if !self.issuers.contains(issuer) {
             return Err(CredentialError::UntrustedIssuer);
