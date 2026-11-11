@@ -72,8 +72,15 @@ pub struct VerifiedReviewerProof {
     subject: String,
     issuer: String,
     approval_id: String,
+    designation_id: String,
+    designation_version: u64,
     tenant_id: String,
     organization_id: String,
+    memory_id: String,
+    record_version: u64,
+    content_sha256: String,
+    purpose: String,
+    classification: String,
     capability: String,
     resource: String,
     policy_version: String,
@@ -87,8 +94,15 @@ impl VerifiedReviewerProof {
     pub fn subject(&self) -> &str { &self.subject }
     pub fn issuer(&self) -> &str { &self.issuer }
     pub fn approval_id(&self) -> &str { &self.approval_id }
+    pub fn designation_id(&self) -> &str { &self.designation_id }
+    pub fn designation_version(&self) -> u64 { self.designation_version }
     pub fn tenant_id(&self) -> &str { &self.tenant_id }
     pub fn organization_id(&self) -> &str { &self.organization_id }
+    pub fn memory_id(&self) -> &str { &self.memory_id }
+    pub fn record_version(&self) -> u64 { self.record_version }
+    pub fn content_sha256(&self) -> &str { &self.content_sha256 }
+    pub fn purpose(&self) -> &str { &self.purpose }
+    pub fn classification(&self) -> &str { &self.classification }
     pub fn capability(&self) -> &str { &self.capability }
     pub fn resource(&self) -> &str { &self.resource }
     pub fn policy_version(&self) -> &str { &self.policy_version }
@@ -223,8 +237,11 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             })?;
         Ok(VerifiedReviewerProof {
             reviewer_id: p.reviewer_id.clone(), subject: p.subject.clone(), issuer: p.issuer.clone(),
-            approval_id: p.approval_id.clone(), tenant_id: p.tenant_id.clone(),
-            organization_id: p.organization_id.clone(), capability: p.capability.clone(),
+            approval_id: p.approval_id.clone(), designation_id: p.designation_id.clone(),
+            designation_version: p.designation_version, tenant_id: p.tenant_id.clone(),
+            organization_id: p.organization_id.clone(), memory_id: p.memory_id.clone(),
+            record_version: p.record_version, content_sha256: p.content_sha256.clone(),
+            purpose: p.purpose.clone(), classification: p.classification.clone(), capability: p.capability.clone(),
             resource: p.resource.clone(), policy_version: p.policy_version.clone(),
             proof_id: p.proof_id.clone(), verified_at: now,
         })
