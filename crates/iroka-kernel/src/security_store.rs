@@ -1054,8 +1054,6 @@ impl SqliteSecurityStore {
             Err(_) => Err(SecurityStoreError::Unavailable),
         }
     }
-
-
 }
 
 impl RevocationChecker for SqliteSecurityStore {
@@ -1087,7 +1085,8 @@ impl RevocationChecker for SqliteSecurityStore {
             |row| row.get(0),
         )
         .map_err(|_| RevocationError::Unavailable)
-    }}
+    }
+}
 
 #[cfg(test)]
 mod tests {
