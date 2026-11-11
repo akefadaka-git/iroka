@@ -93,6 +93,18 @@ pub(crate) enum OrganizationMutation {
         version: u64,
         reason: String,
     },
+    SetDelegation {
+        organization_id: String,
+        tenant_id: String,
+        delegation_id: String,
+        delegator: String,
+        delegate: String,
+        active: bool,
+        capabilities_json: String,
+        version: u64,
+        valid_until: u64,
+        reason: String,
+    },
     SetDesignation {
         organization_id: String,
         tenant_id: String,
@@ -207,6 +219,16 @@ impl SqliteSecurityStore {
                PRIMARY KEY(organization_id, principal),
                FOREIGN KEY(organization_id) REFERENCES organizations(organization_id)
              );
+             CREATE TABLE IF NOT EXISTS organization_delegations (
+               delegation_id TEXT PRIMARY KEY, organization_id TEXT NOT NULL,
+               tenant_id TEXT NOT NULL, delegator TEXT NOT NULL, delegate TEXT NOT NULL,
+               active INTEGER NOT NULL CHECK(active IN (0,1)), capabilities_json TEXT NOT NULL,
+               version INTEGER NOT NULL CHECK(version>0), valid_until INTEGER NOT NULL,
+               updated_at INTEGER NOT NULL, command_id TEXT NOT NULL, digest BLOB NOT NULL,
+               FOREIGN KEY(organization_id) REFERENCES organizations(organization_id)
+             );
+             CREATE INDEX IF NOT EXISTS organization_delegation_scope
+               ON organization_delegations(tenant_id,organization_id,delegate,active);
              CREATE TABLE IF NOT EXISTS tenant_memberships (
                subject TEXT NOT NULL, tenant_id TEXT NOT NULL,
                active INTEGER NOT NULL CHECK(active IN (0,1)),
@@ -669,6 +691,38 @@ impl SqliteSecurityStore {
                     reason,
                 )
             }
+            OrganizationMutation::SetDelegation {
+                organization_id, tenant_id, delegation_id, delegator, delegate, active,
+                capabilities_json, version, valid_until, reason,
+            } => {
+                if version == 0 || delegation_id.trim().is_empty() || delegator.trim().is_empty()
+                    || delegate.trim().is_empty() || (active && valid_until <= at)
+                { return Err(SecurityStoreError::InvalidVersion); }
+                let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+                let valid_until_i = i64::try_from(valid_until).map_err(|_| SecurityStoreError::InvalidVersion)?;
+                let org_tenant: Option<String> = tx.query_row(
+                    "SELECT tenant_id FROM organizations WHERE organization_id=?1", [&organization_id], |row| row.get(0)
+                ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+                if org_tenant.as_deref() != Some(tenant_id.as_str()) { return Err(SecurityStoreError::ConflictingVersion); }
+                let current: Option<(String,String,String,i64,Vec<u8>)> = tx.query_row(
+                    "SELECT delegator,delegate,tenant_id,version,digest FROM organization_delegations WHERE delegation_id=?1",
+                    [&delegation_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))
+                ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+                if let Some((old_delegator,old_delegate,old_tenant,old_version,old_digest)) = current {
+                    if old_delegator != delegator || old_delegate != delegate || old_tenant != tenant_id {
+                        return Err(SecurityStoreError::ConflictingVersion);
+                    }
+                    if version_i < old_version { return Err(SecurityStoreError::Rollback); }
+                    if version_i == old_version {
+                        return if old_digest == digest { Ok(false) } else { Err(SecurityStoreError::ConflictingVersion) };
+                    }
+                } else if !active { return Err(SecurityStoreError::InvalidVersion); }
+                tx.execute(
+                    "INSERT INTO organization_delegations(delegation_id,organization_id,tenant_id,delegator,delegate,active,capabilities_json,version,valid_until,updated_at,command_id,digest) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12) ON CONFLICT(delegation_id) DO UPDATE SET active=excluded.active,capabilities_json=excluded.capabilities_json,version=excluded.version,valid_until=excluded.valid_until,updated_at=excluded.updated_at,command_id=excluded.command_id,digest=excluded.digest",
+                    params![delegation_id,organization_id,tenant_id,delegator,delegate,if active {1_i64} else {0_i64},capabilities_json,version_i,valid_until_i,at_i,command_id,digest]
+                ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
+                ("set_delegation".to_owned(),format!("{organization_id}:{delegation_id}:{delegator}:{delegate}:v{version}:active={active}"),reason)
+            }
             OrganizationMutation::SetDesignation {
                 organization_id,
                 tenant_id,
@@ -785,6 +839,22 @@ impl SqliteSecurityStore {
             ))
         })
         .transpose()
+    }
+
+    pub(crate) fn organization_delegation(
+        &self, delegation_id: &str,
+    ) -> Result<Option<(String,String,String,String,bool,String,u64,u64,u64)>, SecurityStoreError> {
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let row: Option<(String,String,String,String,i64,String,i64,i64,i64)> = c.query_row(
+            "SELECT delegator,delegate,tenant_id,organization_id,active,capabilities_json,version,valid_until,updated_at FROM organization_delegations WHERE delegation_id=?1",
+            [delegation_id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?,r.get(7)?,r.get(8)?))
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        row.map(|(delegator,delegate,tenant,org,active,caps,version,valid_until,updated)| Ok((
+            delegator,delegate,tenant,org,active==1,caps,
+            u64::try_from(version).map_err(|_|SecurityStoreError::Unavailable)?,
+            u64::try_from(valid_until).map_err(|_|SecurityStoreError::Unavailable)?,
+            u64::try_from(updated).map_err(|_|SecurityStoreError::Unavailable)?,
+        ))).transpose()
     }
 
     pub(crate) fn tenant_membership(
