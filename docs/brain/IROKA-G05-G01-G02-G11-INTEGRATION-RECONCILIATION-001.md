@@ -86,9 +86,9 @@ The new stream does not change or overload G11 decision-event compatibility. The
 | Area | Result |
 |---|---|
 | G01 existing credential/revocation primitives | **RECONCILED** |
-| G01 cryptographic reviewer-proof verifier | **IMPLEMENTED — exact-head CI pending; production issuer adapter pending** |
-| G05 typed proof adapter and verified-principal binding | **IMPLEMENTED — exact-head CI pending** |
-| G05 current designation + canonical memory metadata re-resolution | **IMPLEMENTED — repository adapter/provisioning pending** |
+| G01 cryptographic reviewer-proof verifier | **IMPLEMENTED — CI PASS #42957771604; production issuer adapter pending** |
+| G05 typed proof adapter and verified-principal binding | **IMPLEMENTED — CI PASS #42957771604** |
+| G05 current designation + canonical memory metadata re-resolution | **IMPLEMENTED — CI PASS #42957771604; production repository provisioning pending** |
 | G05 exactly-once approval consumption + outbox transaction | **IMPLEMENTED — exact-head CI pending** |
 | G02 Owner policy and tenant authority | **RECONCILED** |
 | G02 canonical organization-delegation provider | **MISSING — fail-closed** |
@@ -100,3 +100,10 @@ The new stream does not change or overload G11 decision-event compatibility. The
 | A5 deployment | **NOT AUTHORIZED** |
 
 No missing authority is replaced with a G05-local registry, test stub, caller-supplied assertion or Owner approval. The two missing provider integrations are explicit dependency blockers, not reasons to hold up the independent G11 implementation.
+
+
+### Exact-head verification evidence — 2026-11-11
+
+The combined G01/G05/G11 integration candidate at `444901f36f03a4444174a0e3e4a09bf2be3d2a6a` passed GitHub Actions [run #42957771604](https://github.com/akefadaka-git/iroka/actions/runs/42957771604): formatting PASS, workspace/all-target compilation PASS, production feature-set safeguard PASS, **140 tests passed / 0 failed**, and Clippy PASS. The run covers the exact current implementation head; subsequent documentation-only updates do not change the tested code.
+
+This is kernel/G05 integration verification, not production trust-adapter provisioning or independent A4 assurance. PR #43 remains draft and unmerged.
