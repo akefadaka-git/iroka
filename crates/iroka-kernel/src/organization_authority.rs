@@ -336,3 +336,41 @@ mod tests {
         assert_eq!(owner.apply_organization_command(&valid, 1200), Err(crate::OwnerApprovalError::Replay));
     }
 }
+
+    #[test]
+    fn organization_suspension_and_reactivation_are_versioned_and_enforced() {
+        let (signer, owner, store, principal) = fixture();
+        let tenant = tenant_context(&signer, &owner, &principal, store.clone());
+        owner.apply_organization_command(&signed_org(&signer, "org:create", OrganizationAuthorityAction::CreateOrganization,
+            None, None, vec![], 1), 1200).unwrap();
+        owner.apply_organization_command(&signed_org(&signer, "org:designate", OrganizationAuthorityAction::SetDesignation,
+            Some(principal.subject()), Some("designation:alice"), vec!["records.read"], 1), 1200).unwrap();
+        let resolver = OrganizationAuthorityResolver::new(store);
+        assert!(resolver.resolve(&principal, &tenant, "org:alpha", "records.read", 1200, 600).is_ok());
+
+        let suspend = signed_org(&signer, "org:suspend", OrganizationAuthorityAction::SetOrganizationActive { active: false },
+            None, None, vec![], 2);
+        owner.apply_organization_command(&suspend, 1200).unwrap();
+        assert_eq!(resolver.resolve(&principal, &tenant, "org:alpha", "records.read", 1200, 600),
+            Err(OrganizationAuthorityError::OrganizationInactive));
+
+        let reactivate = signed_org(&signer, "org:reactivate", OrganizationAuthorityAction::SetOrganizationActive { active: true },
+            None, None, vec![], 3);
+        owner.apply_organization_command(&reactivate, 1200).unwrap();
+        assert!(resolver.resolve(&principal, &tenant, "org:alpha", "records.read", 1200, 600).is_ok());
+    }
+
+    #[test]
+    fn designation_revocation_requires_exact_designation_id() {
+        let (signer, owner, store, principal) = fixture();
+        let tenant = tenant_context(&signer, &owner, &principal, store.clone());
+        owner.apply_organization_command(&signed_org(&signer, "org:create", OrganizationAuthorityAction::CreateOrganization,
+            None, None, vec![], 1), 1200).unwrap();
+        owner.apply_organization_command(&signed_org(&signer, "org:designate", OrganizationAuthorityAction::SetDesignation,
+            Some(principal.subject()), Some("designation:alice"), vec!["records.read"], 1), 1200).unwrap();
+        let forged_target = signed_org(&signer, "org:revoke-wrong-id", OrganizationAuthorityAction::RevokeDesignation,
+            Some(principal.subject()), Some("designation:other"), vec![], 2);
+        assert_eq!(owner.apply_organization_command(&forged_target, 1200), Err(crate::OwnerApprovalError::Malformed));
+        let resolver = OrganizationAuthorityResolver::new(store);
+        assert!(resolver.resolve(&principal, &tenant, "org:alpha", "records.read", 1200, 600).is_ok());
+    }
