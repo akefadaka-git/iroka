@@ -606,6 +606,17 @@ impl EpisodicConsentAuthority for SqliteG05AuthorityRegistry {
 /// G01 identity/key boundary. Implementations resolve current key state and
 /// revocation; proof_ref is only a selector into the trusted proof service.
 pub trait G01ReviewerProofAuthority: Send + Sync {
+    /// Designation-time identity/key resolution is a separate G01 trust boundary.
+    /// Implementations without an authoritative reviewer-to-credential resolver deny.
+    fn validate_reviewer_key_binding(
+        &self,
+        _reviewer: &str,
+        _key_ref: &str,
+        _now: u64,
+    ) -> Result<(), G05Error> {
+        Err(G05Error::ReviewerNotAuthorized)
+    }
+
     /// Accepts only the unforgeable result produced by G01's cryptographic verifier.
     /// This adapter rechecks every G05-owned scope field against canonical state.
     fn verify_approval_proof(
