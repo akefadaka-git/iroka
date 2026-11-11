@@ -708,12 +708,24 @@ impl SqliteSecurityStore {
                     "SELECT tenant_id FROM organizations WHERE organization_id=?1", [&organization_id], |row| row.get(0)
                 ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
                 if org_tenant.as_deref() != Some(tenant_id.as_str()) { return Err(SecurityStoreError::ConflictingVersion); }
-                let current: Option<(String,String,String,i64,Vec<u8>)> = tx.query_row(
-                    "SELECT delegator,delegate,tenant_id,version,digest FROM organization_delegations WHERE delegation_id=?1",
-                    [&delegation_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))
+                let delegator_caps_json: Option<String> = tx.query_row(
+                    "SELECT capabilities_json FROM organization_designations WHERE organization_id=?1 AND tenant_id=?2 AND principal=?3 AND active=1",
+                    params![organization_id,tenant_id,delegator], |row| row.get(0)
                 ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-                if let Some((old_delegator,old_delegate,old_tenant,old_version,old_digest)) = current {
-                    if old_delegator != delegator || old_delegate != delegate || old_tenant != tenant_id {
+                let delegator_caps: Vec<String> = serde_json::from_str(
+                    &delegator_caps_json.ok_or(SecurityStoreError::ConflictingVersion)?
+                ).map_err(|_| SecurityStoreError::Unavailable)?;
+                let delegated_caps: Vec<String> = serde_json::from_str(&capabilities_json)
+                    .map_err(|_| SecurityStoreError::InvalidVersion)?;
+                if !delegator_caps.iter().any(|cap| cap == "organization.designation.delegate")
+                    || (active && !delegated_caps.iter().all(|cap| delegator_caps.iter().any(|owned| owned == cap)))
+                { return Err(SecurityStoreError::ConflictingVersion); }
+                let current: Option<(String,String,String,String,i64,Vec<u8>)> = tx.query_row(
+                    "SELECT organization_id,delegator,delegate,tenant_id,version,digest FROM organization_delegations WHERE delegation_id=?1",
+                    [&delegation_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?))
+                ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+                if let Some((old_org,old_delegator,old_delegate,old_tenant,old_version,old_digest)) = current {
+                    if old_org != organization_id || old_delegator != delegator || old_delegate != delegate || old_tenant != tenant_id {
                         return Err(SecurityStoreError::ConflictingVersion);
                     }
                     if version_i < old_version { return Err(SecurityStoreError::Rollback); }
