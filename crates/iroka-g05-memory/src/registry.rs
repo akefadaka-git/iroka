@@ -467,6 +467,32 @@ impl SqliteG05AuthorityRegistry {
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
 
+    fn pending_approval_matches(
+        &self,
+        record: &MemoryRecord,
+        receipt: &DurableApprovalReceipt,
+    ) -> Result<(), G05Error> {
+        let c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let matches: bool = c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM g05_pending_durable_approvals
+             WHERE approval_ref=?1 AND memory_id=?2 AND tenant_ref=?3 AND organization_ref=?4
+             AND record_version=?5 AND content_sha256=?6 AND purpose=?7 AND classification=?8
+             AND contract_version=?9 AND reviewer_ref=?10 AND issued_at=?11 AND expires_at=?12
+             AND proof_json=?13 AND consumed_at IS NULL)",
+            params![
+                receipt.approval_ref, record.candidate.memory_id, record.candidate.tenant_ref,
+                receipt.subject_ref, to_i64(record.candidate.record_version)?,
+                record.candidate.content_sha256, purpose_key(record.candidate.purpose),
+                classification_key(record.candidate.classification), record.candidate.contract_version,
+                receipt.reviewer_ref, to_i64(receipt.issued_at)?, to_i64(receipt.expires_at)?,
+                receipt.proof_ref
+            ],
+            |row| row.get(0),
+        ).map_err(|_| G05Error::AuthorityUnavailable)?;
+        if !matches { return Err(G05Error::ApprovalBindingMismatch); }
+        Ok(())
+    }
+
     fn active_designation(
         &self,
         tenant: &str,
