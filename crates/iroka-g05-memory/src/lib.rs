@@ -17,13 +17,14 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
+#[rustfmt::skip]
 mod registry;
 pub use registry::{
     G01ReviewerProofAuthority, KernelG01ReviewerProofAuthority, KernelG02AuthorizationAdapter,
-    RegistryDesignatedReviewerAuthority,
-    ReviewerDesignation, SqliteG05AuthorityRegistry,
+    RegistryDesignatedReviewerAuthority, ReviewerDesignation, SqliteG05AuthorityRegistry,
 };
 
+#[rustfmt::skip]
 mod authority;
 pub use authority::{
     DesignatedReviewerAuthority, EpisodicConsentAuthority, G02AuthorizationAuthority,
@@ -456,7 +457,6 @@ pub fn validate_approval_binding(
     if !valid_ref(&receipt.approval_ref)
         || !valid_ref(&receipt.reviewer_ref)
         || !valid_ref(&receipt.proof_ref)
-
     {
         return Err(G05Error::InvalidReference);
     }
@@ -729,6 +729,7 @@ pub trait MemoryRepository {
 }
 
 #[cfg(test)]
+#[rustfmt::skip]
 mod tests {
     use super::*;
 
