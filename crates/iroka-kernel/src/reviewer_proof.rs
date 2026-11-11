@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{SecurityStoreError, SqliteSecurityStore, VerifiedPrincipal};
 
-const DOMAIN: &[u8] = b"IROKA:G01:REVIEWER_PROOF:V1\\0";
+const DOMAIN: &[u8] = b"IROKA:G01:REVIEWER_PROOF:V1\0";
 const MAX_PROOF_TTL_SECS: u64 = 300;
 const CLOCK_SKEW_SECS: u64 = 30;
 
