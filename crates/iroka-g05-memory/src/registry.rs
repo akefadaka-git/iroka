@@ -142,7 +142,10 @@ impl SqliteG05AuthorityRegistry {
     /// Authorize the reviewer before reading the canonical record, then persist
     /// an immutable pending approval envelope. The signed proof is still untrusted
     /// until G01 verifies it during the activation path.
-    pub fn register_pending_approval_from_repository<R: crate::MemoryRepository, G: G02AuthorizationAuthority>(
+    pub fn register_pending_approval_from_repository<
+        R: crate::MemoryRepository,
+        G: G02AuthorizationAuthority,
+    >(
         &self,
         repository: &R,
         receipt: &DurableApprovalReceipt,
@@ -1426,7 +1429,8 @@ mod tests {
                 "INSERT INTO g05_reviewer_designations VALUES
                  ('d1','t','org','reviewer:1','key:1','admin',1,100,300,100,NULL)",
                 [],
-            ).unwrap();
+            )
+            .unwrap();
         }
         let content = "exactly-once record";
         let digest = crate::sha256_hex(content.as_bytes());
@@ -1445,15 +1449,24 @@ mod tests {
                 classification: Classification::Confidential,
                 provenance: crate::Provenance {
                     kind: crate::ProvenanceKind::UserExplicit,
-                    source_refs: vec![], source_revision_refs: vec![], derived_from: vec![],
-                    recorded_by_ref: "admin".into(), recorded_at: 100,
+                    source_refs: vec![],
+                    source_revision_refs: vec![],
+                    derived_from: vec![],
+                    recorded_by_ref: "admin".into(),
+                    recorded_at: 100,
                 },
-                confidence_milli: None, created_at: 100, expires_at: None,
-                retention_policy_ref: "retention:v1".into(), episodic_opt_in_ref: None,
+                confidence_milli: None,
+                created_at: 100,
+                expires_at: None,
+                retention_policy_ref: "retention:v1".into(),
+                episodic_opt_in_ref: None,
                 record_version: 2,
             },
             lifecycle_state: crate::LifecycleState::PendingReview,
-            approval_ref: None, approved_by_ref: None, approved_at: None, updated_at: 110,
+            approval_ref: None,
+            approved_by_ref: None,
+            approved_at: None,
+            updated_at: 110,
         };
         let proof = serde_json::json!({
             "payload": {
@@ -1467,16 +1480,29 @@ mod tests {
                 "policy_version":crate::CONTRACT_VERSION,"issued_at":110,"expires_at":200
             },
             "signature":[]
-        }).to_string();
+        })
+        .to_string();
         let receipt = DurableApprovalReceipt {
-            approval_ref: "a1".into(), memory_id: "m".into(), tenant_ref: "t".into(),
-            subject_ref: "org".into(), content_sha256: record.candidate.content_sha256.clone(),
-            reviewer_ref: "reviewer:1".into(), issued_at: 110, expires_at: 200, proof_ref: proof,
+            approval_ref: "a1".into(),
+            memory_id: "m".into(),
+            tenant_ref: "t".into(),
+            subject_ref: "org".into(),
+            content_sha256: record.candidate.content_sha256.clone(),
+            reviewer_ref: "reviewer:1".into(),
+            issued_at: 110,
+            expires_at: 200,
+            proof_ref: proof,
         };
         r.register_pending_approval(&record, &receipt, 120).unwrap();
         let designation = r.active_designation("t", "org", "reviewer:1", 150).unwrap();
-        assert_eq!(r.consume_approval(&receipt, &record, &designation, "proof:once", 150), Ok(()));
-        assert_eq!(r.consume_approval(&receipt, &record, &designation, "proof:once", 151), Err(G05Error::ApprovalReplay));
+        assert_eq!(
+            r.consume_approval(&receipt, &record, &designation, "proof:once", 150),
+            Ok(())
+        );
+        assert_eq!(
+            r.consume_approval(&receipt, &record, &designation, "proof:once", 151),
+            Err(G05Error::ApprovalReplay)
+        );
         let c = r.connection.lock().unwrap();
         let consumed: i64 = c.query_row(
             "SELECT COUNT(*) FROM g05_pending_durable_approvals WHERE approval_ref='a1' AND consumed_at IS NOT NULL",
