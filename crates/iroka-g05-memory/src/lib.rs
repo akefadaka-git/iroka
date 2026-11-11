@@ -20,8 +20,8 @@ use std::collections::BTreeSet;
 #[rustfmt::skip]
 mod registry;
 pub use registry::{
-    G01ReviewerProofAuthority, KernelG01ReviewerProofAuthority, KernelG02AuthorizationAdapter,
-    RegistryDesignatedReviewerAuthority, ReviewerDesignation, SqliteG05AuthorityRegistry,
+    G01ReviewerProofAuthority, KernelG01ReviewerProofAuthority, RegistryDesignatedReviewerAuthority,
+    ReviewerDesignation, SqliteG05AuthorityRegistry,
 };
 
 #[rustfmt::skip]
