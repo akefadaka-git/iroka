@@ -1283,7 +1283,8 @@ mod tests {
                 "policy_version":crate::CONTRACT_VERSION,"issued_at":120,"expires_at":200
             },
             "signature":[]
-        }).to_string();
+        })
+        .to_string();
         let receipt = DurableApprovalReceipt {
             approval_ref: "a1".into(),
             memory_id: "m1".into(),
@@ -1376,7 +1377,8 @@ mod tests {
                 "INSERT INTO g05_reviewer_designations VALUES
                  ('d-expired','t','org','reviewer:1','key:1','admin',1,100,140,100,NULL)",
                 [],
-            ).unwrap();
+            )
+            .unwrap();
         }
         let content = "canonical durable content";
         let digest = crate::sha256_hex(content.as_bytes());
