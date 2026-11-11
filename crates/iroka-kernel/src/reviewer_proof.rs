@@ -10,7 +10,10 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{SecurityStoreError, SqliteSecurityStore, VerifiedPrincipal};
+use crate::{
+    CredentialError, RevocationChecker, SecurityStoreError, SqliteSecurityStore,
+    TrustSnapshotManager, VerifiedPrincipal,
+};
 
 const DOMAIN: &[u8] = b"IROKA:G01:REVIEWER_PROOF:V1\0";
 const MAX_PROOF_TTL_SECS: u64 = 300;
@@ -211,6 +214,48 @@ pub trait ReviewerIssuerTrustProvider: Send + Sync {
         key_id: &str,
         now: u64,
     ) -> Result<Option<ReviewerIssuerTrustKey>, ReviewerProofError>;
+}
+
+/// Production G01 adapter: issuer signing keys come only from the currently
+/// installed root-signed trust snapshot; revocation is checked live on every
+/// resolution. Snapshot publication/rollback is owned by TrustSnapshotManager.
+pub struct KernelReviewerIssuerTrustProvider<R> {
+    snapshots: std::sync::Arc<TrustSnapshotManager>,
+    revocations: R,
+}
+impl<R> KernelReviewerIssuerTrustProvider<R> {
+    pub fn new(snapshots: std::sync::Arc<TrustSnapshotManager>, revocations: R) -> Self {
+        Self { snapshots, revocations }
+    }
+}
+impl<R: RevocationChecker> ReviewerIssuerTrustProvider for KernelReviewerIssuerTrustProvider<R> {
+    fn resolve_current_issuer_key(
+        &self,
+        issuer: &str,
+        key_id: &str,
+        now: u64,
+    ) -> Result<Option<ReviewerIssuerTrustKey>, ReviewerProofError> {
+        let snapshot = self.snapshots.snapshot().map_err(|_| ReviewerProofError::IssuerTrustUnavailable)?;
+        let trusted = match snapshot.resolve_trusted_key(issuer, key_id, now) {
+            Ok(key) => key,
+            Err(CredentialError::UnknownKey | CredentialError::UntrustedIssuer) => return Ok(None),
+            Err(_) => return Err(ReviewerProofError::IssuerTrustUnavailable),
+        };
+        let revoked = self.revocations.key_revoked(issuer, key_id)
+            .map_err(|_| ReviewerProofError::IssuerTrustUnavailable)?;
+        let version = self.snapshots.version();
+        if version == 0 { return Err(ReviewerProofError::IssuerTrustUnavailable); }
+        Ok(Some(ReviewerIssuerTrustKey {
+            issuer: trusted.issuer,
+            key_id: trusted.key_id,
+            public_key: trusted.public_key,
+            not_before: trusted.not_before,
+            not_after: trusted.not_after,
+            revoked,
+            trust_version: version,
+            resolved_at: now,
+        }))
+    }
 }
 
 pub struct ReviewerProofVerifier<R, I> {
