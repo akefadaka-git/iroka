@@ -13,7 +13,7 @@
 //! audit completion must be coordinated transactionally through a G11-backed
 //! outbox before a lifecycle mutation is reported complete.
 
-use iroka_kernel::{ReviewerProofPayload, SignedReviewerProof, VerifiedPrincipal};
+use iroka_kernel::{SignedReviewerProof, VerifiedPrincipal};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -751,6 +751,7 @@ impl<T: MemoryRepository> CanonicalMemoryMetadataResolver for T {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use iroka_kernel::ReviewerProofPayload;
 
     struct AllowGovernance;
     impl GovernancePort for AllowGovernance {
@@ -1024,17 +1025,6 @@ mod tests {
             signed_proof: test_signed_proof("proof:1"),
         };
         assert_eq!(validate_approval_binding(&record, &receipt, 110), Ok(()));
-        let request = AuthorizationRequest {
-            operation: Operation::ActivateDurable,
-            principal_ref: "reviewer:1".to_owned(),
-            tenant_ref: "tenant:1".to_owned(),
-            subject_ref: "principal:1".to_owned(),
-            purpose: Purpose::TaskContinuity,
-            classification: Classification::Internal,
-            memory_id: Some("memory:1".to_owned()),
-            recipient_refs: vec![],
-            correlation_ref: "trace:1".to_owned(),
-        };
         // Cryptographic activation is exercised through the trusted G01/G05 adapter.
         let mut tampered = receipt.clone();
         tampered.content_sha256 = "0".repeat(64);
