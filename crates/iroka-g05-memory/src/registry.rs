@@ -96,6 +96,44 @@ impl SqliteG05AuthorityRegistry {
         })
     }
 
+    /// Store an immutable, pending approval envelope against the current canonical
+    /// memory record. Signature verification and consumption happen only during activation.
+    pub fn register_pending_approval(
+        &self,
+        record: &MemoryRecord,
+        receipt: &DurableApprovalReceipt,
+        now: u64,
+    ) -> Result<(), G05Error> {
+        crate::validate_approval_binding(record, receipt, now)?;
+        if record.lifecycle_state != crate::LifecycleState::PendingReview
+            || record.candidate.memory_class != crate::MemoryClass::Durable
+            || receipt.proof_ref.len() > 32_768
+        {
+            return Err(G05Error::InvalidLifecycleTransition);
+        }
+        let _: SignedReviewerProof = serde_json::from_str(&receipt.proof_ref)
+            .map_err(|_| G05Error::ReviewerNotAuthorized)?;
+        let mut c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        tx.execute(
+            "INSERT INTO g05_pending_durable_approvals
+             (approval_ref,memory_id,tenant_ref,organization_ref,record_version,content_sha256,
+              purpose,classification,contract_version,reviewer_ref,issued_at,expires_at,proof_json,
+              created_at,consumed_at)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,NULL)",
+            params![
+                receipt.approval_ref, record.candidate.memory_id, record.candidate.tenant_ref,
+                receipt.subject_ref, to_i64(record.candidate.record_version)?,
+                record.candidate.content_sha256, purpose_key(record.candidate.purpose),
+                classification_key(record.candidate.classification), record.candidate.contract_version,
+                receipt.reviewer_ref, to_i64(receipt.issued_at)?, to_i64(receipt.expires_at)?,
+                receipt.proof_ref, to_i64(now)?
+            ],
+        ).map_err(|_| G05Error::DuplicateRecord)?;
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
+    }
+
     /// Explicit authenticated user action only; do not call from passive signup.
     #[allow(clippy::too_many_arguments)]
     pub fn grant_episodic_consent<G: G02AuthorizationAuthority>(
