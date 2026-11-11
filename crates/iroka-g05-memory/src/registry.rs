@@ -553,6 +553,22 @@ impl SqliteG05AuthorityRegistry {
         if n != 1 {
             return Err(G05Error::ApprovalReplay);
         }
+        let consumed = tx.execute(
+            "UPDATE g05_pending_durable_approvals SET consumed_at=?1
+             WHERE approval_ref=?2 AND memory_id=?3 AND tenant_ref=?4 AND organization_ref=?5
+             AND record_version=?6 AND content_sha256=?7 AND purpose=?8 AND classification=?9
+             AND contract_version=?10 AND reviewer_ref=?11 AND issued_at=?12 AND expires_at=?13
+             AND proof_json=?14 AND consumed_at IS NULL",
+            params![
+                to_i64(now)?, receipt.approval_ref, record.candidate.memory_id,
+                record.candidate.tenant_ref, receipt.subject_ref,
+                to_i64(record.candidate.record_version)?, record.candidate.content_sha256,
+                purpose_key(record.candidate.purpose), classification_key(record.candidate.classification),
+                record.candidate.contract_version, receipt.reviewer_ref,
+                to_i64(receipt.issued_at)?, to_i64(receipt.expires_at)?, receipt.proof_ref
+            ],
+        ).map_err(|_| G05Error::AuthorityUnavailable)?;
+        if consumed != 1 { return Err(G05Error::ApprovalReplay); }
         enqueue_authority_event(
             &tx,
             AuthorityOutboxEvent {
