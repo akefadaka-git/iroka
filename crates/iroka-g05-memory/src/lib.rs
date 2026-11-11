@@ -588,6 +588,55 @@ pub fn authorize_durable_activation<G: GovernancePort>(
     Ok(())
 }
 
+/// Resolve and verify durable activation against the canonical G05 repository.
+/// G02 authorization occurs before content access. The repository record and its
+/// metadata must agree exactly; caller-supplied record fields are never accepted.
+pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: GovernancePort>(
+    repository: &R,
+    receipt: &DurableApprovalReceipt,
+    request: &AuthorizationRequest,
+    governance: &G,
+    now: u64,
+) -> Result<MemoryRecord, G05Error> {
+    if request.operation != Operation::ActivateDurable
+        || request.memory_id.as_deref() != Some(receipt.memory_id.as_str())
+        || request.tenant_ref != receipt.tenant_ref
+        || request.subject_ref != receipt.subject_ref
+        || request.principal_ref != receipt.reviewer_ref
+        || !valid_ref(&request.correlation_ref)
+    {
+        return Err(G05Error::ApprovalBindingMismatch);
+    }
+    governance.authorize(request)?;
+    let metadata = repository.get_metadata(&receipt.memory_id)?
+        .ok_or(G05Error::RecordNotFound)?;
+    if metadata.memory_id != receipt.memory_id
+        || metadata.tenant_ref != receipt.tenant_ref
+        || metadata.subject_ref != receipt.subject_ref
+        || metadata.content_sha256 != receipt.content_sha256
+        || metadata.lifecycle_state != LifecycleState::PendingReview
+        || metadata.memory_class != MemoryClass::Durable
+    {
+        return Err(G05Error::ApprovalBindingMismatch);
+    }
+    let record = repository.get_content(&receipt.memory_id)?
+        .ok_or(G05Error::RecordNotFound)?;
+    if record.candidate.memory_id != metadata.memory_id
+        || record.candidate.tenant_ref != metadata.tenant_ref
+        || record.candidate.subject_ref != metadata.subject_ref
+        || record.candidate.content_sha256 != metadata.content_sha256
+        || record.candidate.record_version != metadata.record_version
+        || record.candidate.purpose != metadata.purpose
+        || record.candidate.classification != metadata.classification
+        || record.lifecycle_state != metadata.lifecycle_state
+    {
+        return Err(G05Error::VersionConflict);
+    }
+    validate_durable_activation_binding(&record, receipt, now)?;
+    governance.verify_durable_approval(&record, receipt, now)?;
+    Ok(record)
+}
+
 /// Prepare an approved durable record transition. The returned value is not
 /// persisted; the caller MUST commit it with the G11 outbox using the G05
 /// repository transaction port. A replayed or stale version fails closed.
