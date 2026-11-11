@@ -664,6 +664,7 @@ where
         now: u64,
     ) -> Result<VerifiedReviewerProof, G05Error> {
         if principal.subject() != designation.reviewer_ref
+            || proof.payload.key_id != designation.reviewer_key_ref
             || receipt.issued_at != proof.payload.issued_at
             || receipt.expires_at != proof.payload.expires_at
             || receipt.proof_ref != proof.payload.proof_id
@@ -682,6 +683,8 @@ where
             "g05.memory.durable.activate", &resource, "g05-memory-v1", now,
         ).map_err(|_| G05Error::ReviewerNotAuthorized)?;
         if verified.reviewer_id() != designation.reviewer_ref
+            || verified.issuer() != principal.issuer()
+            || verified.proof_id() != receipt.proof_ref
             || verified.subject() != principal.subject()
             || verified.approval_id() != receipt.approval_ref
             || verified.designation_id() != designation.designation_ref
@@ -822,6 +825,8 @@ impl<P: G01ReviewerProofAuthority, M: CanonicalMemoryMetadataResolver> Designate
             &receipt.signed_proof, reviewer_principal, receipt, &d, record, now,
         )?;
         if verified.reviewer_id() != d.reviewer_ref
+            || verified.issuer() != reviewer_principal.issuer()
+            || verified.proof_id() != receipt.proof_ref
             || verified.subject() != reviewer_principal.subject()
             || verified.approval_id() != receipt.approval_ref
             || verified.designation_id() != d.designation_ref
