@@ -526,7 +526,7 @@ impl SqliteSecurityStore {
                     params![
                         subject,
                         tenant_id,
-                        i64::from(active),
+                        if active { 1_i64 } else { 0_i64 },
                         version_i,
                         i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
                         command_id
