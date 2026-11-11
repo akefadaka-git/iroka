@@ -212,7 +212,7 @@ pub struct DurableApprovalReceipt {
     pub reviewer_ref: String,
     pub issued_at: u64,
     pub expires_at: u64,
-    /// Opaque signature or approval proof. G05 does not interpret its format.
+    /// JSON-encoded `iroka_kernel::SignedReviewerProof`; never treated as authority until G01 verifies it.
     pub proof_ref: String,
 }
 
@@ -454,7 +454,8 @@ pub fn validate_approval_binding(
     }
     if !valid_ref(&receipt.approval_ref)
         || !valid_ref(&receipt.reviewer_ref)
-        || !valid_ref(&receipt.proof_ref)
+        || receipt.proof_ref.trim().is_empty()
+        || receipt.proof_ref.len() > 32_768
     {
         return Err(G05Error::InvalidReference);
     }
@@ -583,7 +584,7 @@ pub fn authorize_durable_activation<G: GovernancePort>(
     }
     validate_durable_activation_binding(record, receipt, now)?;
     governance.authorize(request)?;
-    governance.verify_durable_approval(receipt, now)?;
+    governance.verify_durable_approval(record, receipt, now)?;
     Ok(())
 }
 
@@ -684,6 +685,7 @@ pub trait GovernancePort {
 
     fn verify_durable_approval(
         &self,
+        record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         now: u64,
     ) -> Result<(), G05Error>;
@@ -743,6 +745,7 @@ mod tests {
         }
         fn verify_durable_approval(
             &self,
+            _record: &MemoryRecord,
             _receipt: &DurableApprovalReceipt,
             _now: u64,
         ) -> Result<(), G05Error> {
@@ -770,6 +773,8 @@ mod tests {
         }
         fn verify_durable_approval(
             &self,
+            _principal: &iroka_kernel::VerifiedPrincipal,
+            _record: &MemoryRecord,
             _receipt: &DurableApprovalReceipt,
             _now: u64,
         ) -> Result<(), G05Error> {

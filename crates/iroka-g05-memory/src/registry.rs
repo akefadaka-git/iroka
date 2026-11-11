@@ -7,9 +7,12 @@
 
 use crate::{
     AuthorizationRequest, Classification, DesignatedReviewerAuthority, DurableApprovalReceipt,
-    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, Operation, Purpose,
+    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryRecord, Operation, Purpose,
 };
-use iroka_kernel::{TenantContext, VerifiedPrincipal};
+use iroka_kernel::{
+    ReviewerKeyBindingResolver, ReviewerProofError, ReviewerProofVerifier, SignedReviewerProof,
+    TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
+};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::Digest;
 use std::path::Path;
@@ -74,6 +77,13 @@ impl SqliteG05AuthorityRegistry {
           CREATE TABLE IF NOT EXISTS g05_consumed_reviewer_approvals(
             approval_ref TEXT PRIMARY KEY, receipt_digest BLOB NOT NULL CHECK(length(receipt_digest)=32),
             designation_ref TEXT NOT NULL, designation_version INTEGER NOT NULL, consumed_at INTEGER NOT NULL);
+          CREATE TABLE IF NOT EXISTS g05_pending_durable_approvals(
+            approval_ref TEXT PRIMARY KEY, memory_id TEXT NOT NULL, tenant_ref TEXT NOT NULL,
+            organization_ref TEXT NOT NULL, record_version INTEGER NOT NULL CHECK(record_version>0),
+            content_sha256 TEXT NOT NULL, purpose TEXT NOT NULL, classification TEXT NOT NULL,
+            contract_version TEXT NOT NULL, reviewer_ref TEXT NOT NULL, issued_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL, proof_json TEXT NOT NULL, created_at INTEGER NOT NULL,
+            consumed_at INTEGER);
           CREATE TABLE IF NOT EXISTS g05_authority_outbox(
             event_id TEXT PRIMARY KEY, event_type TEXT NOT NULL, aggregate_ref TEXT NOT NULL,
             tenant_ref TEXT NOT NULL, actor_ref TEXT NOT NULL, purpose TEXT NOT NULL,
@@ -84,6 +94,44 @@ impl SqliteG05AuthorityRegistry {
         Ok(Self {
             connection: Arc::new(Mutex::new(c)),
         })
+    }
+
+    /// Store an immutable, pending approval envelope against the current canonical
+    /// memory record. Signature verification and consumption happen only during activation.
+    pub fn register_pending_approval(
+        &self,
+        record: &MemoryRecord,
+        receipt: &DurableApprovalReceipt,
+        now: u64,
+    ) -> Result<(), G05Error> {
+        crate::validate_approval_binding(record, receipt, now)?;
+        if record.lifecycle_state != crate::LifecycleState::PendingReview
+            || record.candidate.memory_class != crate::MemoryClass::Durable
+            || receipt.proof_ref.len() > 32_768
+        {
+            return Err(G05Error::InvalidLifecycleTransition);
+        }
+        let _: SignedReviewerProof = serde_json::from_str(&receipt.proof_ref)
+            .map_err(|_| G05Error::ReviewerNotAuthorized)?;
+        let mut c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        tx.execute(
+            "INSERT INTO g05_pending_durable_approvals
+             (approval_ref,memory_id,tenant_ref,organization_ref,record_version,content_sha256,
+              purpose,classification,contract_version,reviewer_ref,issued_at,expires_at,proof_json,
+              created_at,consumed_at)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,NULL)",
+            params![
+                receipt.approval_ref, record.candidate.memory_id, record.candidate.tenant_ref,
+                receipt.subject_ref, to_i64(record.candidate.record_version)?,
+                record.candidate.content_sha256, purpose_key(record.candidate.purpose),
+                classification_key(record.candidate.classification), record.candidate.contract_version,
+                receipt.reviewer_ref, to_i64(receipt.issued_at)?, to_i64(receipt.expires_at)?,
+                receipt.proof_ref, to_i64(now)?
+            ],
+        ).map_err(|_| G05Error::DuplicateRecord)?;
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
 
     /// Explicit authenticated user action only; do not call from passive signup.
@@ -279,6 +327,8 @@ impl SqliteG05AuthorityRegistry {
             || organization_ref.len() > 512
             || reviewer_ref.trim().is_empty()
             || reviewer_ref.len() > 512
+            || reviewer_ref.trim().is_empty()
+            || reviewer_ref.len() > 512
             || reviewer_key_ref.trim().is_empty()
             || reviewer_key_ref.len() > 512
             || designation_ref.trim().is_empty()
@@ -417,6 +467,32 @@ impl SqliteG05AuthorityRegistry {
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
 
+    fn pending_approval_matches(
+        &self,
+        record: &MemoryRecord,
+        receipt: &DurableApprovalReceipt,
+    ) -> Result<(), G05Error> {
+        let c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let matches: bool = c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM g05_pending_durable_approvals
+             WHERE approval_ref=?1 AND memory_id=?2 AND tenant_ref=?3 AND organization_ref=?4
+             AND record_version=?5 AND content_sha256=?6 AND purpose=?7 AND classification=?8
+             AND contract_version=?9 AND reviewer_ref=?10 AND issued_at=?11 AND expires_at=?12
+             AND proof_json=?13 AND consumed_at IS NULL)",
+            params![
+                receipt.approval_ref, record.candidate.memory_id, record.candidate.tenant_ref,
+                receipt.subject_ref, to_i64(record.candidate.record_version)?,
+                record.candidate.content_sha256, purpose_key(record.candidate.purpose),
+                classification_key(record.candidate.classification), record.candidate.contract_version,
+                receipt.reviewer_ref, to_i64(receipt.issued_at)?, to_i64(receipt.expires_at)?,
+                receipt.proof_ref
+            ],
+            |row| row.get(0),
+        ).map_err(|_| G05Error::AuthorityUnavailable)?;
+        if !matches { return Err(G05Error::ApprovalBindingMismatch); }
+        Ok(())
+    }
+
     fn active_designation(
         &self,
         tenant: &str,
@@ -444,10 +520,14 @@ impl SqliteG05AuthorityRegistry {
     fn consume_approval(
         &self,
         receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
         d: &ReviewerDesignation,
+        proof: &VerifiedReviewerProof,
         now: u64,
     ) -> Result<(), G05Error> {
-        let bytes = serde_json::to_vec(receipt).map_err(|_| G05Error::MalformedRecord)?;
+        let bytes = serde_json::to_vec(&(receipt, record.candidate.record_version, record.candidate.purpose,
+            record.candidate.classification, &record.candidate.contract_version, proof.proof_id()))
+            .map_err(|_| G05Error::MalformedRecord)?;
         let digest: [u8; 32] = sha2::Sha256::digest(&bytes).into();
         let mut c = self
             .connection
@@ -473,6 +553,22 @@ impl SqliteG05AuthorityRegistry {
         if n != 1 {
             return Err(G05Error::ApprovalReplay);
         }
+        let consumed = tx.execute(
+            "UPDATE g05_pending_durable_approvals SET consumed_at=?1
+             WHERE approval_ref=?2 AND memory_id=?3 AND tenant_ref=?4 AND organization_ref=?5
+             AND record_version=?6 AND content_sha256=?7 AND purpose=?8 AND classification=?9
+             AND contract_version=?10 AND reviewer_ref=?11 AND issued_at=?12 AND expires_at=?13
+             AND proof_json=?14 AND consumed_at IS NULL",
+            params![
+                to_i64(now)?, receipt.approval_ref, record.candidate.memory_id,
+                record.candidate.tenant_ref, receipt.subject_ref,
+                to_i64(record.candidate.record_version)?, record.candidate.content_sha256,
+                purpose_key(record.candidate.purpose), classification_key(record.candidate.classification),
+                record.candidate.contract_version, receipt.reviewer_ref,
+                to_i64(receipt.issued_at)?, to_i64(receipt.expires_at)?, receipt.proof_ref
+            ],
+        ).map_err(|_| G05Error::AuthorityUnavailable)?;
+        if consumed != 1 { return Err(G05Error::ApprovalReplay); }
         enqueue_authority_event(
             &tx,
             AuthorityOutboxEvent {
@@ -614,11 +710,130 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
     ) -> Result<(), G05Error>;
     fn verify_approval_proof(
         &self,
+        record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         designation: &ReviewerDesignation,
         now: u64,
-    ) -> Result<(), G05Error>;
+    ) -> Result<VerifiedReviewerProof, G05Error>;
 }
+/// Concrete G01 adapter. The serialized proof envelope is untrusted input;
+/// only the kernel can construct VerifiedReviewerProof after current binding,
+/// signature, exact-scope, freshness, revocation and replay checks.
+pub struct KernelG01ReviewerProofAuthority<R: ReviewerKeyBindingResolver> {
+    verifier: ReviewerProofVerifier<R>,
+    principal: VerifiedPrincipal,
+}
+impl<R: ReviewerKeyBindingResolver> KernelG01ReviewerProofAuthority<R> {
+    pub fn new(verifier: ReviewerProofVerifier<R>, principal: VerifiedPrincipal) -> Self { Self { verifier, principal } }
+}
+impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01ReviewerProofAuthority<R> {
+    fn validate_reviewer_key_binding(
+        &self, reviewer: &str, key_ref: &str, now: u64,
+    ) -> Result<(), G05Error> {
+        if self.principal.subject() != reviewer { return Err(G05Error::ReviewerNotAuthorized); }
+        self.verifier.validate_current_key_binding(&self.principal, key_ref, now)
+            .map_err(map_reviewer_proof_error)
+    }
+
+    fn verify_approval_proof(
+        &self,
+        record: &MemoryRecord,
+        receipt: &DurableApprovalReceipt,
+        designation: &ReviewerDesignation,
+        now: u64,
+    ) -> Result<VerifiedReviewerProof, G05Error> {
+        if record.candidate.memory_class != crate::MemoryClass::Durable
+            || record.lifecycle_state != crate::LifecycleState::PendingReview
+            || receipt.memory_id != record.candidate.memory_id
+            || receipt.tenant_ref != record.candidate.tenant_ref
+            || receipt.subject_ref != record.candidate.subject_ref
+            || receipt.subject_ref != designation.organization_ref
+            || receipt.content_sha256 != record.candidate.content_sha256
+            || receipt.reviewer_ref != designation.reviewer_ref
+            || designation.tenant_ref != record.candidate.tenant_ref
+            || designation.organization_ref != receipt.subject_ref
+            || self.principal.subject() != receipt.reviewer_ref
+            || receipt.issued_at < designation.valid_from
+            || receipt.expires_at > designation.valid_until
+            || receipt.expires_at <= now
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        if receipt.proof_ref.len() > 32_768 || receipt.proof_ref.trim().is_empty() {
+            return Err(G05Error::InvalidReference);
+        }
+        let signed: SignedReviewerProof = serde_json::from_str(&receipt.proof_ref)
+            .map_err(|_| G05Error::ReviewerNotAuthorized)?;
+        let purpose = purpose_key(record.candidate.purpose);
+        let classification = classification_key(record.candidate.classification);
+        let resource = format!(
+            "g05:durable.activate:{}:{}:{}:{}:{}",
+            record.candidate.tenant_ref,
+            designation.organization_ref,
+            record.candidate.memory_id,
+            record.candidate.record_version,
+            record.candidate.content_sha256
+        );
+        let verified = self.verifier.verify_and_consume(
+            &signed,
+            &self.principal,
+            &designation.reviewer_ref,
+            &designation.reviewer_key_ref,
+            &receipt.approval_ref,
+            &record.candidate.tenant_ref,
+            &designation.organization_ref,
+            &designation.designation_ref,
+            designation.version,
+            &record.candidate.memory_id,
+            record.candidate.record_version,
+            &record.candidate.content_sha256,
+            purpose,
+            classification,
+            "g05.memory.durable.activate",
+            &resource,
+            &record.candidate.contract_version,
+            now,
+        ).map_err(map_reviewer_proof_error)?;
+        if verified.reviewer_id() != designation.reviewer_ref
+            || verified.key_id() != designation.reviewer_key_ref
+            || verified.designation_id() != designation.designation_ref
+            || verified.designation_version() != designation.version
+            || verified.memory_id() != record.candidate.memory_id
+            || verified.record_version() != record.candidate.record_version
+            || verified.content_sha256() != record.candidate.content_sha256
+            || verified.purpose() != purpose
+            || verified.classification() != classification
+            || verified.approval_id() != receipt.approval_ref
+            || verified.tenant_id() != receipt.tenant_ref
+            || verified.organization_id() != receipt.subject_ref
+            || verified.subject() != self.principal.subject()
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        Ok(verified)
+    }
+}
+
+fn map_reviewer_proof_error(error: ReviewerProofError) -> G05Error {
+    match error {
+        ReviewerProofError::Replay => G05Error::ApprovalReplay,
+        ReviewerProofError::StoreUnavailable => G05Error::AuthorityUnavailable,
+        ReviewerProofError::ScopeMismatch | ReviewerProofError::PrincipalMismatch => G05Error::ApprovalBindingMismatch,
+        ReviewerProofError::Expired | ReviewerProofError::NotYetValid | ReviewerProofError::KeyOutsideValidity => G05Error::ApprovalExpired,
+        ReviewerProofError::Malformed | ReviewerProofError::BindingMissing | ReviewerProofError::BindingInactive
+        | ReviewerProofError::InvalidSignature | ReviewerProofError::Revoked => G05Error::ReviewerNotAuthorized,
+    }
+}
+
+fn classification_key(value: Classification) -> &'static str {
+    match value {
+        Classification::Public => "PUBLIC",
+        Classification::Internal => "INTERNAL",
+        Classification::Confidential => "CONFIDENTIAL",
+        Classification::Restricted => "RESTRICTED",
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewerDesignation {
     pub designation_ref: String,
@@ -644,6 +859,7 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
 {
     fn verify_designated_reviewer(
         &self,
+        record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         org: &str,
         now: u64,
@@ -663,7 +879,9 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
         {
             return Err(G05Error::DigestMismatch);
         }
-        if receipt.subject_ref != org {
+        crate::validate_approval_binding(record, receipt, now)?;
+        self.registry.pending_approval_matches(record, receipt)?;
+        if receipt.subject_ref != org || record.candidate.subject_ref != org {
             return Err(G05Error::ApprovalBindingMismatch);
         }
         if receipt.expires_at <= now
@@ -681,8 +899,8 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
         if receipt.issued_at < d.valid_from || receipt.expires_at > d.valid_until {
             return Err(G05Error::ReviewerNotAuthorized);
         }
-        self.g01.verify_approval_proof(receipt, &d, now)?;
-        self.registry.consume_approval(receipt, &d, now)
+        let verified = self.g01.verify_approval_proof(record, receipt, &d, now)?;
+        self.registry.consume_approval(receipt, record, &d, &verified, now)
     }
 }
 
@@ -922,24 +1140,15 @@ mod tests {
     use super::*;
     struct G01;
     impl G01ReviewerProofAuthority for G01 {
-        fn validate_reviewer_key_binding(&self, r: &str, k: &str, _: u64) -> Result<(), G05Error> {
-            if r == "reviewer:1" && k == "key:1" {
-                Ok(())
-            } else {
-                Err(G05Error::ReviewerNotAuthorized)
-            }
+        fn validate_reviewer_key_binding(&self, r: &VerifiedPrincipal, k: &str, _: u64) -> Result<(), G05Error> {
+            if r.subject() == "reviewer:1" && k == "key:1" { Ok(()) }
+            else { Err(G05Error::ReviewerNotAuthorized) }
         }
         fn verify_approval_proof(
-            &self,
-            r: &DurableApprovalReceipt,
-            d: &ReviewerDesignation,
-            _: u64,
-        ) -> Result<(), G05Error> {
-            if r.proof_ref == "proof:valid" && r.reviewer_ref == d.reviewer_ref {
-                Ok(())
-            } else {
-                Err(G05Error::ReviewerNotAuthorized)
-            }
+            &self, _principal: &VerifiedPrincipal, _record: &MemoryRecord,
+            _receipt: &DurableApprovalReceipt, _d: &ReviewerDesignation, _now: u64,
+        ) -> Result<VerifiedReviewerProof, G05Error> {
+            Err(G05Error::ReviewerNotAuthorized)
         }
     }
     #[test]
