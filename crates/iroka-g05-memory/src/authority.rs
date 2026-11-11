@@ -127,6 +127,46 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_record_and_proof(receipt: &DurableApprovalReceipt) -> (crate::MemoryRecord, iroka_kernel::VerifiedReviewerProof) {
+        let record = crate::MemoryRecord {
+            candidate: crate::MemoryCandidate {
+                schema_id: crate::RECORD_SCHEMA_ID.into(),
+                contract_version: crate::CONTRACT_VERSION.into(),
+                memory_id: receipt.memory_id.clone(),
+                tenant_ref: receipt.tenant_ref.clone(),
+                subject_ref: receipt.subject_ref.clone(),
+                actor_ref: "actor:owner".into(),
+                memory_class: crate::MemoryClass::Durable,
+                content: "test".into(),
+                content_sha256: receipt.content_sha256.clone(),
+                purpose: Purpose::OrganizationalContext,
+                classification: Classification::Confidential,
+                provenance: crate::Provenance { kind: crate::ProvenanceKind::OwnerApproved,
+                    source_refs: vec![], source_revision_refs: vec![], derived_from: vec![],
+                    recorded_by_ref: "actor:owner".into(), recorded_at: 100 },
+                confidence_milli: None, created_at: 100, expires_at: None,
+                retention_policy_ref: "retention:v1".into(), episodic_opt_in_ref: None, record_version: 1,
+            },
+            lifecycle_state: crate::LifecycleState::PendingReview,
+            approval_ref: None, approved_by_ref: None, approved_at: None, updated_at: 100,
+        };
+        let resource = format!("g05:durable-approval:{}:{}:{}:v{}:{}",
+            record.candidate.tenant_ref, record.candidate.subject_ref, record.candidate.memory_id,
+            record.candidate.record_version, record.candidate.content_sha256);
+        let payload = iroka_kernel::ReviewerProofPayload {
+            proof_id: receipt.proof_ref.clone(), issuer: "issuer:test".into(), subject: "reviewer:test".into(),
+            credential_id: "credential:test".into(), reviewer_id: receipt.reviewer_ref.clone(),
+            designation_id: "designation:1".into(), designation_version: 1, key_id: "key:1".into(),
+            approval_id: receipt.approval_ref.clone(), tenant_id: record.candidate.tenant_ref.clone(),
+            organization_id: record.candidate.subject_ref.clone(), memory_id: record.candidate.memory_id.clone(),
+            record_version: 1, content_sha256: record.candidate.content_sha256.clone(),
+            purpose: "ORGANIZATIONAL_CONTEXT".into(), classification: "CONFIDENTIAL".into(),
+            capability: "g05.memory.durable.approve".into(), resource,
+            policy_version: crate::CONTRACT_VERSION.into(), issued_at: receipt.issued_at, expires_at: receipt.expires_at,
+        };
+        (record, iroka_kernel::VerifiedReviewerProof::for_test(&payload, 150))
+    }
     struct AllowG02;
     impl G02AuthorizationAuthority for AllowG02 {
         fn authorize_g05(&self, _: &AuthorizationRequest) -> Result<(), G05Error> {
@@ -202,8 +242,9 @@ mod tests {
             expires_at: 200,
             proof_ref: "proof:1".into(),
         };
+        let (record, proof) = test_record_and_proof(&receipt);
         assert_eq!(
-            adapter.verify_durable_approval(&receipt, 150),
+            adapter.verify_durable_approval(&receipt, &proof, &record, 150),
             Err(G05Error::ReviewerNotAuthorized)
         );
     }
