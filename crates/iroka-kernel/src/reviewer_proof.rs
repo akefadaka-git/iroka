@@ -24,10 +24,17 @@ pub struct ReviewerProofPayload {
     pub subject: String,
     pub credential_id: String,
     pub reviewer_id: String,
+    pub designation_id: String,
+    pub designation_version: u64,
     pub key_id: String,
     pub approval_id: String,
     pub tenant_id: String,
     pub organization_id: String,
+    pub memory_id: String,
+    pub record_version: u64,
+    pub content_sha256: String,
+    pub purpose: String,
+    pub classification: String,
     pub capability: String,
     pub resource: String,
     pub policy_version: String,
@@ -151,6 +158,13 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         expected_approval_id: &str,
         expected_tenant_id: &str,
         expected_organization_id: &str,
+        expected_designation_id: &str,
+        expected_designation_version: u64,
+        expected_memory_id: &str,
+        expected_record_version: u64,
+        expected_content_sha256: &str,
+        expected_purpose: &str,
+        expected_classification: &str,
         expected_capability: &str,
         expected_resource: &str,
         expected_policy_version: &str,
@@ -158,11 +172,13 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
     ) -> Result<VerifiedReviewerProof, ReviewerProofError> {
         let p = &proof.payload;
         for value in [p.proof_id.as_str(), p.issuer.as_str(), p.subject.as_str(),
-            p.credential_id.as_str(), p.reviewer_id.as_str(), p.key_id.as_str(),
+            p.credential_id.as_str(), p.reviewer_id.as_str(), p.designation_id.as_str(), p.key_id.as_str(),
             p.approval_id.as_str(), p.tenant_id.as_str(), p.organization_id.as_str(),
+            p.memory_id.as_str(), p.content_sha256.as_str(), p.purpose.as_str(), p.classification.as_str(),
             p.capability.as_str(), p.resource.as_str(), p.policy_version.as_str(),
             expected_reviewer_id, expected_approval_id, expected_tenant_id,
-            expected_organization_id, expected_capability, expected_resource,
+            expected_organization_id, expected_designation_id, expected_memory_id,
+            expected_content_sha256, expected_purpose, expected_classification, expected_capability, expected_resource,
             expected_policy_version] {
             if value.trim().is_empty() || value.len() > 512 { return Err(ReviewerProofError::Malformed); }
         }
@@ -175,7 +191,10 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             || p.credential_id != principal.credential_id() { return Err(ReviewerProofError::PrincipalMismatch); }
         if p.reviewer_id != expected_reviewer_id || p.approval_id != expected_approval_id
             || p.tenant_id != expected_tenant_id || p.organization_id != expected_organization_id
-            || p.capability != expected_capability || p.resource != expected_resource
+            || p.designation_id != expected_designation_id || p.designation_version != expected_designation_version
+            || p.memory_id != expected_memory_id || p.record_version != expected_record_version
+            || p.content_sha256 != expected_content_sha256 || p.purpose != expected_purpose
+            || p.classification != expected_classification || p.capability != expected_capability || p.resource != expected_resource
             || p.policy_version != expected_policy_version { return Err(ReviewerProofError::ScopeMismatch); }
         let binding = self.bindings.resolve_current_binding(
             &p.issuer, &p.subject, &p.credential_id, &p.key_id, now,
@@ -232,8 +251,8 @@ mod tests {
         let payload=ReviewerProofPayload {
             proof_id:id.into(),issuer:"issuer:community".into(),subject:"reviewer:alice".into(),
             credential_id:"credential:42".into(),reviewer_id:"reviewer:maale-01".into(),
-            key_id:"reviewer-key-01".into(),approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),
-            organization_id:"org:alpha".into(),capability:"content.review".into(),resource:"translation:chapter-1".into(),
+            key_id:"designation:1".into(),designation_version:3,key_id:"reviewer-key-01".into(),approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),
+            organization_id:"org:alpha".into(),memory_id:"memory:1".into(),record_version:4,content_sha256:"a".repeat(64),purpose:"ORGANIZATIONAL_CONTEXT".into(),classification:"CONFIDENTIAL".into(),capability:"content.review".into(),resource:"translation:chapter-1".into(),
             policy_version:"policy:v1".into(),issued_at:1100,expires_at:1300,
         };
         let signature=key.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
@@ -242,7 +261,8 @@ mod tests {
     fn verify(v:&ReviewerProofVerifier<Bindings>,p:&SignedReviewerProof,principal:&VerifiedPrincipal)
         -> Result<VerifiedReviewerProof,ReviewerProofError> {
         v.verify_and_consume(p,principal,"reviewer:maale-01","approval:17","tenant:alpha",
-            "org:alpha","content.review","translation:chapter-1","policy:v1",1200)
+            "org:alpha","designation:1",3,"memory:1",4,&"a".repeat(64),"ORGANIZATIONAL_CONTEXT",
+            "CONFIDENTIAL","content.review","translation:chapter-1","policy:v1",1200)
     }
     #[test]
     fn verifies_exact_reviewer_identity_and_scope_then_consumes_once() {
