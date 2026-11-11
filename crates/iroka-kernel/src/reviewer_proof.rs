@@ -136,8 +136,14 @@ impl From<SecurityStoreError> for ReviewerProofError {
 
 /// Current issuer-signed reviewer identity-to-key binding.
 pub trait ReviewerKeyBindingResolver: Send + Sync {
-    fn resolve_current_binding(&self, issuer: &str, subject: &str, credential_id: &str, key_id: &str, now: u64)
-        -> Result<Option<SignedReviewerKeyBinding>, ReviewerProofError>;
+    fn resolve_current_binding(
+        &self,
+        issuer: &str,
+        subject: &str,
+        credential_id: &str,
+        key_id: &str,
+        now: u64,
+    ) -> Result<Option<SignedReviewerKeyBinding>, ReviewerProofError>;
 }
 
 const BINDING_DOMAIN: &[u8] = b"IROKA:G01:REVIEWER_KEY_BINDING:V1\0";
@@ -170,7 +176,11 @@ impl ReviewerKeyBinding {
 }
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum ReviewerKeyBindingStatus { Active, Revoked, Suspended }
+pub enum ReviewerKeyBindingStatus {
+    Active,
+    Revoked,
+    Suspended,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct SignedReviewerKeyBinding {
@@ -192,8 +202,12 @@ pub struct ReviewerIssuerTrustKey {
     pub resolved_at: u64,
 }
 pub trait ReviewerIssuerTrustProvider: Send + Sync {
-    fn resolve_current_issuer_key(&self, issuer: &str, key_id: &str, now: u64)
-        -> Result<Option<ReviewerIssuerTrustKey>, ReviewerProofError>;
+    fn resolve_current_issuer_key(
+        &self,
+        issuer: &str,
+        key_id: &str,
+        now: u64,
+    ) -> Result<Option<ReviewerIssuerTrustKey>, ReviewerProofError>;
 }
 
 pub struct ReviewerProofVerifier<R, I> {
