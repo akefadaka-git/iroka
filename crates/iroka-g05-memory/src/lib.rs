@@ -603,8 +603,6 @@ pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: Gove
         || request.memory_id.as_deref() != Some(receipt.memory_id.as_str())
         || request.tenant_ref != receipt.tenant_ref
         || request.subject_ref != receipt.subject_ref
-        || request.purpose != Purpose::OrganizationalContext
-        || request.classification != Classification::Confidential
         || request.principal_ref != receipt.reviewer_ref
         || !valid_ref(&request.correlation_ref)
     {
