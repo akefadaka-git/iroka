@@ -11,6 +11,8 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 /// Canonical organization designation state returned by the security store.
 pub(crate) type OrganizationDesignationRecord = (String, bool, String, u64, u64);
+pub(crate) type OrganizationDelegationRecord = (String, String, String, String, bool, String, u64, u64, u64);
+type RawOrganizationDelegationRecord = (String, String, String, String, i64, String, i64, i64, i64);
 
 use crate::identity_crypto::{RevocationChecker, RevocationError};
 
@@ -845,9 +847,9 @@ impl SqliteSecurityStore {
     #[rustfmt::skip]
     pub(crate) fn organization_delegation(
         &self, delegation_id: &str,
-    ) -> Result<Option<(String,String,String,String,bool,String,u64,u64,u64)>, SecurityStoreError> {
+    ) -> Result<Option<OrganizationDelegationRecord>, SecurityStoreError> {
         let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let row: Option<(String,String,String,String,i64,String,i64,i64,i64)> = c.query_row(
+        let row: Option<RawOrganizationDelegationRecord> = c.query_row(
             "SELECT delegator,delegate,tenant_id,organization_id,active,capabilities_json,version,valid_until,updated_at FROM organization_delegations WHERE delegation_id=?1",
             [delegation_id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?,r.get(7)?,r.get(8)?))
         ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
