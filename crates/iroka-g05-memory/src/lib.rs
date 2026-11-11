@@ -732,6 +732,39 @@ pub trait MemoryRepository {
 mod tests {
     use super::*;
 
+    fn test_verified_proof(record: &MemoryRecord, receipt: &DurableApprovalReceipt, now: u64) -> iroka_kernel::VerifiedReviewerProof {
+        let purpose = match record.candidate.purpose {
+            Purpose::TaskContinuity => "TASK_CONTINUITY",
+            Purpose::UserPreference => "USER_PREFERENCE",
+            Purpose::ProjectContext => "PROJECT_CONTEXT",
+            Purpose::OrganizationalContext => "ORGANIZATIONAL_CONTEXT",
+            Purpose::OperationalHistory => "OPERATIONAL_HISTORY",
+            Purpose::AuthorizedSystemAssurance => "AUTHORIZED_SYSTEM_ASSURANCE",
+        };
+        let classification = match record.candidate.classification {
+            Classification::Public => "PUBLIC",
+            Classification::Internal => "INTERNAL",
+            Classification::Confidential => "CONFIDENTIAL",
+            Classification::Restricted => "RESTRICTED",
+        };
+        let resource = format!("g05:durable-approval:{}:{}:{}:v{}:{}",
+            record.candidate.tenant_ref, record.candidate.subject_ref, record.candidate.memory_id,
+            record.candidate.record_version, record.candidate.content_sha256);
+        let payload = iroka_kernel::ReviewerProofPayload {
+            proof_id: receipt.proof_ref.clone(), issuer: "issuer:test".into(),
+            subject: "reviewer:principal".into(), credential_id: "credential:test".into(),
+            reviewer_id: receipt.reviewer_ref.clone(), designation_id: "designation:1".into(),
+            designation_version: 1, key_id: "key:1".into(), approval_id: receipt.approval_ref.clone(),
+            tenant_id: record.candidate.tenant_ref.clone(), organization_id: record.candidate.subject_ref.clone(),
+            memory_id: record.candidate.memory_id.clone(), record_version: record.candidate.record_version,
+            content_sha256: record.candidate.content_sha256.clone(), purpose: purpose.into(),
+            classification: classification.into(), capability: "g05.memory.durable.approve".into(),
+            resource, policy_version: CONTRACT_VERSION.into(), issued_at: receipt.issued_at,
+            expires_at: receipt.expires_at,
+        };
+        iroka_kernel::VerifiedReviewerProof::for_test(&payload, now)
+    }
+
 
     struct AllowGovernance;
     impl GovernancePort for AllowGovernance {
@@ -751,6 +784,7 @@ mod tests {
         fn verify_durable_approval(
             &self,
             _receipt: &DurableApprovalReceipt,
+            _proof: &iroka_kernel::VerifiedReviewerProof,
             _record: &MemoryRecord,
             _now: u64,
         ) -> Result<(), G05Error> {
@@ -779,6 +813,8 @@ mod tests {
         fn verify_durable_approval(
             &self,
             _receipt: &DurableApprovalReceipt,
+            _proof: &iroka_kernel::VerifiedReviewerProof,
+            _record: &MemoryRecord,
             _now: u64,
         ) -> Result<(), G05Error> {
             Ok(())
@@ -986,6 +1022,7 @@ mod tests {
             proof_ref: "proof:1".to_owned(),
         };
         assert_eq!(validate_approval_binding(&record, &receipt, 110), Ok(()));
+        let proof = test_verified_proof(&record, &receipt, 110);
         let request = AuthorizationRequest {
             operation: Operation::ActivateDurable,
             principal_ref: "reviewer:1".to_owned(),
@@ -998,15 +1035,15 @@ mod tests {
             correlation_ref: "trace:1".to_owned(),
         };
         assert_eq!(
-            authorize_durable_activation(&record, &receipt, &request, &AllowGovernance, 110),
+            authorize_durable_activation(&record, &receipt, &proof, &request, &AllowGovernance, 110),
             Ok(())
         );
         assert_eq!(
-            authorize_durable_activation(&record, &receipt, &request, &DenyGovernance, 110),
+            authorize_durable_activation(&record, &receipt, &proof, &request, &DenyGovernance, 110),
             Err(G05Error::AuthorizationDenied)
         );
         let activated =
-            prepare_durable_activation(&record, &receipt, &request, &AllowGovernance, 110).unwrap();
+            prepare_durable_activation(&record, &receipt, &proof, &request, &AllowGovernance, 110).unwrap();
         assert_eq!(activated.lifecycle_state, LifecycleState::Active);
         assert_eq!(activated.approved_by_ref.as_deref(), Some("reviewer:1"));
         assert_eq!(activated.candidate.record_version, 2);
