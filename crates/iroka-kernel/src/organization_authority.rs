@@ -293,7 +293,7 @@ impl OrganizationAuthorityResolver {
         if org_updated > now || now.saturating_sub(org_updated) > max_age_secs {
             return Err(OrganizationAuthorityError::Stale);
         }
-        let (delegator, active, caps_json, version, valid_until, updated) = self.store.organization_delegation(delegation_id)?
+        let (delegator, stored_delegate, stored_tenant, stored_org, active, caps_json, version, valid_until, updated) = self.store.organization_delegation(delegation_id)?
             .ok_or(OrganizationAuthorityError::DelegationMissing)?;
         if !active || valid_until <= now { return Err(OrganizationAuthorityError::DelegationInactive); }
         if updated > now || now.saturating_sub(updated) > max_age_secs { return Err(OrganizationAuthorityError::Stale); }
@@ -313,8 +313,6 @@ impl OrganizationAuthorityResolver {
         if !designation_caps.iter().any(|item| item == "organization.designation.delegate") {
             return Err(OrganizationAuthorityError::CapabilityDenied);
         }
-        let (stored_delegate, stored_tenant, stored_org) = self.store.organization_delegation_scope(delegation_id)?
-            .ok_or(OrganizationAuthorityError::DelegationMissing)?;
         if stored_delegate != delegate.subject() || stored_tenant != tenant.tenant_id() || stored_org != organization_id {
             return Err(OrganizationAuthorityError::TenantMismatch);
         }
@@ -612,6 +610,8 @@ mod tests {
             tenant_id: "tenant:other".into(),
             principal: None,
             designation_id: None,
+            delegate: None,
+            delegation_expires_at: None,
             action: OrganizationAuthorityAction::SetOrganizationActive { active: true },
             version: 2,
             capabilities: vec![],
