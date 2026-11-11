@@ -1,6 +1,6 @@
 # G05–G01 Verified Reviewer Approval Integration v1.0.0
 
-**Status:** A3 integration candidate; exact-head CI and independent assurance pending.
+**Status:** A3 integration candidate; exact-head CI PASS; independent A4 assurance pending.
 
 ## Trust and data flow
 
@@ -30,3 +30,7 @@
 ## Non-goals and outstanding assurance
 
 This integration does not appoint reviewers, provision issuer trust roots, establish community authority, approve Maale language content, or activate memory automatically. Production use requires a real issuer-side `ReviewerKeyBindingResolver`, a request-scoped G01 principal, canonical `MemoryRepository` wiring, G05/G11 integration tests, and independent A4 security review.
+
+## Verification evidence
+
+Exact integration head `5dd6ca77afab958b01b0d9009dbb71ff32f05342` passed GitHub Actions run [42957553177](https://github.com/akefadaka-git/iroka/actions/runs/42957553177): formatting PASS, workspace/all-target compilation PASS, production no-default-feature safeguard PASS, **141 tests passed / 0 failed**, and Clippy PASS. This verifies the implementation and its deterministic test adapters; it does not provision a production issuer registry or constitute independent security review.
