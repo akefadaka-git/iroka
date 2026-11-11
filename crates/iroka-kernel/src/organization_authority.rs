@@ -258,6 +258,7 @@ impl OrganizationAuthorityResolver {
     /// exact delegate, tenant, organization, capability and live delegator
     /// designation; it does not itself execute a delegated mutation.
     #[rustfmt::skip]
+    #[allow(clippy::too_many_arguments)]
     pub fn resolve_delegation(
         &self,
         delegate: &VerifiedPrincipal,
@@ -305,7 +306,7 @@ impl OrganizationAuthorityResolver {
         if !delegation_caps.iter().any(|item| item == capability) {
             return Err(OrganizationAuthorityError::CapabilityDenied);
         }
-        let (designation_id, designation_active, designation_caps_json, _, designation_updated) = self.store.organization_designation(organization_id, &delegator)?
+        let (_designation_id, designation_active, designation_caps_json, _, designation_updated) = self.store.organization_designation(organization_id, &delegator)?
             .ok_or(OrganizationAuthorityError::DesignationMissing)?;
         if !designation_active { return Err(OrganizationAuthorityError::DesignationInactive); }
         if designation_updated > now || now.saturating_sub(designation_updated) > max_age_secs {
@@ -868,6 +869,7 @@ mod tests {
         );
     }
     #[rustfmt::skip]
+    #[allow(clippy::too_many_arguments)]
     fn signed_delegation(
         signer: &SigningKey,
         command_id: &str,
