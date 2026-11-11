@@ -7,9 +7,12 @@
 
 use crate::{
     AuthorizationRequest, Classification, DesignatedReviewerAuthority, DurableApprovalReceipt,
-    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, Operation, Purpose,
+    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryRecord, Operation, Purpose,
 };
-use iroka_kernel::{TenantContext, VerifiedPrincipal};
+use iroka_kernel::{
+    ReviewerKeyBindingResolver, ReviewerProofError, ReviewerProofVerifier, SignedReviewerProof,
+    SqliteSecurityStore, TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
+};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::Digest;
 use std::path::Path;
@@ -279,6 +282,7 @@ impl SqliteG05AuthorityRegistry {
             || organization_ref.len() > 512
             || reviewer_ref.trim().is_empty()
             || reviewer_ref.len() > 512
+            || reviewer.subject() != reviewer_ref
             || reviewer_key_ref.trim().is_empty()
             || reviewer_key_ref.len() > 512
             || designation_ref.trim().is_empty()
@@ -305,7 +309,7 @@ impl SqliteG05AuthorityRegistry {
         // reviewer's identity/key binding; denied callers must not probe G01.
         g02.authorize_g05(&req)?;
         g02.authorize_organization_scope(&req, organization_ref)?;
-        g01.validate_reviewer_key_binding(reviewer_ref, reviewer_key_ref, now)?;
+        g01.validate_reviewer_key_binding(reviewer, reviewer_key_ref, now)?;
         let mut c = self
             .connection
             .lock()
@@ -608,16 +612,18 @@ impl EpisodicConsentAuthority for SqliteG05AuthorityRegistry {
 pub trait G01ReviewerProofAuthority: Send + Sync {
     fn validate_reviewer_key_binding(
         &self,
-        reviewer: &str,
+        principal: &VerifiedPrincipal,
         key_ref: &str,
         now: u64,
     ) -> Result<(), G05Error>;
     fn verify_approval_proof(
         &self,
+        principal: &VerifiedPrincipal,
+        record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         designation: &ReviewerDesignation,
         now: u64,
-    ) -> Result<(), G05Error>;
+    ) -> Result<VerifiedReviewerProof, G05Error>;
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewerDesignation {
