@@ -6,6 +6,9 @@
 mod assurance;
 mod audit_store;
 mod cultural_context;
+mod policy_lifecycle;
+mod memory_audit;
+mod composition;
 mod decision;
 mod ethical_programme;
 #[cfg(test)]
@@ -33,6 +36,15 @@ pub use cultural_context::{
     ScriptSystem,
 };
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use policy_lifecycle::{
+    PolicyActivationCoordinator, PolicyLifecycleError, PolicySnapshotPayload, SignedPolicySnapshot,
+    VerifiedPolicyContext, VerifiedPolicySnapshot,
+};
+pub use memory_audit::{
+    MemoryAuditError, MemoryLifecycleAuditSink, MemoryLifecycleEvent,
+    SqliteMemoryLifecycleAuditStore, MEMORY_EVENT_SCHEMA_ID, MEMORY_EVENT_SCHEMA_VERSION,
+};
+pub use composition::authorize_compact_in_tenant;
 pub use ethical_programme::{
     BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EthicalPrinciple,
     EvidenceKind, EvidenceReference, EvidenceValidationError, LicenceStatus, TraitAssessment,

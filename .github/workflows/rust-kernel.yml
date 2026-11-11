@@ -5,6 +5,7 @@ on:
     branches:
       - feat/igacms-a3-implementation
       - feat/a3-8-g01-tenant-reconciliation
+      - feat/g05-g01-reviewer-proof-integration
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -13,7 +14,7 @@ on:
       - ".github/workflows/rust-kernel.yml"
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, edited]
-    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority]
+    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority, feat/a3-8-g01-tenant-reconciliation]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
