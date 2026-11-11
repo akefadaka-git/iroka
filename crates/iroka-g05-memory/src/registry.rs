@@ -448,10 +448,14 @@ impl SqliteG05AuthorityRegistry {
     fn consume_approval(
         &self,
         receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
         d: &ReviewerDesignation,
+        proof: &VerifiedReviewerProof,
         now: u64,
     ) -> Result<(), G05Error> {
-        let bytes = serde_json::to_vec(receipt).map_err(|_| G05Error::MalformedRecord)?;
+        let bytes = serde_json::to_vec(&(receipt, record.candidate.record_version, record.candidate.purpose,
+            record.candidate.classification, &record.candidate.contract_version, proof.proof_id()))
+            .map_err(|_| G05Error::MalformedRecord)?;
         let digest: [u8; 32] = sha2::Sha256::digest(&bytes).into();
         let mut c = self
             .connection
@@ -767,6 +771,8 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
 {
     fn verify_designated_reviewer(
         &self,
+        principal: &VerifiedPrincipal,
+        record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
         org: &str,
         now: u64,
@@ -786,7 +792,8 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
         {
             return Err(G05Error::DigestMismatch);
         }
-        if receipt.subject_ref != org {
+        crate::validate_approval_binding(record, receipt, now)?;
+        if receipt.subject_ref != org || record.candidate.subject_ref != org {
             return Err(G05Error::ApprovalBindingMismatch);
         }
         if receipt.expires_at <= now
@@ -804,8 +811,8 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
         if receipt.issued_at < d.valid_from || receipt.expires_at > d.valid_until {
             return Err(G05Error::ReviewerNotAuthorized);
         }
-        self.g01.verify_approval_proof(receipt, &d, now)?;
-        self.registry.consume_approval(receipt, &d, now)
+        let verified = self.g01.verify_approval_proof(principal, record, receipt, &d, now)?;
+        self.registry.consume_approval(receipt, record, &d, &verified, now)
     }
 }
 
