@@ -625,6 +625,123 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
         now: u64,
     ) -> Result<VerifiedReviewerProof, G05Error>;
 }
+/// Concrete G01 adapter. The serialized proof envelope is untrusted input;
+/// only the kernel can construct VerifiedReviewerProof after current binding,
+/// signature, exact-scope, freshness, revocation and replay checks.
+pub struct KernelG01ReviewerProofAuthority<R: ReviewerKeyBindingResolver> {
+    verifier: ReviewerProofVerifier<R>,
+}
+impl<R: ReviewerKeyBindingResolver> KernelG01ReviewerProofAuthority<R> {
+    pub fn new(verifier: ReviewerProofVerifier<R>) -> Self { Self { verifier } }
+}
+impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01ReviewerProofAuthority<R> {
+    fn validate_reviewer_key_binding(
+        &self, principal: &VerifiedPrincipal, key_ref: &str, now: u64,
+    ) -> Result<(), G05Error> {
+        self.verifier.validate_current_key_binding(principal, key_ref, now)
+            .map_err(map_reviewer_proof_error)
+    }
+
+    fn verify_approval_proof(
+        &self,
+        principal: &VerifiedPrincipal,
+        record: &MemoryRecord,
+        receipt: &DurableApprovalReceipt,
+        designation: &ReviewerDesignation,
+        now: u64,
+    ) -> Result<VerifiedReviewerProof, G05Error> {
+        if record.candidate.memory_class != crate::MemoryClass::Durable
+            || record.lifecycle_state != crate::LifecycleState::PendingReview
+            || receipt.memory_id != record.candidate.memory_id
+            || receipt.tenant_ref != record.candidate.tenant_ref
+            || receipt.subject_ref != record.candidate.subject_ref
+            || receipt.subject_ref != designation.organization_ref
+            || receipt.content_sha256 != record.candidate.content_sha256
+            || receipt.reviewer_ref != designation.reviewer_ref
+            || designation.tenant_ref != record.candidate.tenant_ref
+            || designation.organization_ref != receipt.subject_ref
+            || principal.subject() != receipt.reviewer_ref
+            || receipt.issued_at < designation.valid_from
+            || receipt.expires_at > designation.valid_until
+            || receipt.expires_at <= now
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        if receipt.proof_ref.len() > 32_768 || receipt.proof_ref.trim().is_empty() {
+            return Err(G05Error::InvalidReference);
+        }
+        let signed: SignedReviewerProof = serde_json::from_str(&receipt.proof_ref)
+            .map_err(|_| G05Error::ReviewerNotAuthorized)?;
+        let purpose = purpose_key(record.candidate.purpose);
+        let classification = classification_key(record.candidate.classification);
+        let resource = format!(
+            "g05:durable.activate:{}:{}:{}:{}:{}",
+            record.candidate.tenant_ref,
+            designation.organization_ref,
+            record.candidate.memory_id,
+            record.candidate.record_version,
+            record.candidate.content_sha256
+        );
+        let verified = self.verifier.verify_and_consume(
+            &signed,
+            principal,
+            &designation.reviewer_ref,
+            &designation.reviewer_key_ref,
+            &receipt.approval_ref,
+            &record.candidate.tenant_ref,
+            &designation.organization_ref,
+            &designation.designation_ref,
+            designation.version,
+            &record.candidate.memory_id,
+            record.candidate.record_version,
+            &record.candidate.content_sha256,
+            purpose,
+            classification,
+            "g05.memory.durable.activate",
+            &resource,
+            &record.candidate.contract_version,
+            now,
+        ).map_err(map_reviewer_proof_error)?;
+        if verified.reviewer_id() != designation.reviewer_ref
+            || verified.key_id() != designation.reviewer_key_ref
+            || verified.designation_id() != designation.designation_ref
+            || verified.designation_version() != designation.version
+            || verified.memory_id() != record.candidate.memory_id
+            || verified.record_version() != record.candidate.record_version
+            || verified.content_sha256() != record.candidate.content_sha256
+            || verified.purpose() != purpose
+            || verified.classification() != classification
+            || verified.approval_id() != receipt.approval_ref
+            || verified.tenant_id() != receipt.tenant_ref
+            || verified.organization_id() != receipt.subject_ref
+            || verified.subject() != principal.subject()
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        Ok(verified)
+    }
+}
+
+fn map_reviewer_proof_error(error: ReviewerProofError) -> G05Error {
+    match error {
+        ReviewerProofError::Replay => G05Error::ApprovalReplay,
+        ReviewerProofError::StoreUnavailable => G05Error::AuthorityUnavailable,
+        ReviewerProofError::ScopeMismatch | ReviewerProofError::PrincipalMismatch => G05Error::ApprovalBindingMismatch,
+        ReviewerProofError::Expired | ReviewerProofError::NotYetValid | ReviewerProofError::KeyOutsideValidity => G05Error::ApprovalExpired,
+        ReviewerProofError::Malformed | ReviewerProofError::BindingMissing | ReviewerProofError::BindingInactive
+        | ReviewerProofError::InvalidSignature | ReviewerProofError::Revoked => G05Error::ReviewerNotAuthorized,
+    }
+}
+
+fn classification_key(value: Classification) -> &'static str {
+    match value {
+        Classification::Public => "PUBLIC",
+        Classification::Internal => "INTERNAL",
+        Classification::Confidential => "CONFIDENTIAL",
+        Classification::Restricted => "RESTRICTED",
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewerDesignation {
     pub designation_ref: String,
