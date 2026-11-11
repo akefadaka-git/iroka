@@ -1067,8 +1067,6 @@ impl RevocationChecker for SqliteSecurityStore {
         )
         .map_err(|_| RevocationError::Unavailable)
     }
-}
-
     #[rustfmt::skip]
     pub(crate) fn consume_reviewer_proof(
         &self, issuer: &str, credential_id: &str, proof_id: &str, digest: &[u8], now: u64,
@@ -1088,6 +1086,9 @@ impl RevocationChecker for SqliteSecurityStore {
             Err(_) => Err(SecurityStoreError::Unavailable),
         }
     }
+
+
+}
 
 #[cfg(test)]
 mod tests {
