@@ -20,9 +20,9 @@ use iroka_kernel::{ReviewerProofPayload, SignedReviewerProof, VerifiedPrincipal}
 
 mod registry;
 pub use registry::{
-    G01ReviewerProofAuthority, KernelG01ReviewerProofAdapter, KernelG02AuthorizationAdapter,
-    CanonicalMemoryMetadataResolver, RegistryDesignatedReviewerAuthority, ReviewerDesignation, ReviewerDesignationKeyResolver,
-    SqliteG05AuthorityRegistry,
+    CanonicalMemoryMetadataResolver, G01ReviewerProofAuthority, KernelG01ReviewerProofAdapter,
+    KernelG02AuthorizationAdapter, RegistryDesignatedReviewerAuthority, ReviewerDesignation,
+    ReviewerDesignationKeyResolver, SqliteG05AuthorityRegistry,
 };
 
 mod authority;
@@ -605,7 +605,14 @@ pub fn prepare_durable_activation<G: GovernancePort>(
     governance: &G,
     now: u64,
 ) -> Result<MemoryRecord, G05Error> {
-    authorize_durable_activation(record, receipt, reviewer_principal, request, governance, now)?;
+    authorize_durable_activation(
+        record,
+        receipt,
+        reviewer_principal,
+        request,
+        governance,
+        now,
+    )?;
     let mut activated = record.clone();
     activated.candidate.record_version = record
         .candidate
@@ -731,7 +738,6 @@ pub trait MemoryRepository: Send + Sync {
         event: AuditEvent,
     ) -> Result<(), G05Error>;
 }
-
 
 impl<T: MemoryRepository> CanonicalMemoryMetadataResolver for T {
     fn resolve_canonical_metadata(
