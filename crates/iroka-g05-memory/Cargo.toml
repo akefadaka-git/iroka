@@ -16,3 +16,6 @@ serde_json = "1"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+iroka-kernel = { path = "../iroka-kernel", features = ["test-support"] }
