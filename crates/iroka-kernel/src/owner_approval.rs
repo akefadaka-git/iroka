@@ -7,12 +7,12 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::organization_authority::{
+    OrganizationAuthorityAction, SignedOrganizationAuthorityCommand,
+};
 use crate::security_store::{
     ApprovalConsumptionError, ApprovalReceipt, OrganizationMutation, RevocationTarget,
     SecurityCommandReceipt,
-};
-use crate::organization_authority::{
-    OrganizationAuthorityAction, OrganizationAuthorityError, SignedOrganizationAuthorityCommand,
 };
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
@@ -475,84 +475,116 @@ impl OwnerApprovalVerifier {
         if p.issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
             return Err(OwnerApprovalError::NotYetValid);
         }
-        if p.expires_at <= now { return Err(OwnerApprovalError::Expired); }
-        let owner_key = self.keys.get(&p.key_id).ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if p.expires_at <= now {
+            return Err(OwnerApprovalError::Expired);
+        }
+        let owner_key = self
+            .keys
+            .get(&p.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
         if p.owner_subject != owner_key.owner_subject {
             return Err(OwnerApprovalError::ScopeMismatch);
         }
-        if now < owner_key.not_before || now >= owner_key.not_after
-            || p.issued_at < owner_key.not_before || p.issued_at >= owner_key.not_after
-        { return Err(OwnerApprovalError::OwnerKeyOutsideValidity); }
-        if self.store.key_revoked(OWNER_ISSUER, &p.key_id)
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || p.issued_at < owner_key.not_before
+            || p.issued_at >= owner_key.not_after
+        {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
+        if self
+            .store
+            .key_revoked(OWNER_ISSUER, &p.key_id)
             .map_err(|_| OwnerApprovalError::StoreUnavailable)?
-        { return Err(OwnerApprovalError::Revoked); }
+        {
+            return Err(OwnerApprovalError::Revoked);
+        }
 
-        let bytes = p.signing_bytes().map_err(|_| OwnerApprovalError::Malformed)?;
-        let signature = Signature::from_slice(&command.signature)
+        let bytes = p
+            .signing_bytes()
             .map_err(|_| OwnerApprovalError::Malformed)?;
-        owner_key.verifying_key.verify(&bytes, &signature)
+        let signature =
+            Signature::from_slice(&command.signature).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(&bytes, &signature)
             .map_err(|_| OwnerApprovalError::InvalidSignature)?;
         let digest = Sha256::digest(&bytes);
         let reason = p.reason.clone();
         let mutation = match &p.action {
-            OrganizationAuthorityAction::CreateOrganization =>
+            OrganizationAuthorityAction::CreateOrganization => {
                 OrganizationMutation::CreateOrganization {
                     organization_id: p.organization_id.clone(),
                     tenant_id: p.tenant_id.clone(),
                     version: p.version,
                     reason,
-                },
-            OrganizationAuthorityAction::SetOrganizationActive { active } =>
+                }
+            }
+            OrganizationAuthorityAction::SetOrganizationActive { active } => {
                 OrganizationMutation::SetOrganizationActive {
                     organization_id: p.organization_id.clone(),
                     tenant_id: p.tenant_id.clone(),
                     active: *active,
                     version: p.version,
                     reason,
-                },
-            OrganizationAuthorityAction::SetDesignation =>
+                }
+            }
+            OrganizationAuthorityAction::SetDesignation => OrganizationMutation::SetDesignation {
+                organization_id: p.organization_id.clone(),
+                tenant_id: p.tenant_id.clone(),
+                principal: p.principal.clone().ok_or(OwnerApprovalError::Malformed)?,
+                designation_id: p
+                    .designation_id
+                    .clone()
+                    .ok_or(OwnerApprovalError::Malformed)?,
+                active: true,
+                capabilities_json: serde_json::to_string(&p.capabilities)
+                    .map_err(|_| OwnerApprovalError::Malformed)?,
+                version: p.version,
+                reason,
+            },
+            OrganizationAuthorityAction::RevokeDesignation => {
                 OrganizationMutation::SetDesignation {
                     organization_id: p.organization_id.clone(),
                     tenant_id: p.tenant_id.clone(),
                     principal: p.principal.clone().ok_or(OwnerApprovalError::Malformed)?,
-                    designation_id: p.designation_id.clone().ok_or(OwnerApprovalError::Malformed)?,
-                    active: true,
-                    capabilities_json: serde_json::to_string(&p.capabilities)
-                        .map_err(|_| OwnerApprovalError::Malformed)?,
-                    version: p.version,
-                    reason,
-                },
-            OrganizationAuthorityAction::RevokeDesignation =>
-                OrganizationMutation::SetDesignation {
-                    organization_id: p.organization_id.clone(),
-                    tenant_id: p.tenant_id.clone(),
-                    principal: p.principal.clone().ok_or(OwnerApprovalError::Malformed)?,
-                    designation_id: p.designation_id.clone().ok_or(OwnerApprovalError::Malformed)?,
+                    designation_id: p
+                        .designation_id
+                        .clone()
+                        .ok_or(OwnerApprovalError::Malformed)?,
                     active: false,
                     capabilities_json: "[]".to_owned(),
                     version: p.version,
                     reason,
-                },
+                }
+            }
         };
-        let applied = self.store.apply_organization_mutation(
-            SecurityCommandReceipt {
-                command_id: &p.command_id,
-                owner_subject: &p.owner_subject,
-                signer_issuer: OWNER_ISSUER,
-                signer_key_id: &p.key_id,
-                digest: digest.as_slice(),
-                at: now,
-            },
-            mutation,
-        ).map_err(|error| match error {
-            SecurityStoreError::Revoked => OwnerApprovalError::Revoked,
-            SecurityStoreError::InvalidVersion | SecurityStoreError::Rollback
+        let applied = self
+            .store
+            .apply_organization_mutation(
+                SecurityCommandReceipt {
+                    command_id: &p.command_id,
+                    owner_subject: &p.owner_subject,
+                    signer_issuer: OWNER_ISSUER,
+                    signer_key_id: &p.key_id,
+                    digest: digest.as_slice(),
+                    at: now,
+                },
+                mutation,
+            )
+            .map_err(|error| match error {
+                SecurityStoreError::Revoked => OwnerApprovalError::Revoked,
+                SecurityStoreError::InvalidVersion
+                | SecurityStoreError::Rollback
                 | SecurityStoreError::ConflictingVersion => OwnerApprovalError::Malformed,
-            _ => OwnerApprovalError::StoreUnavailable,
-        })?;
-        if applied { Ok(()) } else { Err(OwnerApprovalError::Replay) }
+                _ => OwnerApprovalError::StoreUnavailable,
+            })?;
+        if applied {
+            Ok(())
+        } else {
+            Err(OwnerApprovalError::Replay)
+        }
     }
-
 }
 
 #[cfg(test)]
