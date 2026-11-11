@@ -19,7 +19,7 @@ use std::collections::BTreeSet;
 
 mod registry;
 pub use registry::{
-    G01ReviewerProofAuthority, KernelG02AuthorizationAdapter, RegistryDesignatedReviewerAuthority,
+    G01ReviewerProofAuthority, KernelG01ReviewerProofAuthority, KernelG02AuthorizationAdapter, RegistryDesignatedReviewerAuthority,
     ReviewerDesignation, SqliteG05AuthorityRegistry,
 };
 
