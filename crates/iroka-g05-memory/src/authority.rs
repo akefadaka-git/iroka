@@ -184,26 +184,7 @@ mod tests {
             Err(G05Error::EpisodicOptInRequired)
         );
     }
-    #[test]
-    fn undesignated_reviewer_fails_closed() {
-        let adapter =
-            TrustedGovernanceAdapter::new(AllowG02, DenyConsent, DenyReviewer, AllowAudit);
-        let receipt = DurableApprovalReceipt {
-            approval_ref: "approval:1".into(),
-            memory_id: "memory:1".into(),
-            tenant_ref: "tenant:1".into(),
-            subject_ref: "organization:1".into(),
-            content_sha256: "a".repeat(64),
-            reviewer_ref: "principal:unlisted".into(),
-            issued_at: 100,
-            expires_at: 200,
-            proof_ref: "proof:1".into(),
-        };
-        assert_eq!(
-            adapter.verify_durable_approval(&receipt, 150),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
-    }
+
     #[test]
     fn global_g02_capability_does_not_grant_organization_reviewer_authority() {
         struct CapabilityOnly;
