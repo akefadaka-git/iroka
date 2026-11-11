@@ -379,7 +379,7 @@ mod tests {
             1,
         );
         let bytes = command.payload.signing_bytes().unwrap();
-        assert!(bytes.starts_with(b"IROKA:G02:ORGANIZATION_AUTHORITY:V1\\0"));
+        assert!(bytes.starts_with(b"IROKA:G02:ORGANIZATION_AUTHORITY:V1\0"));
         let mut malformed = command.payload.clone();
         malformed.capabilities = vec!["z".into(), "a".into()];
         assert_eq!(
