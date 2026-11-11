@@ -72,6 +72,8 @@ impl SignedReviewerProof {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedReviewerProof {
     reviewer_id: String,
+    binding_id: String,
+    binding_version: u64,
     subject: String,
     issuer: String,
     approval_id: String,
@@ -94,6 +96,8 @@ pub struct VerifiedReviewerProof {
 #[rustfmt::skip]
 impl VerifiedReviewerProof {
     pub fn reviewer_id(&self) -> &str { &self.reviewer_id }
+    pub fn binding_id(&self) -> &str { &self.binding_id }
+    pub fn binding_version(&self) -> u64 { self.binding_version }
     pub fn subject(&self) -> &str { &self.subject }
     pub fn issuer(&self) -> &str { &self.issuer }
     pub fn approval_id(&self) -> &str { &self.approval_id }
@@ -312,7 +316,8 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
     #[allow(clippy::too_many_arguments)]
     pub fn verify_and_consume(
         &self, proof: &SignedReviewerProof, principal: &VerifiedPrincipal,
-        expected_reviewer_id: &str, expected_approval_id: &str, expected_tenant_id: &str,
+        expected_reviewer_id: &str, expected_binding_id: &str, expected_binding_version: u64,
+        expected_approval_id: &str, expected_tenant_id: &str,
         expected_organization_id: &str, expected_designation_id: &str,
         expected_designation_version: u64, expected_memory_id: &str,
         expected_record_version: u64, expected_content_sha256: &str,
@@ -326,7 +331,7 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
             p.approval_id.as_str(), p.tenant_id.as_str(), p.organization_id.as_str(),
             p.memory_id.as_str(), p.content_sha256.as_str(), p.purpose.as_str(), p.classification.as_str(),
             p.capability.as_str(), p.resource.as_str(), p.policy_version.as_str(),
-            expected_reviewer_id, expected_approval_id, expected_tenant_id,
+            expected_reviewer_id, expected_binding_id, expected_approval_id, expected_tenant_id,
             expected_organization_id, expected_designation_id, expected_memory_id,
             expected_content_sha256, expected_purpose, expected_classification, expected_capability,
             expected_resource, expected_policy_version] {
@@ -355,6 +360,9 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
         let signed = self.bindings.resolve_current_binding(&p.issuer, &p.subject, &p.credential_id, &p.key_id, now)?
             .ok_or(ReviewerProofError::BindingMissing)?;
         let binding = &signed.binding;
+        if binding.binding_id != expected_binding_id || binding.binding_version != expected_binding_version {
+            return Err(ReviewerProofError::ScopeMismatch);
+        }
         if binding.issuer != p.issuer || binding.subject != p.subject
             || binding.credential_id != p.credential_id || binding.reviewer_id != p.reviewer_id
             || binding.key_id != p.key_id || binding.binding_id.trim().is_empty()
@@ -399,7 +407,8 @@ impl<R: ReviewerKeyBindingResolver, I: ReviewerIssuerTrustProvider> ReviewerProo
                 other => ReviewerProofError::from(other),
             })?;
         Ok(VerifiedReviewerProof {
-            reviewer_id: p.reviewer_id.clone(), subject: p.subject.clone(), issuer: p.issuer.clone(),
+            reviewer_id: p.reviewer_id.clone(), binding_id: binding.binding_id.clone(),
+            binding_version: binding.binding_version, subject: p.subject.clone(), issuer: p.issuer.clone(),
             approval_id: p.approval_id.clone(), designation_id: p.designation_id.clone(),
             designation_version: p.designation_version, tenant_id: p.tenant_id.clone(),
             organization_id: p.organization_id.clone(), memory_id: p.memory_id.clone(),
@@ -461,7 +470,7 @@ mod tests {
     }
     fn verify(v:&ReviewerProofVerifier<Bindings,IssuerTrust>,p:&SignedReviewerProof,principal:&VerifiedPrincipal)
         -> Result<VerifiedReviewerProof,ReviewerProofError> {
-        v.verify_and_consume(p,principal,"reviewer:maale-01","approval:17","tenant:alpha","org:alpha",
+        v.verify_and_consume(p,principal,"reviewer:maale-01","binding:1",3,"approval:17","tenant:alpha","org:alpha",
             "designation:1",3,"memory:1",4,&"a".repeat(64),"ORGANIZATIONAL_CONTEXT","CONFIDENTIAL",
             "content.review","translation:chapter-1","policy:v1",1200)
     }
