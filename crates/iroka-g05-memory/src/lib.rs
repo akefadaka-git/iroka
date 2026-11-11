@@ -21,7 +21,7 @@ use iroka_kernel::{ReviewerProofPayload, SignedReviewerProof, VerifiedPrincipal}
 mod registry;
 pub use registry::{
     G01ReviewerProofAuthority, KernelG01ReviewerProofAdapter, KernelG02AuthorizationAdapter,
-    RegistryDesignatedReviewerAuthority, ReviewerDesignation, ReviewerDesignationKeyResolver,
+    CanonicalMemoryMetadataResolver, RegistryDesignatedReviewerAuthority, ReviewerDesignation, ReviewerDesignationKeyResolver,
     SqliteG05AuthorityRegistry,
 };
 
@@ -707,7 +707,7 @@ pub trait GovernancePort {
 /// MUST provide tenant-aware constraints, optimistic version checks, atomic
 /// state changes, idempotency, and deletion/resurrection controls. Content
 /// reads MUST only be invoked after GovernancePort::authorize succeeds.
-pub trait MemoryRepository {
+pub trait MemoryRepository: Send + Sync {
     /// Atomically persist the record and enqueue its content-free G11 event.
     fn insert_with_audit(
         &mut self,
@@ -730,6 +730,13 @@ pub trait MemoryRepository {
         expected_version: u64,
         event: AuditEvent,
     ) -> Result<(), G05Error>;
+}
+
+
+impl<T: MemoryRepository> CanonicalMemoryMetadataResolver for T {
+    fn resolve_canonical_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error> {
+        self.get_metadata(memory_id)
+    }
 }
 
 #[cfg(test)]
