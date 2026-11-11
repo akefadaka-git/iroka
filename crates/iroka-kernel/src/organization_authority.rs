@@ -667,7 +667,7 @@ mod tests {
 
     #[test]
     fn owner_command_rejects_expired_future_and_revoked_signer() {
-        let (signer, owner, _, _) = fixture();
+        let (signer, owner, store, _) = fixture();
 
         let mut expired = signed_org(
             &signer,
@@ -707,8 +707,7 @@ mod tests {
             Err(crate::OwnerApprovalError::NotYetValid)
         );
 
-        owner
-            .store
+        store
             .revoke_key(
                 "iroka:owner-authority",
                 "owner-key",
