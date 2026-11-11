@@ -1061,6 +1061,10 @@ fn from_i64(v: i64) -> Result<u64, G05Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    struct NoMemoryMetadata;
+    impl CanonicalMemoryMetadataResolver for NoMemoryMetadata {
+        fn resolve_canonical_metadata(&self, _: &str) -> Result<Option<MemoryMetadata>, G05Error> { Ok(None) }
+    }
     struct G01;
     impl G01ReviewerProofAuthority for G01 {
         fn validate_reviewer_key_binding(&self, _: &str, _: &str, _: u64) -> Result<(), G05Error> {
@@ -1176,7 +1180,7 @@ mod tests {
             c.execute("INSERT INTO g05_reviewer_designations VALUES
     ('designation:one','tenant:one','org:one','reviewer:1','key:1','governor:1',1,100,300,100,NULL)",[]).unwrap();
         }
-        let reviewers = RegistryDesignatedReviewerAuthority::new(registry.clone(), G01);
+        let reviewers = RegistryDesignatedReviewerAuthority::new(registry.clone(), G01, NoMemoryMetadata);
         let adapter = crate::TrustedGovernanceAdapter::new(AllowG02, registry, reviewers, Audit);
         assert_eq!(
             crate::GovernancePort::verify_episodic_opt_in(
