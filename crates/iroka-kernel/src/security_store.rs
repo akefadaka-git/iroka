@@ -11,7 +11,8 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 /// Canonical organization designation state returned by the security store.
 pub(crate) type OrganizationDesignationRecord = (String, bool, String, u64, u64);
-pub(crate) type OrganizationDelegationRecord = (String, String, String, String, bool, String, u64, u64, u64);
+pub(crate) type OrganizationDelegationRecord =
+    (String, String, String, String, bool, String, u64, u64, u64);
 type RawOrganizationDelegationRecord = (String, String, String, String, i64, String, i64, i64, i64);
 
 use crate::identity_crypto::{RevocationChecker, RevocationError};
