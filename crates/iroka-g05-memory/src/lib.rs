@@ -212,10 +212,8 @@ pub struct DurableApprovalReceipt {
     pub reviewer_ref: String,
     pub issued_at: u64,
     pub expires_at: u64,
-    /// Stable reference; MUST equal `signed_proof.payload.proof_id`.
+    /// Stable reference; MUST equal the G01-verified proof ID supplied separately.
     pub proof_ref: String,
-    /// Cryptographic evidence verified by G01. A reference alone is never accepted.
-    pub signed_proof: iroka_kernel::SignedReviewerProof,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -457,9 +455,7 @@ pub fn validate_approval_binding(
     if !valid_ref(&receipt.approval_ref)
         || !valid_ref(&receipt.reviewer_ref)
         || !valid_ref(&receipt.proof_ref)
-        || receipt.proof_ref != receipt.signed_proof.payload.proof_id
-        || receipt.issued_at != receipt.signed_proof.payload.issued_at
-        || receipt.expires_at != receipt.signed_proof.payload.expires_at
+
     {
         return Err(G05Error::InvalidReference);
     }
@@ -571,6 +567,7 @@ pub fn authorize_retrieval_metadata<G: GovernancePort>(
 pub fn authorize_durable_activation<G: GovernancePort>(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
+    proof: &iroka_kernel::VerifiedReviewerProof,
     request: &AuthorizationRequest,
     governance: &G,
     now: u64,
@@ -588,7 +585,7 @@ pub fn authorize_durable_activation<G: GovernancePort>(
     }
     validate_durable_activation_binding(record, receipt, now)?;
     governance.authorize(request)?;
-    governance.verify_durable_approval(receipt, record, now)?;
+    governance.verify_durable_approval(receipt, proof, record, now)?;
     Ok(())
 }
 
@@ -598,11 +595,12 @@ pub fn authorize_durable_activation<G: GovernancePort>(
 pub fn prepare_durable_activation<G: GovernancePort>(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
+    proof: &iroka_kernel::VerifiedReviewerProof,
     request: &AuthorizationRequest,
     governance: &G,
     now: u64,
 ) -> Result<MemoryRecord, G05Error> {
-    authorize_durable_activation(record, receipt, request, governance, now)?;
+    authorize_durable_activation(record, receipt, proof, request, governance, now)?;
     let mut activated = record.clone();
     activated.candidate.record_version = record
         .candidate
@@ -690,6 +688,7 @@ pub trait GovernancePort {
     fn verify_durable_approval(
         &self,
         receipt: &DurableApprovalReceipt,
+        proof: &iroka_kernel::VerifiedReviewerProof,
         record: &MemoryRecord,
         now: u64,
     ) -> Result<(), G05Error>;
@@ -732,20 +731,6 @@ pub trait MemoryRepository {
 mod tests {
     use super::*;
 
-    fn test_signed_proof(id: &str, issued_at: u64, expires_at: u64) -> iroka_kernel::SignedReviewerProof {
-        let payload = iroka_kernel::ReviewerProofPayload {
-            proof_id: id.into(), issuer: "issuer:test".into(), subject: "reviewer:test".into(),
-            credential_id: "credential:test".into(), reviewer_id: "reviewer:1".into(),
-            designation_id: "designation:1".into(), designation_version: 1,
-            key_id: "key:1".into(), approval_id: "approval:1".into(), tenant_id: "tenant:1".into(),
-            organization_id: "principal:1".into(), memory_id: "memory:1".into(), record_version: 1,
-            content_sha256: "a".repeat(64), purpose: "TASK_CONTINUITY".into(),
-            classification: "INTERNAL".into(), capability: "g05.memory.durable.approve".into(),
-            resource: "g05:durable-approval:test".into(), policy_version: CONTRACT_VERSION.into(),
-            issued_at, expires_at,
-        };
-        iroka_kernel::SignedReviewerProof::from_signature(payload, vec![0; 64])
-    }
 
     struct AllowGovernance;
     impl GovernancePort for AllowGovernance {
@@ -998,7 +983,6 @@ mod tests {
             issued_at: 101,
             expires_at: 200,
             proof_ref: "proof:1".to_owned(),
-            signed_proof: test_signed_proof("proof:1", 101, 200),
         };
         assert_eq!(validate_approval_binding(&record, &receipt, 110), Ok(()));
         let request = AuthorizationRequest {
@@ -1055,7 +1039,6 @@ mod tests {
             issued_at: 90,
             expires_at: 100,
             proof_ref: "proof:1".to_owned(),
-            signed_proof: test_signed_proof("proof:1", 90, 100),
         };
         assert_eq!(
             validate_approval_binding(&record, &receipt, 100),
