@@ -578,11 +578,11 @@ impl SqliteG05AuthorityRegistry {
         receipt: &DurableApprovalReceipt,
         record: &MemoryRecord,
         d: &ReviewerDesignation,
-        proof: &VerifiedReviewerProof,
+        proof_id: &str,
         now: u64,
     ) -> Result<(), G05Error> {
         let bytes = serde_json::to_vec(&(receipt, record.candidate.record_version, record.candidate.purpose,
-            record.candidate.classification, &record.candidate.contract_version, proof.proof_id()))
+            record.candidate.classification, &record.candidate.contract_version, proof_id))
             .map_err(|_| G05Error::MalformedRecord)?;
         let digest: [u8; 32] = sha2::Sha256::digest(&bytes).into();
         let mut c = self
@@ -963,7 +963,7 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
         }
         let verified = self.g01.verify_approval_proof(record, receipt, &d, now)?;
         self.registry
-            .consume_approval(receipt, record, &d, &verified, now)
+            .consume_approval(receipt, record, &d, verified.proof_id(), now)
     }
 }
 
