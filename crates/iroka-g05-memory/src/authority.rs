@@ -11,7 +11,8 @@
 use iroka_kernel::VerifiedPrincipal;
 
 use crate::{
-    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, G05Error, GovernancePort, MemoryRecord, Purpose,
+    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, G05Error, GovernancePort,
+    MemoryRecord, Purpose,
 };
 
 /// Delegates to the canonical G01 -> tenant -> G02 authorization composition.
