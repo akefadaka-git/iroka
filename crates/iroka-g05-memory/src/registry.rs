@@ -872,6 +872,7 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
             || receipt.memory_id.trim().is_empty()
             || receipt.reviewer_ref.trim().is_empty()
             || receipt.proof_ref.trim().is_empty()
+            || receipt.proof_ref.len() > 32_768
         {
             return Err(G05Error::InvalidReference);
         }
