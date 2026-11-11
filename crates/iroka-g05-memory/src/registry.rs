@@ -11,8 +11,8 @@ use crate::{
     Operation, Purpose,
 };
 use iroka_kernel::{
-    ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof, TenantContext,
-    VerifiedPrincipal, VerifiedReviewerProof,
+    ReviewerIssuerTrustProvider, ReviewerKeyBindingResolver, ReviewerProofVerifier,
+    SignedReviewerProof, TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
 };
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::Digest;
@@ -634,20 +634,21 @@ pub trait ReviewerDesignationKeyResolver: Send + Sync {
     fn validate_reviewer_key_binding(&self, reviewer: &str, key_ref: &str, now: u64) -> Result<(), G05Error>;
 }
 
-pub struct KernelG01ReviewerProofAdapter<R, D> {
-    verifier: ReviewerProofVerifier<R>,
+pub struct KernelG01ReviewerProofAdapter<R, I, D> {
+    verifier: ReviewerProofVerifier<R, I>,
     designation_keys: D,
 }
 #[rustfmt::skip]
-impl<R, D> KernelG01ReviewerProofAdapter<R, D> {
-    pub fn new(verifier: ReviewerProofVerifier<R>, designation_keys: D) -> Self {
+impl<R, I, D> KernelG01ReviewerProofAdapter<R, I, D> {
+    pub fn new(verifier: ReviewerProofVerifier<R, I>, designation_keys: D) -> Self {
         Self { verifier, designation_keys }
     }
 }
 #[rustfmt::skip]
-impl<R, D> G01ReviewerProofAuthority for KernelG01ReviewerProofAdapter<R, D>
+impl<R, I, D> G01ReviewerProofAuthority for KernelG01ReviewerProofAdapter<R, I, D>
 where
     R: ReviewerKeyBindingResolver,
+    I: ReviewerIssuerTrustProvider,
     D: ReviewerDesignationKeyResolver,
 {
     fn validate_reviewer_key_binding(&self, reviewer: &str, key_ref: &str, now: u64) -> Result<(), G05Error> {
