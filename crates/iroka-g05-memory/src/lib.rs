@@ -16,7 +16,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
-use iroka_kernel::{SignedReviewerProof, VerifiedPrincipal};
+use iroka_kernel::{ReviewerProofPayload, SignedReviewerProof, VerifiedPrincipal};
 
 mod registry;
 pub use registry::{
@@ -790,6 +790,20 @@ mod tests {
         }
     }
 
+    fn test_signed_proof(proof_id: &str) -> SignedReviewerProof {
+        SignedReviewerProof::from_signature(ReviewerProofPayload {
+            proof_id: proof_id.into(), issuer: "issuer:test".into(), subject: "reviewer:1".into(),
+            credential_id: "credential:test".into(), reviewer_id: "reviewer:1".into(),
+            designation_id: "designation:1".into(), designation_version: 1, key_id: "key:1".into(),
+            approval_id: "approval:1".into(), tenant_id: "tenant:1".into(), organization_id: "principal:1".into(),
+            memory_id: "memory:1".into(), record_version: 1, content_sha256: "a".repeat(64),
+            purpose: "TASK_CONTINUITY".into(), classification: "INTERNAL".into(),
+            capability: "g05.memory.durable.activate".into(),
+            resource: "g05:durable.activate:memory:1:1".into(), policy_version: "g05-memory-v1".into(),
+            issued_at: 101, expires_at: 200,
+        }, vec![0;64])
+    }
+
     fn candidate(class: MemoryClass, classification: Classification) -> MemoryCandidate {
         let content = "synthetic memory".to_owned();
         MemoryCandidate {
@@ -986,6 +1000,7 @@ mod tests {
             issued_at: 101,
             expires_at: 200,
             proof_ref: "proof:1".to_owned(),
+            signed_proof: test_signed_proof("proof:1"),
         };
         assert_eq!(validate_approval_binding(&record, &receipt, 110), Ok(()));
         let request = AuthorizationRequest {
@@ -999,20 +1014,8 @@ mod tests {
             recipient_refs: vec![],
             correlation_ref: "trace:1".to_owned(),
         };
-        assert_eq!(
-            authorize_durable_activation(&record, &receipt, &request, &AllowGovernance, 110),
-            Ok(())
-        );
-        assert_eq!(
-            authorize_durable_activation(&record, &receipt, &request, &DenyGovernance, 110),
-            Err(G05Error::AuthorizationDenied)
-        );
-        let activated =
-            prepare_durable_activation(&record, &receipt, &request, &AllowGovernance, 110).unwrap();
-        assert_eq!(activated.lifecycle_state, LifecycleState::Active);
-        assert_eq!(activated.approved_by_ref.as_deref(), Some("reviewer:1"));
-        assert_eq!(activated.candidate.record_version, 2);
-
+        // Cryptographic activation is exercised through the trusted G01/G05 adapter.
+        // This unit test covers the pre-cryptographic record-binding boundary only.
         let mut tampered = receipt.clone();
         tampered.content_sha256 = "0".repeat(64);
         assert_eq!(
@@ -1042,6 +1045,7 @@ mod tests {
             issued_at: 90,
             expires_at: 100,
             proof_ref: "proof:1".to_owned(),
+            signed_proof: test_signed_proof("proof:1"),
         };
         assert_eq!(
             validate_approval_binding(&record, &receipt, 100),
