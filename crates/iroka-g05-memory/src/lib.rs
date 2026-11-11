@@ -602,6 +602,8 @@ pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: Gove
         || request.memory_id.as_deref() != Some(receipt.memory_id.as_str())
         || request.tenant_ref != receipt.tenant_ref
         || request.subject_ref != receipt.subject_ref
+        || request.purpose != Purpose::OrganizationalContext
+        || request.classification != Classification::Confidential
         || request.principal_ref != receipt.reviewer_ref
         || !valid_ref(&request.correlation_ref)
     {
@@ -614,6 +616,8 @@ pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: Gove
         || metadata.tenant_ref != receipt.tenant_ref
         || metadata.subject_ref != receipt.subject_ref
         || metadata.content_sha256 != receipt.content_sha256
+        || metadata.purpose != request.purpose
+        || metadata.classification != request.classification
         || metadata.lifecycle_state != LifecycleState::PendingReview
         || metadata.memory_class != MemoryClass::Durable
     {
@@ -635,6 +639,28 @@ pub fn authorize_durable_activation_from_repository<R: MemoryRepository, G: Gove
     validate_durable_activation_binding(&record, receipt, now)?;
     governance.verify_durable_approval(&record, receipt, now)?;
     Ok(record)
+}
+
+/// Prepare the next canonical record version after the approval was verified
+/// and consumed. The caller must persist it with replace_with_audit using
+/// the old record version; failure leaves the approval consumed (fail closed).
+pub fn prepare_durable_activation_from_repository<R: MemoryRepository, G: GovernancePort>(
+    repository: &R,
+    receipt: &DurableApprovalReceipt,
+    request: &AuthorizationRequest,
+    governance: &G,
+    now: u64,
+) -> Result<MemoryRecord, G05Error> {
+    let record = authorize_durable_activation_from_repository(repository, receipt, request, governance, now)?;
+    let mut activated = record.clone();
+    activated.candidate.record_version = record.candidate.record_version
+        .checked_add(1).ok_or(G05Error::VersionConflict)?;
+    activated.lifecycle_state = LifecycleState::Active;
+    activated.approval_ref = Some(receipt.approval_ref.clone());
+    activated.approved_by_ref = Some(receipt.reviewer_ref.clone());
+    activated.approved_at = Some(now);
+    activated.updated_at = now;
+    Ok(activated)
 }
 
 /// Prepare an approved durable record transition. The returned value is not
