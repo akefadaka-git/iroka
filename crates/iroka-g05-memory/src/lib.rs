@@ -13,10 +13,10 @@
 //! audit completion must be coordinated transactionally through a G11-backed
 //! outbox before a lifecycle mutation is reported complete.
 
+use iroka_kernel::{ReviewerProofPayload, SignedReviewerProof, VerifiedPrincipal};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
-use iroka_kernel::{ReviewerProofPayload, SignedReviewerProof, VerifiedPrincipal};
 
 mod registry;
 pub use registry::{
