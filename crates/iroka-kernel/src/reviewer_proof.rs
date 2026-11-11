@@ -69,6 +69,7 @@ impl SignedReviewerProof {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedReviewerProof {
     reviewer_id: String,
+    key_id: String,
     designation_id: String,
     designation_version: u64,
     memory_id: String,
@@ -91,6 +92,7 @@ pub struct VerifiedReviewerProof {
 #[rustfmt::skip]
 impl VerifiedReviewerProof {
     pub fn reviewer_id(&self) -> &str { &self.reviewer_id }
+    pub fn key_id(&self) -> &str { &self.key_id }
     pub fn designation_id(&self) -> &str { &self.designation_id }
     pub fn designation_version(&self) -> u64 { self.designation_version }
     pub fn memory_id(&self) -> &str { &self.memory_id }
@@ -169,6 +171,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         proof: &SignedReviewerProof,
         principal: &VerifiedPrincipal,
         expected_reviewer_id: &str,
+        expected_key_id: &str,
         expected_approval_id: &str,
         expected_tenant_id: &str,
         expected_organization_id: &str,
@@ -190,7 +193,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             p.approval_id.as_str(), p.tenant_id.as_str(), p.organization_id.as_str(),
             p.memory_id.as_str(), p.content_sha256.as_str(), p.purpose.as_str(), p.classification.as_str(),
             p.capability.as_str(), p.resource.as_str(), p.policy_version.as_str(),
-            expected_reviewer_id, expected_approval_id, expected_tenant_id,
+            expected_reviewer_id, expected_key_id, expected_approval_id, expected_tenant_id,
             expected_organization_id, expected_designation_id, expected_memory_id,
             expected_content_sha256, expected_purpose, expected_classification, expected_capability, expected_resource,
             expected_policy_version] {
@@ -207,7 +210,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         if p.expires_at <= now { return Err(ReviewerProofError::Expired); }
         if p.issuer != principal.issuer() || p.subject != principal.subject()
             || p.credential_id != principal.credential_id() { return Err(ReviewerProofError::PrincipalMismatch); }
-        if p.reviewer_id != expected_reviewer_id || p.approval_id != expected_approval_id
+        if p.reviewer_id != expected_reviewer_id || p.key_id != expected_key_id || p.approval_id != expected_approval_id
             || p.tenant_id != expected_tenant_id || p.organization_id != expected_organization_id
             || p.designation_id != expected_designation_id || p.designation_version != expected_designation_version
             || p.memory_id != expected_memory_id || p.record_version != expected_record_version
@@ -236,7 +239,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
                 other => ReviewerProofError::from(other),
             })?;
         Ok(VerifiedReviewerProof {
-            reviewer_id: p.reviewer_id.clone(), designation_id: p.designation_id.clone(),
+            reviewer_id: p.reviewer_id.clone(), key_id: p.key_id.clone(), designation_id: p.designation_id.clone(),
             designation_version: p.designation_version, memory_id: p.memory_id.clone(),
             record_version: p.record_version, content_sha256: p.content_sha256.clone(),
             purpose: p.purpose.clone(), classification: p.classification.clone(),
@@ -282,7 +285,7 @@ mod tests {
     }
     fn verify(v:&ReviewerProofVerifier<Bindings>,p:&SignedReviewerProof,principal:&VerifiedPrincipal)
         -> Result<VerifiedReviewerProof,ReviewerProofError> {
-        v.verify_and_consume(p,principal,"reviewer:maale-01","approval:17","tenant:alpha",
+        v.verify_and_consume(p,principal,"reviewer:maale-01","reviewer-key-01","approval:17","tenant:alpha",
             "org:alpha","designation:1",3,"memory:1",4,&"a".repeat(64),"ORGANIZATIONAL_CONTEXT",
             "CONFIDENTIAL","content.review","translation:chapter-1","policy:v1",1200)
     }
