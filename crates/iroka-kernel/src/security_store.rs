@@ -9,6 +9,9 @@ use std::time::Duration;
 
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
+/// Canonical organization designation state returned by the security store.
+pub(crate) type OrganizationDesignationRecord = (String, bool, String, u64, u64);
+
 use crate::identity_crypto::{RevocationChecker, RevocationError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -763,7 +766,7 @@ impl SqliteSecurityStore {
         &self,
         organization_id: &str,
         principal: &str,
-    ) -> Result<Option<(String, bool, String, u64, u64)>, SecurityStoreError> {
+    ) -> Result<Option<OrganizationDesignationRecord>, SecurityStoreError> {
         let c = self
             .connection
             .lock()
