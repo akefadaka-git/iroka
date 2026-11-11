@@ -606,15 +606,20 @@ impl SqliteSecurityStore {
                     [&organization_id], |row| row.get(0)
                 ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
                 if org.as_deref() != Some(tenant_id.as_str()) { return Err(SecurityStoreError::ConflictingVersion); }
-                let current: Option<(i64,Vec<u8>)> = tx.query_row(
-                    "SELECT version,digest FROM organization_designations WHERE organization_id=?1 AND principal=?2",
-                    params![organization_id,principal], |row| Ok((row.get(0)?,row.get(1)?))
+                let current: Option<(String,i64,Vec<u8>)> = tx.query_row(
+                    "SELECT designation_id,version,digest FROM organization_designations WHERE organization_id=?1 AND principal=?2",
+                    params![organization_id,principal], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))
                 ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
-                if let Some((v,d)) = current {
+                if !active && current.as_ref().is_none_or(|(current_id,_,_)| current_id != &designation_id) {
+                    return Err(SecurityStoreError::ConflictingVersion);
+                }
+                if let Some((_,v,d)) = current {
                     if version_i < v { return Err(SecurityStoreError::Rollback); }
                     if version_i == v {
                         return if d == digest { Ok(false) } else { Err(SecurityStoreError::ConflictingVersion) };
                     }
+                } else if !active {
+                    return Err(SecurityStoreError::InvalidVersion);
                 }
                 tx.execute(
                     "INSERT INTO organization_designations(organization_id,principal,designation_id,tenant_id,active,capabilities_json,version,updated_at,command_id,digest) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10) ON CONFLICT(organization_id,principal) DO UPDATE SET designation_id=excluded.designation_id,tenant_id=excluded.tenant_id,active=excluded.active,capabilities_json=excluded.capabilities_json,version=excluded.version,updated_at=excluded.updated_at,command_id=excluded.command_id,digest=excluded.digest",
