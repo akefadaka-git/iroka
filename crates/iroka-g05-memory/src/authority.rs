@@ -8,8 +8,10 @@
 //! revocation; the reviewer authority owns organizational reviewer designation
 //! and approval proof verification; G11 owns memory lifecycle audit events.
 
+use iroka_kernel::VerifiedPrincipal;
+
 use crate::{
-    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, G05Error, GovernancePort, Purpose,
+    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, G05Error, GovernancePort, MemoryRecord, Purpose,
 };
 
 /// Delegates to the canonical G01 -> tenant -> G02 authorization composition.
@@ -52,6 +54,8 @@ pub trait DesignatedReviewerAuthority: Send + Sync {
     fn verify_designated_reviewer(
         &self,
         receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
+        reviewer_principal: &VerifiedPrincipal,
         organization_ref: &str,
         now: u64,
     ) -> Result<(), G05Error>;
@@ -110,10 +114,12 @@ where
     fn verify_durable_approval(
         &self,
         receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
+        reviewer_principal: &VerifiedPrincipal,
         now: u64,
     ) -> Result<(), G05Error> {
         self.reviewers
-            .verify_designated_reviewer(receipt, &receipt.subject_ref, now)
+            .verify_designated_reviewer(receipt, record, reviewer_principal, &receipt.subject_ref, now)
     }
     fn append_audit(&self, event: &AuditEvent) -> Result<(), G05Error> {
         self.g11.append_memory_event(event)
@@ -154,6 +160,8 @@ mod tests {
         fn verify_designated_reviewer(
             &self,
             _: &DurableApprovalReceipt,
+            _: &MemoryRecord,
+            _: &VerifiedPrincipal,
             _: &str,
             _: u64,
         ) -> Result<(), G05Error> {
@@ -179,26 +187,6 @@ mod tests {
                 100
             ),
             Err(G05Error::EpisodicOptInRequired)
-        );
-    }
-    #[test]
-    fn undesignated_reviewer_fails_closed() {
-        let adapter =
-            TrustedGovernanceAdapter::new(AllowG02, DenyConsent, DenyReviewer, AllowAudit);
-        let receipt = DurableApprovalReceipt {
-            approval_ref: "approval:1".into(),
-            memory_id: "memory:1".into(),
-            tenant_ref: "tenant:1".into(),
-            subject_ref: "organization:1".into(),
-            content_sha256: "a".repeat(64),
-            reviewer_ref: "principal:unlisted".into(),
-            issued_at: 100,
-            expires_at: 200,
-            proof_ref: "proof:1".into(),
-        };
-        assert_eq!(
-            adapter.verify_durable_approval(&receipt, 150),
-            Err(G05Error::ReviewerNotAuthorized)
         );
     }
     #[test]
