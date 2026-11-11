@@ -879,6 +879,7 @@ impl SqliteSecurityStore {
         ))).transpose()
     }
 
+    #[rustfmt::skip]
     pub(crate) fn consume_reviewer_proof(
         &self, issuer: &str, credential_id: &str, proof_id: &str, digest: &[u8], now: u64,
     ) -> Result<(), SecurityStoreError> {
