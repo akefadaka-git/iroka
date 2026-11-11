@@ -7,7 +7,7 @@
 
 use crate::{
     AuthorizationRequest, Classification, DesignatedReviewerAuthority, DurableApprovalReceipt,
-    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryRecord, Operation, Purpose,
+    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryMetadata, MemoryRecord, Operation, Purpose,
 };
 use iroka_kernel::{ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof, TenantContext, VerifiedPrincipal, VerifiedReviewerProof};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
@@ -716,17 +716,24 @@ pub struct ReviewerDesignation {
     pub valid_from: u64,
     pub valid_until: u64,
 }
-pub struct RegistryDesignatedReviewerAuthority<P> {
+/// Trusted read-only projection of the canonical G05 memory repository.
+/// Implementations must read the current persisted metadata, not caller input.
+pub trait CanonicalMemoryMetadataResolver: Send + Sync {
+    fn resolve_canonical_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error>;
+}
+
+pub struct RegistryDesignatedReviewerAuthority<P, M> {
     registry: SqliteG05AuthorityRegistry,
     g01: P,
+    records: M,
 }
-impl<P> RegistryDesignatedReviewerAuthority<P> {
-    pub fn new(registry: SqliteG05AuthorityRegistry, g01: P) -> Self {
-        Self { registry, g01 }
+impl<P, M> RegistryDesignatedReviewerAuthority<P, M> {
+    pub fn new(registry: SqliteG05AuthorityRegistry, g01: P, records: M) -> Self {
+        Self { registry, g01, records }
     }
 }
-impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
-    for RegistryDesignatedReviewerAuthority<P>
+impl<P: G01ReviewerProofAuthority, M: CanonicalMemoryMetadataResolver> DesignatedReviewerAuthority
+    for RegistryDesignatedReviewerAuthority<P, M>
 {
     fn verify_designated_reviewer(
         &self,
@@ -759,6 +766,22 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
             || receipt.expires_at <= receipt.issued_at
         {
             return Err(G05Error::ApprovalExpired);
+        }
+        let canonical = self.records.resolve_canonical_metadata(&receipt.memory_id)?
+            .ok_or(G05Error::RecordNotFound)?;
+        if canonical.memory_id != record.candidate.memory_id
+            || canonical.tenant_ref != record.candidate.tenant_ref
+            || canonical.subject_ref != record.candidate.subject_ref
+            || canonical.memory_class != record.candidate.memory_class
+            || canonical.content_sha256 != record.candidate.content_sha256
+            || canonical.purpose != record.candidate.purpose
+            || canonical.classification != record.candidate.classification
+            || canonical.lifecycle_state != record.lifecycle_state
+            || canonical.record_version != record.candidate.record_version
+            || canonical.expires_at != record.candidate.expires_at
+            || canonical.retention_policy_ref != record.candidate.retention_policy_ref
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
         }
         if reviewer_principal.subject() != receipt.reviewer_ref
             || record.candidate.memory_class != crate::MemoryClass::Durable
