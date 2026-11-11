@@ -76,6 +76,12 @@ pub(crate) struct SecurityCommandReceipt<'a> {
     pub at: u64,
 }
 
+pub(crate) enum OrganizationMutation {
+    CreateOrganization { organization_id: String, tenant_id: String, version: u64, reason: String },
+    SetOrganizationActive { organization_id: String, tenant_id: String, active: bool, version: u64, reason: String },
+    SetDesignation { organization_id: String, tenant_id: String, principal: String, designation_id: String, active: bool, capabilities_json: String, version: u64, reason: String },
+}
+
 pub struct SqliteSecurityStore {
     connection: Mutex<Connection>,
 }
@@ -161,6 +167,22 @@ impl SqliteSecurityStore {
              );
              CREATE TABLE IF NOT EXISTS approval_consumptions (
                approval_id TEXT PRIMARY KEY, scope_digest BLOB NOT NULL, consumed_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS organizations (
+               organization_id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
+               active INTEGER NOT NULL CHECK(active IN (0,1)),
+               version INTEGER NOT NULL CHECK(version > 0), updated_at INTEGER NOT NULL,
+               command_id TEXT NOT NULL, digest BLOB NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS organization_designations (
+               organization_id TEXT NOT NULL, principal TEXT NOT NULL,
+               designation_id TEXT NOT NULL UNIQUE, tenant_id TEXT NOT NULL,
+               active INTEGER NOT NULL CHECK(active IN (0,1)),
+               capabilities_json TEXT NOT NULL,
+               version INTEGER NOT NULL CHECK(version > 0), updated_at INTEGER NOT NULL,
+               command_id TEXT NOT NULL, digest BLOB NOT NULL,
+               PRIMARY KEY(organization_id, principal),
+               FOREIGN KEY(organization_id) REFERENCES organizations(organization_id)
              );
              CREATE TABLE IF NOT EXISTS tenant_memberships (
                subject TEXT NOT NULL, tenant_id TEXT NOT NULL,
@@ -519,6 +541,120 @@ impl SqliteSecurityStore {
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(true)
+    }
+
+    /// Atomically consume a G02 Owner command and mutate the canonical organization
+    /// and designation tables. The caller verifies the dedicated G02 signature domain.
+    pub(crate) fn apply_organization_mutation(
+        &self,
+        receipt: SecurityCommandReceipt<'_>,
+        mutation: OrganizationMutation,
+    ) -> Result<bool, SecurityStoreError> {
+        let SecurityCommandReceipt { command_id, owner_subject, signer_issuer, signer_key_id, digest, at } = receipt;
+        if command_id.trim().is_empty() || digest.len() != 32 {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let at_i = i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+            params![signer_issuer, signer_key_id], |row| row.get(0)
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if revoked { return Err(SecurityStoreError::Revoked); }
+        let consumed = tx.execute(
+            "INSERT OR IGNORE INTO approval_consumptions(approval_id,scope_digest,consumed_at) VALUES(?1,?2,?3)",
+            params![format!("security-command:{command_id}"), digest, at_i]
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if consumed == 0 { return Ok(false); }
+
+        let (action, target, reason) = match mutation {
+            OrganizationMutation::CreateOrganization { organization_id, tenant_id, version, reason } => {
+                if version == 0 { return Err(SecurityStoreError::InvalidVersion); }
+                let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+                tx.execute(
+                    "INSERT INTO organizations(organization_id,tenant_id,active,version,updated_at,command_id,digest) VALUES(?1,?2,1,?3,?4,?5,?6)",
+                    params![organization_id,tenant_id,version_i,at_i,command_id,digest]
+                ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
+                ("create_organization".to_owned(), organization_id, reason)
+            }
+            OrganizationMutation::SetOrganizationActive { organization_id, tenant_id, active, version, reason } => {
+                if version == 0 { return Err(SecurityStoreError::InvalidVersion); }
+                let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+                let current: Option<(String,i64,Vec<u8>)> = tx.query_row(
+                    "SELECT tenant_id,version,digest FROM organizations WHERE organization_id=?1",
+                    [&organization_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))
+                ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+                let (bound_tenant,current_version,current_digest) = current.ok_or(SecurityStoreError::InvalidVersion)?;
+                if bound_tenant != tenant_id { return Err(SecurityStoreError::ConflictingVersion); }
+                if version_i < current_version { return Err(SecurityStoreError::Rollback); }
+                if version_i == current_version {
+                    return if current_digest == digest { Ok(false) } else { Err(SecurityStoreError::ConflictingVersion) };
+                }
+                tx.execute(
+                    "UPDATE organizations SET active=?2,version=?3,updated_at=?4,command_id=?5,digest=?6 WHERE organization_id=?1",
+                    params![organization_id,i64::from(active),version_i,at_i,command_id,digest]
+                ).map_err(|_| SecurityStoreError::Unavailable)?;
+                ("set_organization_active".to_owned(), organization_id, reason)
+            }
+            OrganizationMutation::SetDesignation { organization_id, tenant_id, principal, designation_id, active, capabilities_json, version, reason } => {
+                if version == 0 { return Err(SecurityStoreError::InvalidVersion); }
+                let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+                let org: Option<String> = tx.query_row(
+                    "SELECT tenant_id FROM organizations WHERE organization_id=?1",
+                    [&organization_id], |row| row.get(0)
+                ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+                if org.as_deref() != Some(tenant_id.as_str()) { return Err(SecurityStoreError::ConflictingVersion); }
+                let current: Option<(i64,Vec<u8>)> = tx.query_row(
+                    "SELECT version,digest FROM organization_designations WHERE organization_id=?1 AND principal=?2",
+                    params![organization_id,principal], |row| Ok((row.get(0)?,row.get(1)?))
+                ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+                if let Some((v,d)) = current {
+                    if version_i < v { return Err(SecurityStoreError::Rollback); }
+                    if version_i == v {
+                        return if d == digest { Ok(false) } else { Err(SecurityStoreError::ConflictingVersion) };
+                    }
+                }
+                tx.execute(
+                    "INSERT INTO organization_designations(organization_id,principal,designation_id,tenant_id,active,capabilities_json,version,updated_at,command_id,digest) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10) ON CONFLICT(organization_id,principal) DO UPDATE SET designation_id=excluded.designation_id,tenant_id=excluded.tenant_id,active=excluded.active,capabilities_json=excluded.capabilities_json,version=excluded.version,updated_at=excluded.updated_at,command_id=excluded.command_id,digest=excluded.digest",
+                    params![organization_id,principal,designation_id,tenant_id,i64::from(active),capabilities_json,version_i,at_i,command_id,digest]
+                ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
+                ("set_designation".to_owned(), format!("{organization_id}:{principal}:{designation_id}"), reason)
+            }
+        };
+        tx.execute(
+            "INSERT INTO security_command_log(command_id,digest,owner_subject,signer_key_id,action,target,reason,occurred_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+            params![command_id,digest,owner_subject,signer_key_id,action,target,reason,at_i]
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+        Ok(true)
+    }
+
+    pub(crate) fn organization_state(&self, organization_id: &str) -> Result<Option<(String,bool,u64,u64)>, SecurityStoreError> {
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let row: Option<(String,i64,i64,i64)> = c.query_row(
+            "SELECT tenant_id,active,version,updated_at FROM organizations WHERE organization_id=?1",
+            [organization_id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        row.map(|(tenant,active,version,updated)| Ok((
+            tenant, active == 1,
+            u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
+            u64::try_from(updated).map_err(|_| SecurityStoreError::Unavailable)?
+        ))).transpose()
+    }
+
+    pub(crate) fn organization_designation(&self, organization_id: &str, principal: &str) -> Result<Option<(String,bool,String,u64,u64)>, SecurityStoreError> {
+        let c = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let row: Option<(String,i64,String,i64,i64)> = c.query_row(
+            "SELECT designation_id,active,capabilities_json,version,updated_at FROM organization_designations WHERE organization_id=?1 AND principal=?2",
+            params![organization_id,principal], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        row.map(|(id,active,caps,version,updated)| Ok((
+            id, active == 1, caps,
+            u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
+            u64::try_from(updated).map_err(|_| SecurityStoreError::Unavailable)?
+        ))).transpose()
     }
 
     pub(crate) fn tenant_membership(
