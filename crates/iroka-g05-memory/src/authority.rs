@@ -119,8 +119,13 @@ where
         reviewer_principal: &VerifiedPrincipal,
         now: u64,
     ) -> Result<(), G05Error> {
-        self.reviewers
-            .verify_designated_reviewer(receipt, record, reviewer_principal, &receipt.subject_ref, now)
+        self.reviewers.verify_designated_reviewer(
+            receipt,
+            record,
+            reviewer_principal,
+            &receipt.subject_ref,
+            now,
+        )
     }
     fn append_audit(&self, event: &AuditEvent) -> Result<(), G05Error> {
         self.g11.append_memory_event(event)
