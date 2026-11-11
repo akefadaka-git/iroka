@@ -228,7 +228,7 @@ pub struct SignedReviewerKeyBinding {
 
 /// Resolves issuer signing keys from G01's root-signed trust snapshot and
 /// current revocation source. Caller-supplied keys are never trusted.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewerIssuerTrustKey {
     pub issuer: String,
     pub key_id: String,
