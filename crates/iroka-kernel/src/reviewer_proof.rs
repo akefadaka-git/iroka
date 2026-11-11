@@ -165,6 +165,33 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         Self { bindings, store }
     }
 
+    /// Resolve and validate the current key binding for reviewer designation.
+    pub fn validate_current_key_binding(
+        &self,
+        principal: &VerifiedPrincipal,
+        key_id: &str,
+        now: u64,
+    ) -> Result<(), ReviewerProofError> {
+        if key_id.trim().is_empty() || key_id.len() > 512 {
+            return Err(ReviewerProofError::Malformed);
+        }
+        let binding = self.bindings.resolve_current_binding(
+            principal.issuer(), principal.subject(), principal.credential_id(), key_id, now,
+        )?.ok_or(ReviewerProofError::BindingMissing)?;
+        if binding.revoked || binding.credential_revoked {
+            return Err(ReviewerProofError::Revoked);
+        }
+        if binding.resolved_at > now || now.saturating_sub(binding.resolved_at) > 30 {
+            return Err(ReviewerProofError::BindingMissing);
+        }
+        if now < binding.not_before || now >= binding.not_after {
+            return Err(ReviewerProofError::KeyOutsideValidity);
+        }
+        VerifyingKey::from_bytes(&binding.public_key)
+            .map_err(|_| ReviewerProofError::BindingMissing)?;
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn verify_and_consume(
         &self,
