@@ -273,6 +273,9 @@ impl<R: RevocationChecker> ReviewerIssuerTrustProvider for KernelReviewerIssuerT
         key_id: &str,
         now: u64,
     ) -> Result<Option<ReviewerIssuerTrustKey>, ReviewerProofError> {
+        if !self.snapshots.is_current(now) {
+            return Err(ReviewerProofError::IssuerTrustUnavailable);
+        }
         let snapshot = self.snapshots.snapshot().map_err(|_| ReviewerProofError::IssuerTrustUnavailable)?;
         let trusted = match snapshot.resolve_trusted_key(issuer, key_id, now) {
             Ok(key) => key,
@@ -518,7 +521,7 @@ mod tests {
                 not_after: 2_000,
             }],
         ).unwrap();
-        let snapshots = std::sync::Arc::new(TrustSnapshotManager::new_with_version(trust, 7));
+        let snapshots = std::sync::Arc::new(TrustSnapshotManager::new_with_expiry(trust, 7, 1_500));
         let provider = KernelReviewerIssuerTrustProvider::new(snapshots, crate::NoRevocations);
         let resolved = provider.resolve_current_issuer_key("issuer:community", "issuer-key-01", 1_200)
             .unwrap().unwrap();
