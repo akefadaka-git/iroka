@@ -81,7 +81,7 @@ impl OrganizationAuthorityPayload {
             { return Err(OrganizationAuthorityError::Malformed); }
             previous = Some(capability);
         }
-        match self.action {
+        match &self.action {
             OrganizationAuthorityAction::CreateOrganization => {
                 if self.principal.is_some() || self.designation_id.is_some() || !self.capabilities.is_empty() {
                     return Err(OrganizationAuthorityError::Malformed);
@@ -166,6 +166,17 @@ impl OrganizationAuthorityResolver {
             || organization_id.trim().is_empty() || capability.trim().is_empty()
             || max_age_secs == 0 || max_age_secs > MAX_AUTHORITY_AGE_SECS
         { return Err(OrganizationAuthorityError::Malformed); }
+        if tenant.resolved_at() > now || now.saturating_sub(tenant.resolved_at()) > max_age_secs {
+            return Err(OrganizationAuthorityError::Stale);
+        }
+        let current_membership = self.store.tenant_membership(principal.subject(), tenant.tenant_id())?
+            .ok_or(OrganizationAuthorityError::TenantMismatch)?;
+        if !current_membership.0 || current_membership.1 != tenant.membership_version() {
+            return Err(OrganizationAuthorityError::TenantMismatch);
+        }
+        if current_membership.2 > now || now.saturating_sub(current_membership.2) > max_age_secs {
+            return Err(OrganizationAuthorityError::Stale);
+        }
 
         let (bound_tenant, org_active, _org_version, org_updated) =
             self.store.organization_state(organization_id)?
