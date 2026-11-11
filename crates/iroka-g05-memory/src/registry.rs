@@ -7,9 +7,9 @@
 
 use crate::{
     AuthorizationRequest, Classification, DesignatedReviewerAuthority, DurableApprovalReceipt,
-    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, Operation, Purpose,
+    EpisodicConsentAuthority, G02AuthorizationAuthority, G05Error, MemoryRecord, Operation, Purpose,
 };
-use iroka_kernel::{TenantContext, VerifiedPrincipal};
+use iroka_kernel::{TenantContext, VerifiedPrincipal, VerifiedReviewerProof};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::Digest;
 use std::path::Path;
@@ -606,18 +606,76 @@ impl EpisodicConsentAuthority for SqliteG05AuthorityRegistry {
 /// G01 identity/key boundary. Implementations resolve current key state and
 /// revocation; proof_ref is only a selector into the trusted proof service.
 pub trait G01ReviewerProofAuthority: Send + Sync {
-    fn validate_reviewer_key_binding(
-        &self,
-        reviewer: &str,
-        key_ref: &str,
-        now: u64,
-    ) -> Result<(), G05Error>;
+    /// Accepts only the unforgeable result produced by G01's cryptographic verifier.
+    /// This adapter rechecks every G05-owned scope field against canonical state.
     fn verify_approval_proof(
         &self,
+        proof: &VerifiedReviewerProof,
         receipt: &DurableApprovalReceipt,
         designation: &ReviewerDesignation,
+        record: &MemoryRecord,
         now: u64,
     ) -> Result<(), G05Error>;
+}
+
+/// G05-side adapter for the G01 verified-proof type. Signature, identity/key
+/// binding, revocation and proof-ID replay are completed by G01 before this
+/// boundary. G05 independently compares the immutable proof claims with its
+/// current designation, canonical receipt and current memory record.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct KernelG01ReviewerProofAuthority;
+
+impl G01ReviewerProofAuthority for KernelG01ReviewerProofAuthority {
+    fn verify_approval_proof(
+        &self,
+        proof: &VerifiedReviewerProof,
+        receipt: &DurableApprovalReceipt,
+        designation: &ReviewerDesignation,
+        record: &MemoryRecord,
+        now: u64,
+    ) -> Result<(), G05Error> {
+        let expected_resource = format!(
+            "g05:durable-approval:{}:{}:{}:v{}:{}",
+            record.candidate.tenant_ref,
+            record.candidate.subject_ref,
+            record.candidate.memory_id,
+            record.candidate.record_version,
+            record.candidate.content_sha256
+        );
+        let valid = proof.reviewer_id() == receipt.reviewer_ref
+            && proof.approval_id() == receipt.approval_ref
+            && proof.proof_id() == receipt.proof_ref
+            && proof.tenant_id() == record.candidate.tenant_ref
+            && proof.organization_id() == record.candidate.subject_ref
+            && proof.designation_id() == designation.designation_ref
+            && proof.designation_version() == designation.version
+            && proof.key_id() == designation.reviewer_key_ref
+            && proof.memory_id() == record.candidate.memory_id
+            && proof.record_version() == record.candidate.record_version
+            && proof.content_sha256() == record.candidate.content_sha256
+            && proof.purpose() == purpose_key(record.candidate.purpose)
+            && proof.classification() == classification_key(record.candidate.classification)
+            && proof.capability() == "g05.memory.durable.approve"
+            && proof.resource() == expected_resource
+            && proof.policy_version() == crate::CONTRACT_VERSION
+            && proof.verified_at() <= now
+            && now.saturating_sub(proof.verified_at()) <= 30
+            && proof.expires_at() > now
+            && receipt.issued_at <= proof.expires_at()
+            && receipt.expires_at == proof.expires_at()
+            && record.candidate.memory_class == crate::MemoryClass::Durable
+            && record.candidate.record_version > 0;
+        if valid { Ok(()) } else { Err(G05Error::ApprovalBindingMismatch) }
+    }
+}
+
+fn classification_key(classification: Classification) -> &'static str {
+    match classification {
+        Classification::Public => "PUBLIC",
+        Classification::Internal => "INTERNAL",
+        Classification::Confidential => "CONFIDENTIAL",
+        Classification::Restricted => "RESTRICTED",
+    }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReviewerDesignation {
@@ -645,6 +703,8 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
     fn verify_designated_reviewer(
         &self,
         receipt: &DurableApprovalReceipt,
+        proof: &VerifiedReviewerProof,
+        record: &MemoryRecord,
         org: &str,
         now: u64,
     ) -> Result<(), G05Error> {
@@ -656,33 +716,41 @@ impl<P: G01ReviewerProofAuthority> DesignatedReviewerAuthority
             return Err(G05Error::InvalidReference);
         }
         if receipt.content_sha256.len() != 64
-            || !receipt
-                .content_sha256
-                .bytes()
-                .all(|b| b.is_ascii_hexdigit())
+            || !receipt.content_sha256.bytes().all(|b| b.is_ascii_hexdigit())
         {
             return Err(G05Error::DigestMismatch);
         }
-        if receipt.subject_ref != org {
+        if record.candidate.memory_class != crate::MemoryClass::Durable
+            || (record.lifecycle_state != crate::LifecycleState::Proposed
+                && record.lifecycle_state != crate::LifecycleState::PendingReview)
+            || receipt.memory_id != record.candidate.memory_id
+            || receipt.tenant_ref != record.candidate.tenant_ref
+            || receipt.subject_ref != record.candidate.subject_ref
+            || receipt.subject_ref != org
+            || receipt.content_sha256 != record.candidate.content_sha256
+            || receipt.reviewer_ref != proof.reviewer_id()
+            || receipt.approval_ref != proof.approval_id()
+            || receipt.proof_ref != proof.proof_id()
+            || receipt.issued_at > now
+            || receipt.expires_at <= now
+            || receipt.expires_at <= receipt.issued_at
+            || receipt.issued_at > proof.verified_at()
+            || receipt.expires_at != proof.expires_at()
+        {
             return Err(G05Error::ApprovalBindingMismatch);
         }
-        if receipt.expires_at <= now
-            || receipt.issued_at > now
-            || receipt.expires_at <= receipt.issued_at
-        {
-            return Err(G05Error::ApprovalExpired);
-        }
-        let d = self.registry.active_designation(
-            &receipt.tenant_ref,
-            org,
-            &receipt.reviewer_ref,
-            now,
+        let designation = self.registry.active_designation(
+            &receipt.tenant_ref, org, &receipt.reviewer_ref, now,
         )?;
-        if receipt.issued_at < d.valid_from || receipt.expires_at > d.valid_until {
+        if receipt.issued_at < designation.valid_from
+            || receipt.expires_at > designation.valid_until
+        {
             return Err(G05Error::ReviewerNotAuthorized);
         }
-        self.g01.verify_approval_proof(receipt, &d, now)?;
-        self.registry.consume_approval(receipt, &d, now)
+        // Re-resolve the current designation immediately before the G05
+        // consume transaction; the transaction repeats this check atomically.
+        self.g01.verify_approval_proof(proof, receipt, &designation, record, now)?;
+        self.registry.consume_approval(receipt, &designation, now)
     }
 }
 
