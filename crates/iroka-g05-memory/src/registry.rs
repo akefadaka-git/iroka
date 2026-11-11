@@ -11,7 +11,7 @@ use crate::{
 };
 use iroka_kernel::{
     ReviewerKeyBindingResolver, ReviewerProofError, ReviewerProofVerifier, SignedReviewerProof,
-    SqliteSecurityStore, TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
+    TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
 };
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::Digest;
@@ -665,7 +665,7 @@ impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01Revie
             || receipt.reviewer_ref != designation.reviewer_ref
             || designation.tenant_ref != record.candidate.tenant_ref
             || designation.organization_ref != receipt.subject_ref
-            || principal.subject() != receipt.reviewer_ref
+            || self.principal.subject() != receipt.reviewer_ref
             || receipt.issued_at < designation.valid_from
             || receipt.expires_at > designation.valid_until
             || receipt.expires_at <= now
