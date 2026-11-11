@@ -471,7 +471,7 @@ mod tests {
         store: Arc<SqliteSecurityStore>,
     ) -> TenantContext {
         let payload = OwnerSecurityCommandPayload {
-            command_id: "membership:alice".into(),
+            command_id: format!("membership:{}", principal.subject()),
             owner_subject: "owner:test".into(),
             key_id: "owner-key".into(),
             issued_at: 1100,
@@ -864,4 +864,58 @@ mod tests {
             Err(crate::OwnerApprovalError::Revoked)
         );
     }
+    fn signed_delegation(
+        signer: &SigningKey,
+        command_id: &str,
+        action: OrganizationAuthorityAction,
+        delegation_id: &str,
+        delegator: &str,
+        delegate: &str,
+        capabilities: Vec<&str>,
+        version: u64,
+        valid_until: Option<u64>,
+    ) -> SignedOrganizationAuthorityCommand {
+        let payload = OrganizationAuthorityPayload {
+            command_id: command_id.into(), owner_subject: "owner:test".into(), key_id: "owner-key".into(),
+            issued_at: 1100, expires_at: 1400, organization_id: "org:alpha".into(), tenant_id: "tenant:alpha".into(),
+            principal: Some(delegator.into()), designation_id: Some(delegation_id.into()),
+            delegate: Some(delegate.into()), delegation_expires_at: valid_until, action, version,
+            capabilities: capabilities.into_iter().map(str::to_owned).collect(),
+            reason: "Owner-authorized exact-scope delegation".into(),
+        };
+        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        SignedOrganizationAuthorityCommand::from_signature(payload, signature)
+    }
+
+    #[test]
+    fn owner_delegation_is_exact_scope_versioned_and_revocable() {
+        let (signer, owner, store, alice) = fixture();
+        let alice_tenant = tenant_context(&signer, &owner, &alice, store.clone());
+        let bob = VerifiedPrincipal::from_verified_credential(
+            "principal:bob".into(), "issuer:test".into(), "credential:bob".into(),
+        );
+        let bob_tenant = tenant_context(&signer, &owner, &bob, store.clone());
+        owner.apply_organization_command(
+            &signed_org(&signer,"org:create",OrganizationAuthorityAction::CreateOrganization,None,None,vec![],1), 1200,
+        ).unwrap();
+        owner.apply_organization_command(
+            &signed_org(&signer,"org:designate-alice",OrganizationAuthorityAction::SetDesignation,
+                Some(alice.subject()),Some("designation:alice"),vec!["organization.designation.delegate"],1),1200,
+        ).unwrap();
+        let grant = signed_delegation(&signer,"delegation:grant",OrganizationAuthorityAction::SetDelegation,
+            "delegation:alice-bob",alice.subject(),bob.subject(),vec!["records.review"],1,Some(1300));
+        owner.apply_organization_command(&grant,1200).unwrap();
+        let resolver = OrganizationAuthorityResolver::new(store);
+        let context = resolver.resolve_delegation(&bob,&bob_tenant,"org:alpha","delegation:alice-bob","records.review",1200,600).unwrap();
+        assert_eq!(context.delegator(),alice.subject());
+        assert_eq!(context.delegate(),bob.subject());
+        assert_eq!(context.capability(),"records.review");
+        assert_eq!(resolver.resolve_delegation(&bob,&bob_tenant,"org:alpha","delegation:alice-bob","records.delete",1200,600),Err(OrganizationAuthorityError::CapabilityDenied));
+        let revoke = signed_delegation(&signer,"delegation:revoke",OrganizationAuthorityAction::RevokeDelegation,
+            "delegation:alice-bob",alice.subject(),bob.subject(),vec![],2,None);
+        owner.apply_organization_command(&revoke,1200).unwrap();
+        assert_eq!(resolver.resolve_delegation(&bob,&bob_tenant,"org:alpha","delegation:alice-bob","records.review",1200,600),Err(OrganizationAuthorityError::DelegationInactive));
+        assert_eq!(alice_tenant.tenant_id(),"tenant:alpha");
+    }
+
 }
