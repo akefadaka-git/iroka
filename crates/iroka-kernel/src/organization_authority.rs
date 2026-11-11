@@ -18,6 +18,8 @@ pub enum OrganizationAuthorityError {
     TenantMismatch,
     DesignationMissing,
     DesignationInactive,
+    DelegationMissing,
+    DelegationInactive,
     CapabilityDenied,
     Stale,
     StoreUnavailable,
@@ -35,6 +37,8 @@ pub enum OrganizationAuthorityAction {
     CreateOrganization,
     SetDesignation,
     RevokeDesignation,
+    SetDelegation,
+    RevokeDelegation,
     SetOrganizationActive { active: bool },
 }
 
@@ -50,6 +54,8 @@ pub struct OrganizationAuthorityPayload {
     pub tenant_id: String,
     pub principal: Option<String>,
     pub designation_id: Option<String>,
+    pub delegate: Option<String>,
+    pub delegation_expires_at: Option<u64>,
     pub action: OrganizationAuthorityAction,
     pub version: u64,
     pub capabilities: Vec<String>,
@@ -98,6 +104,8 @@ impl OrganizationAuthorityPayload {
             OrganizationAuthorityAction::CreateOrganization => {
                 if self.principal.is_some()
                     || self.designation_id.is_some()
+                    || self.delegate.is_some()
+                    || self.delegation_expires_at.is_some()
                     || !self.capabilities.is_empty()
                 {
                     return Err(OrganizationAuthorityError::Malformed);
@@ -107,6 +115,8 @@ impl OrganizationAuthorityPayload {
                 if self.principal.as_deref().map_or(true, str::is_empty)
                     || self.designation_id.as_deref().map_or(true, str::is_empty)
                     || self.capabilities.is_empty()
+                    || self.delegate.is_some()
+                    || self.delegation_expires_at.is_some()
                 {
                     return Err(OrganizationAuthorityError::Malformed);
                 }
@@ -115,6 +125,32 @@ impl OrganizationAuthorityPayload {
                 if self.principal.as_deref().map_or(true, str::is_empty)
                     || self.designation_id.as_deref().map_or(true, str::is_empty)
                     || !self.capabilities.is_empty()
+                    || self.delegate.is_some()
+                    || self.delegation_expires_at.is_some()
+                {
+                    return Err(OrganizationAuthorityError::Malformed);
+                }
+            }
+            OrganizationAuthorityAction::SetDelegation => {
+                let delegate = self.delegate.as_deref().unwrap_or_default();
+                let valid_until = self.delegation_expires_at.unwrap_or_default();
+                if self.principal.as_deref().map_or(true, str::is_empty)
+                    || self.designation_id.as_deref().map_or(true, str::is_empty)
+                    || delegate.trim().is_empty()
+                    || delegate.len() > 256
+                    || self.capabilities.is_empty()
+                    || valid_until <= self.issued_at
+                    || valid_until > self.expires_at
+                {
+                    return Err(OrganizationAuthorityError::Malformed);
+                }
+            }
+            OrganizationAuthorityAction::RevokeDelegation => {
+                if self.principal.as_deref().map_or(true, str::is_empty)
+                    || self.designation_id.as_deref().map_or(true, str::is_empty)
+                    || self.delegate.as_deref().map_or(true, str::is_empty)
+                    || self.delegation_expires_at.is_some()
+                    || !self.capabilities.is_empty()
                 {
                     return Err(OrganizationAuthorityError::Malformed);
                 }
@@ -122,6 +158,8 @@ impl OrganizationAuthorityPayload {
             OrganizationAuthorityAction::SetOrganizationActive { .. } => {
                 if self.principal.is_some()
                     || self.designation_id.is_some()
+                    || self.delegate.is_some()
+                    || self.delegation_expires_at.is_some()
                     || !self.capabilities.is_empty()
                 {
                     return Err(OrganizationAuthorityError::Malformed);
@@ -146,6 +184,28 @@ impl SignedOrganizationAuthorityCommand {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DelegationContext {
+    delegation_id: String,
+    delegator: String,
+    delegate: String,
+    tenant_id: String,
+    organization_id: String,
+    version: u64,
+    capability: String,
+    resolved_at: u64,
+}
+
+impl DelegationContext {
+    pub fn delegation_id(&self) -> &str { &self.delegation_id }
+    pub fn delegator(&self) -> &str { &self.delegator }
+    pub fn delegate(&self) -> &str { &self.delegate }
+    pub fn tenant_id(&self) -> &str { &self.tenant_id }
+    pub fn organization_id(&self) -> &str { &self.organization_id }
+    pub fn version(&self) -> u64 { self.version }
+    pub fn capability(&self) -> &str { &self.capability }
+    pub fn resolved_at(&self) -> u64 { self.resolved_at }
+}
+
 pub struct OrganizationContext {
     subject: String,
     tenant_id: String,
@@ -190,6 +250,79 @@ pub struct OrganizationAuthorityResolver {
 impl OrganizationAuthorityResolver {
     pub fn new(store: Arc<SqliteSecurityStore>) -> Self {
         Self { store }
+    }
+
+    /// Resolve a current Owner-signed delegation grant. This verifies the
+    /// exact delegate, tenant, organization, capability and live delegator
+    /// designation; it does not itself execute a delegated mutation.
+    pub fn resolve_delegation(
+        &self,
+        delegate: &VerifiedPrincipal,
+        tenant: &TenantContext,
+        organization_id: &str,
+        delegation_id: &str,
+        capability: &str,
+        now: u64,
+        max_age_secs: u64,
+    ) -> Result<DelegationContext, OrganizationAuthorityError> {
+        if delegate.subject().trim().is_empty()
+            || tenant.subject() != delegate.subject()
+            || organization_id.trim().is_empty()
+            || delegation_id.trim().is_empty()
+            || capability.trim().is_empty()
+            || max_age_secs == 0
+            || max_age_secs > MAX_AUTHORITY_AGE_SECS
+        {
+            return Err(OrganizationAuthorityError::Malformed);
+        }
+        if tenant.resolved_at() > now || now.saturating_sub(tenant.resolved_at()) > max_age_secs {
+            return Err(OrganizationAuthorityError::Stale);
+        }
+        let membership = self.store.tenant_membership(delegate.subject(), tenant.tenant_id())?
+            .ok_or(OrganizationAuthorityError::TenantMismatch)?;
+        if !membership.0 || membership.1 != tenant.membership_version() {
+            return Err(OrganizationAuthorityError::TenantMismatch);
+        }
+        if membership.2 > now || now.saturating_sub(membership.2) > max_age_secs {
+            return Err(OrganizationAuthorityError::Stale);
+        }
+        let (bound_tenant, org_active, _, org_updated) = self.store.organization_state(organization_id)?
+            .ok_or(OrganizationAuthorityError::OrganizationMissing)?;
+        if bound_tenant != tenant.tenant_id() { return Err(OrganizationAuthorityError::TenantMismatch); }
+        if !org_active { return Err(OrganizationAuthorityError::OrganizationInactive); }
+        if org_updated > now || now.saturating_sub(org_updated) > max_age_secs {
+            return Err(OrganizationAuthorityError::Stale);
+        }
+        let (delegator, active, caps_json, version, valid_until, updated) = self.store.organization_delegation(delegation_id)?
+            .ok_or(OrganizationAuthorityError::DelegationMissing)?;
+        if !active || valid_until <= now { return Err(OrganizationAuthorityError::DelegationInactive); }
+        if updated > now || now.saturating_sub(updated) > max_age_secs { return Err(OrganizationAuthorityError::Stale); }
+        let delegation_caps: Vec<String> = serde_json::from_str(&caps_json)
+            .map_err(|_| OrganizationAuthorityError::StoreUnavailable)?;
+        if !delegation_caps.iter().any(|item| item == capability) {
+            return Err(OrganizationAuthorityError::CapabilityDenied);
+        }
+        let (designation_id, designation_active, designation_caps_json, _, designation_updated) = self.store.organization_designation(organization_id, &delegator)?
+            .ok_or(OrganizationAuthorityError::DesignationMissing)?;
+        if !designation_active { return Err(OrganizationAuthorityError::DesignationInactive); }
+        if designation_updated > now || now.saturating_sub(designation_updated) > max_age_secs {
+            return Err(OrganizationAuthorityError::Stale);
+        }
+        let designation_caps: Vec<String> = serde_json::from_str(&designation_caps_json)
+            .map_err(|_| OrganizationAuthorityError::StoreUnavailable)?;
+        if !designation_caps.iter().any(|item| item == "organization.designation.delegate") {
+            return Err(OrganizationAuthorityError::CapabilityDenied);
+        }
+        let (stored_delegate, stored_tenant, stored_org) = self.store.organization_delegation_scope(delegation_id)?
+            .ok_or(OrganizationAuthorityError::DelegationMissing)?;
+        if stored_delegate != delegate.subject() || stored_tenant != tenant.tenant_id() || stored_org != organization_id {
+            return Err(OrganizationAuthorityError::TenantMismatch);
+        }
+        Ok(DelegationContext {
+            delegation_id: delegation_id.to_owned(), delegator, delegate: delegate.subject().to_owned(),
+            tenant_id: tenant.tenant_id().to_owned(), organization_id: organization_id.to_owned(),
+            version, capability: capability.to_owned(), resolved_at: now,
+        })
     }
 
     pub fn resolve(
@@ -319,6 +452,8 @@ mod tests {
             tenant_id: "tenant:alpha".into(),
             principal: principal.map(str::to_owned),
             designation_id: designation_id.map(str::to_owned),
+            delegate: None,
+            delegation_expires_at: None,
             action,
             version,
             capabilities: capabilities.into_iter().map(str::to_owned).collect(),
