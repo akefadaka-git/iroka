@@ -100,7 +100,7 @@ impl SqliteG05AuthorityRegistry {
     /// Store an immutable, pending approval envelope against the current canonical
     /// memory record. Signature verification and consumption happen only during activation.
 #[rustfmt::skip]
-    pub fn register_pending_approval(
+    fn register_pending_approval(
         &self,
         record: &MemoryRecord,
         receipt: &DurableApprovalReceipt,
@@ -139,6 +139,55 @@ impl SqliteG05AuthorityRegistry {
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)
     }
 
+    /// Authorize the reviewer before reading the canonical record, then persist
+    /// an immutable pending approval envelope. The signed proof is still untrusted
+    /// until G01 verifies it during the activation path.
+    pub fn register_pending_approval_from_repository<R: crate::MemoryRepository, G: G02AuthorizationAuthority>(
+        &self,
+        repository: &R,
+        receipt: &DurableApprovalReceipt,
+        request: &AuthorizationRequest,
+        g02: &G,
+        now: u64,
+    ) -> Result<(), G05Error> {
+        if request.operation != Operation::ActivateDurable
+            || request.memory_id.as_deref() != Some(receipt.memory_id.as_str())
+            || request.tenant_ref != receipt.tenant_ref
+            || request.subject_ref != receipt.subject_ref
+            || request.principal_ref != receipt.reviewer_ref
+            || request.correlation_ref.trim().is_empty()
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        g02.authorize_g05(request)?;
+        let metadata = repository
+            .get_metadata(&receipt.memory_id)?
+            .ok_or(G05Error::RecordNotFound)?;
+        if metadata.memory_id != receipt.memory_id
+            || metadata.tenant_ref != receipt.tenant_ref
+            || metadata.subject_ref != receipt.subject_ref
+            || metadata.content_sha256 != receipt.content_sha256
+            || metadata.lifecycle_state != crate::LifecycleState::PendingReview
+            || metadata.memory_class != crate::MemoryClass::Durable
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        let record = repository
+            .get_content(&receipt.memory_id)?
+            .ok_or(G05Error::RecordNotFound)?;
+        if record.candidate.memory_id != metadata.memory_id
+            || record.candidate.tenant_ref != metadata.tenant_ref
+            || record.candidate.subject_ref != metadata.subject_ref
+            || record.candidate.record_version != metadata.record_version
+            || record.candidate.content_sha256 != metadata.content_sha256
+            || record.candidate.purpose != metadata.purpose
+            || record.candidate.classification != metadata.classification
+            || record.lifecycle_state != metadata.lifecycle_state
+        {
+            return Err(G05Error::VersionConflict);
+        }
+        self.register_pending_approval(&record, receipt, now)
+    }
     /// Explicit authenticated user action only; do not call from passive signup.
     #[allow(clippy::too_many_arguments)]
     pub fn grant_episodic_consent<G: G02AuthorizationAuthority>(
