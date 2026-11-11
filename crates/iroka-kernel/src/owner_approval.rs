@@ -529,6 +529,30 @@ impl OwnerApprovalVerifier {
                     reason,
                 }
             }
+            OrganizationAuthorityAction::SetDelegation => OrganizationMutation::SetDelegation {
+                organization_id: p.organization_id.clone(),
+                tenant_id: p.tenant_id.clone(),
+                delegation_id: p.designation_id.clone().ok_or(OwnerApprovalError::Malformed)?,
+                delegator: p.principal.clone().ok_or(OwnerApprovalError::Malformed)?,
+                delegate: p.delegate.clone().ok_or(OwnerApprovalError::Malformed)?,
+                active: true,
+                capabilities_json: serde_json::to_string(&p.capabilities).map_err(|_| OwnerApprovalError::Malformed)?,
+                version: p.version,
+                valid_until: p.delegation_expires_at.ok_or(OwnerApprovalError::Malformed)?,
+                reason: reason.clone(),
+            },
+            OrganizationAuthorityAction::RevokeDelegation => OrganizationMutation::SetDelegation {
+                organization_id: p.organization_id.clone(),
+                tenant_id: p.tenant_id.clone(),
+                delegation_id: p.designation_id.clone().ok_or(OwnerApprovalError::Malformed)?,
+                delegator: p.principal.clone().ok_or(OwnerApprovalError::Malformed)?,
+                delegate: p.delegate.clone().ok_or(OwnerApprovalError::Malformed)?,
+                active: false,
+                capabilities_json: "[]".to_owned(),
+                version: p.version,
+                valid_until: p.issued_at,
+                reason: reason.clone(),
+            },
             OrganizationAuthorityAction::SetDesignation => OrganizationMutation::SetDesignation {
                 organization_id: p.organization_id.clone(),
                 tenant_id: p.tenant_id.clone(),
