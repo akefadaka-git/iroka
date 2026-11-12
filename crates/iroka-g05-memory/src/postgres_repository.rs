@@ -703,7 +703,7 @@ impl PostgresG11MemoryAdapter {
                  FROM g11_signed_checkpoints WHERE stream_id=$1 AND sequence=$2 FOR UPDATE",
                 &[&payload.stream_id, &sequence],
             )
-            .map_err(|_| G05Error::RepositoryUnavailable)?;
+            .map_err(|error| { eprintln!("G11 pending checkpoint lookup failed: {error}"); G05Error::RepositoryUnavailable })?;
         let stored_digest: String = row.get(0);
         let stored_payload: Value = row.get(1);
         let stored_signature: Vec<u8> = row.get(2);
@@ -883,7 +883,7 @@ impl PostgresG11MemoryAdapter {
                 "SELECT sequence,digest FROM g11_memory_audit_head WHERE singleton=TRUE",
                 &[],
             )
-            .map_err(|_| G05Error::RepositoryUnavailable)?;
+            .map_err(|error| { eprintln!("G11 head query failed: {error}"); G05Error::RepositoryUnavailable })?;
         let sequence: i64 = row.get(0);
         let digest: String = row.get(1);
         Ok((sequence as u64, digest))
@@ -924,7 +924,7 @@ impl PostgresG11MemoryAdapter {
                  ORDER BY sequence DESC LIMIT 1",
                 &[&stream_id],
             )
-            .map_err(|_| G05Error::RepositoryUnavailable)?;
+            .map_err(|error| { eprintln!("G11 checkpoint latest query failed: {error}"); G05Error::RepositoryUnavailable })?;
 
         let pending = if let Some(row) = latest {
             let latest_sequence: i64 = row.get(0);
