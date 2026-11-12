@@ -13,6 +13,7 @@ mod postgres_tests {
     use std::thread;
 
     static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+    static POSTGRES_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     fn database_url() -> Option<String> {
         std::env::var("IROKA_TEST_DATABASE_URL").ok()
@@ -180,6 +181,7 @@ mod postgres_tests {
 
     #[test]
     fn postgres_insert_is_atomic_and_survives_repository_restart() {
+        let _test_guard = POSTGRES_TEST_LOCK.lock().unwrap();
         let Some(url) = database_url() else { return };
         let mut admin = admin(&url);
         let suffix = unique_id();
@@ -231,6 +233,7 @@ mod postgres_tests {
 
     #[test]
     fn postgres_optimistic_cas_allows_only_one_concurrent_writer() {
+        let _test_guard = POSTGRES_TEST_LOCK.lock().unwrap();
         let Some(url) = database_url() else { return };
         let mut admin = admin(&url);
         let suffix = unique_id();
@@ -294,6 +297,7 @@ mod postgres_tests {
 
     #[test]
     fn postgres_g11_leases_are_exclusive_restart_recoverable_and_idempotent() {
+        let _test_guard = POSTGRES_TEST_LOCK.lock().unwrap();
         let Some(url) = database_url() else { return };
         let mut admin = admin(&url);
         let suffix = unique_id();
@@ -370,6 +374,7 @@ mod postgres_tests {
 
     #[test]
     fn postgres_g11_retry_releases_lease_and_retains_event() {
+        let _test_guard = POSTGRES_TEST_LOCK.lock().unwrap();
         let Some(url) = database_url() else { return };
         let mut admin = admin(&url);
         let suffix = unique_id();
@@ -422,6 +427,7 @@ mod postgres_tests {
 
     #[test]
     fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restart() {
+        let _test_guard = POSTGRES_TEST_LOCK.lock().unwrap();
         let Some(url) = database_url() else { return };
         let mut admin = admin(&url);
         let suffix = unique_id();
