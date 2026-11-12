@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use iroka_kernel::{Policy, RiskLevel};
-use postgres::{Client, Row};
+use postgres::Client;
 use postgres_native_tls::MakeTlsConnector;
 use native_tls::TlsConnector;
 use serde::{Deserialize, Serialize};
@@ -130,7 +130,10 @@ impl PostgresOwnerSignatureVerifier {
             .map_err(|_| G02CommandError::InvalidSignature)?;
         let digest: [u8; 32] = Sha256::digest(&signing_bytes).into();
         let digest_hex = hex(&digest);
-        let payload_json = serde_json::to_value(p).map_err(|_| G02CommandError::Malformed)?;
+        let payload_json = serde_json::json!({
+            "payload": p,
+            "signature": command.signature,
+        });
         let mut client = self.client.lock().map_err(|_| G02CommandError::Unavailable)?;
         let mut tx = client.transaction().map_err(|_| G02CommandError::Unavailable)?;
         tx.query_one("SELECT pg_advisory_xact_lock($1)", &[&COMMAND_LOCK_ID])
@@ -222,9 +225,11 @@ pub struct PolicySnapshotPayload {
 }
 impl PolicySnapshotPayload {
     fn validate(&self, row: &G02PolicySnapshot, now: u64) -> Result<(), G02CommandError> {
-        if self.schema_id != "iroka.g02.policy-snapshot" || self.contract_version != "1.0"
+        if row.signer_issuer != OWNER_ISSUER
+            || self.schema_id != "iroka.g02.policy-snapshot" || self.contract_version != "1.0"
             || self.owner_subject != row.owner_subject || self.key_id != row.signer_key_id
             || self.policy_epoch != row.epoch || self.policy_version != row.policy_version
+            || self.policy_version.trim().is_empty() || self.policy_version.len() > 128
             || self.issued_at != row.issued_at || self.expires_at != row.expires_at
             || self.issued_at > now.saturating_add(CLOCK_SKEW)
             || self.expires_at <= now || self.issued_at >= self.expires_at
@@ -244,7 +249,6 @@ impl PolicySnapshotPayload {
 }
 fn sorted_unique(v: &[String]) -> bool { v.windows(2).all(|w| w[0] < w[1]) }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum PolicyRiskLevel { Low, Moderate, High, Critical }
 impl From<PolicyRiskLevel> for RiskLevel {
     fn from(v: PolicyRiskLevel) -> Self { match v {
@@ -334,8 +338,9 @@ fn apply_action(
         },
         G02SecurityAction::RevokePolicy{policy_epoch,reason} => {
             if *policy_epoch==0 || reason.trim().is_empty() || reason.len()>1024 { return Err(G02CommandError::Malformed); }
-            tx.execute("INSERT INTO g02_policy_revocations(policy_id,epoch,reason_code,revoked_by_command_id,revoked_at) SELECT policy_id,$1,$2,$3,$4 FROM g02_policy_snapshots WHERE epoch=$1 ON CONFLICT(policy_id,epoch) DO NOTHING",
+            let changed = tx.execute("INSERT INTO g02_policy_revocations(policy_id,epoch,reason_code,revoked_by_command_id,revoked_at) SELECT policy_id,$1,$2,$3,$4 FROM g02_policy_heads WHERE current_epoch=$1 ON CONFLICT(policy_id,epoch) DO NOTHING",
                 &[&(*policy_epoch as i64),reason,&p.command_id,&(now as i64)]).map_err(|_|G02CommandError::Unavailable)?;
+            if changed != 1 { return Err(G02CommandError::Rollback); }
         },
         G02SecurityAction::SetEmergencyStop{active,version,reason} => {
             if *version==0 || reason.trim().is_empty() || reason.len()>1024 { return Err(G02CommandError::Malformed); }
