@@ -6,6 +6,7 @@ on:
       - feat/igacms-a3-implementation
       - feat/a3-8-g01-tenant-reconciliation
       - feat/g05-postgres-g11-multiworker-a3
+      - feat/g02-postgres-g09-resolver-a3
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
