@@ -50,7 +50,7 @@ fn policy_snapshot(signer:&SigningKey,key_id:&str,policy_id:&str)->(G02PolicySna
     (G02PolicySnapshot { policy_id:policy_id.into(),epoch:1,policy_version:"policy-v1".into(),
         owner_subject:"owner:iroka".into(),signer_issuer:"iroka:owner-authority".into(),
         signer_key_id:key_id.into(),issued_at:1_100,expires_at:2_000,
-        canonical_payload:canonical,payload_sha256:digest,signature },signature)
+        canonical_payload:canonical,payload_sha256:digest,signature:signature.clone() },signature)
 }
 fn install_snapshot(client:&mut Client,row:&G02PolicySnapshot,signature:&[u8],policy_id:&str) {
     client.execute("INSERT INTO g02_policy_snapshots(policy_id,epoch,policy_version,owner_subject,signer_issuer,signer_key_id,issued_at,expires_at,canonical_payload,payload_sha256,signature) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
@@ -207,9 +207,7 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
     let (policy,stopped)=resolver.current_policy(1_200).unwrap();
     assert_eq!(policy.version(),"policy-v1");
     assert!(!stopped);
-    let principal=iroka_kernel::VerifiedPrincipal::from_verified_credential(
-        subject.clone(),"issuer:test".into(),"credential:test".into()
-    );
+    let principal = verified_principal(&auth, &subject);
     let request=AuthorizationRequest { operation:Operation::Retrieve,principal_ref:subject,
         tenant_ref:tenant,subject_ref:"subject:resource".into(),purpose:Purpose::TaskContinuity,
         classification:Classification::Internal,memory_id:None,recipient_refs:vec![],
