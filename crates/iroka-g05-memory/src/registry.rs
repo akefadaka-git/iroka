@@ -144,7 +144,10 @@ impl EpisodicConsentAuthority for SqliteG05AuthorityRegistry {
         purpose: Purpose,
         now: u64,
     ) -> Result<(), G05Error> {
-        let c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         let row: Option<(String, String, String, i64, i64, Option<i64>)> = c
             .query_row(
                 "SELECT tenant_ref,subject_ref,purpose,granted_at,expires_at,revoked_at
