@@ -2,7 +2,7 @@
 //! Root public keys are pinned out-of-band. No private key material is accepted.
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use iroka_kernel::TrustRoot;
-use postgres::{Client, Transaction};
+use postgres::Client;
 use postgres_native_tls::MakeTlsConnector;
 use native_tls::TlsConnector;
 use serde::{Deserialize, Serialize};
@@ -234,6 +234,7 @@ impl PostgresG02Authority {
             "SELECT EXISTS(SELECT 1 FROM g02_owner_key_revocations WHERE issuer=$1 AND key_id=$2)",
             &[&p.issuer,&p.key_id]).map_err(|_| G02AuthorityError::RevocationUnavailable)?.get(0);
         if revoked { return Err(G02AuthorityError::OwnerKeyRevoked); }
+        if public_key.len() != 32 { return Err(G02AuthorityError::UnknownOwnerKey); }
         let mut pk = [0u8;32]; pk.copy_from_slice(&public_key);
         VerifyingKey::from_bytes(&pk).map_err(|_| G02AuthorityError::UnknownOwnerKey)?
             .verify(&bytes,&signature).map_err(|_| G02AuthorityError::InvalidOwnerSignature)?;
@@ -311,3 +312,142 @@ impl PostgresG02Authority {
 
 fn to_i64(v:u64)->Result<i64,G02AuthorityError>{ i64::try_from(v).map_err(|_|G02AuthorityError::Malformed) }
 fn hex(bytes:&[u8])->String{ bytes.iter().map(|b|format!("{b:02x}")).collect() }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
+    use postgres::NoTls;
+
+    fn test_authority(url: &str, roots: Vec<TrustRoot>) -> PostgresG02Authority {
+        let client = Client::connect(url, NoTls).expect("test PostgreSQL connection");
+        client.batch_execute(include_str!("../migrations/postgres/0002_g02_authority.sql"))
+            .expect("G02 base migration");
+        client.batch_execute(include_str!("../migrations/postgres/0003_g02_owner_key_registry.sql"))
+            .expect("G02 Owner registry migration");
+        drop(client);
+        PostgresG02Authority {
+            client: Client::connect(url, NoTls).expect("authority PostgreSQL connection"),
+            roots,
+        }
+    }
+
+    fn signed_command(payload: OwnerCommandPayload, key: &SigningKey) -> SignedOwnerCommand {
+        let mut command = SignedOwnerCommand { payload, signature: Vec::new() };
+        command.signature = key.sign(&command.signing_bytes().expect("canonical command")).to_bytes().to_vec();
+        command
+    }
+
+    #[test]
+    fn postgres_owner_registry_revocation_and_atomic_command_path() {
+        let Ok(url) = std::env::var("IROKA_TEST_DATABASE_URL") else { return };
+        let root_signer = SigningKey::from_bytes(&[71u8; 32]);
+        let owner_a = SigningKey::from_bytes(&[72u8; 32]);
+        let owner_b = SigningKey::from_bytes(&[73u8; 32]);
+        let root = TrustRoot {
+            key_id: "test-root".into(),
+            public_key: root_signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 10_000,
+            provenance_ref: "test-only-root-provenance".into(),
+        };
+        let mut authority = test_authority(&url, vec![root.clone()]);
+        let current: Option<i64> = authority.client
+            .query_one("SELECT max(version) FROM g02_owner_key_registry_versions", &[])
+            .expect("registry high-water mark").get(0);
+        let version = current.unwrap_or(0) as u64 + 1;
+        let payload = OwnerKeyRegistryPayload {
+            version,
+            issued_at: 1_000,
+            expires_at: 5_000,
+            keys: vec![
+                OwnerKeyBinding {
+                    owner_subject: "owner:iroka-test".into(),
+                    issuer: "iroka:owner-authority".into(),
+                    key_id: "owner-a".into(),
+                    public_key: owner_a.verifying_key().to_bytes(),
+                    not_before: 1_000,
+                    not_after: 5_000,
+                },
+                OwnerKeyBinding {
+                    owner_subject: "owner:iroka-test".into(),
+                    issuer: "iroka:owner-authority".into(),
+                    key_id: "owner-b".into(),
+                    public_key: owner_b.verifying_key().to_bytes(),
+                    not_before: 1_000,
+                    not_after: 5_000,
+                },
+            ],
+        };
+        let mut registry = SignedOwnerKeyRegistry {
+            root_key_id: root.key_id.clone(),
+            payload,
+            signature: Vec::new(),
+        };
+        registry.signature = root_signer.sign(&registry.signing_bytes().expect("registry bytes")).to_bytes().to_vec();
+        authority.install_registry(&registry, 1_100).expect("root-verified registry");
+
+        let membership = signed_command(OwnerCommandPayload {
+            command_id: format!("g02-membership-{}", unique_test_suffix()),
+            owner_subject: "owner:iroka-test".into(),
+            issuer: "iroka:owner-authority".into(),
+            key_id: "owner-a".into(),
+            issued_at: 1_100,
+            expires_at: 1_200,
+            action: OwnerCommandAction::SetTenantMembership {
+                subject_ref: "subject:test".into(),
+                tenant_ref: "tenant:test".into(),
+                active: true,
+                version: 1,
+            },
+        }, &owner_a);
+        let membership_id = membership.payload.command_id.clone();
+        let digest = authority.execute(&membership, 1_101).expect("signed membership command");
+        let row = authority.client.query_one(
+            "SELECT active,version FROM g02_tenant_memberships WHERE subject_ref='subject:test' AND tenant_ref='tenant:test'",
+            &[]).expect("membership projection");
+        assert!(row.get::<_, bool>(0));
+        assert_eq!(row.get::<_, i64>(1), 1);
+        let outbox: i64 = authority.client.query_one(
+            "SELECT count(*) FROM g02_authority_outbox WHERE command_id=$1 AND payload_sha256=$2",
+            &[&membership_id,&digest]).expect("atomic G11 outbox").get(0);
+        assert_eq!(outbox, 1);
+        assert_eq!(authority.execute(&membership, 1_101), Err(G02AuthorityError::Replay));
+
+        let revoke = signed_command(OwnerCommandPayload {
+            command_id: format!("g02-revoke-{}", unique_test_suffix()),
+            owner_subject: "owner:iroka-test".into(),
+            issuer: "iroka:owner-authority".into(),
+            key_id: "owner-b".into(),
+            issued_at: 1_110,
+            expires_at: 1_200,
+            action: OwnerCommandAction::RevokeOwnerKey {
+                issuer: "iroka:owner-authority".into(),
+                key_id: "owner-a".into(),
+                reason_code: "test-compromise".into(),
+            },
+        }, &owner_b);
+        authority.execute(&revoke, 1_111).expect("second Owner key revokes first");
+        let after_revocation = signed_command(OwnerCommandPayload {
+            command_id: format!("g02-after-revoke-{}", unique_test_suffix()),
+            owner_subject: "owner:iroka-test".into(),
+            issuer: "iroka:owner-authority".into(),
+            key_id: "owner-a".into(),
+            issued_at: 1_120,
+            expires_at: 1_200,
+            action: OwnerCommandAction::SetTenantMembership {
+                subject_ref: "subject:test-2".into(),
+                tenant_ref: "tenant:test".into(),
+                active: true,
+                version: 1,
+            },
+        }, &owner_a);
+        assert_eq!(authority.execute(&after_revocation, 1_121), Err(G02AuthorityError::OwnerKeyRevoked));
+    }
+
+    fn unique_test_suffix() -> u128 {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock").as_nanos()
+    }
+}
