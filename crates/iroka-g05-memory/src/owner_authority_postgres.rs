@@ -221,58 +221,28 @@ impl iroka_kernel::RevocationChecker for PostgresOwnerSignatureVerifier {
 impl G02PolicySnapshotVerifier for PostgresOwnerSignatureVerifier {
     fn verify_snapshot(&self, snapshot: &G02PolicySnapshot, now: u64) -> Result<Policy, G05Error> {
         let payload: PolicySnapshotPayload = serde_json::from_slice(&snapshot.canonical_payload)
-            .map_err(|error| {
-                #[cfg(test)]
-                eprintln!("G02 policy JSON decode failed: {error}");
-                G05Error::AuthorityUnavailable
-            })?;
-        payload.validate(snapshot, now).map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G02 policy payload validation failed: {error:?}");
-            G05Error::AuthorityUnavailable
-        })?;
-        let canonical = serde_jcs::to_vec(&payload).map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G02 policy canonicalization failed: {error}");
-            G05Error::AuthorityUnavailable
-        })?;
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        payload.validate(snapshot, now).map_err(|_| G05Error::AuthorityUnavailable)?;
+        let canonical = serde_jcs::to_vec(&payload).map_err(|_| G05Error::AuthorityUnavailable)?;
         if canonical != snapshot.canonical_payload {
-            #[cfg(test)]
-            eprintln!("G02 policy canonical payload bytes differ");
             return Err(G05Error::AuthorityUnavailable);
         }
         let key = self.owner_key(&payload.owner_subject, &payload.key_id, payload.issued_at, now)
-            .map_err(|error| {
-                #[cfg(test)]
-                eprintln!("G02 policy Owner key lookup failed: {error:?}");
-                G05Error::AuthorityUnavailable
-            })?;
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         if payload.expires_at > key.not_after {
             return Err(G05Error::AuthorityUnavailable);
         }
         let mut signing = Vec::with_capacity(POLICY_DOMAIN.len() + canonical.len());
         signing.extend_from_slice(POLICY_DOMAIN);
         signing.extend_from_slice(&canonical);
-        let signature = Signature::from_slice(&snapshot.signature).map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G02 policy signature encoding invalid: {error}");
-            G05Error::AuthorityUnavailable
-        })?;
-        key.verifying_key.verify(&signing, &signature).map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G02 policy signature verification failed: {error}");
-            G05Error::AuthorityUnavailable
-        })?;
+        let signature = Signature::from_slice(&snapshot.signature).map_err(|_| G05Error::AuthorityUnavailable)?;
+        key.verifying_key.verify(&signing, &signature).map_err(|_| G05Error::AuthorityUnavailable)?;
         let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
         let revoked: bool = client.query_one(
             "SELECT EXISTS(SELECT 1 FROM g02_signing_key_revocations
              WHERE issuer=$1 AND key_id=$2)",
             &[&OWNER_ISSUER, &payload.key_id],
-        ).map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G02 policy revocation lookup failed: {error}");
-            G05Error::AuthorityUnavailable
-        })?.get(0);
+        ).map_err(|_| G05Error::AuthorityUnavailable)?.get(0);
         if revoked {
             #[cfg(test)]
             eprintln!("G02 policy signer is currently revoked");
