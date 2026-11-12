@@ -334,6 +334,41 @@ impl MemoryRepository for SqliteMemoryRepository {
         {
             return Err(G05Error::InvalidLifecycleTransition);
         }
+        let approval_ref = record
+            .approval_ref
+            .as_deref()
+            .ok_or(G05Error::DurableApprovalRequired)?;
+        let pending_event_id = format!(
+            "g05:durable-activation:{}:{}:{}",
+            record.candidate.memory_id, expected_version, approval_ref
+        );
+        let connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let tx = connection.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let receipt_row: Option<(String, String, Option<i64>, Option<String>)> = tx
+            .query_row(
+                "SELECT payload_json,payload_sha256,delivered_at,acknowledgment_sha256
+                 FROM g05_memory_g11_outbox WHERE event_id=?1",
+                params![pending_event_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let (pending_json, pending_digest, delivered_at, acknowledgment_digest) =
+            receipt_row.ok_or(G05Error::AuditUnavailable)?;
+        let pending_event: AuditEvent = serde_json::from_str(&pending_json)
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        if pending_event.event_type != "memory.durable.activation.pending"
+            || pending_event.memory_id != record.candidate.memory_id
+            || pending_event.tenant_ref != record.candidate.tenant_ref
+            || pending_event.record_version != expected_version
+            || pending_event.content_sha256 != record.candidate.content_sha256
+            || pending_digest != audit_event_sha256(&pending_event)
+            || delivered_at.is_none()
+            || acknowledgment_digest.as_deref() != Some(pending_digest.as_str())
+            || delivered_at.is_some_and(|time| time < pending_event.occurred_at as i64)
+        {
+            return Err(G05Error::AuditUnavailable);
+        }
         let metadata_json = serde_json::to_string(&metadata(&record)?)
             .map_err(|_| G05Error::RepositoryUnavailable)?;
         let record_json = serde_json::to_string(&record).map_err(|_| G05Error::RepositoryUnavailable)?;
