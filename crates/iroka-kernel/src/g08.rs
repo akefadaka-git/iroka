@@ -2223,7 +2223,7 @@ mod tests {
                     worker_id: "worker-d".into(),
                     claim_nonce: [35; 32],
                     lease_seconds: 10,
-                    now: 1_800_000_100,
+                    now: 1_800_000_020,
                 },
             )
             .unwrap()
