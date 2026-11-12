@@ -24,6 +24,8 @@ pub struct ReviewerProofPayload {
     pub subject: String,
     pub credential_id: String,
     pub reviewer_id: String,
+    pub binding_id: String,
+    pub binding_version: u64,
     pub designation_id: String,
     pub designation_version: u64,
     pub delegation_id: Option<String>,
@@ -71,6 +73,8 @@ impl SignedReviewerProof {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedReviewerProof {
     reviewer_id: String,
+    binding_id: String,
+    binding_version: u64,
     subject: String,
     issuer: String,
     approval_id: String,
@@ -95,6 +99,8 @@ pub struct VerifiedReviewerProof {
 #[rustfmt::skip]
 impl VerifiedReviewerProof {
     pub fn reviewer_id(&self) -> &str { &self.reviewer_id }
+    pub fn binding_id(&self) -> &str { &self.binding_id }
+    pub fn binding_version(&self) -> u64 { self.binding_version }
     pub fn subject(&self) -> &str { &self.subject }
     pub fn issuer(&self) -> &str { &self.issuer }
     pub fn approval_id(&self) -> &str { &self.approval_id }
@@ -149,6 +155,8 @@ pub trait ReviewerKeyBindingResolver: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct ReviewerKeyBinding {
+    pub binding_id: String,
+    pub binding_version: u64,
     pub public_key: [u8; 32],
     pub not_before: u64,
     pub not_after: u64,
@@ -194,7 +202,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
     ) -> Result<VerifiedReviewerProof, ReviewerProofError> {
         let p = &proof.payload;
         for value in [p.proof_id.as_str(), p.issuer.as_str(), p.subject.as_str(),
-            p.credential_id.as_str(), p.reviewer_id.as_str(), p.designation_id.as_str(), p.key_id.as_str(),
+            p.credential_id.as_str(), p.reviewer_id.as_str(), p.binding_id.as_str(), p.designation_id.as_str(), p.key_id.as_str(),
             p.approval_id.as_str(), p.tenant_id.as_str(), p.organization_id.as_str(),
             p.memory_id.as_str(), p.content_sha256.as_str(), p.purpose.as_str(), p.classification.as_str(),
             p.capability.as_str(), p.resource.as_str(), p.policy_version.as_str(),
@@ -204,7 +212,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             expected_policy_version] {
             if value.trim().is_empty() || value.len() > 512 { return Err(ReviewerProofError::Malformed); }
         }
-        if p.designation_version == 0 || p.record_version == 0
+        if p.binding_version == 0 || p.designation_version == 0 || p.record_version == 0
             || p.delegation_version.is_some_and(|v| v == 0)
             || p.delegation_id.as_ref().is_some_and(|v| v.trim().is_empty() || v.len() > 512)
             || p.delegation_id.is_some() != p.delegation_version.is_some()
@@ -231,6 +239,9 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             &p.issuer, &p.subject, &p.credential_id, &p.key_id, now,
         )?.ok_or(ReviewerProofError::BindingMissing)?;
         if binding.revoked || binding.credential_revoked { return Err(ReviewerProofError::Revoked); }
+        if binding.binding_id != p.binding_id || binding.binding_version != p.binding_version {
+            return Err(ReviewerProofError::ScopeMismatch);
+        }
         if binding.resolved_at > now || now.saturating_sub(binding.resolved_at) > 30 {
             return Err(ReviewerProofError::BindingMissing);
         }
@@ -249,7 +260,8 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
                 other => ReviewerProofError::from(other),
             })?;
         Ok(VerifiedReviewerProof {
-            reviewer_id: p.reviewer_id.clone(), subject: p.subject.clone(), issuer: p.issuer.clone(),
+            reviewer_id: p.reviewer_id.clone(), binding_id: p.binding_id.clone(), binding_version: p.binding_version,
+            subject: p.subject.clone(), issuer: p.issuer.clone(),
             approval_id: p.approval_id.clone(), tenant_id: p.tenant_id.clone(),
             organization_id: p.organization_id.clone(),
             designation_id: p.designation_id.clone(), designation_version: p.designation_version,
@@ -273,7 +285,7 @@ mod tests {
     impl ReviewerKeyBindingResolver for Bindings {
         fn resolve_current_binding(&self, _: &str, _: &str, _: &str, _: &str, _: u64)
             -> Result<Option<ReviewerKeyBinding>, ReviewerProofError> {
-            Ok(Some(ReviewerKeyBinding { public_key:self.key, not_before:100, not_after:2000, revoked:self.revoked, credential_revoked:false, resolved_at:1200 }))
+            Ok(Some(ReviewerKeyBinding { binding_id:"binding:1".into(), binding_version:1, public_key:self.key, not_before:100, not_after:2000, revoked:self.revoked, credential_revoked:false, resolved_at:1200 }))
         }
     }
     fn fixture(revoked: bool) -> (SigningKey, ReviewerProofVerifier<Bindings>, VerifiedPrincipal) {
@@ -286,7 +298,7 @@ mod tests {
     fn signed(key:&SigningKey,id:&str)->SignedReviewerProof {
         let payload=ReviewerProofPayload {
             proof_id:id.into(),issuer:"issuer:community".into(),subject:"reviewer:alice".into(),
-            credential_id:"credential:42".into(),reviewer_id:"reviewer:maale-01".into(),
+            credential_id:"credential:42".into(),reviewer_id:"reviewer:maale-01".into(),binding_id:"binding:1".into(),binding_version:1,
             designation_id:"designation:1".into(),designation_version:3,delegation_id:None,delegation_version:None,key_id:"reviewer-key-01".into(),approval_id:"approval:17".into(),tenant_id:"tenant:alpha".into(),
             organization_id:"org:alpha".into(),memory_id:"memory:1".into(),record_version:4,content_sha256:"a".repeat(64),purpose:"ORGANIZATIONAL_CONTEXT".into(),classification:"CONFIDENTIAL".into(),capability:"content.review".into(),resource:"translation:chapter-1".into(),
             policy_version:"policy:v1".into(),issued_at:1100,expires_at:1300,
