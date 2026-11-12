@@ -688,7 +688,7 @@ pub fn durable_activation_audit_event(record: &MemoryRecord) -> Result<AuditEven
 }
 
 fn audit_event_sha256(event: &AuditEvent) -> String {
-    let canonical = serde_jcs::to_vec(event).unwrap_or_default();
+    let canonical = serde_json::to_vec(event).unwrap_or_default();
     sha256_hex(&canonical)
 }
 
