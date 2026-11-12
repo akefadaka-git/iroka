@@ -1,7 +1,6 @@
 use super::*;
 use crate::{
-    Classification, MemoryCandidate, MemoryClass, Provenance, ProvenanceKind, Purpose,
-    TrustedClock,
+    Classification, MemoryCandidate, MemoryClass, Provenance, ProvenanceKind, Purpose, TrustedClock,
 };
 use postgres::NoTls;
 use std::sync::{
@@ -145,8 +144,7 @@ impl iroka_kernel::ExternalCheckpointPublisher for CheckpointTestPublisher {
     fn publish(
         &self,
         checkpoint: &iroka_kernel::SignedCheckpoint,
-    ) -> Result<iroka_kernel::ExternalPublicationReceipt, iroka_kernel::CheckpointError>
-    {
+    ) -> Result<iroka_kernel::ExternalPublicationReceipt, iroka_kernel::CheckpointError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(iroka_kernel::ExternalPublicationReceipt {
             provider: "test-checkpoint-log".into(),
