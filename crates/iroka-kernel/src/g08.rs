@@ -586,17 +586,10 @@ impl SqliteWorkflowStore {
         principal: &VerifiedPrincipal,
         request: &TaskTransitionRequest,
     ) -> Result<TaskReceipt, G08Error> {
-        if request.task_id.trim().is_empty()
-            || request.expected_version == 0
-            || request.now == 0
-        {
+        if request.task_id.trim().is_empty() || request.expected_version == 0 || request.now == 0 {
             return Err(G08Error::InvalidInput);
         }
-        let scope = authority.resolve_tenant(
-            principal,
-            &request.tenant_selector,
-            request.now,
-        )?;
+        let scope = authority.resolve_tenant(principal, &request.tenant_selector, request.now)?;
         if scope.subject() != principal.subject()
             || scope.tenant_id() != request.tenant_selector
             || scope.resolved_at() > request.now
@@ -624,8 +617,10 @@ impl SqliteWorkflowStore {
         let (workflow_id, task_key, current_state_text, current_version) =
             current.ok_or(G08Error::TenantAuthorityRejected)?;
         let current_state = parse_task_state(&current_state_text)?;
-        let expected = i64::try_from(request.expected_version).map_err(|_| G08Error::InvalidInput)?;
-        if current_version != expected || !valid_task_transition(current_state, request.next_state) {
+        let expected =
+            i64::try_from(request.expected_version).map_err(|_| G08Error::InvalidInput)?;
+        if current_version != expected || !valid_task_transition(current_state, request.next_state)
+        {
             return Err(G08Error::IntegrityFailure);
         }
         let next_version = current_version
