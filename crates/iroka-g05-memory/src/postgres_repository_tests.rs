@@ -383,4 +383,6 @@ mod postgres_tests {
             .get(0);
         assert_eq!(receipt_count, 1);
         cleanup(&mut admin, &[memory_id]);
+    }
 }
+
