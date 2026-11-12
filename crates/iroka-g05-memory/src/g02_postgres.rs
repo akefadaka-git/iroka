@@ -319,7 +319,11 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
              WHERE subject_ref=$1 AND tenant_ref=$2",
                 &[&request.principal_ref, &request.tenant_ref],
             )
-            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G09 tenant membership SQL failed: {error}");
+                G05Error::AuthorityUnavailable
+            })?
             .ok_or(G05Error::TenantScopeMismatch)?;
         let active: bool = row.get(0);
         let version: i64 = row.get(1);
