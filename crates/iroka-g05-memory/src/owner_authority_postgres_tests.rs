@@ -262,7 +262,7 @@ fn postgres_g02_outbox_claim_and_ack_are_lease_bound() {
     let _guard = PG_TEST_LOCK.lock().unwrap();
     let _db = admin(&url);
     let mut cleanup = Client::connect(&url, NoTls).unwrap();
-    cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
+    cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
     let signer = SigningKey::from_bytes(&[86u8; 32]);
     let auth = verifier(&url, &signer, "owner-key");
     let signed = command(
