@@ -680,8 +680,13 @@ impl PostgresG11MemoryAdapter {
             .map_err(|_| G05Error::MalformedRecord)?;
         let receipt_json = json_value(published)?;
         let payload = &published.checkpoint.payload;
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         if let Some(existing) = tx
             .query_opt(
                 "SELECT checkpoint_digest,signer_key_id,signature,publication_receipt
@@ -733,7 +738,10 @@ impl PostgresG11MemoryAdapter {
         &self,
         checkpoint_id: &str,
     ) -> Result<Option<iroka_kernel::PublishedCheckpoint>, G05Error> {
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let row = client
             .query_opt(
                 "SELECT checkpoint_digest,stream_id,sequence,signer_key_id,signature,
@@ -756,7 +764,11 @@ impl PostgresG11MemoryAdapter {
                 || published.checkpoint.payload.sequence != sequence as u64
                 || published.checkpoint.payload.signer_key_id != signer_key_id
                 || published.checkpoint.signature != signature
-                || published.checkpoint.digest().map_err(|_| G05Error::AuditUnavailable)? != digest
+                || published
+                    .checkpoint
+                    .digest()
+                    .map_err(|_| G05Error::AuditUnavailable)?
+                    != digest
             {
                 return Err(G05Error::AuditUnavailable);
             }
@@ -805,7 +817,10 @@ impl PostgresG11MemoryAdapter {
         if sequence == 0 {
             return Err(G05Error::AuditUnavailable);
         }
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let latest = client
             .query_opt(
                 "SELECT sequence,checkpoint_digest FROM g11_signed_checkpoints
