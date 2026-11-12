@@ -289,7 +289,7 @@ mod tests {
     fn checkpoint_rejects_forged_external_receipt() {
         let signer = LocalSigner(SigningKey::from_bytes(&[9_u8; 32]));
         let payload = CheckpointPayload {
-            schema_id: CHECKPOINT_SCHEMA.into(),
+            schema_id: G11_CHECKPOINT_SCHEMA_ID.into(),
             stream_id: "g11:memory".into(),
             sequence: 1,
             previous_checkpoint_digest: None,
