@@ -26,8 +26,7 @@ pub use sqlite_repository::SqliteMemoryRepository;
 
 mod postgres_repository;
 pub use postgres_repository::{
-    LeasedG11Event, PostgresG11MemoryAdapter, PostgresG11OutboxWorker,
-    PostgresMemoryRepository,
+    LeasedG11Event, PostgresG11MemoryAdapter, PostgresG11OutboxWorker, PostgresMemoryRepository,
 };
 
 mod authority;
