@@ -6,9 +6,9 @@
 //! are never treated as authorization evidence.
 use std::sync::{Arc, Mutex};
 
+use iroka_kernel::{Policy, VerifiedPrincipal};
 use native_tls::TlsConnector;
 use postgres::{Client, Row};
-use iroka_kernel::{Policy, VerifiedPrincipal};
 use postgres_native_tls::MakeTlsConnector;
 use sha2::{Digest, Sha256};
 
