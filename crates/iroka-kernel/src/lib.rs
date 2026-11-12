@@ -6,6 +6,7 @@
 mod assurance;
 mod audit_store;
 mod decision;
+mod g08;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -21,6 +22,7 @@ mod trust_lifecycle;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use g08::{CreateWorkflow, G08Error, SqliteWorkflowStore, TenantAuthority, TenantScope, WorkflowReceipt, WorkflowState};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
