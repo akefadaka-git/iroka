@@ -458,7 +458,10 @@ impl PostgresG11OutboxWorker {
                  RETURNING o.payload_json,o.lease_token::text,o.attempt_count",
                 &[&worker_id, &limit, &lease_seconds],
             )
-            .map_err(|error| { eprintln!("claim query failed: {error}"); G05Error::RepositoryUnavailable })?;
+            .map_err(|error| {
+                eprintln!("claim query failed: {error}");
+                G05Error::RepositoryUnavailable
+            })?;
         let mut claims = Vec::with_capacity(rows.len());
         for row in rows {
             claims.push(decode_claim(row, worker_id).map_err(|error| {
@@ -930,7 +933,10 @@ impl PostgresG11MemoryAdapter {
                  ORDER BY sequence DESC LIMIT 1",
                 &[&stream_id],
             )
-            .map_err(|error| { eprintln!("G11 checkpoint latest query failed: {error}"); G05Error::RepositoryUnavailable })?;
+            .map_err(|error| {
+                eprintln!("G11 checkpoint latest query failed: {error}");
+                G05Error::RepositoryUnavailable
+            })?;
 
         let pending = if let Some(row) = latest {
             let latest_sequence: i64 = row.get(0);
