@@ -44,7 +44,7 @@ fn signed_bundle(
             key_id: "credential-key-1".into(),
             public_key: issuer_signer.verifying_key().to_bytes(),
             not_before: 900,
-            not_after: 2_500,
+            not_after: 1_900,
         }],
     };
     let bytes = SignedTrustBundle::signing_bytes_for("iroka-test-root", &payload).unwrap();
