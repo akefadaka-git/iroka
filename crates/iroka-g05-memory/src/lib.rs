@@ -19,16 +19,13 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
 mod registry;
-pub use registry::{
-    CanonicalMemoryMetadataResolver, G01ReviewerProofAuthority, KernelG01ReviewerProofAdapter,
-    KernelG02AuthorizationAdapter, RegistryDesignatedReviewerAuthority, ReviewerDesignation,
-    ReviewerDesignationIdentity, ReviewerDesignationKeyResolver, SqliteG05AuthorityRegistry,
-};
+pub use registry::SqliteG05AuthorityRegistry;
 
 mod authority;
 pub use authority::{
-    DesignatedReviewerAuthority, EpisodicConsentAuthority, G02AuthorizationAuthority,
-    G11MemoryAuditAuthority, KernelG11MemoryAuditAdapter, TrustedGovernanceAdapter,
+    G01ReviewerProofAuthority, G02AuthorizationAuthority, G02RequestAuthorizer,
+    G11MemoryAuditAuthority, KernelG01ReviewerProofAdapter, KernelG02ActivationAdapter,
+    TenantContextResolver, TrustedGovernanceAdapter,
 };
 
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
@@ -109,8 +106,6 @@ pub enum Operation {
     Share,
     GrantEpisodicConsent,
     WithdrawEpisodicConsent,
-    DesignateReviewer,
-    RevokeReviewerDesignation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
