@@ -168,7 +168,7 @@ impl PostgresG02AuthorityOutboxWorker {
             "UPDATE g02_authority_outbox
              SET next_attempt_at=clock_timestamp()+($3 * INTERVAL '1 second'),
                  lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,last_error_code=$4
-             WHERE event_id=$1 AND lease_token=$2::uuid AND delivered_at IS NULL",
+             WHERE event_id=$1 AND lease_token=$2::text::uuid AND delivered_at IS NULL",
             &[&event_id,&lease_token,&delay,&error_code],
         ).map_err(|error| {
             #[cfg(test)]
