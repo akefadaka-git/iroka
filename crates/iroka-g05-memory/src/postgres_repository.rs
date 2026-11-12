@@ -3,8 +3,8 @@
 //! transaction. G11 workers use separate, durable leases for at-least-once
 //! delivery across processes and hosts.
 use crate::{
-    audit_event_sha256, AuditEvent, G05Error, G11Acknowledgment, LifecycleState,
-    MemoryMetadata, MemoryRecord, MemoryRepository,
+    audit_event_sha256, AuditEvent, G05Error, G11Acknowledgment, LifecycleState, MemoryMetadata,
+    MemoryRecord, MemoryRepository,
 };
 use native_tls::TlsConnector;
 use postgres::{Client, Row};
@@ -22,9 +22,7 @@ impl PostgresMemoryRepository {
     /// Connect using TLS with full certificate-chain and hostname validation.
     /// Remote connection strings must explicitly use sslmode=verify-full.
     pub fn connect(connection_string: &str) -> Result<Self, G05Error> {
-        if !connection_string
-            .contains("sslmode=verify-full")
-        {
+        if !connection_string.contains("sslmode=verify-full") {
             return Err(G05Error::RepositoryUnavailable);
         }
         let tls = TlsConnector::builder()
@@ -39,7 +37,10 @@ impl PostgresMemoryRepository {
 
     /// Check that the shared schema migration has been applied before serving.
     pub fn verify_schema(&self) -> Result<(), G05Error> {
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let row = client
             .query_one(
                 "SELECT to_regclass('public.g05_memory_records') IS NOT NULL
@@ -88,10 +89,7 @@ fn json_value<T: serde::Serialize>(value: &T) -> Result<Value, G05Error> {
     serde_json::to_value(value).map_err(|_| G05Error::RepositoryUnavailable)
 }
 
-fn insert_outbox(
-    tx: &mut postgres::Transaction<'_>,
-    event: &AuditEvent,
-) -> Result<(), G05Error> {
+fn insert_outbox(tx: &mut postgres::Transaction<'_>, event: &AuditEvent) -> Result<(), G05Error> {
     if event.event_id.trim().is_empty()
         || event.memory_id.trim().is_empty()
         || event.tenant_ref.trim().is_empty()
@@ -141,8 +139,13 @@ impl MemoryRepository for PostgresMemoryRepository {
         let purpose = enum_text(&record.candidate.purpose)?;
         let classification = enum_text(&record.candidate.classification)?;
         let lifecycle = enum_text(&record.lifecycle_state)?;
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         tx.execute(
             "INSERT INTO g05_memory_records
              (memory_id,tenant_ref,subject_ref,memory_class,content_sha256,purpose,
@@ -166,7 +169,10 @@ impl MemoryRepository for PostgresMemoryRepository {
             ],
         )
         .map_err(|error| {
-            if error.as_db_error().is_some_and(|db| db.code().code() == "23505") {
+            if error
+                .as_db_error()
+                .is_some_and(|db| db.code().code() == "23505")
+            {
                 G05Error::DuplicateRecord
             } else {
                 G05Error::RepositoryUnavailable
@@ -177,7 +183,10 @@ impl MemoryRepository for PostgresMemoryRepository {
     }
 
     fn get_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error> {
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let row = client
             .query_opt(
                 "SELECT metadata_json FROM g05_memory_records WHERE memory_id=$1",
@@ -192,7 +201,10 @@ impl MemoryRepository for PostgresMemoryRepository {
     }
 
     fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error> {
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let row = client
             .query_opt(
                 "SELECT record_json FROM g05_memory_records WHERE memory_id=$1",
@@ -222,8 +234,13 @@ impl MemoryRepository for PostgresMemoryRepository {
         let lifecycle = enum_text(&record.lifecycle_state)?;
         let purpose = enum_text(&record.candidate.purpose)?;
         let classification = enum_text(&record.candidate.classification)?;
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let current: Option<String> = tx
             .query_opt(
                 "SELECT lifecycle_state FROM g05_memory_records
@@ -239,7 +256,9 @@ impl MemoryRepository for PostgresMemoryRepository {
         let current = current.ok_or(G05Error::VersionConflict)?;
         let current: LifecycleState =
             serde_json::from_str(&current).map_err(|_| G05Error::RepositoryUnavailable)?;
-        if current == LifecycleState::PendingAudit && record.lifecycle_state == LifecycleState::Active {
+        if current == LifecycleState::PendingAudit
+            && record.lifecycle_state == LifecycleState::Active
+        {
             return Err(G05Error::InvalidLifecycleTransition);
         }
         let changed = tx
@@ -286,14 +305,22 @@ impl MemoryRepository for PostgresMemoryRepository {
             return Err(G05Error::InvalidLifecycleTransition);
         }
         validate_event(&record, &event)?;
-        let approval = record.approval_ref.as_deref().ok_or(G05Error::DurableApprovalRequired)?;
+        let approval = record
+            .approval_ref
+            .as_deref()
+            .ok_or(G05Error::DurableApprovalRequired)?;
         let pending_event_id = format!(
             "g05:durable-activation:{}:{}:{}",
             record.candidate.memory_id, expected_version, approval
         );
         let (metadata_json, record_json) = record_columns(&record)?;
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let state: Option<String> = tx
             .query_opt(
                 "SELECT lifecycle_state FROM g05_memory_records
@@ -409,8 +436,13 @@ impl PostgresG11OutboxWorker {
         {
             return Err(G05Error::MalformedRecord);
         }
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let rows = tx
             .query(
                 "WITH picked AS (
@@ -452,8 +484,13 @@ impl PostgresG11OutboxWorker {
         {
             return Err(G05Error::AuditUnavailable);
         }
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let row = tx
             .query_opt(
                 "SELECT payload_sha256,delivered_at,acknowledgment_sha256,lease_owner,
@@ -510,11 +547,7 @@ impl PostgresG11OutboxWorker {
     /// Deterministic capped exponential backoff with event-specific jitter.
     /// After twelve attempts, the event is retained and marked exhausted for
     /// operator inspection; it is never silently deleted or acknowledged.
-    pub fn schedule_retry(
-        &self,
-        claim: &LeasedG11Event,
-        error_code: &str,
-    ) -> Result<(), G05Error> {
+    pub fn schedule_retry(&self, claim: &LeasedG11Event, error_code: &str) -> Result<(), G05Error> {
         if error_code.trim().is_empty() || error_code.len() > 96 {
             return Err(G05Error::MalformedRecord);
         }
@@ -530,7 +563,10 @@ impl PostgresG11OutboxWorker {
         } else {
             error_code.to_owned()
         };
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let changed = client
             .execute(
                 "UPDATE g05_memory_g11_outbox
@@ -561,7 +597,10 @@ impl PostgresG11OutboxWorker {
         if !(1..=500).contains(&limit) {
             return Err(G05Error::MalformedRecord);
         }
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let rows = client
             .query(
                 "SELECT event_id,last_error_code FROM g05_memory_g11_outbox
