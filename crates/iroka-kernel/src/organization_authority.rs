@@ -672,7 +672,7 @@ mod tests {
             organization_id: "org:alpha".into(),
             tenant_id: "tenant:alpha".into(),
             principal: Some(delegator.subject().into()),
-            designation_id: Some("designation:g05".into()),
+            designation_id: Some(delegation_id.into()),
             delegate: Some(delegate.subject().into()),
             delegation_expires_at: Some(1350),
             action: OrganizationAuthorityAction::SetDelegation,
