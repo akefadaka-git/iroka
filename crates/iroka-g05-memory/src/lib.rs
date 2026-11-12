@@ -663,6 +663,16 @@ pub fn finalize_durable_activation(
 
 /// Stable, content-free event identity and canonical digest for G11 receipt
 /// matching. The memory content itself is never included.
+/// Ask G11 to durably accept the exact pending activation event. A successful
+/// return is the only supported source of an activation acknowledgment.
+pub fn request_g11_activation_acknowledgment<G: GovernancePort>(
+    pending: &MemoryRecord,
+    governance: &G,
+) -> Result<G11Acknowledgment, G05Error> {
+    let event = durable_activation_audit_event(pending)?;
+    governance.append_audit(&event)
+}
+
 pub fn durable_activation_audit_event(record: &MemoryRecord) -> Result<AuditEvent, G05Error> {
     if record.lifecycle_state != LifecycleState::PendingAudit {
         return Err(G05Error::InvalidLifecycleTransition);
