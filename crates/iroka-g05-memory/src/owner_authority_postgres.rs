@@ -132,7 +132,7 @@ impl PostgresOwnerSignatureVerifier {
         let digest_hex = hex(&digest);
         let payload_json = serde_json::json!({
             "payload": p,
-            "signature": command.signature,
+            "signature": &command.signature,
         });
         let mut client = self.client.lock().map_err(|_| G02CommandError::Unavailable)?;
         let mut tx = client.transaction().map_err(|_| G02CommandError::Unavailable)?;
