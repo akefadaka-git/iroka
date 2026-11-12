@@ -51,6 +51,9 @@ pub use owner_authority_postgres::{
     SignedG02SecurityCommand,
 };
 
+pub mod http_host;
+pub use http_host::{G05HttpHost, G05HttpHostError, G05OperationExecutor};
+
 mod ingress;
 pub use ingress::{
     AuthenticatedG05Request, G05IngressService, G09ExecutionRevalidator, G09PolicyResolver,
