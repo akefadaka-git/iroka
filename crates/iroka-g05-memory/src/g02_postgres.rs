@@ -8,9 +8,9 @@ use std::sync::{Arc, Mutex};
 
 use native_tls::TlsConnector;
 use postgres::{Client, Row};
-use sha2::{Digest, Sha256};
-use postgres_native_tls::MakeTlsConnector;
 use iroka_kernel::{Policy, VerifiedPrincipal};
+use postgres_native_tls::MakeTlsConnector;
+use sha2::{Digest, Sha256};
 
 use crate::{AuthorizationRequest, G05Error, G09PolicyResolver};
 
@@ -18,8 +18,11 @@ use crate::{AuthorizationRequest, G05Error, G09PolicyResolver};
 /// Owner subject/key validity and current key revocation against canonical G02
 /// trust roots, then decode only the verified payload into a kernel Policy.
 pub trait G02PolicySnapshotVerifier: Send + Sync {
-    fn verify_snapshot(&self, snapshot: &G02PolicySnapshot, now: u64)
-        -> Result<Policy, G05Error>;
+    fn verify_snapshot(
+        &self,
+        snapshot: &G02PolicySnapshot,
+        now: u64,
+    ) -> Result<Policy, G05Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -63,7 +66,11 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
             .map_err(|_| G05Error::RepositoryUnavailable)?;
         let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
             .map_err(|_| G05Error::AuthorityUnavailable)?;
-        Ok(Self { client: Arc::new(Mutex::new(client)), policy_id, verifier })
+        Ok(Self {
+            client: Arc::new(Mutex::new(client)),
+            policy_id,
+            verifier,
+        })
     }
 
     /// Fail readiness unless all required G02 authority tables exist.
@@ -77,7 +84,11 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
                 AND to_regclass('public.g02_tenant_memberships') IS NOT NULL",
             &[],
         ).map_err(|_| G05Error::AuthorityUnavailable)?;
-        if row.get::<_, bool>(0) { Ok(()) } else { Err(G05Error::AuthorityUnavailable) }
+        if row.get::<_, bool>(0) {
+            Ok(())
+        } else {
+            Err(G05Error::AuthorityUnavailable)
+        }
     }
 
     fn snapshot_from_row(row: &Row) -> Result<G02PolicySnapshot, G05Error> {
@@ -87,11 +98,21 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
         let digest: String = row.get("payload_sha256");
         let canonical_payload: Vec<u8> = row.get("canonical_payload");
         let signature: Vec<u8> = row.get("signature");
-        if !valid_snapshot_shape(epoch, issued_at, expires_at, &digest, &canonical_payload, &signature) {
+        if !valid_snapshot_shape(
+            epoch,
+            issued_at,
+            expires_at,
+            &digest,
+            &canonical_payload,
+            &signature,
+        ) {
             return Err(G05Error::AuthorityUnavailable);
         }
         let computed = Sha256::digest(&canonical_payload);
-        let computed_hex = computed.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let computed_hex = computed
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
         if computed_hex != digest.trim().to_ascii_lowercase() {
             return Err(G05Error::AuthorityUnavailable);
         }
@@ -102,8 +123,10 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
             owner_subject: row.get("owner_subject"),
             signer_issuer: row.get("signer_issuer"),
             signer_key_id: row.get("signer_key_id"),
-            issued_at: u64::try_from(issued_at).map_err(|_| G05Error::AuthorityUnavailable)?,
-            expires_at: u64::try_from(expires_at).map_err(|_| G05Error::AuthorityUnavailable)?,
+            issued_at: u64::try_from(issued_at)
+                .map_err(|_| G05Error::AuthorityUnavailable)?,
+            expires_at: u64::try_from(expires_at)
+                .map_err(|_| G05Error::AuthorityUnavailable)?,
             canonical_payload,
             payload_sha256: digest.trim().to_owned(),
             signature,
@@ -111,7 +134,14 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
     }
 }
 
-fn valid_snapshot_shape(epoch: i64, issued_at: i64, expires_at: i64, digest: &str, payload: &[u8], signature: &[u8]) -> bool {
+fn valid_snapshot_shape(
+    epoch: i64,
+    issued_at: i64,
+    expires_at: i64,
+    digest: &str,
+    payload: &[u8],
+    signature: &[u8],
+) -> bool {
     epoch > 0
         && issued_at >= 0
         && expires_at > issued_at
@@ -124,10 +154,17 @@ fn valid_snapshot_shape(epoch: i64, issued_at: i64, expires_at: i64, digest: &st
 impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolver<V> {
     fn current_policy(&self, now: u64) -> Result<(Policy, bool), G05Error> {
         let now_i = i64::try_from(now).map_err(|_| G05Error::AuthorityUnavailable)?;
-        let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::AuthorityUnavailable)?;
-        tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+        let mut client = self
+            .client
+            .lock()
             .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        tx.batch_execute(
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
+        )
+        .map_err(|_| G05Error::AuthorityUnavailable)?;
         // Both policy and emergency-stop reads share one MVCC snapshot.
         let row = tx.query_opt(
             "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
@@ -173,7 +210,10 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         {
             return Err(G05Error::AuthorizationDenied);
         }
-        let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         let row = client.query_opt(
             "SELECT active,version FROM g02_tenant_memberships
              WHERE subject_ref=$1 AND tenant_ref=$2",
