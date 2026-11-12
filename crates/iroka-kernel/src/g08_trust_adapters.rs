@@ -294,8 +294,7 @@ impl TrustedClock for SqliteQuorumTrustedClock {
             .lock()
             .map_err(|_| TrustedTimeError::Unavailable)?;
         let value = anchor.as_ref().ok_or(TrustedTimeError::Unavailable)?;
-        let elapsed = u64::try_from(value.monotonic.elapsed().as_secs())
-            .map_err(|_| TrustedTimeError::Invalid)?;
+        let elapsed = value.monotonic.elapsed().as_secs();
         let now = value
             .unix_seconds
             .checked_add(elapsed)
