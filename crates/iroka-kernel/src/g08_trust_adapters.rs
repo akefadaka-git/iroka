@@ -302,9 +302,21 @@ impl SqliteWorkerRegistry {
                 || VerifyingKey::from_bytes(&entry.public_key).is_err()
             { return Err(WorkerRevocationError::Unavailable); }
         }
-        let bytes = serde_jcs::to_vec(bundle).map_err(|_|WorkerRevocationError::Unavailable)?;
-        let signature = Signature::from_slice(&bundle.signature).map_err(|_|WorkerRevocationError::Unavailable)?;
-        self.root.verify(&bytes,&signature).map_err(|_|WorkerRevocationError::Unavailable)?;
+        #[derive(Serialize)]
+        struct RegistrySigningPayload<'a> {
+            root_key_id: &'a str,
+            payload: &'a WorkerRegistryPayload,
+        }
+        let signed_payload = RegistrySigningPayload {
+            root_key_id: &bundle.root_key_id,
+            payload: p,
+        };
+        let bytes = serde_jcs::to_vec(&signed_payload)
+            .map_err(|_| WorkerRevocationError::Unavailable)?;
+        let signature = Signature::from_slice(&bundle.signature)
+            .map_err(|_| WorkerRevocationError::Unavailable)?;
+        self.root.verify(&bytes, &signature)
+            .map_err(|_| WorkerRevocationError::Unavailable)?;
         let digest: [u8;32] = sha2::Sha256::digest(&bytes).into();
         let mut connection = open_db(&self.path).map_err(|_|WorkerRevocationError::Unavailable)?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)
