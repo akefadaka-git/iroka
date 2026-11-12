@@ -4,8 +4,8 @@
 //! No caller-supplied principal, authorization boolean, or timestamp is accepted.
 use crate::{AuthorizationRequest, G02AuthorizationAuthority, G05Error, Operation};
 use iroka_kernel::{
-    evaluate, CredentialError, DecisionCode, Ed25519CredentialVerifier, Policy, RiskLevel,
-    RevocationChecker, VerifiedPrincipal,
+    evaluate, CredentialError, DecisionCode, Ed25519CredentialVerifier, Policy, RevocationChecker,
+    RiskLevel, VerifiedPrincipal,
 };
 
 pub trait TrustedClock: Send + Sync {
@@ -225,7 +225,10 @@ mod tests {
 
     #[test]
     fn operation_mapping_assigns_critical_risk_to_irreversible_effects() {
-        assert_eq!(capability_for(Operation::ActivateDurable), "g05.memory.durable.activate");
+        assert_eq!(
+            capability_for(Operation::ActivateDurable),
+            "g05.memory.durable.activate"
+        );
         assert_eq!(risk_for(Operation::ActivateDurable), RiskLevel::Critical);
         assert_eq!(risk_for(Operation::RequestDeletion), RiskLevel::Critical);
         assert_eq!(risk_for(Operation::Retrieve), RiskLevel::Moderate);
