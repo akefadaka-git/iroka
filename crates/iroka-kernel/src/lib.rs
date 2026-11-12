@@ -25,8 +25,9 @@ pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use g08::{
-    CreateWorkflow, G08Error, SqliteWorkflowStore, TaskClaimRequest, TaskLeaseCompletionRequest,
-    TaskLeaseReceipt, TaskLeaseRenewalRequest, TaskReceipt, TaskRetryRequest, TaskSpec, TaskState,
+    AuthenticatedTaskClaimRequest, AuthenticatedTaskLeaseCompletionRequest,
+    AuthenticatedTaskLeaseRenewalRequest, CreateWorkflow, G08Error, SqliteWorkflowStore,
+    TaskLeaseReceipt, TaskReceipt, TaskRetryRequest, TaskSpec, TaskState,
     TaskTransitionRequest, TenantAuthority, TenantScope, WorkflowCancellationReceipt,
     WorkflowCancellationRequest, WorkflowReceipt, WorkflowState,
 };
