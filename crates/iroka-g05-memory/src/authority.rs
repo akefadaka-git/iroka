@@ -357,3 +357,46 @@ fn classification_key(value: crate::Classification) -> &'static str {
         crate::Classification::Restricted => "RESTRICTED",
     }
 }
+
+#[cfg(test)]
+mod g11_adapter_tests {
+    use super::*;
+
+    fn event() -> AuditEvent {
+        AuditEvent {
+            event_id: "g05:durable-activation:memory:test:1:approval:test".into(),
+            event_type: "memory.durable.activation.pending".into(),
+            memory_id: "memory:test".into(),
+            tenant_ref: "tenant:test".into(),
+            actor_ref: "reviewer:test".into(),
+            purpose: Purpose::OrganizationalContext,
+            record_version: 1,
+            outcome: "pending_audit".into(),
+            correlation_ref: "correlation:test".into(),
+            occurred_at: 1_800_000_000,
+            content_sha256: "a".repeat(64),
+        }
+    }
+
+    #[test]
+    fn g11_adapter_returns_durable_idempotent_receipt_and_rejects_collision() {
+        let sink = Arc::new(SqliteAuditSink::open_in_memory().unwrap());
+        let adapter = KernelSqliteG11MemoryAdapter::new(sink.clone());
+        let original = event();
+        let first = adapter.append_memory_event(&original).unwrap();
+        let second = adapter.append_memory_event(&original).unwrap();
+        assert_eq!(first, second);
+        assert_eq!(first.event_id(), original.event_id);
+        assert_eq!(first.payload_sha256(), audit_event_sha256(&original));
+        assert!(first.accepted_at() >= original.occurred_at);
+        assert_eq!(sink.verify_integrity(), Ok(()));
+
+        let mut collision = original;
+        collision.outcome = "different-payload".into();
+        assert_eq!(
+            adapter.append_memory_event(&collision),
+            Err(G05Error::ApprovalBindingMismatch)
+        );
+        assert_eq!(sink.verify_integrity(), Ok(()));
+    }
+}
