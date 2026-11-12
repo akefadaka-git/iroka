@@ -4,7 +4,9 @@
 //! activation tuple. It returns an opaque decision only after current G02
 //! designation (and, when supplied, delegation) resolution succeeds. It does
 //! not inspect memory content or replace G01 proof verification.
-use crate::{OrganizationAuthorityError, OrganizationAuthorityResolver, TenantContext, VerifiedPrincipal};
+use crate::{
+    OrganizationAuthorityError, OrganizationAuthorityResolver, TenantContext, VerifiedPrincipal,
+};
 
 const MAX_REF_BYTES: usize = 512;
 const G05_ACTIVATE_CAPABILITY: &str = "g05.memory.durable.activate";
@@ -30,17 +32,29 @@ pub struct G05ActivationTuple {
 impl G05ActivationTuple {
     pub fn validate(&self) -> Result<(), G05ActivationDecisionError> {
         let refs = [
-            self.tenant_id.as_str(), self.organization_id.as_str(),
-            self.reviewer_subject.as_str(), self.designation_id.as_str(),
-            self.action.as_str(), self.memory_id.as_str(), self.content_sha256.as_str(),
-            self.purpose.as_str(), self.classification.as_str(), self.policy_version.as_str(),
+            self.tenant_id.as_str(),
+            self.organization_id.as_str(),
+            self.reviewer_subject.as_str(),
+            self.designation_id.as_str(),
+            self.action.as_str(),
+            self.memory_id.as_str(),
+            self.content_sha256.as_str(),
+            self.purpose.as_str(),
+            self.classification.as_str(),
+            self.policy_version.as_str(),
         ];
-        if refs.iter().any(|v| v.trim().is_empty() || v.len() > MAX_REF_BYTES)
-            || self.designation_version == 0 || self.record_version == 0
+        if refs
+            .iter()
+            .any(|v| v.trim().is_empty() || v.len() > MAX_REF_BYTES)
+            || self.designation_version == 0
+            || self.record_version == 0
             || self.content_sha256.len() != 64
             || !self.content_sha256.bytes().all(|b| b.is_ascii_hexdigit())
             || self.action != G05_ACTIVATE_CAPABILITY
-            || self.delegation_id.as_ref().is_some_and(|v| v.trim().is_empty() || v.len() > MAX_REF_BYTES)
+            || self
+                .delegation_id
+                .as_ref()
+                .is_some_and(|v| v.trim().is_empty() || v.len() > MAX_REF_BYTES)
             || self.delegation_version.is_some_and(|v| v == 0)
             || self.delegation_id.is_some() != self.delegation_version.is_some()
         {
@@ -74,8 +88,12 @@ pub struct G05ActivationDecision {
     resolved_at: u64,
 }
 impl G05ActivationDecision {
-    pub fn tuple(&self) -> &G05ActivationTuple { &self.tuple }
-    pub fn resolved_at(&self) -> u64 { self.resolved_at }
+    pub fn tuple(&self) -> &G05ActivationTuple {
+        &self.tuple
+    }
+    pub fn resolved_at(&self) -> u64 {
+        self.resolved_at
+    }
 }
 
 impl OrganizationAuthorityResolver {
@@ -102,8 +120,13 @@ impl OrganizationAuthorityResolver {
             // and the delegator's current designation; they need not hold a
             // separate direct designation of their own.
             let delegation = self.resolve_delegation(
-                reviewer, tenant, &tuple.organization_id, id,
-                G05_ACTIVATE_CAPABILITY, now, max_age_secs,
+                reviewer,
+                tenant,
+                &tuple.organization_id,
+                id,
+                G05_ACTIVATE_CAPABILITY,
+                now,
+                max_age_secs,
             )?;
             if delegation.version() != version
                 || delegation.designation_id() != tuple.designation_id
@@ -116,8 +139,12 @@ impl OrganizationAuthorityResolver {
             }
         } else {
             let designation = self.resolve(
-                reviewer, tenant, &tuple.organization_id, G05_ACTIVATE_CAPABILITY,
-                now, max_age_secs,
+                reviewer,
+                tenant,
+                &tuple.organization_id,
+                G05_ACTIVATE_CAPABILITY,
+                now,
+                max_age_secs,
             )?;
             if designation.designation_id() != tuple.designation_id
                 || designation.designation_version() != tuple.designation_version
@@ -127,6 +154,9 @@ impl OrganizationAuthorityResolver {
                 return Err(G05ActivationDecisionError::DesignationMismatch);
             }
         }
-        Ok(G05ActivationDecision { tuple: tuple.clone(), resolved_at: now })
+        Ok(G05ActivationDecision {
+            tuple: tuple.clone(),
+            resolved_at: now,
+        })
     }
 }
