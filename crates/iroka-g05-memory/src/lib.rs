@@ -628,9 +628,23 @@ pub fn prepare_durable_activation<G: GovernancePort>(
 /// A production adapter must construct it only from G11's durable receipt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct G11Acknowledgment {
-    pub event_id: String,
-    pub payload_sha256: String,
-    pub accepted_at: u64,
+    event_id: String,
+    payload_sha256: String,
+    accepted_at: u64,
+}
+
+impl G11Acknowledgment {
+    pub fn event_id(&self) -> &str {
+        &self.event_id
+    }
+
+    pub fn payload_sha256(&self) -> &str {
+        &self.payload_sha256
+    }
+
+    pub fn accepted_at(&self) -> u64 {
+        self.accepted_at
+    }
 }
 
 /// Finalize only after matching G11 acknowledgment and a final repository
