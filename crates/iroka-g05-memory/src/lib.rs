@@ -23,7 +23,7 @@ pub use registry::SqliteG05AuthorityRegistry;
 
 mod authority;
 pub use authority::{
-    G01ReviewerProofAuthority, G02AuthorizationAuthority, G02RequestAuthorizer,
+    EpisodicConsentAuthority, G01ReviewerProofAuthority, G02AuthorizationAuthority, G02RequestAuthorizer,
     G11MemoryAuditAuthority, KernelG01ReviewerProofAdapter, KernelG02ActivationAdapter,
     TenantContextResolver, TrustedGovernanceAdapter,
 };
@@ -826,14 +826,6 @@ pub trait MemoryRepository: Send + Sync {
     }
 }
 
-impl<T: MemoryRepository> CanonicalMemoryMetadataResolver for T {
-    fn resolve_canonical_metadata(
-        &self,
-        memory_id: &str,
-    ) -> Result<Option<MemoryMetadata>, G05Error> {
-        self.get_metadata(memory_id)
-    }
-}
 
 #[cfg(test)]
 mod tests {
