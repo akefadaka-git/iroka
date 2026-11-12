@@ -606,6 +606,7 @@ impl PostgresG11OutboxWorker {
         if !(1..=500).contains(&limit) {
             return Err(G05Error::MalformedRecord);
         }
+        let limit = limit as i32;
         let mut client = self
             .client
             .lock()
