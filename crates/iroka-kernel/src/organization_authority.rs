@@ -509,6 +509,181 @@ mod tests {
             .unwrap()
     }
 
+    fn g05_activation_tuple(
+        reviewer: &VerifiedPrincipal,
+        designation_id: &str,
+        delegation: Option<(&str, u64)>,
+    ) -> crate::G05ActivationTuple {
+        crate::G05ActivationTuple {
+            tenant_id: "tenant:alpha".into(),
+            organization_id: "org:alpha".into(),
+            reviewer_subject: reviewer.subject().into(),
+            designation_id: designation_id.into(),
+            designation_version: 1,
+            delegation_id: delegation.map(|(id, _)| id.to_owned()),
+            delegation_version: delegation.map(|(_, version)| version),
+            action: "g05.memory.durable.activate".into(),
+            memory_id: "memory:activation-test".into(),
+            record_version: 7,
+            content_sha256: "a".repeat(64),
+            purpose: "ORGANIZATIONAL_CONTEXT".into(),
+            classification: "CONFIDENTIAL".into(),
+            policy_version: "g05-memory-v1".into(),
+        }
+    }
+
+    fn create_org_and_designation(
+        signer: &SigningKey,
+        owner: &OwnerApprovalVerifier,
+        principal: &VerifiedPrincipal,
+    ) {
+        owner.apply_organization_command(
+            &signed_org(
+                signer,
+                "org:create:g05",
+                OrganizationAuthorityAction::CreateOrganization,
+                None,
+                None,
+                vec![],
+                1,
+            ),
+            1200,
+        ).unwrap();
+        owner.apply_organization_command(
+            &signed_org(
+                signer,
+                "org:designate:g05",
+                OrganizationAuthorityAction::SetDesignation,
+                Some(principal.subject()),
+                Some("designation:g05"),
+                vec!["g05.memory.durable.activate", "organization.designation.delegate"],
+                1,
+            ),
+            1200,
+        ).unwrap();
+    }
+
+    #[test]
+    fn g05_activation_tuple_requires_current_canonical_designation() {
+        let (signer, owner, store, principal) = fixture();
+        let tenant = tenant_context(&signer, &owner, &principal, store.clone());
+        create_org_and_designation(&signer, &owner, &principal);
+        let resolver = OrganizationAuthorityResolver::new(store);
+        let tuple = g05_activation_tuple(&principal, "designation:g05", None);
+        let decision = resolver
+            .resolve_g05_activation(&principal, &tenant, &tuple, 1200, 600)
+            .unwrap();
+        assert_eq!(decision.tuple(), &tuple);
+
+        let mut mismatch = tuple.clone();
+        mismatch.designation_id = "designation:forged".into();
+        assert_eq!(
+            resolver.resolve_g05_activation(&principal, &tenant, &mismatch, 1200, 600),
+            Err(crate::G05ActivationDecisionError::DesignationMismatch)
+        );
+    }
+
+    #[test]
+    fn g05_activation_denies_missing_stale_and_revoked_designations() {
+        let (signer, owner, store, principal) = fixture();
+        let tenant = tenant_context(&signer, &owner, &principal, store.clone());
+        owner.apply_organization_command(
+            &signed_org(
+                &signer,
+                "org:create:missing",
+                OrganizationAuthorityAction::CreateOrganization,
+                None,
+                None,
+                vec![],
+                1,
+            ),
+            1200,
+        ).unwrap();
+        let resolver = OrganizationAuthorityResolver::new(store.clone());
+        let missing = g05_activation_tuple(&principal, "designation:missing", None);
+        assert!(resolver.resolve_g05_activation(&principal, &tenant, &missing, 1200, 600).is_err());
+
+        owner.apply_organization_command(
+            &signed_org(
+                &signer,
+                "org:designate:stale",
+                OrganizationAuthorityAction::SetDesignation,
+                Some(principal.subject()),
+                Some("designation:missing"),
+                vec!["g05.memory.durable.activate"],
+                1,
+            ),
+            1200,
+        ).unwrap();
+        assert_eq!(
+            resolver.resolve_g05_activation(&principal, &tenant, &missing, 1300, 30),
+            Err(crate::G05ActivationDecisionError::OrganizationAuthorityDenied)
+        );
+
+        owner.apply_organization_command(
+            &signed_org(
+                &signer,
+                "org:revoke:stale",
+                OrganizationAuthorityAction::RevokeDesignation,
+                Some(principal.subject()),
+                Some("designation:missing"),
+                vec![],
+                2,
+            ),
+            1200,
+        ).unwrap();
+        assert!(resolver.resolve_g05_activation(&principal, &tenant, &missing, 1200, 600).is_err());
+    }
+
+    #[test]
+    fn g05_activation_accepts_only_live_exact_delegation_tuple() {
+        let (signer, owner, store, delegator) = fixture();
+        create_org_and_designation(&signer, &owner, &delegator);
+        let delegate = VerifiedPrincipal::from_verified_credential(
+            "principal:delegate".into(),
+            "issuer:test".into(),
+            "credential:delegate".into(),
+        );
+        let tenant = tenant_context(&signer, &owner, &delegate, store.clone());
+        let delegation_id = "delegation:g05:delegate";
+        let payload = OrganizationAuthorityPayload {
+            command_id: delegation_id.into(),
+            owner_subject: "owner:test".into(),
+            key_id: "owner-key".into(),
+            issued_at: 1100,
+            expires_at: 1400,
+            organization_id: "org:alpha".into(),
+            tenant_id: "tenant:alpha".into(),
+            principal: Some(delegator.subject().into()),
+            designation_id: Some("designation:g05".into()),
+            delegate: Some(delegate.subject().into()),
+            delegation_expires_at: Some(1350),
+            action: OrganizationAuthorityAction::SetDelegation,
+            version: 1,
+            capabilities: vec!["g05.memory.durable.activate".into()],
+            reason: "Owner-approved G05 reviewer delegation".into(),
+        };
+        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        owner.apply_organization_command(
+            &SignedOrganizationAuthorityCommand::from_signature(payload, signature),
+            1200,
+        ).unwrap();
+
+        let resolver = OrganizationAuthorityResolver::new(store);
+        let tuple = g05_activation_tuple(
+            &delegate,
+            "designation:g05",
+            Some((delegation_id, 1)),
+        );
+        assert!(resolver.resolve_g05_activation(&delegate, &tenant, &tuple, 1200, 600).is_ok());
+        let mut stale = tuple.clone();
+        stale.delegation_version = Some(2);
+        assert_eq!(
+            resolver.resolve_g05_activation(&delegate, &tenant, &stale, 1200, 600),
+            Err(crate::G05ActivationDecisionError::DelegationMismatch)
+        );
+    }
+
     #[test]
     fn g02_domain_is_distinct_and_capability_order_is_canonical() {
         let (signer, _, _, _) = fixture();
