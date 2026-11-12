@@ -8,6 +8,7 @@ mod audit_store;
 mod decision;
 mod g08;
 mod g08_retry;
+mod g08_trust;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -465,3 +466,10 @@ mod tests {
         assert_eq!(replay.reason(), DecisionReason::ApprovalRevokedOrUnknown);
     }
 }
+
+pub use g08_trust::{
+    AuthenticatedWorker, Ed25519WorkerAuthenticator, SignedWorkerProof, TrustedClock,
+    TrustedTimeError, WorkerAuthError, WorkerKey, WorkerOperationScope, WorkerProofPayload,
+    WorkerReplayError, WorkerReplayGuard, WorkerRevocationChecker, WorkerTrustStore,
+    G08_WORKER_AUDIENCE, MAX_WORKER_PROOF_TTL_SECS,
+};
