@@ -3301,14 +3301,8 @@ mod tests {
             TestWorkerRevocations,
             TestWorkerReplayGuard::default(),
         );
-        let mut invalid = signed_worker_proof(
-            &signer,
-            "task.claim",
-            None,
-            1,
-            1_800_000_001,
-            [4; 32],
-        );
+        let mut invalid =
+            signed_worker_proof(&signer, "task.claim", None, 1, 1_800_000_001, [4; 32]);
         invalid.payload.tenant_selector = "tenant:other".into();
 
         assert_eq!(
