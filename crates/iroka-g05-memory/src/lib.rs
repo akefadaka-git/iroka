@@ -37,6 +37,13 @@ pub use authority::{
     TrustedGovernanceAdapter,
 };
 
+
+mod ingress;
+pub use ingress::{
+    AuthenticatedG05Request, G05IngressService, G09ExecutionRevalidator,
+    G09PolicyResolver, KernelG09ExecutionRevalidator, TrustedClock,
+};
+
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
 pub const CONTRACT_VERSION: &str = "1.0.0";
 pub const RECORD_SCHEMA_ID: &str = "iroka.g05.memory-record";
