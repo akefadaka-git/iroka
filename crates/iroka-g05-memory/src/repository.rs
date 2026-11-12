@@ -199,7 +199,7 @@ impl MemoryRepository for SqliteMemoryRepository {
             .connection
             .lock()
             .map_err(|_| G05Error::RepositoryUnavailable)?;
-        let row: Option<(String,String,String,String,String,String,String,Option<i64>,i64,String)> =
+        let row: Option<(String,String,String,String,String,String,String,String,Option<i64>,i64,String)> =
             connection
                 .query_row(
                     "SELECT memory_id,tenant_ref,subject_ref,memory_class,classification,purpose,
