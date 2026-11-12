@@ -969,7 +969,10 @@ impl SqliteWorkflowStore {
             return Ok(None);
         };
         let prior_state = parse_task_state(&state_text)?;
-        if !matches!(prior_state, TaskState::Ready | TaskState::Running | TaskState::Failed) {
+        if !matches!(
+            prior_state,
+            TaskState::Ready | TaskState::Running | TaskState::Failed
+        ) {
             return Err(G08Error::IntegrityFailure);
         }
         let next_task_version = task_version
@@ -1037,12 +1040,14 @@ impl SqliteWorkflowStore {
              claimed_at=excluded.claimed_at,expires_at=excluded.expires_at",
             params![task_id_value,request.worker_id,token_digest.as_slice(),lease_version,now_i64,expires_i64]
         ).map_err(|_| G08Error::StoreUnavailable)?;
-        transaction.execute(
-            "INSERT INTO g08_task_retry_state(task_id,attempts_completed) VALUES(?1,1)
+        transaction
+            .execute(
+                "INSERT INTO g08_task_retry_state(task_id,attempts_completed) VALUES(?1,1)
              ON CONFLICT(task_id) DO UPDATE SET
                attempts_completed=attempts_completed+1,not_before=NULL,last_failure=NULL",
-            params![task_id_value]
-        ).map_err(|_| G08Error::StoreUnavailable)?;
+                params![task_id_value],
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
         transaction
             .commit()
             .map_err(|_| G08Error::StoreUnavailable)?;
@@ -1402,7 +1407,10 @@ impl SqliteWorkflowStore {
         {
             return Err(G08Error::TenantAuthorityRejected);
         }
-        let mut connection = self.connection.lock().map_err(|_| G08Error::StoreUnavailable)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| G08Error::StoreUnavailable)?;
@@ -1457,7 +1465,11 @@ impl SqliteWorkflowStore {
         let event_id = format!(
             "g08_retry_evt_{}",
             hex_digest(&Sha256::digest(
-                format!("{}:{}:{}:{}", request.task_id, attempts, request.now, event_type).as_bytes()
+                format!(
+                    "{}:{}:{}:{}",
+                    request.task_id, attempts, request.now, event_type
+                )
+                .as_bytes()
             ))
         );
         transaction
@@ -1477,7 +1489,9 @@ impl SqliteWorkflowStore {
                 ],
             )
             .map_err(|_| G08Error::StoreUnavailable)?;
-        transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+        transaction
+            .commit()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         Ok(schedule)
     }
 
@@ -1500,7 +1514,10 @@ impl SqliteWorkflowStore {
         {
             return Err(G08Error::TenantAuthorityRejected);
         }
-        let mut connection = self.connection.lock().map_err(|_| G08Error::StoreUnavailable)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| G08Error::StoreUnavailable)?;
@@ -1530,7 +1547,9 @@ impl SqliteWorkflowStore {
                     |row| row.get(0),
                 )
                 .map_err(|_| G08Error::StoreUnavailable)?;
-            transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+            transaction
+            .commit()
+            .map_err(|_| G08Error::StoreUnavailable)?;
             return Ok(WorkflowCancellationReceipt {
                 workflow_id: request.workflow_id.clone(),
                 cancelled_tasks: u64::try_from(count).map_err(|_| G08Error::IntegrityFailure)?,
@@ -1622,7 +1641,9 @@ impl SqliteWorkflowStore {
                 )
                 .map_err(|_| G08Error::StoreUnavailable)?;
         }
-        transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+        transaction
+            .commit()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         Ok(WorkflowCancellationReceipt {
             workflow_id: request.workflow_id.clone(),
             cancelled_tasks: u64::try_from(active.len()).map_err(|_| G08Error::IntegrityFailure)?,
