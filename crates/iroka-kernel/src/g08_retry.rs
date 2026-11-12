@@ -17,7 +17,10 @@ pub enum RetryFailureClass {
 
 impl RetryFailureClass {
     fn is_retryable(self) -> bool {
-        matches!(self, Self::TransientStore | Self::WorkerUnavailable | Self::LeaseExpired)
+        matches!(
+            self,
+            Self::TransientStore | Self::WorkerUnavailable | Self::LeaseExpired
+        )
     }
 }
 
@@ -48,9 +51,11 @@ impl RetryPolicy {
     pub const HARD_MAX_ATTEMPTS: u32 = 10;
     pub const HARD_MAX_BACKOFF_SECS: u64 = 3_600;
 
-    pub fn new(max_attempts: u32, initial_backoff_secs: u64, max_backoff_secs: u64)
-        -> Result<Self, RetryPolicyError>
-    {
+    pub fn new(
+        max_attempts: u32,
+        initial_backoff_secs: u64,
+        max_backoff_secs: u64,
+    ) -> Result<Self, RetryPolicyError> {
         if max_attempts == 0
             || max_attempts > Self::HARD_MAX_ATTEMPTS
             || initial_backoff_secs == 0
@@ -60,10 +65,16 @@ impl RetryPolicy {
         {
             return Err(RetryPolicyError::InvalidConfiguration);
         }
-        Ok(Self { max_attempts, initial_backoff_secs, max_backoff_secs })
+        Ok(Self {
+            max_attempts,
+            initial_backoff_secs,
+            max_backoff_secs,
+        })
     }
 
-    pub fn max_attempts(self) -> u32 { self.max_attempts }
+    pub fn max_attempts(self) -> u32 {
+        self.max_attempts
+    }
 
     /// Returns no schedule for terminal failures or after the attempt budget.
     /// attempts_completed must be at least one (the failed initial attempt).
@@ -81,9 +92,18 @@ impl RetryPolicy {
         }
         let exponent = attempts_completed.saturating_sub(1).min(63);
         let multiplier = 1_u64.checked_shl(exponent).unwrap_or(u64::MAX);
-        let delay = self.initial_backoff_secs.saturating_mul(multiplier).min(self.max_backoff_secs);
-        let not_before = now.checked_add(delay).ok_or(RetryPolicyError::TimestampOverflow)?;
-        Ok(Some(RetrySchedule { attempts_completed, not_before, delay_seconds: delay }))
+        let delay = self
+            .initial_backoff_secs
+            .saturating_mul(multiplier)
+            .min(self.max_backoff_secs);
+        let not_before = now
+            .checked_add(delay)
+            .ok_or(RetryPolicyError::TimestampOverflow)?;
+        Ok(Some(RetrySchedule {
+            attempts_completed,
+            not_before,
+            delay_seconds: delay,
+        }))
     }
 }
 
@@ -91,14 +111,17 @@ impl RetryPolicy {
 mod tests {
     use super::*;
 
-    fn policy() -> RetryPolicy { RetryPolicy::new(5, 2, 10).unwrap() }
+    fn policy() -> RetryPolicy {
+        RetryPolicy::new(5, 2, 10).unwrap()
+    }
 
     #[test]
     fn retry_delay_grows_exponentially_and_is_capped() {
         for (attempt, delay) in [(1, 2), (2, 4), (3, 8), (4, 10)] {
-            let schedule = policy().schedule_after_failure(
-                RetryFailureClass::TransientStore, attempt, 1_000
-            ).unwrap().unwrap();
+            let schedule = policy()
+                .schedule_after_failure(RetryFailureClass::TransientStore, attempt, 1_000)
+                .unwrap()
+                .unwrap();
             assert_eq!(schedule.delay_seconds, delay);
             assert_eq!(schedule.not_before, 1_000 + delay);
         }
@@ -106,9 +129,12 @@ mod tests {
 
     #[test]
     fn attempt_budget_includes_initial_execution() {
-        assert_eq!(policy().schedule_after_failure(
-            RetryFailureClass::TransientStore, 5, 1_000
-        ).unwrap(), None);
+        assert_eq!(
+            policy()
+                .schedule_after_failure(RetryFailureClass::TransientStore, 5, 1_000)
+                .unwrap(),
+            None
+        );
     }
 
     #[test]
@@ -119,31 +145,52 @@ mod tests {
             RetryFailureClass::IntegrityFailure,
             RetryFailureClass::Cancelled,
         ] {
-            assert_eq!(policy().schedule_after_failure(failure, 1, 1_000).unwrap(), None);
+            assert_eq!(
+                policy()
+                    .schedule_after_failure(failure, 1, 1_000)
+                    .unwrap(),
+                None
+            );
         }
     }
 
     #[test]
     fn invalid_attempt_counts_are_rejected() {
-        assert_eq!(policy().schedule_after_failure(
-            RetryFailureClass::TransientStore, 0, 1_000
-        ), Err(RetryPolicyError::InvalidAttemptCount));
-        assert_eq!(policy().schedule_after_failure(
-            RetryFailureClass::TransientStore, 6, 1_000
-        ), Err(RetryPolicyError::InvalidAttemptCount));
+        assert_eq!(
+            policy().schedule_after_failure(RetryFailureClass::TransientStore, 0, 1_000),
+            Err(RetryPolicyError::InvalidAttemptCount)
+        );
+        assert_eq!(
+            policy().schedule_after_failure(RetryFailureClass::TransientStore, 6, 1_000),
+            Err(RetryPolicyError::InvalidAttemptCount)
+        );
     }
 
     #[test]
     fn timestamp_overflow_fails_closed() {
-        assert_eq!(policy().schedule_after_failure(
-            RetryFailureClass::TransientStore, 1, u64::MAX
-        ), Err(RetryPolicyError::TimestampOverflow));
+        assert_eq!(
+            policy().schedule_after_failure(
+                RetryFailureClass::TransientStore,
+                1,
+                u64::MAX
+            ),
+            Err(RetryPolicyError::TimestampOverflow)
+        );
     }
 
     #[test]
     fn policy_configuration_is_hard_bounded() {
-        assert_eq!(RetryPolicy::new(11, 1, 10), Err(RetryPolicyError::InvalidConfiguration));
-        assert_eq!(RetryPolicy::new(3, 1, 3_601), Err(RetryPolicyError::InvalidConfiguration));
-        assert_eq!(RetryPolicy::new(3, 4, 3), Err(RetryPolicyError::InvalidConfiguration));
+        assert_eq!(
+            RetryPolicy::new(11, 1, 10),
+            Err(RetryPolicyError::InvalidConfiguration)
+        );
+        assert_eq!(
+            RetryPolicy::new(3, 1, 3_601),
+            Err(RetryPolicyError::InvalidConfiguration)
+        );
+        assert_eq!(
+            RetryPolicy::new(3, 4, 3),
+            Err(RetryPolicyError::InvalidConfiguration)
+        );
     }
 }
