@@ -49,8 +49,8 @@ pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, Identi
 #[cfg(any(test, feature = "dev-no-revocations"))]
 pub use identity_crypto::NoRevocations;
 pub use identity_crypto::{
-    CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError, TrustStore,
-    TrustedKey,
+    CredentialError, Ed25519CredentialVerifier, RevocationChecker, RevocationError,
+    TrustConfigError, TrustStore, TrustedKey,
 };
 pub use igacms::{
     authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical,
