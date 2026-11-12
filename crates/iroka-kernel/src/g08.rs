@@ -506,7 +506,7 @@ impl SqliteWorkflowStore {
                 let (task_id, workflow_id, task_key, state, version) =
                     row.map_err(|_| G08Error::StoreUnavailable)?;
                 receipts.push(TaskReceipt {
-                    &request.task_id,
+                    task_id,
                     workflow_id,
                     task_key,
                     state: parse_task_state(&state)?,
