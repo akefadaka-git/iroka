@@ -181,6 +181,50 @@ pub struct TaskReceipt {
     pub version: u64,
 }
 
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskClaimRequest {
+    pub tenant_selector: String,
+    pub worker_id: String,
+    /// Must be generated from a cryptographically secure RNG by the worker.
+    pub claim_nonce: [u8; 32],
+    pub lease_seconds: u64,
+    pub now: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskLeaseReceipt {
+    pub task: TaskReceipt,
+    pub worker_id: String,
+    /// Bearer capability; keep secret and rotate on every renewal.
+    pub lease_token: String,
+    pub lease_version: u64,
+    pub expires_at: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskLeaseRenewalRequest {
+    pub tenant_selector: String,
+    pub task_id: String,
+    pub worker_id: String,
+    pub lease_token: String,
+    pub expected_lease_version: u64,
+    pub lease_seconds: u64,
+    pub now: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskLeaseCompletionRequest {
+    pub tenant_selector: String,
+    pub task_id: String,
+    pub worker_id: String,
+    pub lease_token: String,
+    pub expected_lease_version: u64,
+    pub expected_task_version: u64,
+    pub next_state: TaskState,
+    pub now: u64,
+}
+
 pub struct SqliteWorkflowStore {
     connection: Mutex<Connection>,
 }
@@ -273,6 +317,15 @@ impl SqliteWorkflowStore {
                    from_version INTEGER NOT NULL,
                    to_version INTEGER NOT NULL,
                    occurred_at INTEGER NOT NULL
+                 );
+
+                 CREATE TABLE IF NOT EXISTS g08_task_leases (
+                   task_id TEXT PRIMARY KEY REFERENCES g08_tasks(task_id),
+                   worker_id TEXT NOT NULL,
+                   token_digest BLOB NOT NULL CHECK(length(token_digest)=32),
+                   lease_version INTEGER NOT NULL CHECK(lease_version > 0),
+                   claimed_at INTEGER NOT NULL,
+                   expires_at INTEGER NOT NULL CHECK(expires_at > claimed_at)
                  );
                  CREATE TRIGGER IF NOT EXISTS g08_task_events_no_update
                    BEFORE UPDATE ON g08_task_events
@@ -768,6 +821,171 @@ impl SqliteWorkflowStore {
         })
     }
 
+
+    /// Claims the oldest eligible task for this workflow owner. Expired leases are
+    /// atomically fenced by rotating the lease version and token. This SQLite
+    /// implementation is single-node; worker identity must be authenticated by a
+    /// future G01/G02-bound worker adapter before production use.
+    pub fn claim_next_task<A: TenantAuthority>(
+        &self,
+        authority: &A,
+        principal: &VerifiedPrincipal,
+        request: &TaskClaimRequest,
+    ) -> Result<Option<TaskLeaseReceipt>, G08Error> {
+        if request.worker_id.trim().is_empty()
+            || request.worker_id.len() > MAX_FIELD_LEN
+            || request.now == 0
+            || !(1..=300).contains(&request.lease_seconds)
+            || request.claim_nonce.iter().all(|byte| *byte == 0)
+        {
+            return Err(G08Error::InvalidInput);
+        }
+        let scope = authority.resolve_tenant(principal, &request.tenant_selector, request.now)?;
+        if scope.subject() != principal.subject()
+            || scope.tenant_id() != request.tenant_selector
+            || scope.resolved_at() > request.now
+            || request.now.saturating_sub(scope.resolved_at()) > 30
+        {
+            return Err(G08Error::TenantAuthorityRejected);
+        }
+        let expires_at = request.now.checked_add(request.lease_seconds)
+            .ok_or(G08Error::InvalidInput)?;
+        let mut connection = self.connection.lock().map_err(|_| G08Error::StoreUnavailable)?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let candidate: Option<(String, String, String, String, i64, Option<i64>)> = transaction.query_row(
+            "SELECT t.task_id,t.workflow_id,t.task_key,t.state,t.version,l.lease_version
+             FROM g08_tasks t
+             JOIN g08_workflows w ON w.workflow_id=t.workflow_id
+             LEFT JOIN g08_task_leases l ON l.task_id=t.task_id
+             WHERE t.tenant_id=?1 AND w.owner_subject=?2
+               AND (t.state='READY' OR (t.state='RUNNING' AND l.expires_at<=?3))
+             ORDER BY t.created_at,t.task_key LIMIT 1",
+            params![scope.tenant_id(),scope.subject(),i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?],
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?))
+        ).optional().map_err(|_| G08Error::StoreUnavailable)?;
+        let Some((task_id_value, workflow_id, task_key, state_text, task_version, prior_lease_version)) = candidate else {
+            transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+            return Ok(None);
+        };
+        let prior_state = parse_task_state(&state_text)?;
+        if !matches!(prior_state, TaskState::Ready | TaskState::Running) {
+            return Err(G08Error::IntegrityFailure);
+        }
+        let next_task_version = task_version.checked_add(1).ok_or(G08Error::IntegrityFailure)?;
+        let lease_version = prior_lease_version.unwrap_or(0).checked_add(1)
+            .ok_or(G08Error::IntegrityFailure)?;
+        let token = derive_lease_token(&task_id_value, &request.worker_id, &request.claim_nonce, request.now, lease_version);
+        let token_digest = Sha256::digest(token.as_bytes());
+        let now_i64 = i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?;
+        let expires_i64 = i64::try_from(expires_at).map_err(|_| G08Error::InvalidInput)?;
+        let next_state = TaskState::Running;
+        let changed = transaction.execute(
+            "UPDATE g08_tasks SET state='RUNNING',version=?1,updated_at=?2
+             WHERE task_id=?3 AND version=?4 AND state=?5",
+            params![next_task_version,now_i64,task_id_value,task_version,prior_state.as_str()]
+        ).map_err(|_| G08Error::StoreUnavailable)?;
+        if changed != 1 { return Err(G08Error::IntegrityFailure); }
+        let event_kind = if prior_state == TaskState::Ready { "TASK_CLAIMED" } else { "TASK_LEASE_RECLAIMED" };
+        let event_id = format!("g08_lease_evt_{}",hex_digest(&Sha256::digest(
+            format!("{task_id_value}:{next_task_version}:{request.now}:{event_kind}").as_bytes()
+        )));
+        transaction.execute(
+            "INSERT INTO g08_task_events(event_id,task_id,workflow_id,tenant_id,actor_subject,event_type,
+             from_state,to_state,from_version,to_version,occurred_at)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,'RUNNING',?8,?9,?10)",
+            params![event_id,task_id_value,workflow_id,scope.tenant_id(),scope.subject(),event_kind,
+                prior_state.as_str(),task_version,next_task_version,now_i64]
+        ).map_err(|_| G08Error::StoreUnavailable)?;
+        transaction.execute(
+            "INSERT INTO g08_task_leases(task_id,worker_id,token_digest,lease_version,claimed_at,expires_at)
+             VALUES(?1,?2,?3,?4,?5,?6)
+             ON CONFLICT(task_id) DO UPDATE SET worker_id=excluded.worker_id,
+             token_digest=excluded.token_digest,lease_version=excluded.lease_version,
+             claimed_at=excluded.claimed_at,expires_at=excluded.expires_at",
+            params![task_id_value,request.worker_id,token_digest.as_slice(),lease_version,now_i64,expires_i64]
+        ).map_err(|_| G08Error::StoreUnavailable)?;
+        transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+        Ok(Some(TaskLeaseReceipt {
+            task: TaskReceipt {
+                task_id: task_id_value,
+                workflow_id,
+                task_key,
+                state: next_state,
+                version: u64::try_from(next_task_version).map_err(|_| G08Error::IntegrityFailure)?,
+            },
+            worker_id: request.worker_id.clone(),
+            lease_token: token,
+            lease_version: u64::try_from(lease_version).map_err(|_| G08Error::IntegrityFailure)?,
+            expires_at,
+        }))
+    }
+
+    /// Renews an active lease with token rotation. Expired or superseded tokens
+    /// cannot renew; callers must claim again after expiry.
+    pub fn renew_task_lease<A: TenantAuthority>(
+        &self,
+        authority: &A,
+        principal: &VerifiedPrincipal,
+        request: &TaskLeaseRenewalRequest,
+    ) -> Result<TaskLeaseReceipt, G08Error> {
+        if request.task_id.trim().is_empty() || request.worker_id.trim().is_empty()
+            || request.lease_token.is_empty() || request.expected_lease_version == 0
+            || request.now == 0 || !(1..=300).contains(&request.lease_seconds)
+        { return Err(G08Error::InvalidInput); }
+        let scope = authority.resolve_tenant(principal,&request.tenant_selector,request.now)?;
+        if scope.subject()!=principal.subject() || scope.tenant_id()!=request.tenant_selector
+            || scope.resolved_at()>request.now || request.now.saturating_sub(scope.resolved_at())>30
+        { return Err(G08Error::TenantAuthorityRejected); }
+        let expires_at=request.now.checked_add(request.lease_seconds).ok_or(G08Error::InvalidInput)?;
+        let token_digest=Sha256::digest(request.lease_token.as_bytes());
+        let mut connection=self.connection.lock().map_err(|_|G08Error::StoreUnavailable)?;
+        let transaction=connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_|G08Error::StoreUnavailable)?;
+        let row: Option<(String,String,String,i64,i64,i64)> = transaction.query_row(
+            "SELECT t.workflow_id,t.task_key,t.state,t.version,l.lease_version,l.expires_at
+             FROM g08_tasks t JOIN g08_workflows w ON w.workflow_id=t.workflow_id
+             JOIN g08_task_leases l ON l.task_id=t.task_id
+             WHERE t.task_id=?1 AND t.tenant_id=?2 AND w.owner_subject=?3
+               AND l.worker_id=?4 AND l.token_digest=?5",
+            params![request.task_id,scope.tenant_id(),scope.subject(),request.worker_id,token_digest.as_slice()],
+            |row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?))
+        ).optional().map_err(|_|G08Error::StoreUnavailable)?;
+        let (workflow_id,task_key,state_text,task_version,lease_version,old_expiry)=row.ok_or(G08Error::TenantAuthorityRejected)?;
+        if state_text!="RUNNING" || lease_version!=i64::try_from(request.expected_lease_version).map_err(|_|G08Error::InvalidInput)?
+            || old_expiry<=i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?
+        { return Err(G08Error::TenantAuthorityRejected); }
+        let next_lease_version=lease_version.checked_add(1).ok_or(G08Error::IntegrityFailure)?;
+        let next_token=derive_rotated_lease_token(&request.lease_token,&request.task_id,request.now,next_lease_version);
+        let next_digest=Sha256::digest(next_token.as_bytes());
+        transaction.execute(
+            "UPDATE g08_task_leases SET token_digest=?1,lease_version=?2,claimed_at=?3,expires_at=?4
+             WHERE task_id=?5 AND lease_version=?6",
+            params![next_digest.as_slice(),next_lease_version,i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?,
+                i64::try_from(expires_at).map_err(|_|G08Error::InvalidInput)?,request.task_id,lease_version]
+        ).map_err(|_|G08Error::StoreUnavailable)?;
+        let event_id=format!("g08_lease_evt_{}",hex_digest(&Sha256::digest(
+            format!("{}:{}:{}:renew",request.task_id,next_lease_version,request.now).as_bytes()
+        )));
+        transaction.execute(
+            "INSERT INTO g08_task_events(event_id,task_id,workflow_id,tenant_id,actor_subject,event_type,
+             from_state,to_state,from_version,to_version,occurred_at)
+             VALUES(?1,?2,?3,?4,?5,'TASK_LEASE_RENEWED','RUNNING','RUNNING',?6,?6,?7)",
+            params![event_id,request.task_id,workflow_id,scope.tenant_id(),scope.subject(),task_version,
+                i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?]
+        ).map_err(|_|G08Error::StoreUnavailable)?;
+        transaction.commit().map_err(|_|G08Error::StoreUnavailable)?;
+        Ok(TaskLeaseReceipt {
+            task:TaskReceipt {
+                task_id:request.task_id.clone(),workflow_id,task_key,state:TaskState::Running,
+                version:u64::try_from(task_version).map_err(|_|G08Error::IntegrityFailure)?,
+            },
+            worker_id:request.worker_id.clone(),lease_token:next_token,
+            lease_version:u64::try_from(next_lease_version).map_err(|_|G08Error::IntegrityFailure)?,
+            expires_at,
+        })
+    }
+
     pub fn workflow_count(&self) -> Result<u64, G08Error> {
         let connection = self
             .connection
@@ -791,6 +1009,24 @@ impl SqliteWorkflowStore {
             .map_err(|_| G08Error::StoreUnavailable)?;
         u64::try_from(count).map_err(|_| G08Error::IntegrityFailure)
     }
+}
+
+
+fn derive_lease_token(task_id: &str, worker_id: &str, nonce: &[u8;32], now: u64, lease_version: i64) -> String {
+    let mut hash=Sha256::new();
+    hash.update(b"IROKA:G08:LEASE:CLAIM:V1\\0");
+    hash.update(task_id.as_bytes()); hash.update([0]);
+    hash.update(worker_id.as_bytes()); hash.update([0]);
+    hash.update(nonce); hash.update(now.to_be_bytes()); hash.update(lease_version.to_be_bytes());
+    hex_digest(&hash.finalize())
+}
+
+fn derive_rotated_lease_token(old_token: &str, task_id: &str, now: u64, lease_version: i64) -> String {
+    let mut hash=Sha256::new();
+    hash.update(b"IROKA:G08:LEASE:RENEW:V1\\0");
+    hash.update(old_token.as_bytes()); hash.update(task_id.as_bytes());
+    hash.update(now.to_be_bytes()); hash.update(lease_version.to_be_bytes());
+    hex_digest(&hash.finalize())
 }
 
 fn parse_task_state(value: &str) -> Result<TaskState, G08Error> {
@@ -1100,6 +1336,56 @@ mod tests {
             Err(G08Error::TenantAuthorityRejected)
         );
         assert_eq!(store.workflow_count().unwrap(), 0);
+    }
+
+
+    #[test]
+    fn task_claim_is_atomic_and_expired_lease_is_fenced_on_reclaim() {
+        let store=SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority=TestAuthority{tenant_id:"tenant:test".into(),resolved_at:1_800_000_000};
+        let workflow=store.create_workflow(&authority,&principal(),&request()).unwrap();
+        let tasks=[TaskSpec{task_key:"first".into(),task_type:"compute".into(),depends_on:vec![]}];
+        let created=store.create_task_graph(&authority,&principal(),"tenant:test",&workflow.workflow_id,&tasks,1_800_000_000).unwrap();
+        let first=store.claim_next_task(&authority,&principal(),&TaskClaimRequest{
+            tenant_selector:"tenant:test".into(),worker_id:"worker-a".into(),claim_nonce:[1;32],lease_seconds:10,now:1_800_000_001
+        }).unwrap().unwrap();
+        assert_eq!(first.task.task_id,created[0].task_id);
+        assert_eq!(first.task.state,TaskState::Running);
+        assert!(store.claim_next_task(&authority,&principal(),&TaskClaimRequest{
+            tenant_selector:"tenant:test".into(),worker_id:"worker-b".into(),claim_nonce:[2;32],lease_seconds:10,now:1_800_000_002
+        }).unwrap().is_none());
+        let reclaimed=store.claim_next_task(&authority,&principal(),&TaskClaimRequest{
+            tenant_selector:"tenant:test".into(),worker_id:"worker-b".into(),claim_nonce:[3;32],lease_seconds:10,now:1_800_000_012
+        }).unwrap().unwrap();
+        assert_eq!(reclaimed.lease_version,2);
+        assert_ne!(first.lease_token,reclaimed.lease_token);
+        let connection=store.connection.lock().unwrap();
+        let events:i64=connection.query_row(
+            "SELECT COUNT(*) FROM g08_task_events WHERE event_type='TASK_LEASE_RECLAIMED'",[],|row|row.get(0)
+        ).unwrap();
+        assert_eq!(events,1);
+    }
+
+    #[test]
+    fn lease_renewal_rotates_token_and_rejects_old_token() {
+        let store=SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority=TestAuthority{tenant_id:"tenant:test".into(),resolved_at:1_800_000_000};
+        let workflow=store.create_workflow(&authority,&principal(),&request()).unwrap();
+        store.create_task_graph(&authority,&principal(),"tenant:test",&workflow.workflow_id,
+            &[TaskSpec{task_key:"first".into(),task_type:"compute".into(),depends_on:vec![]}],1_800_000_000).unwrap();
+        let claim=store.claim_next_task(&authority,&principal(),&TaskClaimRequest{
+            tenant_selector:"tenant:test".into(),worker_id:"worker-a".into(),claim_nonce:[4;32],lease_seconds:10,now:1_800_000_001
+        }).unwrap().unwrap();
+        let renewed=store.renew_task_lease(&authority,&principal(),&TaskLeaseRenewalRequest{
+            tenant_selector:"tenant:test".into(),task_id:claim.task.task_id.clone(),worker_id:"worker-a".into(),
+            lease_token:claim.lease_token.clone(),expected_lease_version:1,lease_seconds:20,now:1_800_000_005
+        }).unwrap();
+        assert_eq!(renewed.lease_version,2);
+        assert_ne!(renewed.lease_token,claim.lease_token);
+        assert_eq!(store.renew_task_lease(&authority,&principal(),&TaskLeaseRenewalRequest{
+            tenant_selector:"tenant:test".into(),task_id:claim.task.task_id,worker_id:"worker-a".into(),
+            lease_token:claim.lease_token,expected_lease_version:1,lease_seconds:20,now:1_800_000_006
+        }),Err(G08Error::TenantAuthorityRejected));
     }
 
     #[test]
