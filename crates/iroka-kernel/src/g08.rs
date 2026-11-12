@@ -1098,4 +1098,175 @@ mod tests {
         );
         assert_eq!(store.workflow_count().unwrap(), 0);
     }
+
+    #[test]
+    fn task_graph_rejects_cycles_missing_dependencies_and_duplicate_keys() {
+        let cycle = [
+            TaskSpec {
+                task_key: "a".into(),
+                task_type: "compute".into(),
+                depends_on: vec!["b".into()],
+            },
+            TaskSpec {
+                task_key: "b".into(),
+                task_type: "compute".into(),
+                depends_on: vec!["a".into()],
+            },
+        ];
+        assert_eq!(validate_and_digest_graph(&cycle), Err(G08Error::InvalidInput));
+
+        let missing = [TaskSpec {
+            task_key: "a".into(),
+            task_type: "compute".into(),
+            depends_on: vec!["unknown".into()],
+        }];
+        assert_eq!(validate_and_digest_graph(&missing), Err(G08Error::InvalidInput));
+
+        let duplicate = [
+            TaskSpec {
+                task_key: "a".into(),
+                task_type: "compute".into(),
+                depends_on: vec![],
+            },
+            TaskSpec {
+                task_key: "a".into(),
+                task_type: "compute".into(),
+                depends_on: vec![],
+            },
+        ];
+        assert_eq!(validate_and_digest_graph(&duplicate), Err(G08Error::InvalidInput));
+    }
+
+    #[test]
+    fn task_graph_digest_is_independent_of_input_order() {
+        let first = [
+            TaskSpec {
+                task_key: "a".into(),
+                task_type: "source".into(),
+                depends_on: vec![],
+            },
+            TaskSpec {
+                task_key: "b".into(),
+                task_type: "transform".into(),
+                depends_on: vec!["a".into()],
+            },
+        ];
+        let second = [
+            TaskSpec {
+                task_key: "b".into(),
+                task_type: "transform".into(),
+                depends_on: vec!["a".into()],
+            },
+            TaskSpec {
+                task_key: "a".into(),
+                task_type: "source".into(),
+                depends_on: vec![],
+            },
+        ];
+        assert_eq!(
+            validate_and_digest_graph(&first).unwrap(),
+            validate_and_digest_graph(&second).unwrap()
+        );
+    }
+
+    #[test]
+    fn task_graph_is_idempotent_and_dependency_unlock_is_audited() {
+        let store = SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority = TestAuthority {
+            tenant_id: "tenant:test".into(),
+            resolved_at: 1_800_000_000,
+        };
+        let workflow = store
+            .create_workflow(&authority, &principal(), &request())
+            .unwrap();
+        let tasks = [
+            TaskSpec {
+                task_key: "source".into(),
+                task_type: "source.fetch".into(),
+                depends_on: vec![],
+            },
+            TaskSpec {
+                task_key: "transform".into(),
+                task_type: "data.transform".into(),
+                depends_on: vec!["source".into()],
+            },
+        ];
+        let created = store
+            .create_task_graph(
+                &authority,
+                &principal(),
+                "tenant:test",
+                &workflow.workflow_id,
+                &tasks,
+                1_800_000_000,
+            )
+            .unwrap();
+        assert_eq!(created.len(), 2);
+        assert_eq!(
+            created.iter().find(|task| task.task_key == "source").unwrap().state,
+            TaskState::Ready
+        );
+        assert_eq!(
+            created.iter().find(|task| task.task_key == "transform").unwrap().state,
+            TaskState::Blocked
+        );
+        let replay = store
+            .create_task_graph(
+                &authority,
+                &principal(),
+                "tenant:test",
+                &workflow.workflow_id,
+                &tasks,
+                1_800_000_001,
+            )
+            .unwrap();
+        assert_eq!(created, replay);
+
+        let source = created.iter().find(|task| task.task_key == "source").unwrap();
+        store
+            .transition_task(
+                &authority,
+                &principal(),
+                &TaskTransitionRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: source.task_id.clone(),
+                    expected_version: 1,
+                    next_state: TaskState::Running,
+                    now: 1_800_000_002,
+                },
+            )
+            .unwrap();
+        store
+            .transition_task(
+                &authority,
+                &principal(),
+                &TaskTransitionRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: source.task_id.clone(),
+                    expected_version: 2,
+                    next_state: TaskState::Succeeded,
+                    now: 1_800_000_003,
+                },
+            )
+            .unwrap();
+
+        let connection = store.connection.lock().unwrap();
+        let (state, version): (String, i64) = connection
+            .query_row(
+                "SELECT state, version FROM g08_tasks WHERE workflow_id=?1 AND task_key='transform'",
+                params![workflow.workflow_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(state, "READY");
+        assert_eq!(version, 2);
+        let unblock_events: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM g08_task_events WHERE event_type='TASK_UNBLOCKED'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(unblock_events, 1);
+    }
 }
