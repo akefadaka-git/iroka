@@ -530,7 +530,7 @@ impl PostgresG11OutboxWorker {
                 "UPDATE g05_memory_g11_outbox
                  SET delivered_at=$4,acknowledgment_sha256=$5,
                      lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,last_error_code=NULL
-                 WHERE event_id=$1 AND lease_owner=$2 AND lease_token=$3::uuid
+                 WHERE event_id=$1 AND lease_owner=$2 AND lease_token::text=$3
                    AND delivered_at IS NULL AND lease_expires_at > clock_timestamp()",
                 &[
                     &claim.event.event_id,
@@ -576,7 +576,7 @@ impl PostgresG11OutboxWorker {
                  SET next_attempt_at=CASE WHEN $4 THEN 'infinity'::timestamptz
                      ELSE clock_timestamp()+($5 * interval '1 second') END,
                      last_error_code=$6,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL
-                 WHERE event_id=$1 AND lease_owner=$2 AND lease_token=$3::uuid
+                 WHERE event_id=$1 AND lease_owner=$2 AND lease_token::text=$3
                    AND delivered_at IS NULL AND lease_expires_at > clock_timestamp()",
                 &[
                     &claim.event.event_id,
