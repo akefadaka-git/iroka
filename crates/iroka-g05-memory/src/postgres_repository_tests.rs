@@ -170,6 +170,7 @@ mod postgres_tests {
         let mut handles = Vec::new();
         for writer_number in 0..2 {
             let url = url.clone();
+            let suffix = suffix.clone();
             let barrier = barrier.clone();
             let mut next = initial.clone();
             next.lifecycle_state = LifecycleState::PendingAudit;
