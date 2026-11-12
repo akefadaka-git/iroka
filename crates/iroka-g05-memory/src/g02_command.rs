@@ -251,7 +251,7 @@ impl PostgresG02Authority {
 
         match &p.action {
             OwnerCommandAction::PublishPolicy { policy_id,epoch,policy_version,issued_at,expires_at,canonical_payload,payload_sha256,policy_signature } => {
-                if policy_id.trim().is_empty() || *epoch == 0 || canonical_payload.is_empty() || canonical_payload.len()>MAX_PAYLOAD_BYTES
+                if policy_id.trim().is_empty() || policy_version.trim().is_empty() || *epoch == 0 || canonical_payload.is_empty() || canonical_payload.len()>MAX_PAYLOAD_BYTES
                     || *expires_at<=*issued_at || *issued_at>now.saturating_add(30)
                     || hex(&Sha256::digest(canonical_payload)) != payload_sha256.to_ascii_lowercase()
                 { return Err(G02AuthorityError::Malformed); }
@@ -274,7 +274,20 @@ impl PostgresG02Authority {
             }
             OwnerCommandAction::SetEmergencyStop { active,version,reason_code } => {
                 if *version==0 || reason_code.trim().is_empty() { return Err(G02AuthorityError::Malformed); }
-                let changed=tx.execute("INSERT INTO g02_emergency_stop(singleton,active,version,reason_code,changed_by_command_id,changed_at) VALUES(TRUE,$1,$2,$3,$4,$5) ON CONFLICT(singleton) DO UPDATE SET active=EXCLUDED.active,version=EXCLUDED.version,reason_code=EXCLUDED.reason_code,changed_by_command_id=EXCLUDED.changed_by_command_id,changed_at=EXCLUDED.changed_at WHERE g02_emergency_stop.version < EXCLUDED.version",
+                let current=tx.query_opt("SELECT active,version FROM g02_emergency_stop WHERE singleton=TRUE FOR UPDATE", &[])
+                    .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                match current {
+                    None if *version != 1 => return Err(G02AuthorityError::VersionConflict),
+                    None => {},
+                    Some(row) => {
+                        let old_active: bool = row.get(0);
+                        let old_version: i64 = row.get(1);
+                        if *active == old_active || *version != (old_version as u64).saturating_add(1) {
+                            return Err(G02AuthorityError::InvalidTransition);
+                        }
+                    }
+                }
+                let changed=tx.execute("INSERT INTO g02_emergency_stop(singleton,active,version,reason_code,changed_by_command_id,changed_at) VALUES(TRUE,$1,$2,$3,$4,$5)",
                     &[active,&to_i64(*version)?,reason_code,&p.command_id,&to_i64(now)?]).map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
                 if changed!=1 { return Err(G02AuthorityError::VersionConflict); }
             }
