@@ -158,7 +158,6 @@ fn postgres_g02_revoked_owner_key_is_rejected_for_new_policy_verification() {
     let policy_signer=SigningKey::from_bytes(&[84u8;32]);
     let revoker=SigningKey::from_bytes(&[85u8;32]);
     let policy_id=unique("revoked-policy");
-    let auth=verifier(&url,&policy_signer,"policy-key");
     let revocation=command(&revoker,"revoker-key",&unique("revoke-key"),G02SecurityAction::RevokeSigningKey{
         issuer:"iroka:owner-authority".into(),key_id:"policy-key".into(),reason:"compromise".into()
     });
