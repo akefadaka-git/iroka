@@ -10,7 +10,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{CheckpointError, CheckpointPayload, SignedCheckpoint};
+use crate::SignedCheckpoint;
 
 const WITNESS_DOMAIN: &[u8] = b"IROKA:G11:WITNESS-RECEIPT:V1\0";
 const RETENTION_DOMAIN: &[u8] = b"IROKA:G11:RETENTION-RECEIPT:V1\0";
@@ -176,6 +176,14 @@ impl CheckpointSegmentManifest {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct CheckpointChainPosition<'a> {
+    pub stream_id: &'a str,
+    pub sequence: u64,
+    pub previous_digest: Option<&'a str>,
+    pub previous_sequence: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct CheckpointPackage {
@@ -186,27 +194,24 @@ pub struct CheckpointPackage {
 impl CheckpointPackage {
     pub fn validate(
         &self,
-        expected_stream: &str,
-        expected_sequence: u64,
-        expected_previous_digest: Option<&str>,
-        previous_sequence: u64,
+        position: &CheckpointChainPosition<'_>,
     ) -> Result<(), CheckpointQuorumError> {
         self.manifest.validate_shape()?;
         self.checkpoint.payload.validate().map_err(|_| CheckpointQuorumError::Malformed)?;
-        if self.checkpoint.payload.stream_id != expected_stream
-            || self.manifest.stream_id != expected_stream
+        if self.checkpoint.payload.stream_id != position.stream_id
+            || self.manifest.stream_id != position.stream_id
         {
             return Err(CheckpointQuorumError::StreamMismatch);
         }
-        if self.checkpoint.payload.sequence != expected_sequence
-            || self.manifest.last_sequence != expected_sequence
-            || self.manifest.first_sequence != previous_sequence.saturating_add(1)
-            || self.manifest.entry_count != expected_sequence.saturating_sub(previous_sequence)
+        if self.checkpoint.payload.sequence != position.sequence
+            || self.manifest.last_sequence != position.sequence
+            || self.manifest.first_sequence != position.previous_sequence.saturating_add(1)
+            || self.manifest.entry_count != position.sequence.saturating_sub(position.previous_sequence)
         {
             return Err(CheckpointQuorumError::SequenceMismatch);
         }
-        if self.checkpoint.payload.previous_checkpoint_digest.as_deref() != expected_previous_digest
-            || self.manifest.previous_checkpoint_digest.as_deref() != expected_previous_digest
+        if self.checkpoint.payload.previous_checkpoint_digest.as_deref() != position.previous_digest
+            || self.manifest.previous_checkpoint_digest.as_deref() != position.previous_digest
         {
             return Err(CheckpointQuorumError::PreviousCheckpointMismatch);
         }
@@ -369,13 +374,10 @@ pub fn publish_checkpoint_package(
     witness_providers: &[&dyn CheckpointWitnessProvider],
     retention_providers: &[&dyn ImmutableRetentionProvider],
     policy: &CheckpointQuorumPolicy,
-    expected_stream: &str,
-    expected_sequence: u64,
-    expected_previous_digest: Option<&str>,
-    previous_sequence: u64,
+    position: &CheckpointChainPosition<'_>,
     now: u64,
 ) -> Result<ExternallyAnchoredCheckpoint, CheckpointQuorumError> {
-    package.validate(expected_stream, expected_sequence, expected_previous_digest, previous_sequence)?;
+    package.validate(position)?;
     if witness_providers.len() != 3 || retention_providers.len() != 2 {
         return Err(CheckpointQuorumError::InvalidPolicy);
     }
@@ -401,10 +403,7 @@ pub fn publish_checkpoint_package(
     verify_externally_anchored_checkpoint(
         &anchored,
         policy,
-        expected_stream,
-        expected_sequence,
-        expected_previous_digest,
-        previous_sequence,
+        position,
         now,
     )?;
     Ok(anchored)
@@ -415,18 +414,10 @@ pub fn publish_checkpoint_package(
 pub fn verify_externally_anchored_checkpoint(
     anchored: &ExternallyAnchoredCheckpoint,
     policy: &CheckpointQuorumPolicy,
-    expected_stream: &str,
-    expected_sequence: u64,
-    expected_previous_digest: Option<&str>,
-    previous_sequence: u64,
+    position: &CheckpointChainPosition<'_>,
     now: u64,
 ) -> Result<(), CheckpointQuorumError> {
-    anchored.package.validate(
-        expected_stream,
-        expected_sequence,
-        expected_previous_digest,
-        previous_sequence,
-    )?;
+    anchored.package.validate(position)?;
     verify_checkpoint_signer(&anchored.package.checkpoint, policy, now)?;
     verify_witness_quorum(&anchored.package, &anchored.witness_receipts, policy, now)?;
     verify_retention_quorum(
@@ -578,6 +569,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::CheckpointPayload;
     use ed25519_dalek::{Signer, SigningKey};
 
     struct LocalWitness {
@@ -726,6 +718,13 @@ mod tests {
     #[test]
     fn enforces_two_of_three_witnesses_and_both_immutable_domains() {
         let (package, policy, witnesses, retention, _) = fixture();
+        let previous_digest = "a".repeat(64);
+        let position = CheckpointChainPosition {
+            stream_id: "g11:memory",
+            sequence: 7,
+            previous_digest: Some(&previous_digest),
+            previous_sequence: 5,
+        };
         let failing = FailingWitness;
         let witness_refs: Vec<&dyn CheckpointWitnessProvider> = vec![
             &witnesses[0],
@@ -739,20 +738,14 @@ mod tests {
             &witness_refs,
             &retention_refs,
             &policy,
-            "g11:memory",
-            7,
-            Some(&"a".repeat(64)),
-            5,
+            &position,
             1_803,
         );
         let anchored = anchored.unwrap();
         verify_externally_anchored_checkpoint(
             &anchored,
             &policy,
-            "g11:memory",
-            7,
-            Some(&"a".repeat(64)),
-            5,
+            &position,
             1_803,
         ).unwrap();
     }
