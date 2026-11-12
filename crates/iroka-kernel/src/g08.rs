@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::{Digest, Sha256};
 
-use crate::VerifiedPrincipal;
+use crate::{RetryFailureClass, RetryPolicy, RetryPolicyError, RetrySchedule, VerifiedPrincipal};
 
 const MAX_FIELD_LEN: usize = 256;
 const MAX_PAYLOAD_DIGEST_LEN: usize = 32;
@@ -224,6 +224,28 @@ pub struct TaskLeaseCompletionRequest {
     pub now: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskRetryRequest {
+    pub tenant_selector: String,
+    pub task_id: String,
+    pub failure: RetryFailureClass,
+    pub now: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkflowCancellationRequest {
+    pub tenant_selector: String,
+    pub workflow_id: String,
+    pub now: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkflowCancellationReceipt {
+    pub workflow_id: String,
+    pub cancelled_tasks: u64,
+    pub idempotent_replay: bool,
+}
+
 pub struct SqliteWorkflowStore {
     connection: Mutex<Connection>,
 }
@@ -326,6 +348,24 @@ impl SqliteWorkflowStore {
                    claimed_at INTEGER NOT NULL,
                    expires_at INTEGER NOT NULL CHECK(expires_at > claimed_at)
                  );
+                 CREATE TABLE IF NOT EXISTS g08_task_retry_state (
+                   task_id TEXT PRIMARY KEY REFERENCES g08_tasks(task_id),
+                   attempts_completed INTEGER NOT NULL DEFAULT 0 CHECK(attempts_completed >= 0),
+                   not_before INTEGER,
+                   last_failure TEXT
+                 );
+                 CREATE TABLE IF NOT EXISTS g08_workflow_cancellations (
+                   workflow_id TEXT PRIMARY KEY REFERENCES g08_workflows(workflow_id),
+                   tenant_id TEXT NOT NULL,
+                   actor_subject TEXT NOT NULL,
+                   cancelled_at INTEGER NOT NULL
+                 );
+                 CREATE TRIGGER IF NOT EXISTS g08_workflow_cancellations_no_update
+                   BEFORE UPDATE ON g08_workflow_cancellations
+                   BEGIN SELECT RAISE(ABORT,'immutable G08 cancellation record'); END;
+                 CREATE TRIGGER IF NOT EXISTS g08_workflow_cancellations_no_delete
+                   BEFORE DELETE ON g08_workflow_cancellations
+                   BEGIN SELECT RAISE(ABORT,'immutable G08 cancellation record'); END;
                  CREATE TRIGGER IF NOT EXISTS g08_task_events_no_update
                    BEFORE UPDATE ON g08_task_events
                    BEGIN SELECT RAISE(ABORT,'append-only G08 task events'); END;
@@ -523,6 +563,16 @@ impl SqliteWorkflowStore {
         if owner.as_deref() != Some(scope.subject()) {
             return Err(G08Error::TenantAuthorityRejected);
         }
+        let cancelled: bool = transaction
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM g08_workflow_cancellations WHERE workflow_id=?1)",
+                params![workflow_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        if cancelled {
+            return Err(G08Error::TenantAuthorityRejected);
+        }
         let existing: Option<Vec<u8>> = transaction
             .query_row(
                 "SELECT graph_digest FROM g08_task_graphs WHERE workflow_id=?1",
@@ -602,6 +652,12 @@ impl SqliteWorkflowStore {
                         state.as_str(),
                         i64::try_from(now).map_err(|_| G08Error::InvalidInput)?
                     ],
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
+            transaction
+                .execute(
+                    "INSERT INTO g08_task_retry_state(task_id,attempts_completed) VALUES(?1,0)",
+                    params![task_id],
                 )
                 .map_err(|_| G08Error::StoreUnavailable)?;
             receipts.push(TaskReceipt {
@@ -873,8 +929,12 @@ impl SqliteWorkflowStore {
              FROM g08_tasks t
              JOIN g08_workflows w ON w.workflow_id=t.workflow_id
              LEFT JOIN g08_task_leases l ON l.task_id=t.task_id
+             LEFT JOIN g08_task_retry_state r ON r.task_id=t.task_id
              WHERE t.tenant_id=?1 AND w.owner_subject=?2
-               AND (t.state='READY' OR (t.state='RUNNING' AND l.expires_at<=?3))
+               AND NOT EXISTS (SELECT 1 FROM g08_workflow_cancellations c WHERE c.workflow_id=t.workflow_id)
+               AND (t.state='READY'
+                    OR (t.state='RUNNING' AND l.expires_at<=?3)
+                    OR (t.state='FAILED' AND r.not_before IS NOT NULL AND r.not_before<=?3))
              ORDER BY t.created_at,t.task_key LIMIT 1",
                 params![
                     scope.tenant_id(),
@@ -909,7 +969,7 @@ impl SqliteWorkflowStore {
             return Ok(None);
         };
         let prior_state = parse_task_state(&state_text)?;
-        if !matches!(prior_state, TaskState::Ready | TaskState::Running) {
+        if !matches!(prior_state, TaskState::Ready | TaskState::Running | TaskState::Failed) {
             return Err(G08Error::IntegrityFailure);
         }
         let next_task_version = task_version
@@ -946,10 +1006,11 @@ impl SqliteWorkflowStore {
         if changed != 1 {
             return Err(G08Error::IntegrityFailure);
         }
-        let event_kind = if prior_state == TaskState::Ready {
-            "TASK_CLAIMED"
-        } else {
-            "TASK_LEASE_RECLAIMED"
+        let event_kind = match prior_state {
+            TaskState::Ready => "TASK_CLAIMED",
+            TaskState::Running => "TASK_LEASE_RECLAIMED",
+            TaskState::Failed => "TASK_RETRY_CLAIMED",
+            _ => return Err(G08Error::IntegrityFailure),
         };
         let event_id = format!(
             "g08_lease_evt_{}",
@@ -975,6 +1036,12 @@ impl SqliteWorkflowStore {
              token_digest=excluded.token_digest,lease_version=excluded.lease_version,
              claimed_at=excluded.claimed_at,expires_at=excluded.expires_at",
             params![task_id_value,request.worker_id,token_digest.as_slice(),lease_version,now_i64,expires_i64]
+        ).map_err(|_| G08Error::StoreUnavailable)?;
+        transaction.execute(
+            "INSERT INTO g08_task_retry_state(task_id,attempts_completed) VALUES(?1,1)
+             ON CONFLICT(task_id) DO UPDATE SET
+               attempts_completed=attempts_completed+1,not_before=NULL,last_failure=NULL",
+            params![task_id_value]
         ).map_err(|_| G08Error::StoreUnavailable)?;
         transaction
             .commit()
@@ -1315,6 +1382,254 @@ impl SqliteWorkflowStore {
         })
     }
 
+    /// Persists a retry decision after a worker reports a failed attempt.
+    /// The task remains FAILED until its persisted not-before time is reached.
+    pub fn schedule_task_retry<A: TenantAuthority>(
+        &self,
+        authority: &A,
+        principal: &VerifiedPrincipal,
+        request: &TaskRetryRequest,
+        policy: RetryPolicy,
+    ) -> Result<Option<RetrySchedule>, G08Error> {
+        if request.task_id.trim().is_empty() || request.now == 0 {
+            return Err(G08Error::InvalidInput);
+        }
+        let scope = authority.resolve_tenant(principal, &request.tenant_selector, request.now)?;
+        if scope.subject() != principal.subject()
+            || scope.tenant_id() != request.tenant_selector
+            || scope.resolved_at() > request.now
+            || request.now.saturating_sub(scope.resolved_at()) > 30
+        {
+            return Err(G08Error::TenantAuthorityRejected);
+        }
+        let mut connection = self.connection.lock().map_err(|_| G08Error::StoreUnavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let row: Option<(String, i64)> = transaction
+            .query_row(
+                "SELECT t.state,r.attempts_completed
+                 FROM g08_tasks t
+                 JOIN g08_workflows w ON w.workflow_id=t.workflow_id
+                 JOIN g08_task_retry_state r ON r.task_id=t.task_id
+                 WHERE t.task_id=?1 AND t.tenant_id=?2 AND w.owner_subject=?3
+                   AND NOT EXISTS (SELECT 1 FROM g08_workflow_cancellations c WHERE c.workflow_id=t.workflow_id)",
+                params![request.task_id, scope.tenant_id(), scope.subject()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let (state, attempts) = row.ok_or(G08Error::TenantAuthorityRejected)?;
+        if state != "FAILED" || attempts <= 0 {
+            return Err(G08Error::IntegrityFailure);
+        }
+        let attempts = u32::try_from(attempts).map_err(|_| G08Error::IntegrityFailure)?;
+        let schedule = policy
+            .schedule_after_failure(request.failure, attempts, request.now)
+            .map_err(|error| match error {
+                RetryPolicyError::TimestampOverflow => G08Error::InvalidInput,
+                RetryPolicyError::InvalidConfiguration | RetryPolicyError::InvalidAttemptCount => {
+                    G08Error::IntegrityFailure
+                }
+            })?;
+        let not_before = schedule
+            .map(|value| i64::try_from(value.not_before).map_err(|_| G08Error::InvalidInput))
+            .transpose()?;
+        let failure_name = retry_failure_name(request.failure);
+        transaction
+            .execute(
+                "UPDATE g08_task_retry_state SET not_before=?1,last_failure=?2 WHERE task_id=?3",
+                params![not_before, failure_name, request.task_id],
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let task: (String, String, i64) = transaction
+            .query_row(
+                "SELECT workflow_id,task_key,version FROM g08_tasks WHERE task_id=?1",
+                params![request.task_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let event_type = if schedule.is_some() {
+            "TASK_RETRY_SCHEDULED"
+        } else {
+            "TASK_RETRY_EXHAUSTED"
+        };
+        let event_id = format!(
+            "g08_retry_evt_{}",
+            hex_digest(&Sha256::digest(
+                format!("{}:{}:{}:{}", request.task_id, attempts, request.now, event_type).as_bytes()
+            ))
+        );
+        transaction
+            .execute(
+                "INSERT INTO g08_task_events(event_id,task_id,workflow_id,tenant_id,actor_subject,
+                 event_type,from_state,to_state,from_version,to_version,occurred_at)
+                 VALUES(?1,?2,?3,?4,?5,?6,'FAILED','FAILED',?7,?7,?8)",
+                params![
+                    event_id,
+                    request.task_id,
+                    task.0,
+                    scope.tenant_id(),
+                    scope.subject(),
+                    event_type,
+                    task.2,
+                    i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?
+                ],
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+        Ok(schedule)
+    }
+
+    /// Cancels all nonterminal tasks and invalidates every active lease in one
+    /// transaction. A durable immutable cancellation marker fences later claims.
+    pub fn cancel_workflow<A: TenantAuthority>(
+        &self,
+        authority: &A,
+        principal: &VerifiedPrincipal,
+        request: &WorkflowCancellationRequest,
+    ) -> Result<WorkflowCancellationReceipt, G08Error> {
+        if request.workflow_id.trim().is_empty() || request.now == 0 {
+            return Err(G08Error::InvalidInput);
+        }
+        let scope = authority.resolve_tenant(principal, &request.tenant_selector, request.now)?;
+        if scope.subject() != principal.subject()
+            || scope.tenant_id() != request.tenant_selector
+            || scope.resolved_at() > request.now
+            || request.now.saturating_sub(scope.resolved_at()) > 30
+        {
+            return Err(G08Error::TenantAuthorityRejected);
+        }
+        let mut connection = self.connection.lock().map_err(|_| G08Error::StoreUnavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let owner: Option<String> = transaction
+            .query_row(
+                "SELECT owner_subject FROM g08_workflows WHERE workflow_id=?1 AND tenant_id=?2",
+                params![request.workflow_id, scope.tenant_id()],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        if owner.as_deref() != Some(scope.subject()) {
+            return Err(G08Error::TenantAuthorityRejected);
+        }
+        let existing: bool = transaction
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM g08_workflow_cancellations WHERE workflow_id=?1)",
+                params![request.workflow_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        if existing {
+            let count: i64 = transaction
+                .query_row(
+                    "SELECT COUNT(*) FROM g08_task_events WHERE workflow_id=?1 AND event_type='TASK_CANCELLED'",
+                    params![request.workflow_id],
+                    |row| row.get(0),
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
+            transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+            return Ok(WorkflowCancellationReceipt {
+                workflow_id: request.workflow_id.clone(),
+                cancelled_tasks: u64::try_from(count).map_err(|_| G08Error::IntegrityFailure)?,
+                idempotent_replay: true,
+            });
+        }
+        transaction
+            .execute(
+                "INSERT INTO g08_workflow_cancellations(workflow_id,tenant_id,actor_subject,cancelled_at)
+                 VALUES(?1,?2,?3,?4)",
+                params![
+                    request.workflow_id,
+                    scope.tenant_id(),
+                    scope.subject(),
+                    i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?
+                ],
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let active = {
+            let mut statement = transaction
+                .prepare(
+                    "SELECT task_id,state,version FROM g08_tasks
+                     WHERE workflow_id=?1 AND state IN ('BLOCKED','READY','RUNNING','FAILED')
+                     ORDER BY task_id",
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
+            let rows = statement
+                .query_map(params![request.workflow_id], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                })
+                .map_err(|_| G08Error::StoreUnavailable)?;
+            let mut values = Vec::new();
+            for row in rows {
+                values.push(row.map_err(|_| G08Error::StoreUnavailable)?);
+            }
+            values
+        };
+        for (task_id_value, state_text, version) in &active {
+            let state = parse_task_state(state_text)?;
+            let next_version = version.checked_add(1).ok_or(G08Error::IntegrityFailure)?;
+            let changed = transaction
+                .execute(
+                    "UPDATE g08_tasks SET state='CANCELLED',version=?1,updated_at=?2
+                     WHERE task_id=?3 AND state=?4 AND version=?5",
+                    params![
+                        next_version,
+                        i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?,
+                        task_id_value,
+                        state.as_str(),
+                        version
+                    ],
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
+            if changed != 1 {
+                return Err(G08Error::IntegrityFailure);
+            }
+            transaction
+                .execute(
+                    "DELETE FROM g08_task_leases WHERE task_id=?1",
+                    params![task_id_value],
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
+            let event_id = format!(
+                "g08_cancel_evt_{}",
+                hex_digest(&Sha256::digest(
+                    format!("{}:{}:{}", task_id_value, next_version, request.now).as_bytes()
+                ))
+            );
+            transaction
+                .execute(
+                    "INSERT INTO g08_task_events(event_id,task_id,workflow_id,tenant_id,actor_subject,
+                     event_type,from_state,to_state,from_version,to_version,occurred_at)
+                     VALUES(?1,?2,?3,?4,?5,'TASK_CANCELLED',?6,'CANCELLED',?7,?8,?9)",
+                    params![
+                        event_id,
+                        task_id_value,
+                        request.workflow_id,
+                        scope.tenant_id(),
+                        scope.subject(),
+                        state.as_str(),
+                        version,
+                        next_version,
+                        i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?
+                    ],
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
+        }
+        transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+        Ok(WorkflowCancellationReceipt {
+            workflow_id: request.workflow_id.clone(),
+            cancelled_tasks: u64::try_from(active.len()).map_err(|_| G08Error::IntegrityFailure)?,
+            idempotent_replay: false,
+        })
+    }
+
     pub fn workflow_count(&self) -> Result<u64, G08Error> {
         let connection = self
             .connection
@@ -1372,6 +1687,18 @@ fn derive_rotated_lease_token(
     hash.update(now.to_be_bytes());
     hash.update(lease_version.to_be_bytes());
     hex_digest(&hash.finalize())
+}
+
+fn retry_failure_name(failure: RetryFailureClass) -> &'static str {
+    match failure {
+        RetryFailureClass::TransientStore => "TRANSIENT_STORE",
+        RetryFailureClass::WorkerUnavailable => "WORKER_UNAVAILABLE",
+        RetryFailureClass::LeaseExpired => "LEASE_EXPIRED",
+        RetryFailureClass::InvalidInput => "INVALID_INPUT",
+        RetryFailureClass::AuthorityRejected => "AUTHORITY_REJECTED",
+        RetryFailureClass::IntegrityFailure => "INTEGRITY_FAILURE",
+        RetryFailureClass::Cancelled => "CANCELLED",
+    }
 }
 
 fn parse_task_state(value: &str) -> Result<TaskState, G08Error> {
