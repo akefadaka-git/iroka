@@ -3055,4 +3055,285 @@ mod tests {
             .unwrap();
         assert_eq!(unblock_events, 1);
     }
+
+    struct TestWorkerClock(u64);
+    impl TrustedClock for TestWorkerClock {
+        fn now_unix_seconds(&self) -> Result<u64, crate::TrustedTimeError> {
+            Ok(self.0)
+        }
+    }
+
+    #[derive(Default)]
+    struct TestWorkerReplayGuard(
+        std::sync::Mutex<std::collections::HashMap<(String, String), u64>>,
+    );
+    impl crate::WorkerReplayGuard for TestWorkerReplayGuard {
+        fn consume_sequence(
+            &self,
+            worker_id: &str,
+            key_id: &str,
+            sequence: u64,
+        ) -> Result<(), crate::WorkerReplayError> {
+            let mut sequences = self
+                .0
+                .lock()
+                .map_err(|_| crate::WorkerReplayError::Unavailable)?;
+            let key = (worker_id.to_owned(), key_id.to_owned());
+            if sequences
+                .get(&key)
+                .is_some_and(|previous| sequence <= *previous)
+            {
+                return Err(crate::WorkerReplayError::Replay);
+            }
+            sequences.insert(key, sequence);
+            Ok(())
+        }
+    }
+
+    struct TestWorkerRevocations;
+    impl crate::WorkerRevocationChecker for TestWorkerRevocations {
+        fn worker_revoked(
+            &self,
+            _: &str,
+        ) -> Result<bool, crate::WorkerRevocationError> {
+            Ok(false)
+        }
+
+        fn key_revoked(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<bool, crate::WorkerRevocationError> {
+            Ok(false)
+        }
+    }
+
+    fn signed_worker_proof(
+        signer: &ed25519_dalek::SigningKey,
+        operation: &str,
+        resource_id: Option<String>,
+        sequence: u64,
+        now: u64,
+        request_nonce: [u8; 32],
+    ) -> crate::SignedWorkerProof {
+        use ed25519_dalek::Signer;
+
+        let payload = crate::WorkerProofPayload {
+            worker_id: "worker:alpha".into(),
+            key_id: "worker-key:alpha:v1".into(),
+            audience: crate::G08_WORKER_AUDIENCE.into(),
+            operation: operation.into(),
+            tenant_selector: "tenant:test".into(),
+            resource_id,
+            sequence,
+            request_nonce,
+            issued_at: now,
+            expires_at: now + 20,
+        };
+        let bytes = serde_jcs::to_vec(&payload).unwrap();
+        crate::SignedWorkerProof {
+            payload,
+            signature: signer.sign(&bytes).to_bytes().to_vec(),
+        }
+    }
+
+    #[test]
+    fn authenticated_worker_claim_renewal_and_completion_use_trusted_time() {
+        use ed25519_dalek::SigningKey;
+
+        let store = SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority = TestAuthority {
+            tenant_id: "tenant:test".into(),
+            resolved_at: 1_800_000_000,
+        };
+        let workflow = store
+            .create_workflow(&authority, &principal(), &request())
+            .unwrap();
+        let created = store
+            .create_task_graph(
+                &authority,
+                &principal(),
+                "tenant:test",
+                &workflow.workflow_id,
+                &[TaskSpec {
+                    task_key: "signed-worker-task".into(),
+                    task_type: "compute".into(),
+                    depends_on: vec![],
+                }],
+                1_800_000_000,
+            )
+            .unwrap();
+
+        let signer = SigningKey::from_bytes(&[101u8; 32]);
+        let trust = crate::WorkerTrustStore::new(vec![crate::WorkerKey {
+            worker_id: "worker:alpha".into(),
+            key_id: "worker-key:alpha:v1".into(),
+            public_key: signer.verifying_key().to_bytes(),
+            not_before: 1_799_999_000,
+            not_after: 1_800_010_000,
+        }])
+        .unwrap();
+        let authenticator = crate::Ed25519WorkerAuthenticator::new(
+            trust,
+            TestWorkerRevocations,
+            TestWorkerReplayGuard::default(),
+        );
+
+        let claim_time = 1_800_000_001;
+        let claim = store
+            .claim_next_task_authenticated(
+                &authority,
+                &principal(),
+                &authenticator,
+                &TestWorkerClock(claim_time),
+                &AuthenticatedTaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    lease_seconds: 30,
+                    proof: signed_worker_proof(
+                        &signer,
+                        "task.claim",
+                        None,
+                        1,
+                        claim_time,
+                        [1; 32],
+                    ),
+                },
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(claim.task.task_id, created[0].task_id);
+        assert_eq!(claim.worker_id, "worker:alpha");
+        assert_eq!(claim.lease_version, 1);
+
+        let renewal_time = claim_time + 1;
+        let renewed = store
+            .renew_task_lease_authenticated(
+                &authority,
+                &principal(),
+                &authenticator,
+                &TestWorkerClock(renewal_time),
+                &AuthenticatedTaskLeaseRenewalRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: claim.task.task_id.clone(),
+                    lease_token: claim.lease_token,
+                    expected_lease_version: 1,
+                    lease_seconds: 30,
+                    proof: signed_worker_proof(
+                        &signer,
+                        "task.lease.renew",
+                        Some(claim.task.task_id.clone()),
+                        2,
+                        renewal_time,
+                        [2; 32],
+                    ),
+                },
+            )
+            .unwrap();
+        assert_eq!(renewed.worker_id, "worker:alpha");
+        assert_eq!(renewed.lease_version, 2);
+
+        let completion_time = renewal_time + 1;
+        let completed = store
+            .complete_task_lease_authenticated(
+                &authority,
+                &principal(),
+                &authenticator,
+                &TestWorkerClock(completion_time),
+                &AuthenticatedTaskLeaseCompletionRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: renewed.task.task_id.clone(),
+                    lease_token: renewed.lease_token,
+                    expected_lease_version: renewed.lease_version,
+                    expected_task_version: renewed.task.version,
+                    next_state: TaskState::Succeeded,
+                    proof: signed_worker_proof(
+                        &signer,
+                        "task.lease.complete",
+                        Some(renewed.task.task_id.clone()),
+                        3,
+                        completion_time,
+                        [3; 32],
+                    ),
+                },
+            )
+            .unwrap();
+        assert_eq!(completed.state, TaskState::Succeeded);
+    }
+
+    #[test]
+    fn authenticated_worker_claim_rejects_scope_substitution_before_claiming() {
+        use ed25519_dalek::SigningKey;
+
+        let store = SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority = TestAuthority {
+            tenant_id: "tenant:test".into(),
+            resolved_at: 1_800_000_000,
+        };
+        let workflow = store
+            .create_workflow(&authority, &principal(), &request())
+            .unwrap();
+        store
+            .create_task_graph(
+                &authority,
+                &principal(),
+                "tenant:test",
+                &workflow.workflow_id,
+                &[TaskSpec {
+                    task_key: "must-remain-ready".into(),
+                    task_type: "compute".into(),
+                    depends_on: vec![],
+                }],
+                1_800_000_000,
+            )
+            .unwrap();
+
+        let signer = SigningKey::from_bytes(&[102u8; 32]);
+        let trust = crate::WorkerTrustStore::new(vec![crate::WorkerKey {
+            worker_id: "worker:alpha".into(),
+            key_id: "worker-key:alpha:v1".into(),
+            public_key: signer.verifying_key().to_bytes(),
+            not_before: 1_799_999_000,
+            not_after: 1_800_010_000,
+        }])
+        .unwrap();
+        let authenticator = crate::Ed25519WorkerAuthenticator::new(
+            trust,
+            TestWorkerRevocations,
+            TestWorkerReplayGuard::default(),
+        );
+        let mut invalid = signed_worker_proof(
+            &signer,
+            "task.claim",
+            None,
+            1,
+            1_800_000_001,
+            [4; 32],
+        );
+        invalid.payload.tenant_selector = "tenant:other".into();
+
+        assert_eq!(
+            store.claim_next_task_authenticated(
+                &authority,
+                &principal(),
+                &authenticator,
+                &TestWorkerClock(1_800_000_001),
+                &AuthenticatedTaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    lease_seconds: 30,
+                    proof: invalid,
+                },
+            ),
+            Err(G08Error::WorkerAuthenticationFailed)
+        );
+        let connection = store.connection.lock().unwrap();
+        let state: String = connection
+            .query_row(
+                "SELECT state FROM g08_tasks WHERE workflow_id=?1",
+                params![workflow.workflow_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(state, "READY");
+    }
+
 }
