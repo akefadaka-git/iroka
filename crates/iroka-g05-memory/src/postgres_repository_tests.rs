@@ -385,4 +385,3 @@ mod postgres_tests {
         cleanup(&mut admin, &[memory_id]);
     }
 }
-
