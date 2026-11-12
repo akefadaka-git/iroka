@@ -526,4 +526,3 @@ fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restar
     .unwrap();
     cleanup(&mut admin, &[memory_id]);
 }
-
