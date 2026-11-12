@@ -34,8 +34,7 @@ pub struct CheckpointPayload {
 impl CheckpointPayload {
     pub fn signing_bytes(&self) -> Result<Vec<u8>, CheckpointError> {
         self.validate()?;
-        let canonical =
-            serde_jcs::to_vec(self).map_err(|_| CheckpointError::Malformed)?;
+        let canonical = serde_jcs::to_vec(self).map_err(|_| CheckpointError::Malformed)?;
         let mut bytes = b"IROKA:G11:SIGNED_CHECKPOINT:V1\0".to_vec();
         bytes.extend_from_slice(&canonical);
         Ok(bytes)
@@ -263,8 +262,7 @@ mod tests {
             issued_at: 1_800_000_000,
             signer_key_id: "g11-checkpoint-key-1".into(),
         };
-        let published =
-            sign_and_publish_checkpoint(payload, &signer, &TestPublisher).unwrap();
+        let published = sign_and_publish_checkpoint(payload, &signer, &TestPublisher).unwrap();
         verify_published_checkpoint(
             &published,
             &signer.0.verifying_key(),
@@ -299,8 +297,7 @@ mod tests {
             issued_at: 1_800_000_000,
             signer_key_id: "g11-checkpoint-key-1".into(),
         };
-        let mut published =
-            sign_and_publish_checkpoint(payload, &signer, &TestPublisher).unwrap();
+        let mut published = sign_and_publish_checkpoint(payload, &signer, &TestPublisher).unwrap();
         published.publication.proof_ref = "forged".into();
         assert_eq!(
             verify_published_checkpoint(
