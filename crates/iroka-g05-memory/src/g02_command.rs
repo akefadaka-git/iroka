@@ -574,6 +574,62 @@ mod tests {
             "SELECT count(*) FROM g02_authority_outbox WHERE command_id=$1 AND payload_sha256=$2",
             &[&membership_id,&digest]).expect("atomic G11 outbox").get(0);
         assert_eq!(outbox, 1);
+
+        // Inject an outbox failure after the command and projection writes.
+        // All three writes must roll back as one transaction.
+        let rollback_command_id = format!("g02-rollback-{}", unique_test_suffix());
+        let rollback_subject = format!("subject:rollback:{suffix}");
+        let trigger_sql = format!(
+            "CREATE OR REPLACE FUNCTION g02_test_fail_authority_outbox() RETURNS trigger
+             LANGUAGE plpgsql AS $g02test$
+             BEGIN
+               IF NEW.command_id = '{rollback_command_id}' THEN
+                 RAISE EXCEPTION 'injected G11 outbox failure';
+               END IF;
+               RETURN NEW;
+             END;
+             $g02test$;
+             CREATE TRIGGER g02_test_fail_authority_outbox
+             BEFORE INSERT ON g02_authority_outbox
+             FOR EACH ROW EXECUTE FUNCTION g02_test_fail_authority_outbox();"
+        );
+        authority.client.batch_execute(&trigger_sql).expect("install rollback fault");
+        let rollback_command = signed_command(
+            OwnerCommandPayload {
+                command_id: rollback_command_id.clone(),
+                owner_subject: "owner:iroka-test".into(),
+                issuer: "iroka:owner-authority".into(),
+                key_id: "owner-a".into(),
+                issued_at: 1_105,
+                expires_at: 1_200,
+                action: OwnerCommandAction::SetTenantMembership {
+                    subject_ref: rollback_subject.clone(),
+                    tenant_ref: tenant_ref.clone(),
+                    active: true,
+                    version: 1,
+                },
+            },
+            &owner_a,
+        );
+        assert_eq!(
+            authority.execute(&rollback_command, 1_106),
+            Err(G02AuthorityError::DatabaseUnavailable)
+        );
+        let rolled_back: i64 = authority.client.query_one(
+            "SELECT count(*) FROM g02_owner_commands WHERE command_id=$1",
+            &[&rollback_command_id],
+        ).expect("rolled-back command history").get(0);
+        let rolled_back_projection: i64 = authority.client.query_one(
+            "SELECT count(*) FROM g02_tenant_memberships WHERE subject_ref=$1 AND tenant_ref=$2",
+            &[&rollback_subject, &tenant_ref],
+        ).expect("rolled-back membership projection").get(0);
+        assert_eq!(rolled_back, 0);
+        assert_eq!(rolled_back_projection, 0);
+        authority.client.batch_execute(
+            "DROP TRIGGER g02_test_fail_authority_outbox ON g02_authority_outbox;
+             DROP FUNCTION g02_test_fail_authority_outbox();"
+        ).expect("remove rollback fault");
+
         assert_eq!(
             authority.execute(&membership, 1_101),
             Err(G02AuthorityError::Replay)
