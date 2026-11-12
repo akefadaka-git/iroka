@@ -575,8 +575,44 @@ mod tests {
             Err(G05Error::AuditUnavailable)
         );
         assert_eq!(repository.pending_g11_events(10).unwrap(), vec![event.clone()]);
-        assert_eq!(crate::dispatch_g11_outbox(&repository, &sink, 10), Ok(1));
+        let acknowledgments = crate::dispatch_g11_outbox(&repository, &sink, 10).unwrap();
+        assert_eq!(acknowledgments.len(), 1);
+        assert_eq!(acknowledgments[0].event_id(), event.event_id);
         assert!(repository.pending_g11_events(10).unwrap().is_empty());
+    }
+
+    #[test]
+    fn durable_activation_runs_through_g11_receipt_and_final_repository_cas() {
+        let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
+        let pending = record(LifecycleState::PendingAudit, 2);
+        let pending_event = event(&pending, "memory.durable.activation.pending");
+        repository.insert_with_audit(pending.clone(), pending_event.clone()).unwrap();
+
+        let g11_sink = std::sync::Arc::new(
+            iroka_kernel::SqliteAuditSink::open_in_memory().unwrap()
+        );
+        let g11 = crate::KernelSqliteG11MemoryAdapter::new(g11_sink.clone());
+        let acknowledgments = crate::dispatch_g11_outbox(&repository, &g11, 10).unwrap();
+        let acknowledgment = acknowledgments
+            .iter()
+            .find(|item| item.event_id() == pending_event.event_id)
+            .unwrap();
+
+        crate::commit_durable_activation(
+            &mut repository,
+            &pending,
+            acknowledgment,
+            pending.candidate.record_version,
+            acknowledgment.accepted_at(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            repository.get_metadata("memory:sqlite").unwrap().unwrap().lifecycle_state,
+            LifecycleState::Active
+        );
+        assert_eq!(repository.pending_g11_events(10).unwrap().len(), 1);
+        assert_eq!(g11_sink.verify_integrity(), Ok(()));
     }
 
     #[test]
