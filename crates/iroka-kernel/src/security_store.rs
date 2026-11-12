@@ -125,6 +125,14 @@ pub struct SqliteSecurityStore {
 }
 
 impl SqliteSecurityStore {
+    #[cfg(test)]
+    pub(crate) fn poison_connection_for_test(&self) {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = self.connection.lock().unwrap();
+            panic!("intentional test-only security-store poison");
+        }));
+    }
+
     pub fn open(path: impl AsRef<Path>) -> Result<Self, SecurityStoreError> {
         let path = path.as_ref();
         #[cfg(unix)]

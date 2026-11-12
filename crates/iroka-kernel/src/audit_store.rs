@@ -8,11 +8,45 @@ use std::{path::Path, sync::Mutex, time::Duration};
 
 const ZERO: [u8; 32] = [0; 32];
 
+struct StoredAuditEventProjection {
+    correlation_id: String,
+    subject: String,
+    capability: String,
+    resource: String,
+    policy_version: String,
+    decision: String,
+    event_id: String,
+    occurred_at: i64,
+    event_hash: Vec<u8>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditStoreError {
     Unavailable,
     IntegrityFailure,
     Rejected,
+}
+
+/// Opaque G11 durable-acceptance receipt. Only SqliteAuditSink can construct it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MemoryAuditReceipt {
+    event_id: String,
+    payload_sha256: String,
+    accepted_at: u64,
+}
+
+impl MemoryAuditReceipt {
+    pub fn event_id(&self) -> &str {
+        &self.event_id
+    }
+
+    pub fn payload_sha256(&self) -> &str {
+        &self.payload_sha256
+    }
+
+    pub fn accepted_at(&self) -> u64 {
+        self.accepted_at
+    }
 }
 
 pub struct SqliteAuditSink {
@@ -68,7 +102,19 @@ impl SqliteAuditSink {
           CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit_events
             BEGIN SELECT RAISE(ABORT,'append-only audit'); END;
           CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_events
-            BEGIN SELECT RAISE(ABORT,'append-only audit'); END;")
+            BEGIN SELECT RAISE(ABORT,'append-only audit'); END;
+          CREATE TABLE IF NOT EXISTS audit_memory_receipts(
+            event_id TEXT PRIMARY KEY REFERENCES audit_events(event_id),
+            payload_sha256 TEXT NOT NULL CHECK(length(payload_sha256)=64),
+            accepted_at INTEGER NOT NULL,
+            audit_sequence INTEGER NOT NULL UNIQUE,
+            event_hash BLOB NOT NULL CHECK(length(event_hash)=32));
+          CREATE TRIGGER IF NOT EXISTS audit_memory_receipts_no_update
+            BEFORE UPDATE ON audit_memory_receipts
+            BEGIN SELECT RAISE(ABORT,'append-only audit receipt'); END;
+          CREATE TRIGGER IF NOT EXISTS audit_memory_receipts_no_delete
+            BEFORE DELETE ON audit_memory_receipts
+            BEGIN SELECT RAISE(ABORT,'append-only audit receipt'); END;")
             .map_err(|_| AuditStoreError::Unavailable)?;
         let sink = Self {
             connection: Mutex::new(c),
@@ -149,6 +195,169 @@ impl SqliteAuditSink {
         tx.commit().map_err(|_| AuditStoreError::Unavailable)
     }
 
+    /// Append or confirm an exact content-free G05 lifecycle event and
+    /// return an opaque receipt. Duplicate IDs are idempotent only when the
+    /// original G05 payload digest and mapped audit fields match exactly.
+    #[allow(clippy::too_many_arguments)]
+    pub fn append_memory_receipt(
+        &self,
+        event_id: &str,
+        correlation_id: &str,
+        subject: &str,
+        capability: &str,
+        resource: &str,
+        policy_version: &str,
+        occurred_at: u64,
+        payload_sha256: &str,
+    ) -> Result<MemoryAuditReceipt, AuditStoreError> {
+        let fields = [
+            event_id,
+            correlation_id,
+            subject,
+            capability,
+            resource,
+            policy_version,
+        ];
+        if fields
+            .iter()
+            .any(|value| value.trim().is_empty() || value.len() > 4096)
+            || event_id.len() > 256
+            || payload_sha256.len() != 64
+            || !payload_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(AuditStoreError::Rejected);
+        }
+        let accepted_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| AuditStoreError::Unavailable)?
+            .as_secs();
+        let accepted_at_i64 = i64::try_from(accepted_at).map_err(|_| AuditStoreError::Rejected)?;
+        let occurred_at_i64 = i64::try_from(occurred_at).map_err(|_| AuditStoreError::Rejected)?;
+        if accepted_at_i64 < occurred_at_i64 {
+            return Err(AuditStoreError::Rejected);
+        }
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| AuditStoreError::Unavailable)?;
+
+        let existing: Option<(String, i64, i64, Vec<u8>)> = tx
+            .query_row(
+                "SELECT payload_sha256,accepted_at,audit_sequence,event_hash
+                 FROM audit_memory_receipts WHERE event_id=?1",
+                params![event_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        if let Some((stored_payload, stored_at, sequence, stored_hash)) = existing {
+            if stored_payload != payload_sha256 {
+                return Err(AuditStoreError::Rejected);
+            }
+            let stored_event: Option<StoredAuditEventProjection> = tx
+                .query_row(
+                    "SELECT correlation_id,subject,capability,resource,policy_version,decision,event_id,
+                            occurred_at,event_hash
+                     FROM audit_events WHERE sequence=?1",
+                    params![sequence],
+                    |row| {
+                        Ok(StoredAuditEventProjection {
+                            correlation_id: row.get(0)?,
+                            subject: row.get(1)?,
+                            capability: row.get(2)?,
+                            resource: row.get(3)?,
+                            policy_version: row.get(4)?,
+                            decision: row.get(5)?,
+                            event_id: row.get(6)?,
+                            occurred_at: row.get(7)?,
+                            event_hash: row.get(8)?,
+                        })
+                    },
+                )
+                .optional()
+                .map_err(|_| AuditStoreError::Unavailable)?;
+            let Some(stored_event) = stored_event else {
+                return Err(AuditStoreError::IntegrityFailure);
+            };
+            if stored_event.correlation_id != correlation_id
+                || stored_event.subject != subject
+                || stored_event.capability != capability
+                || stored_event.resource != resource
+                || stored_event.policy_version != policy_version
+                || stored_event.decision != "ALLOW"
+                || stored_event.event_id != event_id
+                || stored_event.occurred_at != occurred_at_i64
+                || stored_event.event_hash != stored_hash
+            {
+                return Err(AuditStoreError::IntegrityFailure);
+            }
+            tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
+            return Ok(MemoryAuditReceipt {
+                event_id: event_id.to_owned(),
+                payload_sha256: stored_payload,
+                accepted_at: u64::try_from(stored_at)
+                    .map_err(|_| AuditStoreError::IntegrityFailure)?,
+            });
+        }
+
+        let previous: Vec<u8> = tx
+            .query_row(
+                "SELECT event_hash FROM audit_events ORDER BY sequence DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| AuditStoreError::Unavailable)?
+            .unwrap_or_else(|| ZERO.to_vec());
+        if previous.len() != 32 {
+            return Err(AuditStoreError::IntegrityFailure);
+        }
+        let digest = hash_event(
+            &previous,
+            event_id,
+            correlation_id,
+            subject,
+            capability,
+            resource,
+            policy_version,
+            "ALLOW",
+            occurred_at_i64,
+        );
+        tx.execute(
+            "INSERT INTO audit_events(event_id,correlation_id,subject,capability,resource,
+             policy_version,decision,occurred_at,previous_hash,event_hash)
+             VALUES(?1,?2,?3,?4,?5,?6,'ALLOW',?7,?8,?9)",
+            params![
+                event_id,
+                correlation_id,
+                subject,
+                capability,
+                resource,
+                policy_version,
+                occurred_at_i64,
+                previous,
+                digest.as_slice()
+            ],
+        )
+        .map_err(|_| AuditStoreError::Rejected)?;
+        let sequence = tx.last_insert_rowid();
+        tx.execute(
+            "INSERT INTO audit_memory_receipts(event_id,payload_sha256,accepted_at,audit_sequence,event_hash)
+             VALUES(?1,?2,?3,?4,?5)",
+            params![event_id,payload_sha256,accepted_at_i64,sequence,digest.as_slice()],
+        )
+        .map_err(|_| AuditStoreError::Unavailable)?;
+        tx.commit().map_err(|_| AuditStoreError::Unavailable)?;
+        Ok(MemoryAuditReceipt {
+            event_id: event_id.to_owned(),
+            payload_sha256: payload_sha256.to_owned(),
+            accepted_at,
+        })
+    }
+
     pub fn verify_integrity(&self) -> Result<(), AuditStoreError> {
         let c = self
             .connection
@@ -188,6 +397,26 @@ impl SqliteAuditSink {
                 return Err(AuditStoreError::IntegrityFailure);
             }
             previous = stored;
+        }
+        let receipt_count: i64 = c
+            .query_row("SELECT COUNT(*) FROM audit_memory_receipts", [], |row| {
+                row.get(0)
+            })
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let valid_receipt_count: i64 = c
+            .query_row(
+                "SELECT COUNT(*) FROM audit_memory_receipts r
+                 JOIN audit_events e ON e.event_id=r.event_id
+                   AND e.sequence=r.audit_sequence AND e.event_hash=r.event_hash
+                 WHERE length(r.payload_sha256)=64
+                   AND r.accepted_at>=e.occurred_at
+                   AND substr(e.resource,-64)=r.payload_sha256",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        if receipt_count != valid_receipt_count {
+            return Err(AuditStoreError::IntegrityFailure);
         }
         Ok(())
     }
@@ -283,6 +512,39 @@ mod tests {
             1_800_000_000,
         )
     }
+    #[test]
+    fn memory_receipts_are_append_only_and_linked_to_the_audit_chain() {
+        let sink = SqliteAuditSink::open_in_memory().unwrap();
+        let receipt = sink
+            .append_memory_receipt(
+                "g05:receipt:1",
+                "trace:g05:1",
+                "reviewer:1",
+                "memory.durable.activation.pending",
+                &format!("g05:memory:tenant:1:memory:1:{}", "a".repeat(64)),
+                "g05-memory-v1",
+                1_700_000_000,
+                &"a".repeat(64),
+            )
+            .unwrap();
+        assert_eq!(receipt.event_id(), "g05:receipt:1");
+        assert_eq!(sink.verify_integrity(), Ok(()));
+        {
+            let connection = sink.connection.lock().unwrap();
+            assert!(connection.execute(
+                "UPDATE audit_memory_receipts SET accepted_at=accepted_at+1 WHERE event_id='g05:receipt:1'",
+                []
+            ).is_err());
+            assert!(connection
+                .execute(
+                    "DELETE FROM audit_memory_receipts WHERE event_id='g05:receipt:1'",
+                    []
+                )
+                .is_err());
+        }
+        assert_eq!(sink.verify_integrity(), Ok(()));
+    }
+
     #[test]
     fn appends_and_verifies_chain() {
         let s = SqliteAuditSink::open_in_memory().unwrap();
