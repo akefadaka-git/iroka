@@ -325,10 +325,26 @@ mod postgres_tests {
         repo.insert_with_audit(record, event.clone()).unwrap();
 
         let worker = worker(&url);
-        let claim = worker.claim_batch("worker-retry", 1, 30).unwrap().remove(0);
-        worker
-            .schedule_retry(&claim, "g11_temporarily_unavailable")
-            .unwrap();
+        let mut claim = worker.claim_batch("worker-retry", 1, 30).unwrap().remove(0);
+        for attempt in 1..=12 {
+            worker
+                .schedule_retry(&claim, "g11_temporarily_unavailable")
+                .unwrap();
+            if attempt < 12 {
+                admin
+                    .execute(
+                        "UPDATE g05_memory_g11_outbox SET next_attempt_at=clock_timestamp()
+                         WHERE event_id=$1",
+                        &[&event.event_id],
+                    )
+                    .unwrap();
+                claim = worker.claim_batch("worker-retry", 1, 30).unwrap().remove(0);
+            }
+        }
+        let exhausted = worker.exhausted_events(10).unwrap();
+        assert!(exhausted.iter().any(|(event_id, error)| {
+            event_id == &event.event_id && error == "retry_exhausted:g11_temporarily_unavailable"
+        }));
         let row = admin
             .query_one(
                 "SELECT lease_token IS NULL,delivered_at IS NULL,last_error_code
@@ -338,7 +354,10 @@ mod postgres_tests {
             .unwrap();
         assert!(row.get::<_, bool>(0));
         assert!(row.get::<_, bool>(1));
-        assert_eq!(row.get::<_, String>(2), "g11_temporarily_unavailable");
+        assert_eq!(
+            row.get::<_, String>(2),
+            "retry_exhausted:g11_temporarily_unavailable"
+        );
         cleanup(&mut admin, &[id]);
     }
 
