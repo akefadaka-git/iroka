@@ -181,7 +181,9 @@ mod postgres_tests {
 
     #[test]
     fn postgres_insert_is_atomic_and_survives_repository_restart() {
-        let _test_guard = POSTGRES_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _test_guard = POSTGRES_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let Some(url) = database_url() else { return };
         let mut admin = admin(&url);
         let suffix = unique_id();
