@@ -135,8 +135,7 @@ impl SqliteWorkflowStore {
 
     /// In-memory adapter for deterministic contract tests only.
     pub fn open_in_memory() -> Result<Self, G08Error> {
-        let connection =
-            Connection::open_in_memory().map_err(|_| G08Error::StoreUnavailable)?;
+        let connection = Connection::open_in_memory().map_err(|_| G08Error::StoreUnavailable)?;
         Self::from_connection(connection)
     }
 
@@ -195,9 +194,7 @@ impl SqliteWorkflowStore {
         request: &CreateWorkflow,
     ) -> Result<WorkflowReceipt, G08Error> {
         validate_request(request)?;
-        let scope = authority
-            .resolve_tenant(principal, &request.tenant_selector, request.now)
-            ?;
+        let scope = authority.resolve_tenant(principal, &request.tenant_selector, request.now)?;
         if scope.subject() != principal.subject()
             || scope.tenant_id() != request.tenant_selector
             || scope.resolved_at() > request.now
@@ -222,7 +219,11 @@ impl SqliteWorkflowStore {
                 "SELECT workflow_id, request_digest, contract_version, state, version, created_at
                  FROM g08_workflows
                  WHERE tenant_id=?1 AND workflow_type=?2 AND idempotency_key=?3",
-                params![scope.tenant_id(), request.workflow_type, request.idempotency_key],
+                params![
+                    scope.tenant_id(),
+                    request.workflow_type,
+                    request.idempotency_key
+                ],
                 |row| {
                     Ok((
                         row.get(0)?,
@@ -244,7 +245,9 @@ impl SqliteWorkflowStore {
             if contract != request.contract_version || state != WorkflowState::Draft.as_str() {
                 return Err(G08Error::IntegrityFailure);
             }
-            transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+            transaction
+                .commit()
+                .map_err(|_| G08Error::StoreUnavailable)?;
             return Ok(WorkflowReceipt {
                 workflow_id: id,
                 tenant_id: scope.tenant_id().to_owned(),
@@ -296,7 +299,9 @@ impl SqliteWorkflowStore {
                 ],
             )
             .map_err(|_| G08Error::StoreUnavailable)?;
-        transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+        transaction
+            .commit()
+            .map_err(|_| G08Error::StoreUnavailable)?;
 
         Ok(WorkflowReceipt {
             workflow_id,
@@ -327,7 +332,9 @@ impl SqliteWorkflowStore {
             .lock()
             .map_err(|_| G08Error::StoreUnavailable)?;
         let count: i64 = connection
-            .query_row("SELECT COUNT(*) FROM g08_workflow_events", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM g08_workflow_events", [], |row| {
+                row.get(0)
+            })
             .map_err(|_| G08Error::StoreUnavailable)?;
         u64::try_from(count).map_err(|_| G08Error::IntegrityFailure)
     }
