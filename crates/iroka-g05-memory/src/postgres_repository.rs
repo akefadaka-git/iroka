@@ -936,8 +936,7 @@ impl PostgresG11MemoryAdapter {
             }
             if published_at.is_none() {
                 let payload: iroka_kernel::CheckpointPayload =
-                    serde_json::from_value(payload_json)
-                        .map_err(|_| G05Error::AuditUnavailable)?;
+                    serde_json::from_value(payload_json).map_err(|_| G05Error::AuditUnavailable)?;
                 Some(iroka_kernel::SignedCheckpoint { payload, signature })
             } else {
                 None
