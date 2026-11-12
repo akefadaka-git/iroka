@@ -1,7 +1,7 @@
 //! Durable SQLite persistence for G05 memory records and the content-free G11 outbox.
 use crate::{
-    audit_event_sha256, AuditEvent, G05Error, G11Acknowledgment, LifecycleState, MemoryMetadata,
-    MemoryRecord, MemoryRepository, G11OutboxRepository,
+    audit_event_sha256, AuditEvent, G05Error, G11Acknowledgment, G11OutboxRepository,
+    LifecycleState, MemoryMetadata, MemoryRecord, MemoryRepository,
 };
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use std::path::Path;
@@ -19,7 +19,8 @@ impl SqliteMemoryRepository {
     }
 
     pub fn open_in_memory() -> Result<Self, G05Error> {
-        let connection = Connection::open_in_memory().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let connection =
+            Connection::open_in_memory().map_err(|_| G05Error::RepositoryUnavailable)?;
         Self::from_connection(connection)
     }
 
@@ -73,7 +74,10 @@ impl SqliteMemoryRepository {
         if limit == 0 || limit > 1_000 {
             return Err(G05Error::MalformedRecord);
         }
-        let connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let mut statement = connection
             .prepare(
                 "SELECT payload_json FROM g05_memory_g11_outbox
@@ -103,8 +107,13 @@ impl SqliteMemoryRepository {
         {
             return Err(G05Error::AuditUnavailable);
         }
-        let connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let tx = connection.unchecked_transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let tx = connection
+            .unchecked_transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let stored: Option<(String, Option<i64>, Option<String>)> = tx
             .query_row(
                 "SELECT payload_sha256,delivered_at,acknowledgment_sha256
@@ -172,7 +181,13 @@ fn persist_outbox(tx: &Transaction<'_>, event: &AuditEvent) -> Result<(), G05Err
         "INSERT INTO g05_memory_g11_outbox
          (event_id,memory_id,payload_sha256,payload_json,occurred_at)
          VALUES(?1,?2,?3,?4,?5)",
-        params![event.event_id,event.memory_id,digest,payload_json,event.occurred_at as i64],
+        params![
+            event.event_id,
+            event.memory_id,
+            digest,
+            payload_json,
+            event.occurred_at as i64
+        ],
     )
     .map_err(|error| {
         if error.sqlite_error_code() == Some(rusqlite::ErrorCode::ConstraintViolation) {
@@ -199,7 +214,11 @@ impl G11OutboxRepository for SqliteMemoryRepository {
 }
 
 impl MemoryRepository for SqliteMemoryRepository {
-    fn insert_with_audit(&mut self, record: MemoryRecord, event: AuditEvent) -> Result<(), G05Error> {
+    fn insert_with_audit(
+        &mut self,
+        record: MemoryRecord,
+        event: AuditEvent,
+    ) -> Result<(), G05Error> {
         if event.memory_id != record.candidate.memory_id
             || event.tenant_ref != record.candidate.tenant_ref
             || event.record_version != record.candidate.record_version
@@ -208,9 +227,15 @@ impl MemoryRepository for SqliteMemoryRepository {
         }
         let metadata_json = serde_json::to_string(&metadata(&record)?)
             .map_err(|_| G05Error::RepositoryUnavailable)?;
-        let record_json = serde_json::to_string(&record).map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let tx = connection.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let record_json =
+            serde_json::to_string(&record).map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let tx = connection
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         tx.execute(
             "INSERT INTO g05_memory_records
              (memory_id,tenant_ref,subject_ref,memory_class,content_sha256,purpose,
@@ -218,14 +243,19 @@ impl MemoryRepository for SqliteMemoryRepository {
               metadata_json,record_json)
              VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             params![
-                record.candidate.memory_id,record.candidate.tenant_ref,record.candidate.subject_ref,
+                record.candidate.memory_id,
+                record.candidate.tenant_ref,
+                record.candidate.subject_ref,
                 serde_json::to_string(&record.candidate.memory_class).unwrap(),
-                record.candidate.content_sha256,serde_json::to_string(&record.candidate.purpose).unwrap(),
+                record.candidate.content_sha256,
+                serde_json::to_string(&record.candidate.purpose).unwrap(),
                 serde_json::to_string(&record.candidate.classification).unwrap(),
                 serde_json::to_string(&record.lifecycle_state).unwrap(),
                 record.candidate.expires_at.map(|v| v as i64),
-                record.candidate.record_version as i64,record.candidate.retention_policy_ref,
-                metadata_json,record_json
+                record.candidate.record_version as i64,
+                record.candidate.retention_policy_ref,
+                metadata_json,
+                record_json
             ],
         )
         .map_err(|error| {
@@ -240,7 +270,10 @@ impl MemoryRepository for SqliteMemoryRepository {
     }
 
     fn get_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error> {
-        let connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let json: Option<String> = connection
             .query_row(
                 "SELECT metadata_json FROM g05_memory_records WHERE memory_id=?1",
@@ -254,7 +287,10 @@ impl MemoryRepository for SqliteMemoryRepository {
     }
 
     fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error> {
-        let connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let json: Option<String> = connection
             .query_row(
                 "SELECT record_json FROM g05_memory_records WHERE memory_id=?1",
@@ -282,9 +318,15 @@ impl MemoryRepository for SqliteMemoryRepository {
         }
         let metadata_json = serde_json::to_string(&metadata(&record)?)
             .map_err(|_| G05Error::RepositoryUnavailable)?;
-        let record_json = serde_json::to_string(&record).map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let tx = connection.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let record_json =
+            serde_json::to_string(&record).map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let tx = connection
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let current_state: Option<String> = tx
             .query_row(
                 "SELECT lifecycle_state FROM g05_memory_records WHERE memory_id=?1 AND record_version=?2",
@@ -296,24 +338,34 @@ impl MemoryRepository for SqliteMemoryRepository {
         let current_state = current_state.ok_or(G05Error::VersionConflict)?;
         let current_state: LifecycleState =
             serde_json::from_str(&current_state).map_err(|_| G05Error::RepositoryUnavailable)?;
-        if current_state == LifecycleState::PendingAudit && record.lifecycle_state == LifecycleState::Active {
+        if current_state == LifecycleState::PendingAudit
+            && record.lifecycle_state == LifecycleState::Active
+        {
             return Err(G05Error::InvalidLifecycleTransition);
         }
-        let updated = tx.execute(
-            "UPDATE g05_memory_records SET lifecycle_state=?3,record_version=?4,
+        let updated = tx
+            .execute(
+                "UPDATE g05_memory_records SET lifecycle_state=?3,record_version=?4,
              content_sha256=?5,purpose=?6,classification=?7,expires_at=?8,
              metadata_json=?9,record_json=?10
              WHERE memory_id=?1 AND record_version=?2",
-            params![
-                record.candidate.memory_id,expected_version as i64,
-                serde_json::to_string(&record.lifecycle_state).unwrap(),
-                record.candidate.record_version as i64,record.candidate.content_sha256,
-                serde_json::to_string(&record.candidate.purpose).unwrap(),
-                serde_json::to_string(&record.candidate.classification).unwrap(),
-                record.candidate.expires_at.map(|v| v as i64),metadata_json,record_json
-            ],
-        ).map_err(|_| G05Error::RepositoryUnavailable)?;
-        if updated != 1 { return Err(G05Error::VersionConflict); }
+                params![
+                    record.candidate.memory_id,
+                    expected_version as i64,
+                    serde_json::to_string(&record.lifecycle_state).unwrap(),
+                    record.candidate.record_version as i64,
+                    record.candidate.content_sha256,
+                    serde_json::to_string(&record.candidate.purpose).unwrap(),
+                    serde_json::to_string(&record.candidate.classification).unwrap(),
+                    record.candidate.expires_at.map(|v| v as i64),
+                    metadata_json,
+                    record_json
+                ],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        if updated != 1 {
+            return Err(G05Error::VersionConflict);
+        }
         persist_outbox(&tx, &event)?;
         tx.commit().map_err(|_| G05Error::RepositoryUnavailable)
     }
@@ -342,8 +394,13 @@ impl MemoryRepository for SqliteMemoryRepository {
             "g05:durable-activation:{}:{}:{}",
             record.candidate.memory_id, expected_version, approval_ref
         );
-        let mut connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let tx = connection.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let tx = connection
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let current_state: Option<String> = tx
             .query_row(
                 "SELECT lifecycle_state FROM g05_memory_records
@@ -354,8 +411,8 @@ impl MemoryRepository for SqliteMemoryRepository {
             .optional()
             .map_err(|_| G05Error::RepositoryUnavailable)?;
         let current_state = current_state.ok_or(G05Error::VersionConflict)?;
-        let current_state: LifecycleState = serde_json::from_str(&current_state)
-            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let current_state: LifecycleState =
+            serde_json::from_str(&current_state).map_err(|_| G05Error::RepositoryUnavailable)?;
         if current_state != LifecycleState::PendingAudit {
             return Err(G05Error::VersionConflict);
         }
@@ -370,8 +427,8 @@ impl MemoryRepository for SqliteMemoryRepository {
             .map_err(|_| G05Error::RepositoryUnavailable)?;
         let (pending_json, pending_digest, delivered_at, acknowledgment_digest) =
             receipt_row.ok_or(G05Error::AuditUnavailable)?;
-        let pending_event: AuditEvent = serde_json::from_str(&pending_json)
-            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let pending_event: AuditEvent =
+            serde_json::from_str(&pending_json).map_err(|_| G05Error::RepositoryUnavailable)?;
         if pending_event.event_type != "memory.durable.activation.pending"
             || pending_event.memory_id != record.candidate.memory_id
             || pending_event.tenant_ref != record.candidate.tenant_ref
@@ -386,18 +443,25 @@ impl MemoryRepository for SqliteMemoryRepository {
         }
         let metadata_json = serde_json::to_string(&metadata(&record)?)
             .map_err(|_| G05Error::RepositoryUnavailable)?;
-        let record_json = serde_json::to_string(&record).map_err(|_| G05Error::RepositoryUnavailable)?;
-        let updated = tx.execute(
-            "UPDATE g05_memory_records SET lifecycle_state=?3,metadata_json=?4,record_json=?5
+        let record_json =
+            serde_json::to_string(&record).map_err(|_| G05Error::RepositoryUnavailable)?;
+        let updated = tx
+            .execute(
+                "UPDATE g05_memory_records SET lifecycle_state=?3,metadata_json=?4,record_json=?5
              WHERE memory_id=?1 AND record_version=?2 AND lifecycle_state=?6",
-            params![
-                record.candidate.memory_id,expected_version as i64,
-                serde_json::to_string(&LifecycleState::Active).unwrap(),
-                metadata_json,record_json,
-                serde_json::to_string(&LifecycleState::PendingAudit).unwrap()
-            ],
-        ).map_err(|_| G05Error::RepositoryUnavailable)?;
-        if updated != 1 { return Err(G05Error::VersionConflict); }
+                params![
+                    record.candidate.memory_id,
+                    expected_version as i64,
+                    serde_json::to_string(&LifecycleState::Active).unwrap(),
+                    metadata_json,
+                    record_json,
+                    serde_json::to_string(&LifecycleState::PendingAudit).unwrap()
+                ],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        if updated != 1 {
+            return Err(G05Error::VersionConflict);
+        }
         persist_outbox(&tx, &event)?;
         tx.commit().map_err(|_| G05Error::RepositoryUnavailable)
     }
@@ -439,15 +503,26 @@ mod tests {
                 record_version: version,
             },
             lifecycle_state: state,
-            approval_ref: if state == LifecycleState::PendingAudit || state == LifecycleState::Active {
+            approval_ref: if state == LifecycleState::PendingAudit
+                || state == LifecycleState::Active
+            {
                 Some("approval:sqlite".into())
-            } else { None },
-            approved_by_ref: if state == LifecycleState::PendingAudit || state == LifecycleState::Active {
+            } else {
+                None
+            },
+            approved_by_ref: if state == LifecycleState::PendingAudit
+                || state == LifecycleState::Active
+            {
                 Some("reviewer:sqlite".into())
-            } else { None },
-            approved_at: if state == LifecycleState::PendingAudit || state == LifecycleState::Active {
+            } else {
+                None
+            },
+            approved_at: if state == LifecycleState::PendingAudit || state == LifecycleState::Active
+            {
                 Some(11)
-            } else { None },
+            } else {
+                None
+            },
             updated_at: 11,
         }
     }
@@ -473,10 +548,15 @@ mod tests {
         let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let record = record(LifecycleState::PendingAudit, 1);
         let event = event(&record, "memory.durable.activation.pending");
-        repository.insert_with_audit(record.clone(), event.clone()).unwrap();
+        repository
+            .insert_with_audit(record.clone(), event.clone())
+            .unwrap();
         let metadata = repository.get_metadata("memory:sqlite").unwrap().unwrap();
         assert_eq!(metadata.lifecycle_state, LifecycleState::PendingAudit);
-        assert_eq!(repository.get_content("memory:sqlite").unwrap(), Some(record));
+        assert_eq!(
+            repository.get_content("memory:sqlite").unwrap(),
+            Some(record)
+        );
         let pending = repository.pending_g11_events(10).unwrap();
         assert_eq!(pending, vec![event]);
         let encoded = serde_json::to_string(&pending[0]).unwrap();
@@ -487,10 +567,12 @@ mod tests {
     fn replace_requires_exact_version_and_is_atomic_with_outbox() {
         let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let original = record(LifecycleState::PendingReview, 1);
-        repository.insert_with_audit(
-            original.clone(),
-            event(&original, "memory.durable.proposed"),
-        ).unwrap();
+        repository
+            .insert_with_audit(
+                original.clone(),
+                event(&original, "memory.durable.proposed"),
+            )
+            .unwrap();
         let mut updated = original.clone();
         updated.lifecycle_state = LifecycleState::PendingAudit;
         updated.candidate.record_version = 2;
@@ -511,7 +593,9 @@ mod tests {
         let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let pending = record(LifecycleState::PendingAudit, 2);
         let pending_event = crate::durable_activation_audit_event(&pending).unwrap();
-        repository.insert_with_audit(pending.clone(), pending_event.clone()).unwrap();
+        repository
+            .insert_with_audit(pending.clone(), pending_event.clone())
+            .unwrap();
         let mut active = pending.clone();
         active.lifecycle_state = LifecycleState::Active;
         let activation_event = event(&active, "memory.durable.activated");
@@ -524,7 +608,9 @@ mod tests {
             payload_sha256: audit_event_sha256(&pending_event),
             accepted_at: pending_event.occurred_at,
         };
-        repository.acknowledge_g11_event(&pending_event, &acknowledgment).unwrap();
+        repository
+            .acknowledge_g11_event(&pending_event, &acknowledgment)
+            .unwrap();
         assert_eq!(
             repository.finalize_pending_activation(active.clone(), 1, activation_event.clone()),
             Err(G05Error::VersionConflict)
@@ -534,7 +620,11 @@ mod tests {
             Ok(())
         );
         assert_eq!(
-            repository.get_metadata("memory:sqlite").unwrap().unwrap().lifecycle_state,
+            repository
+                .get_metadata("memory:sqlite")
+                .unwrap()
+                .unwrap()
+                .lifecycle_state,
             LifecycleState::Active
         );
     }
@@ -565,7 +655,9 @@ mod tests {
         let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let pending = record(LifecycleState::PendingAudit, 2);
         let event = event(&pending, "memory.durable.activation.pending");
-        repository.insert_with_audit(pending, event.clone()).unwrap();
+        repository
+            .insert_with_audit(pending, event.clone())
+            .unwrap();
         let sink = RetryG11 {
             fail_once: AtomicBool::new(true),
         };
@@ -574,7 +666,10 @@ mod tests {
             crate::dispatch_g11_outbox(&repository, &sink, 10),
             Err(G05Error::AuditUnavailable)
         );
-        assert_eq!(repository.pending_g11_events(10).unwrap(), vec![event.clone()]);
+        assert_eq!(
+            repository.pending_g11_events(10).unwrap(),
+            vec![event.clone()]
+        );
         let acknowledgments = crate::dispatch_g11_outbox(&repository, &sink, 10).unwrap();
         assert_eq!(acknowledgments.len(), 1);
         assert_eq!(acknowledgments[0].event_id(), event.event_id);
@@ -586,11 +681,12 @@ mod tests {
         let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let pending = record(LifecycleState::PendingAudit, 2);
         let pending_event = crate::durable_activation_audit_event(&pending).unwrap();
-        repository.insert_with_audit(pending.clone(), pending_event.clone()).unwrap();
+        repository
+            .insert_with_audit(pending.clone(), pending_event.clone())
+            .unwrap();
 
-        let g11_sink = std::sync::Arc::new(
-            iroka_kernel::SqliteAuditSink::open_in_memory().unwrap()
-        );
+        let g11_sink =
+            std::sync::Arc::new(iroka_kernel::SqliteAuditSink::open_in_memory().unwrap());
         let g11 = crate::KernelSqliteG11MemoryAdapter::new(g11_sink.clone());
         let acknowledgments = crate::dispatch_g11_outbox(&repository, &g11, 10).unwrap();
         let acknowledgment = acknowledgments
@@ -608,7 +704,11 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            repository.get_metadata("memory:sqlite").unwrap().unwrap().lifecycle_state,
+            repository
+                .get_metadata("memory:sqlite")
+                .unwrap()
+                .unwrap()
+                .lifecycle_state,
             LifecycleState::Active
         );
         assert_eq!(repository.pending_g11_events(10).unwrap().len(), 1);
@@ -627,8 +727,12 @@ mod tests {
             payload_sha256: audit_event_sha256(&event),
             accepted_at: event.occurred_at,
         };
-        repository.acknowledge_g11_event(&event, &acknowledgment).unwrap();
-        repository.acknowledge_g11_event(&event, &acknowledgment).unwrap();
+        repository
+            .acknowledge_g11_event(&event, &acknowledgment)
+            .unwrap();
+        repository
+            .acknowledge_g11_event(&event, &acknowledgment)
+            .unwrap();
         assert!(repository.pending_g11_events(10).unwrap().is_empty());
     }
 }
