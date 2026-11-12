@@ -11,9 +11,9 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    Ed25519WorkerAuthenticator, RetryFailureClass, RetryPolicy,
-    RetryPolicyError, RetrySchedule, SignedWorkerProof, TrustedClock, VerifiedPrincipal,
-    WorkerAuthError, WorkerOperationScope, WorkerReplayGuard, WorkerRevocationChecker,
+    Ed25519WorkerAuthenticator, RetryFailureClass, RetryPolicy, RetryPolicyError, RetrySchedule,
+    SignedWorkerProof, TrustedClock, VerifiedPrincipal, WorkerAuthError, WorkerOperationScope,
+    WorkerReplayGuard, WorkerRevocationChecker,
 };
 
 const MAX_FIELD_LEN: usize = 256;
