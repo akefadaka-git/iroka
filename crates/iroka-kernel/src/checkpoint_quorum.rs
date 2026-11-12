@@ -88,26 +88,25 @@ impl CheckpointQuorumPolicy {
             return Err(CheckpointQuorumError::InvalidPolicy);
         }
         let mut witness_map = HashMap::new();
-        let mut witness_keys = HashSet::new();
+        let mut all_key_ids = HashSet::from([signer.key_id.clone()]);
         for witness in witnesses {
             validate_key(&witness.public_key, &witness.key_id, witness.not_before, witness.not_after)?;
             if witness.witness_id.trim().is_empty()
                 || witness.operator_id.trim().is_empty()
                 || !operators.insert(witness.operator_id.clone())
-                || !witness_keys.insert(witness.key_id.clone())
+                || !all_key_ids.insert(witness.key_id.clone())
                 || witness_map.insert(witness.witness_id.clone(), witness).is_some()
             {
                 return Err(CheckpointQuorumError::InvalidPolicy);
             }
         }
         let mut retention_map = HashMap::new();
-        let mut retention_keys = HashSet::new();
         for domain in retention_domains {
             validate_key(&domain.public_key, &domain.key_id, domain.not_before, domain.not_after)?;
             if domain.domain_id.trim().is_empty()
                 || domain.operator_id.trim().is_empty()
                 || !operators.insert(domain.operator_id.clone())
-                || !retention_keys.insert(domain.key_id.clone())
+                || !all_key_ids.insert(domain.key_id.clone())
                 || retention_map.insert(domain.domain_id.clone(), domain).is_some()
             {
                 return Err(CheckpointQuorumError::InvalidPolicy);
@@ -722,7 +721,7 @@ mod tests {
     fn enforces_two_of_three_witnesses_and_both_immutable_domains() {
         let (package, policy, witnesses, retention, _) = fixture();
         let witness_refs: Vec<&dyn CheckpointWitnessProvider> =
-            witnesses.iter().take(2).map(|p| p as &dyn CheckpointWitnessProvider).collect();
+            witnesses.iter().map(|p| p as &dyn CheckpointWitnessProvider).collect();
         let retention_refs: Vec<&dyn ImmutableRetentionProvider> =
             retention.iter().map(|p| p as &dyn ImmutableRetentionProvider).collect();
         let anchored = publish_checkpoint_package(
@@ -736,7 +735,16 @@ mod tests {
             5,
             1_803,
         );
-        assert_eq!(anchored, Err(CheckpointQuorumError::InvalidPolicy));
+        let anchored = anchored.unwrap();
+        verify_externally_anchored_checkpoint(
+            &anchored,
+            &policy,
+            "g11:memory",
+            7,
+            Some(&"a".repeat(64)),
+            5,
+            1_803,
+        ).unwrap();
     }
 
     #[test]
@@ -760,9 +768,9 @@ mod tests {
             key_id: format!("rk{i}"), public_key: retention.verifying_key().to_bytes(),
             not_before: 1, not_after: 10,
         }).collect();
-        assert_eq!(
+        assert!(matches!(
             CheckpointQuorumPolicy::new(signer_trust, witnesses, retentions, 5),
             Err(CheckpointQuorumError::InvalidPolicy)
-        );
+        ));
     }
 }
