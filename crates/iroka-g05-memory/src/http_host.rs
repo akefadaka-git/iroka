@@ -10,7 +10,8 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use iroka_kernel::{RevocationChecker, TrustedClock};
+use iroka_kernel::RevocationChecker;
+use crate::TrustedClock;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
