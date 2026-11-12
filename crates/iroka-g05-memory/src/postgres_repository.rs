@@ -433,8 +433,6 @@ impl PostgresG11OutboxWorker {
         {
             return Err(G05Error::MalformedRecord);
         }
-        let worker_id = worker_id.to_owned();
-        let worker_id_bytes = worker_id.as_bytes().to_vec();
         let limit = limit as i32;
         let lease_seconds = lease_seconds as f64;
         let mut client = self.client.lock().map_err(|_| {
@@ -456,12 +454,12 @@ impl PostgresG11OutboxWorker {
                     LIMIT $2 FOR UPDATE SKIP LOCKED
                  )
                  UPDATE g05_memory_g11_outbox AS o
-                 SET lease_owner=convert_from($1,'UTF8'),lease_token=gen_random_uuid(),
+                 SET lease_owner=pg_backend_pid()::text,lease_token=gen_random_uuid(),
                      lease_expires_at=clock_timestamp()+($3 * interval '1 second'),
                      attempt_count=o.attempt_count+1
                  FROM picked WHERE o.event_id=picked.event_id
-                 RETURNING o.payload_json,o.lease_token::text,o.attempt_count",
-                &[&&worker_id_bytes[..], &limit, &lease_seconds],
+                 RETURNING o.payload_json,o.lease_owner,o.lease_token::text,o.attempt_count",
+                &[&limit, &lease_seconds],
             )
             .map_err(|error| {
                 eprintln!("claim query failed: {error}");
@@ -469,7 +467,7 @@ impl PostgresG11OutboxWorker {
             })?;
         let mut claims = Vec::with_capacity(rows.len());
         for row in rows {
-            claims.push(decode_claim(row, &worker_id).map_err(|error| {
+            claims.push(decode_claim(row).map_err(|error| {
                 eprintln!("claim decode failed: {error:?}");
                 error
             })?);
@@ -638,7 +636,7 @@ fn decode_claim(row: Row, worker_id: &str) -> Result<LeasedG11Event, G05Error> {
     let attempt_count: i64 = row.get(2);
     Ok(LeasedG11Event {
         event,
-        lease_owner: worker_id.to_owned(),
+        lease_owner,
         lease_token,
         attempt_count,
     })
