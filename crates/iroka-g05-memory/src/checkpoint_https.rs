@@ -76,11 +76,7 @@ impl HttpsJsonEndpoint {
         if path.len() > 2_048 || path.bytes().any(|b| b.is_ascii_control() || b == b' ') {
             return Err(CheckpointQuorumError::InvalidPolicy);
         }
-        let host_header = if port == 443 {
-            authority.to_owned()
-        } else {
-            format!("{authority}")
-        };
+        let host_header = authority.to_owned();
         Ok(Self {
             host: host.to_owned(),
             port,
@@ -105,7 +101,7 @@ impl HttpsJsonEndpoint {
                 break;
             }
         }
-        let mut stream = stream.ok_or(CheckpointQuorumError::ProviderUnavailable)?;
+        let stream = stream.ok_or(CheckpointQuorumError::ProviderUnavailable)?;
         stream.set_read_timeout(Some(IO_TIMEOUT))
             .map_err(|_| CheckpointQuorumError::ProviderUnavailable)?;
         stream.set_write_timeout(Some(IO_TIMEOUT))
