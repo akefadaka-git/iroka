@@ -3189,14 +3189,7 @@ mod tests {
                 &AuthenticatedTaskClaimRequest {
                     tenant_selector: "tenant:test".into(),
                     lease_seconds: 30,
-                    proof: signed_worker_proof(
-                        &signer,
-                        "task.claim",
-                        None,
-                        1,
-                        claim_time,
-                        [1; 32],
-                    ),
+                    proof: signed_worker_proof(&signer, "task.claim", None, 1, claim_time, [1; 32]),
                 },
             )
             .unwrap()
