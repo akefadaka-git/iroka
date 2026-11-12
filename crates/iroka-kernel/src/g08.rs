@@ -34,6 +34,8 @@ pub struct TenantScope {
 }
 
 impl TenantScope {
+    // Reserved for the in-crate G01 membership adapter; intentionally not public.
+    #[allow(dead_code)]
     pub(crate) fn from_verified_membership(
         subject: String,
         tenant_id: String,
