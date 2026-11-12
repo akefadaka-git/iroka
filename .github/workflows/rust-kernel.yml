@@ -10,6 +10,7 @@ on:
       - feat/g02-postgres-command-processor-a3
       - feat/g05-http-host-a3
       - feat/g11-checkpoint-quorum-a3
+      - feat/g11-provider-adapters-a3
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -18,7 +19,7 @@ on:
       - ".github/workflows/rust-kernel.yml"
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, edited]
-    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority, feat/g05-g02-g11-activation-v12, feat/g02-postgres-g09-resolver-a3, feat/g02-postgres-command-processor-a3, feat/g05-http-host-a3]
+    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority, feat/g05-g02-g11-activation-v12, feat/g02-postgres-g09-resolver-a3, feat/g02-postgres-command-processor-a3, feat/g05-http-host-a3, feat/g11-checkpoint-quorum-a3]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
