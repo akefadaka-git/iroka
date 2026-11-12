@@ -461,7 +461,7 @@ impl PostgresG11OutboxWorker {
                      attempt_count=o.attempt_count+1
                  FROM picked WHERE o.event_id=picked.event_id
                  RETURNING o.payload_json,o.lease_token::text,o.attempt_count",
-                &[&worker_id_bytes[..], &limit, &lease_seconds],
+                &[&&worker_id_bytes[..], &limit, &lease_seconds],
             )
             .map_err(|error| {
                 eprintln!("claim query failed: {error}");
