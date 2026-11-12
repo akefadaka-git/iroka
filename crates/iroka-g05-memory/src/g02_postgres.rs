@@ -18,11 +18,7 @@ use crate::{AuthorizationRequest, G05Error, G09PolicyResolver};
 /// Owner subject/key validity and current key revocation against canonical G02
 /// trust roots, then decode only the verified payload into a kernel Policy.
 pub trait G02PolicySnapshotVerifier: Send + Sync {
-    fn verify_snapshot(
-        &self,
-        snapshot: &G02PolicySnapshot,
-        now: u64,
-    ) -> Result<Policy, G05Error>;
+    fn verify_snapshot(&self, snapshot: &G02PolicySnapshot, now: u64) -> Result<Policy, G05Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -75,15 +71,20 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
 
     /// Fail readiness unless all required G02 authority tables exist.
     pub fn verify_schema(&self) -> Result<(), G05Error> {
-        let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
-        let row = client.query_one(
-            "SELECT to_regclass('public.g02_policy_snapshots') IS NOT NULL
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let row = client
+            .query_one(
+                "SELECT to_regclass('public.g02_policy_snapshots') IS NOT NULL
                 AND to_regclass('public.g02_policy_heads') IS NOT NULL
                 AND to_regclass('public.g02_policy_revocations') IS NOT NULL
                 AND to_regclass('public.g02_emergency_stop') IS NOT NULL
                 AND to_regclass('public.g02_tenant_memberships') IS NOT NULL",
-            &[],
-        ).map_err(|_| G05Error::AuthorityUnavailable)?;
+                &[],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         if row.get::<_, bool>(0) {
             Ok(())
         } else {
@@ -123,10 +124,8 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
             owner_subject: row.get("owner_subject"),
             signer_issuer: row.get("signer_issuer"),
             signer_key_id: row.get("signer_key_id"),
-            issued_at: u64::try_from(issued_at)
-                .map_err(|_| G05Error::AuthorityUnavailable)?,
-            expires_at: u64::try_from(expires_at)
-                .map_err(|_| G05Error::AuthorityUnavailable)?,
+            issued_at: u64::try_from(issued_at).map_err(|_| G05Error::AuthorityUnavailable)?,
+            expires_at: u64::try_from(expires_at).map_err(|_| G05Error::AuthorityUnavailable)?,
             canonical_payload,
             payload_sha256: digest.trim().to_owned(),
             signature,
@@ -161,13 +160,12 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         let mut tx = client
             .transaction()
             .map_err(|_| G05Error::AuthorityUnavailable)?;
-        tx.batch_execute(
-            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
-        )
-        .map_err(|_| G05Error::AuthorityUnavailable)?;
+        tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         // Both policy and emergency-stop reads share one MVCC snapshot.
-        let row = tx.query_opt(
-            "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
+        let row = tx
+            .query_opt(
+                "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
                     s.signer_issuer,s.signer_key_id,s.issued_at,s.expires_at,
                     s.canonical_payload,s.payload_sha256,s.signature
              FROM g02_policy_heads h
@@ -179,16 +177,19 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
                  SELECT 1 FROM g02_policy_revocations r
                  WHERE r.policy_id=s.policy_id AND r.epoch=s.epoch
                )",
-            &[&self.policy_id, &now_i],
-        ).map_err(|_| G05Error::AuthorityUnavailable)?
-         .ok_or(G05Error::AuthorizationDenied)?;
+                &[&self.policy_id, &now_i],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorizationDenied)?;
         let snapshot = Self::snapshot_from_row(&row)?;
         let policy = self.verifier.verify_snapshot(&snapshot, now)?;
-        let emergency = tx.query_opt(
-            "SELECT active,version,changed_at FROM g02_emergency_stop WHERE singleton=TRUE",
-            &[],
-        ).map_err(|_| G05Error::AuthorityUnavailable)?
-         .ok_or(G05Error::AuthorityUnavailable)?;
+        let emergency = tx
+            .query_opt(
+                "SELECT active,version,changed_at FROM g02_emergency_stop WHERE singleton=TRUE",
+                &[],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorityUnavailable)?;
         let active: bool = emergency.get(0);
         let version: i64 = emergency.get(1);
         let changed_at: i64 = emergency.get(2);
@@ -205,21 +206,21 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         request: &AuthorizationRequest,
         _now: u64,
     ) -> Result<(), G05Error> {
-        if request.principal_ref != principal.subject()
-            || request.tenant_ref.trim().is_empty()
-        {
+        if request.principal_ref != principal.subject() || request.tenant_ref.trim().is_empty() {
             return Err(G05Error::AuthorizationDenied);
         }
         let mut client = self
             .client
             .lock()
             .map_err(|_| G05Error::AuthorityUnavailable)?;
-        let row = client.query_opt(
-            "SELECT active,version FROM g02_tenant_memberships
+        let row = client
+            .query_opt(
+                "SELECT active,version FROM g02_tenant_memberships
              WHERE subject_ref=$1 AND tenant_ref=$2",
-            &[&request.principal_ref, &request.tenant_ref],
-        ).map_err(|_| G05Error::AuthorityUnavailable)?
-         .ok_or(G05Error::TenantScopeMismatch)?;
+                &[&request.principal_ref, &request.tenant_ref],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::TenantScopeMismatch)?;
         let active: bool = row.get(0);
         let version: i64 = row.get(1);
         if !active || version <= 0 {
@@ -237,11 +238,46 @@ mod tests {
     fn malformed_snapshot_rows_fail_closed() {
         let payload = b"{\"policy\":\"signed\"}";
         let signature = [9u8; 64];
-        assert!(valid_snapshot_shape(1, 10, 20, &"a".repeat(64), payload, &signature));
-        assert!(!valid_snapshot_shape(0, 10, 20, &"a".repeat(64), payload, &signature));
-        assert!(!valid_snapshot_shape(1, 20, 20, &"a".repeat(64), payload, &signature));
+        assert!(valid_snapshot_shape(
+            1,
+            10,
+            20,
+            &"a".repeat(64),
+            payload,
+            &signature
+        ));
+        assert!(!valid_snapshot_shape(
+            0,
+            10,
+            20,
+            &"a".repeat(64),
+            payload,
+            &signature
+        ));
+        assert!(!valid_snapshot_shape(
+            1,
+            20,
+            20,
+            &"a".repeat(64),
+            payload,
+            &signature
+        ));
         assert!(!valid_snapshot_shape(1, 10, 20, "bad", payload, &signature));
-        assert!(!valid_snapshot_shape(1, 10, 20, &"a".repeat(64), &[], &signature));
-        assert!(!valid_snapshot_shape(1, 10, 20, &"a".repeat(64), payload, &[1u8; 63]));
+        assert!(!valid_snapshot_shape(
+            1,
+            10,
+            20,
+            &"a".repeat(64),
+            &[],
+            &signature
+        ));
+        assert!(!valid_snapshot_shape(
+            1,
+            10,
+            20,
+            &"a".repeat(64),
+            payload,
+            &[1u8; 63]
+        ));
     }
 }
