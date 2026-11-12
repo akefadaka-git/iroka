@@ -123,6 +123,16 @@ impl WorkflowState {
     }
 }
 
+struct ExistingWorkflowRecord {
+    workflow_id: String,
+    owner_subject: String,
+    request_digest: Vec<u8>,
+    contract_version: String,
+    state: String,
+    version: i64,
+    created_at: i64,
+}
+
 pub struct SqliteWorkflowStore {
     connection: Mutex<Connection>,
 }
@@ -216,7 +226,7 @@ impl SqliteWorkflowStore {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| G08Error::StoreUnavailable)?;
 
-        let existing: Option<(String, String, Vec<u8>, String, String, i64, i64)> = transaction
+        let existing: Option<ExistingWorkflowRecord> = transaction
             .query_row(
                 "SELECT workflow_id, owner_subject, request_digest, contract_version, state, version, created_at
                  FROM g08_workflows
@@ -227,45 +237,47 @@ impl SqliteWorkflowStore {
                     request.idempotency_key
                 ],
                 |row| {
-                    Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
-                        row.get(5)?,
-                        row.get(6)?,
-                    ))
+                    Ok(ExistingWorkflowRecord {
+                        workflow_id: row.get(0)?,
+                        owner_subject: row.get(1)?,
+                        request_digest: row.get(2)?,
+                        contract_version: row.get(3)?,
+                        state: row.get(4)?,
+                        version: row.get(5)?,
+                        created_at: row.get(6)?,
+                    })
                 },
             )
             .optional()
             .map_err(|_| G08Error::StoreUnavailable)?;
 
-        if let Some((id, owner_subject, prior_digest, contract, state, version, created_at)) =
-            existing
-        {
+        if let Some(existing) = existing {
             // Idempotency receipts are owner-bound; another tenant member must not
             // learn or reuse a workflow created by a different subject.
-            if owner_subject != scope.subject() {
+            if existing.owner_subject != scope.subject() {
                 return Err(G08Error::TenantAuthorityRejected);
             }
-            if prior_digest.as_slice() != digest {
+            if existing.request_digest.as_slice() != digest {
                 return Err(G08Error::IdempotencyConflict);
             }
-            if contract != request.contract_version || state != WorkflowState::Draft.as_str() {
+            if existing.contract_version != request.contract_version
+                || existing.state != WorkflowState::Draft.as_str()
+            {
                 return Err(G08Error::IntegrityFailure);
             }
             transaction
                 .commit()
                 .map_err(|_| G08Error::StoreUnavailable)?;
             return Ok(WorkflowReceipt {
-                workflow_id: id,
+                workflow_id: existing.workflow_id,
                 tenant_id: scope.tenant_id().to_owned(),
                 workflow_type: request.workflow_type.clone(),
-                contract_version: contract,
+                contract_version: existing.contract_version,
                 state: WorkflowState::Draft,
-                version: u64::try_from(version).map_err(|_| G08Error::IntegrityFailure)?,
-                created_at: u64::try_from(created_at).map_err(|_| G08Error::IntegrityFailure)?,
+                version: u64::try_from(existing.version)
+                    .map_err(|_| G08Error::IntegrityFailure)?,
+                created_at: u64::try_from(existing.created_at)
+                    .map_err(|_| G08Error::IntegrityFailure)?,
                 idempotent_replay: true,
             });
         }
