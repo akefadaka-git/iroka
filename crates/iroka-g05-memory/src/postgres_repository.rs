@@ -630,3 +630,225 @@ fn decode_claim(row: Row, worker_id: &str) -> Result<LeasedG11Event, G05Error> {
 #[cfg(test)]
 #[path = "postgres_repository_tests.rs"]
 mod postgres_tests;
+
+
+/// Shared G11 append-only receipt stream. This adapter serializes chain-head
+/// advancement in PostgreSQL and makes receipt creation idempotent by event ID
+/// and payload digest across workers and process restarts.
+#[derive(Clone)]
+pub struct PostgresG11MemoryAdapter {
+    client: Arc<Mutex<Client>>,
+}
+
+impl PostgresG11MemoryAdapter {
+    pub fn connect(connection_string: &str) -> Result<Self, G05Error> {
+        if !connection_string.contains("sslmode=verify-full") {
+            return Err(G05Error::RepositoryUnavailable);
+        }
+        let tls = TlsConnector::builder()
+            .build()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        Ok(Self {
+            client: Arc::new(Mutex::new(client)),
+        })
+    }
+
+    /// Return the durable chain head for checkpoint signing and publication.
+    pub fn head(&self) -> Result<(u64, String), G05Error> {
+        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let row = client
+            .query_one(
+                "SELECT sequence,digest FROM g11_memory_audit_head WHERE singleton=TRUE",
+                &[],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let sequence: i64 = row.get(0);
+        let digest: String = row.get(1);
+        Ok((sequence as u64, digest))
+    }
+
+    /// Recompute the full event chain and verify every durable receipt and head.
+    pub fn verify_integrity(&self) -> Result<(), G05Error> {
+        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let rows = client
+            .query(
+                "SELECT sequence,event_id,payload_sha256,previous_digest,event_digest,
+                        occurred_at,accepted_at,event_json
+                 FROM g11_memory_audit_events ORDER BY sequence",
+                &[],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut previous = "0".repeat(64);
+        let mut expected_sequence = 0_i64;
+        for row in rows {
+            expected_sequence += 1;
+            let sequence: i64 = row.get(0);
+            let event_id: String = row.get(1);
+            let payload_digest: String = row.get(2);
+            let previous_digest: String = row.get(3);
+            let event_digest: String = row.get(4);
+            let occurred_at: i64 = row.get(5);
+            let accepted_at: i64 = row.get(6);
+            let event_json: Value = row.get(7);
+            let event: AuditEvent = serde_json::from_value(event_json)
+                .map_err(|_| G05Error::AuditUnavailable)?;
+            let canonical = format!(
+                "IROKA:G11:MEMORY:AUDIT:V1\0{previous}\0{event_id}\0{payload_digest}\0{occurred_at}\0{accepted_at}"
+            );
+            let calculated = crate::sha256_hex(canonical.as_bytes());
+            if sequence != expected_sequence
+                || previous_digest != previous
+                || event_digest != calculated
+                || event.event_id != event_id
+                || event.occurred_at as i64 != occurred_at
+                || audit_event_sha256(&event) != payload_digest
+            {
+                return Err(G05Error::AuditUnavailable);
+            }
+            let receipt = client
+                .query_opt(
+                    "SELECT payload_sha256,accepted_at FROM g11_memory_receipts WHERE event_id=$1",
+                    &[&event_id],
+                )
+                .map_err(|_| G05Error::RepositoryUnavailable)?
+                .ok_or(G05Error::AuditUnavailable)?;
+            let receipt_digest: String = receipt.get(0);
+            let receipt_time: i64 = receipt.get(1);
+            if receipt_digest != payload_digest || receipt_time != accepted_at {
+                return Err(G05Error::AuditUnavailable);
+            }
+            previous = event_digest;
+        }
+        let head = client
+            .query_one(
+                "SELECT sequence,digest FROM g11_memory_audit_head WHERE singleton=TRUE",
+                &[],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let head_sequence: i64 = head.get(0);
+        let head_digest: String = head.get(1);
+        if head_sequence != expected_sequence || head_digest != previous {
+            return Err(G05Error::AuditUnavailable);
+        }
+        Ok(())
+    }
+}
+
+impl G11MemoryAuditAuthority for PostgresG11MemoryAdapter {
+    fn append_memory_event(
+        &self,
+        event: &AuditEvent,
+    ) -> Result<G11Acknowledgment, G05Error> {
+        if event.event_id.trim().is_empty()
+            || event.event_id.len() > 256
+            || event.memory_id.trim().is_empty()
+            || event.tenant_ref.trim().is_empty()
+            || event.record_version == 0
+        {
+            return Err(G05Error::MalformedRecord);
+        }
+        let payload_digest = audit_event_sha256(event);
+        let event_json = json_value(event)?;
+        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+
+        // A singleton row lock serializes append and duplicate detection across
+        // independent connections, not merely threads sharing one client.
+        let head = tx
+            .query_one(
+                "SELECT sequence,digest FROM g11_memory_audit_head
+                 WHERE singleton=TRUE FOR UPDATE",
+                &[],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let previous_sequence: i64 = head.get(0);
+        let previous_digest: String = head.get(1);
+
+        if let Some(existing) = tx
+            .query_opt(
+                "SELECT payload_sha256,accepted_at FROM g11_memory_receipts WHERE event_id=$1",
+                &[&event.event_id],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?
+        {
+            let old_digest: String = existing.get(0);
+            let accepted_at: i64 = existing.get(1);
+            if old_digest != payload_digest || accepted_at < event.occurred_at as i64 {
+                return Err(G05Error::AuditUnavailable);
+            }
+            tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
+            return Ok(G11Acknowledgment {
+                event_id: event.event_id.clone(),
+                payload_sha256: payload_digest,
+                accepted_at: accepted_at as u64,
+            });
+        }
+
+        let accepted_at: i64 = tx
+            .query_one(
+                "SELECT floor(extract(epoch FROM clock_timestamp()))::bigint",
+                &[],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?
+            .get(0);
+        if accepted_at < event.occurred_at as i64 {
+            return Err(G05Error::AuditUnavailable);
+        }
+        let canonical = format!(
+            "IROKA:G11:MEMORY:AUDIT:V1\0{previous_digest}\0{}\0{payload_digest}\0{}\0{accepted_at}",
+            event.event_id, event.occurred_at
+        );
+        let event_digest = crate::sha256_hex(canonical.as_bytes());
+        let inserted_sequence: i64 = tx
+            .query_one(
+                "INSERT INTO g11_memory_audit_events
+                 (event_id,payload_sha256,previous_digest,event_digest,occurred_at,accepted_at,event_json)
+                 VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING sequence",
+                &[
+                    &event.event_id,
+                    &payload_digest,
+                    &previous_digest,
+                    &event_digest,
+                    &(event.occurred_at as i64),
+                    &accepted_at,
+                    &event_json,
+                ],
+            )
+            .map_err(|_| G05Error::AuditUnavailable)?
+            .get(0);
+        if inserted_sequence != previous_sequence + 1 {
+            return Err(G05Error::AuditUnavailable);
+        }
+        let changed = tx
+            .execute(
+                "UPDATE g11_memory_audit_head SET sequence=$1,digest=$2
+                 WHERE singleton=TRUE AND sequence=$3 AND digest=$4",
+                &[&inserted_sequence, &event_digest, &previous_sequence, &previous_digest],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        if changed != 1 {
+            return Err(G05Error::VersionConflict);
+        }
+        let receipt_json = serde_json::json!({
+            "event_id": event.event_id,
+            "payload_sha256": payload_digest,
+            "accepted_at": accepted_at,
+            "audit_sequence": inserted_sequence,
+            "event_digest": event_digest
+        });
+        tx.execute(
+            "INSERT INTO g11_memory_receipts(event_id,payload_sha256,accepted_at,receipt_json)
+             VALUES($1,$2,$3,$4)",
+            &[&event.event_id, &payload_digest, &accepted_at, &receipt_json],
+        )
+        .map_err(|_| G05Error::AuditUnavailable)?;
+        tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
+        Ok(G11Acknowledgment {
+            event_id: event.event_id.clone(),
+            payload_sha256: payload_digest,
+            accepted_at: accepted_at as u64,
+        })
+    }
+}
