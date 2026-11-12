@@ -6,8 +6,6 @@
 //! RFC 8785 canonical JSON and are bound to one operation and resource scope.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
-
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -259,9 +257,10 @@ impl<R: WorkerRevocationChecker, G: WorkerReplayGuard> Ed25519WorkerAuthenticato
         scope: &WorkerOperationScope,
         clock: &dyn TrustedClock,
     ) -> Result<AuthenticatedWorker, WorkerAuthError> {
-        let now = clock
-            .now_unix_seconds()
-            .map_err(|_| WorkerAuthError::ClockUnavailable)?;
+        let now = clock.now_unix_seconds().map_err(|error| match error {
+            TrustedTimeError::Unavailable => WorkerAuthError::ClockUnavailable,
+            TrustedTimeError::Invalid => WorkerAuthError::InvalidClock,
+        })?;
         if now == 0 {
             return Err(WorkerAuthError::InvalidClock);
         }
@@ -398,10 +397,10 @@ mod tests {
 
     struct RevokedWorker;
     impl WorkerRevocationChecker for RevokedWorker {
-        fn worker_revoked(&self, _: &str) -> Result<bool, WorkerReplayError> {
+        fn worker_revoked(&self, _: &str) -> Result<bool, WorkerRevocationError> {
             Ok(true)
         }
-        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, WorkerReplayError> {
+        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, WorkerRevocationError> {
             Ok(false)
         }
     }
