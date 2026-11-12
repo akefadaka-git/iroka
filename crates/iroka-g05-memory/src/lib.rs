@@ -905,6 +905,39 @@ pub trait MemoryRepository: Send + Sync {
     }
 }
 
+/// Persistence boundary for the durable G11 outbox. Implementations must
+/// return only content-free events and acknowledge only a matching opaque G11
+/// receipt. Delivery is at-least-once; G11 must deduplicate stable event IDs.
+pub trait G11OutboxRepository: Send + Sync {
+    fn pending_g11_events(&self, limit: usize) -> Result<Vec<AuditEvent>, G05Error>;
+    fn acknowledge_g11_event(
+        &self,
+        event: &AuditEvent,
+        acknowledgment: &G11Acknowledgment,
+    ) -> Result<(), G05Error>;
+}
+
+/// Dispatch a bounded batch. A failure leaves the current event pending and
+/// returns immediately; a later worker retry reuses the same event ID/digest.
+pub fn dispatch_g11_outbox<R, G>(
+    repository: &R,
+    g11: &G,
+    limit: usize,
+) -> Result<usize, G05Error>
+where
+    R: G11OutboxRepository,
+    G: G11MemoryAuditAuthority,
+{
+    let events = repository.pending_g11_events(limit)?;
+    let mut delivered = 0;
+    for event in events {
+        let acknowledgment = g11.append_memory_event(&event)?;
+        repository.acknowledge_g11_event(&event, &acknowledgment)?;
+        delivered += 1;
+    }
+    Ok(delivered)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
