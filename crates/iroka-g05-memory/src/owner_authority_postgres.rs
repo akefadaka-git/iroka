@@ -125,14 +125,6 @@ impl PostgresOwnerSignatureVerifier {
         Ok(key)
     }
 
-    fn ensure_key_active(&self, client: &mut Client, key_id: &str) -> Result<(), G02CommandError> {
-        let revoked: bool = client.query_one(
-            "SELECT EXISTS(SELECT 1 FROM g02_signing_key_revocations
-             WHERE issuer=$1 AND key_id=$2)",
-            &[&OWNER_ISSUER, &key_id],
-        ).map_err(|_| G02CommandError::Unavailable)?.get(0);
-        if revoked { Err(G02CommandError::Revoked) } else { Ok(()) }
-    }
 
     pub fn apply_security_command(
         &self,
@@ -190,6 +182,39 @@ impl PostgresOwnerSignatureVerifier {
         ).map_err(|_| G02CommandError::Unavailable)?;
         tx.commit().map_err(|_| G02CommandError::Unavailable)?;
         Ok(event_id)
+    }
+}
+
+
+impl iroka_kernel::RevocationChecker for PostgresOwnerSignatureVerifier {
+    fn credential_revoked(
+        &self,
+        issuer: &str,
+        credential_id: &str,
+    ) -> Result<bool, iroka_kernel::RevocationError> {
+        let mut client = self.client.lock().map_err(|_| iroka_kernel::RevocationError::Unavailable)?;
+        client.query_one(
+            "SELECT EXISTS(SELECT 1 FROM g02_credential_revocations
+             WHERE issuer=$1 AND credential_id=$2)",
+            &[&issuer, &credential_id],
+        )
+        .map(|row| row.get(0))
+        .map_err(|_| iroka_kernel::RevocationError::Unavailable)
+    }
+
+    fn key_revoked(
+        &self,
+        issuer: &str,
+        key_id: &str,
+    ) -> Result<bool, iroka_kernel::RevocationError> {
+        let mut client = self.client.lock().map_err(|_| iroka_kernel::RevocationError::Unavailable)?;
+        client.query_one(
+            "SELECT EXISTS(SELECT 1 FROM g02_signing_key_revocations
+             WHERE issuer=$1 AND key_id=$2)",
+            &[&issuer, &key_id],
+        )
+        .map(|row| row.get(0))
+        .map_err(|_| iroka_kernel::RevocationError::Unavailable)
     }
 }
 
