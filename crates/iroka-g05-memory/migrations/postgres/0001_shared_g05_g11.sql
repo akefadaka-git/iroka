@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS g11_signed_checkpoints (
     previous_digest CHAR(64),
     checkpoint_digest CHAR(64) NOT NULL,
     signer_key_id TEXT NOT NULL,
+    payload_json JSONB NOT NULL,
     signature BYTEA NOT NULL,
     published_at TIMESTAMPTZ,
     publication_receipt JSONB,
