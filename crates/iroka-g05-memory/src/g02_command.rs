@@ -214,6 +214,8 @@ impl PostgresG02Authority {
         let digest = hex(&Sha256::digest(&bytes));
         let signature = Signature::from_slice(&command.signature).map_err(|_| G02AuthorityError::InvalidOwnerSignature)?;
         let mut tx = self.client.transaction().map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        tx.batch_execute("SELECT pg_advisory_xact_lock_shared(77305113)")
+            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         let key = tx.query_opt(
             "SELECT k.public_key,k.not_before,k.not_after,v.expires_at
              FROM g02_owner_keys k JOIN g02_owner_key_registry_versions v ON v.version=k.registry_version
@@ -236,7 +238,6 @@ impl PostgresG02Authority {
         VerifyingKey::from_bytes(&pk).map_err(|_| G02AuthorityError::UnknownOwnerKey)?
             .verify(&bytes,&signature).map_err(|_| G02AuthorityError::InvalidOwnerSignature)?;
 
-        let action = serde_jcs::to_vec(&p.action).map_err(|_| G02AuthorityError::Malformed)?;
         let kind = match &p.action {
             OwnerCommandAction::PublishPolicy { .. } => "policy.published",
             OwnerCommandAction::SetTenantMembership { .. } => "membership.changed",
@@ -278,6 +279,8 @@ impl PostgresG02Authority {
                 if changed!=1 { return Err(G02AuthorityError::VersionConflict); }
             }
             OwnerCommandAction::RevokeOwnerKey { issuer,key_id,reason_code } => {
+                let target = tx.query_opt("SELECT key_id FROM g02_owner_keys WHERE registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions) AND issuer=$1 AND key_id=$2 FOR UPDATE", &[issuer,key_id]).map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                if target.is_none() { return Err(G02AuthorityError::UnknownOwnerKey); }
                 if issuer.trim().is_empty() || key_id.trim().is_empty() || reason_code.trim().is_empty()
                     || (issuer==&p.issuer && key_id==&p.key_id) { return Err(G02AuthorityError::InvalidTransition); }
                 tx.execute("INSERT INTO g02_owner_key_revocations(issuer,key_id,revoked_at,reason_code,revoked_by_command_id) VALUES($1,$2,$3,$4,$5)",
@@ -289,7 +292,6 @@ impl PostgresG02Authority {
             &[&format!("g02:{}",p.command_id),&p.command_id,&kind,&digest,&outbox,&to_i64(now)?])
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         tx.commit().map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
-        let _ = action;
         Ok(digest)
     }
 }
