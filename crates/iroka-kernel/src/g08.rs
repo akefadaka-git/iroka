@@ -661,7 +661,7 @@ impl SqliteWorkflowStore {
              VALUES(?1,?2,?3,?4,?5,'TASK_STATE_CHANGED',?6,?7,?8,?9,?10)",
                 params![
                     event_id,
-                    task_id,
+                    &request.task_id,
                     workflow_id,
                     scope.tenant_id(),
                     scope.subject(),
@@ -669,7 +669,7 @@ impl SqliteWorkflowStore {
                     request.next_state.as_str(),
                     current_version,
                     next_version,
-                    i64::try_from(now).map_err(|_| G08Error::InvalidInput)?
+                    i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?
                 ],
             )
             .map_err(|_| G08Error::StoreUnavailable)?;
