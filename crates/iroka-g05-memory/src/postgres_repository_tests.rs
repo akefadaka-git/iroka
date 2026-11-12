@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod postgres_tests {
     use super::*;
     use crate::{
         Classification, MemoryCandidate, MemoryClass, Provenance, ProvenanceKind, Purpose,
@@ -334,4 +332,3 @@ mod postgres_tests {
         assert_eq!(row.get::<_, String>(2), "g11_temporarily_unavailable");
         cleanup(&mut admin, &[id]);
     }
-}
