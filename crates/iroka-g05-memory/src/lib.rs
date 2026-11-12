@@ -1071,6 +1071,98 @@ mod tests {
     }
 
     #[test]
+    fn only_atomic_repository_cas_can_persist_active_after_g11_ack() {
+        struct CasRepository {
+            current_version: u64,
+            active: bool,
+        }
+        impl MemoryRepository for CasRepository {
+            fn insert_with_audit(
+                &mut self,
+                _record: MemoryRecord,
+                _event: AuditEvent,
+            ) -> Result<(), G05Error> {
+                Err(G05Error::UnsupportedOperation)
+            }
+            fn get_metadata(&self, _memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error> {
+                Ok(None)
+            }
+            fn get_content(&self, _memory_id: &str) -> Result<Option<MemoryRecord>, G05Error> {
+                Ok(None)
+            }
+            fn replace_with_audit(
+                &mut self,
+                _record: MemoryRecord,
+                _expected_version: u64,
+                _event: AuditEvent,
+            ) -> Result<(), G05Error> {
+                Err(G05Error::UnsupportedOperation)
+            }
+            fn finalize_pending_activation(
+                &mut self,
+                record: MemoryRecord,
+                expected_version: u64,
+                event: AuditEvent,
+            ) -> Result<(), G05Error> {
+                if self.current_version != expected_version
+                    || record.candidate.record_version != expected_version
+                    || record.lifecycle_state != LifecycleState::Active
+                    || event.event_type != "memory.durable.activated"
+                {
+                    return Err(G05Error::VersionConflict);
+                }
+                self.active = true;
+                Ok(())
+            }
+        }
+
+        let mut item = candidate(MemoryClass::Durable, Classification::Internal);
+        item.record_version = 2;
+        let pending = MemoryRecord {
+            candidate: item,
+            lifecycle_state: LifecycleState::PendingAudit,
+            approval_ref: Some("approval:cas".into()),
+            approved_by_ref: Some("reviewer:cas".into()),
+            approved_at: Some(110),
+            updated_at: 110,
+        };
+        let event = durable_activation_audit_event(&pending).unwrap();
+        let ack = AllowGovernance.append_audit(&event).unwrap();
+
+        let mut stale_repository = CasRepository {
+            current_version: 1,
+            active: false,
+        };
+        assert_eq!(
+            commit_durable_activation(
+                &mut stale_repository,
+                &pending,
+                &ack,
+                pending.candidate.record_version,
+                112,
+            ),
+            Err(G05Error::VersionConflict),
+        );
+        assert!(!stale_repository.active);
+
+        let mut current_repository = CasRepository {
+            current_version: 2,
+            active: false,
+        };
+        assert_eq!(
+            commit_durable_activation(
+                &mut current_repository,
+                &pending,
+                &ack,
+                pending.candidate.record_version,
+                112,
+            ),
+            Ok(()),
+        );
+        assert!(current_repository.active);
+    }
+
+    #[test]
     fn durable_candidate_creation_enters_review_not_active() {
         let item = candidate(MemoryClass::Durable, Classification::Internal);
         let request = AuthorizationRequest {
