@@ -56,7 +56,7 @@ CREATE INDEX IF NOT EXISTS g05_g11_outbox_expired_lease
     WHERE delivered_at IS NULL AND lease_token IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS g11_memory_audit_events (
-    sequence BIGSERIAL PRIMARY KEY,
+    sequence BIGINT PRIMARY KEY CHECK (sequence > 0),
     event_id TEXT NOT NULL UNIQUE,
     payload_sha256 CHAR(64) NOT NULL CHECK (length(payload_sha256) = 64),
     previous_digest CHAR(64) NOT NULL CHECK (length(previous_digest) = 64),
