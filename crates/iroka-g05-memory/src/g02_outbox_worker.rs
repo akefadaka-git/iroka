@@ -115,7 +115,11 @@ impl PostgresG02AuthorityOutboxWorker {
              RETURNING o.event_id,o.command_id,o.event_kind,o.payload_sha256,
                        o.payload_json,o.occurred_at,o.attempt_count",
             &[&limit, &worker_id, &lease_token, &lease_secs],
-        ).map_err(|_| G02OutboxError::Unavailable)?;
+        ).map_err(|error| {
+            #[cfg(test)]
+            eprintln!("G02 outbox claim SQL error: {error}");
+            G02OutboxError::Unavailable
+        })?;
         let events = rows.iter().map(|row| event_from_row(row, lease_token))
             .collect::<Result<Vec<_>, _>>()?;
         tx.commit().map_err(|_| G02OutboxError::Unavailable)?;
