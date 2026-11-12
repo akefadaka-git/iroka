@@ -336,6 +336,7 @@ impl PostgresG02Authority {
                     || canonical_payload.is_empty()
                     || canonical_payload.len() > MAX_PAYLOAD_BYTES
                     || *expires_at <= *issued_at
+                    || *expires_at <= now
                     || *issued_at > now.saturating_add(30)
                     || hex(&Sha256::digest(canonical_payload))
                         != payload_sha256.to_ascii_lowercase()
@@ -504,6 +505,9 @@ mod tests {
             .expect("registry high-water mark")
             .get(0);
         let version = current.unwrap_or(0) as u64 + 1;
+        let suffix = unique_test_suffix();
+        let subject_ref = format!("subject:test:{suffix}");
+        let tenant_ref = format!("tenant:test:{suffix}");
         let payload = OwnerKeyRegistryPayload {
             version,
             issued_at: 1_000,
