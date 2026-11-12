@@ -1304,10 +1304,17 @@ impl SqliteWorkflowStore {
                 request.next_state.as_str(),task_version,next_version,
                 i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?]
         ).map_err(|_|G08Error::StoreUnavailable)?;
+        // Retain the expired lease row as a monotonic fencing epoch. The
+        // token is unusable after expiry, while the next claim increments its
+        // version instead of resetting to one.
         transaction
             .execute(
-                "DELETE FROM g08_task_leases WHERE task_id=?1 AND lease_version=?2",
-                params![request.task_id, lease_version],
+                "UPDATE g08_task_leases SET expires_at=?1 WHERE task_id=?2 AND lease_version=?3",
+                params![
+                    i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?,
+                    request.task_id,
+                    lease_version
+                ],
             )
             .map_err(|_| G08Error::StoreUnavailable)?;
         if request.next_state == TaskState::Succeeded {
