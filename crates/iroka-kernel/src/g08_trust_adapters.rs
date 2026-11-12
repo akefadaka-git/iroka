@@ -498,20 +498,23 @@ impl SqliteWorkerRegistry {
                AND not_before<=?1 AND not_after>?1 ORDER BY worker_id,key_id"
         ).map_err(|_|WorkerRevocationError::Unavailable)?;
         let rows = statement
-            .query_map([i64::try_from(now).map_err(|_| WorkerRevocationError::Unavailable)?], |r| {
-                Ok(WorkerKey {
-                    worker_id: r.get(0)?,
-                    key_id: r.get(1)?,
-                    public_key: r
-                        .get::<_, Vec<u8>>(2)?
-                        .try_into()
-                        .map_err(|_| rusqlite::Error::InvalidQuery)?,
-                    not_before: u64::try_from(r.get::<_, i64>(3)?)
-                        .map_err(|_| rusqlite::Error::InvalidQuery)?,
-                    not_after: u64::try_from(r.get::<_, i64>(4)?)
-                        .map_err(|_| rusqlite::Error::InvalidQuery)?,
-                })
-            })
+            .query_map(
+                [i64::try_from(now).map_err(|_| WorkerRevocationError::Unavailable)?],
+                |r| {
+                    Ok(WorkerKey {
+                        worker_id: r.get(0)?,
+                        key_id: r.get(1)?,
+                        public_key: r
+                            .get::<_, Vec<u8>>(2)?
+                            .try_into()
+                            .map_err(|_| rusqlite::Error::InvalidQuery)?,
+                        not_before: u64::try_from(r.get::<_, i64>(3)?)
+                            .map_err(|_| rusqlite::Error::InvalidQuery)?,
+                        not_after: u64::try_from(r.get::<_, i64>(4)?)
+                            .map_err(|_| rusqlite::Error::InvalidQuery)?,
+                    })
+                },
+            )
             .map_err(|_| WorkerRevocationError::Unavailable)?;
         let mut values = Vec::new();
         for row in rows {
@@ -565,7 +568,6 @@ impl WorkerRevocationChecker for SqliteWorkerRegistry {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -581,7 +583,10 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        std::env::temp_dir().join(format!("iroka-g08-{label}-{}-{nonce}.sqlite", std::process::id()))
+        std::env::temp_dir().join(format!(
+            "iroka-g08-{label}-{}-{nonce}.sqlite",
+            std::process::id()
+        ))
     }
 
     #[test]
@@ -617,7 +622,10 @@ mod tests {
         let results: Vec<_> = workers.into_iter().map(|w| w.join().unwrap()).collect();
         assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
         assert_eq!(
-            results.iter().filter(|r| **r == Err(WorkerReplayError::Replay)).count(),
+            results
+                .iter()
+                .filter(|r| **r == Err(WorkerReplayError::Replay))
+                .count(),
             7
         );
         let _ = std::fs::remove_file(path);
@@ -662,9 +670,13 @@ mod tests {
             not_after: 2_000,
         };
         {
-            let clock = SqliteQuorumTrustedClock::open(&path, vec![authority.clone()], 1, 0).unwrap();
+            let clock =
+                SqliteQuorumTrustedClock::open(&path, vec![authority.clone()], 1, 0).unwrap();
             assert_eq!(clock.now_unix_seconds(), Err(TrustedTimeError::Unavailable));
-            assert_eq!(clock.observe(&[signed_time(&signing, "clock-a", 1, 1_000)]), Ok(1_000));
+            assert_eq!(
+                clock.observe(&[signed_time(&signing, "clock-a", 1, 1_000)]),
+                Ok(1_000)
+            );
             assert_eq!(clock.now_unix_seconds(), Ok(1_000));
             assert_eq!(
                 clock.observe(&[signed_time(&signing, "clock-a", 1, 999)]),
