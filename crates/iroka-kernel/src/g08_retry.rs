@@ -146,9 +146,7 @@ mod tests {
             RetryFailureClass::Cancelled,
         ] {
             assert_eq!(
-                policy()
-                    .schedule_after_failure(failure, 1, 1_000)
-                    .unwrap(),
+                policy().schedule_after_failure(failure, 1, 1_000).unwrap(),
                 None
             );
         }
@@ -169,11 +167,7 @@ mod tests {
     #[test]
     fn timestamp_overflow_fails_closed() {
         assert_eq!(
-            policy().schedule_after_failure(
-                RetryFailureClass::TransientStore,
-                1,
-                u64::MAX
-            ),
+            policy().schedule_after_failure(RetryFailureClass::TransientStore, 1, u64::MAX),
             Err(RetryPolicyError::TimestampOverflow)
         );
     }
