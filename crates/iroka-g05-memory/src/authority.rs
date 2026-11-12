@@ -1,101 +1,216 @@
-//! Trusted G05 authority composition boundaries.
+//! Cross-domain G05 authority composition.
 //!
-//! No local consent registry, reviewer directory, trust roots, signing keys,
-//! or authorization policy are created here. Those are owned by authoritative
-//! services; an absent or failing provider fails closed.
-//!
-//! G02 owns authorization; the consent authority owns episodic opt-in and
-//! revocation; the reviewer authority owns organizational reviewer designation
-//! and approval proof verification; G11 owns memory lifecycle audit events.
+//! G01 verifies signed reviewer proof and current key binding. G02 alone
+//! resolves organization designation/delegation for the complete activation
+//! tuple. G05 owns episodic consent and memory lifecycle only. G11 owns audit
+//! acceptance. No reviewer designation authority is persisted in G05.
+use std::sync::Arc;
 
-use iroka_kernel::VerifiedPrincipal;
-
-use crate::{
-    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, G05Error, GovernancePort,
-    MemoryRecord, Purpose,
+use iroka_kernel::{
+    G05ActivationDecision, G05ActivationTuple, OrganizationAuthorityResolver,
+    ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof,
+    SqliteSecurityStore, TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
 };
 
-/// Delegates to the canonical G01 -> tenant -> G02 authorization composition.
-/// Must not accept caller-asserted principal or tenant authority.
+use crate::{
+    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, EpisodicConsentAuthority,
+    G05Error, GovernancePort, G11MemoryAuditAuthority, MemoryRecord, Purpose,
+};
+
 pub trait G02AuthorizationAuthority: Send + Sync {
     fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error>;
 
-    /// Global G02 capability permission is not sufficient to manage a
-    /// particular organization's reviewers. Implementations must additionally
-    /// resolve the actor's current organization-scoped governance delegation.
-    /// Default denial prevents a global capability from becoming an org role.
-    fn authorize_organization_scope(
+    fn resolve_g05_activation(
         &self,
-        _request: &AuthorizationRequest,
-        _organization_ref: &str,
-    ) -> Result<(), G05Error> {
-        Err(G05Error::ReviewerNotAuthorized)
-    }
-}
-
-/// Loads authoritative consent state and verifies exact tenant, subject,
-/// purpose, opt-in state, effective interval, revocation and record integrity.
-/// The reference is a selector, never proof. Consent is purpose-specific.
-pub trait EpisodicConsentAuthority: Send + Sync {
-    fn verify_active_opt_in(
-        &self,
-        consent_ref: &str,
-        tenant_ref: &str,
-        subject_ref: &str,
-        purpose: Purpose,
-        now: u64,
-    ) -> Result<(), G05Error>;
-}
-
-/// Re-resolves the current reviewer designation for the organization, validates
-/// the approval proof against a separately provisioned trust root, and checks
-/// exact organization/reviewer/memory/tenant/subject/digest scope, validity,
-/// revocation and replay. Owner approval alone is not reviewer designation.
-pub trait DesignatedReviewerAuthority: Send + Sync {
-    fn verify_designated_reviewer(
-        &self,
+        verified_proof: &VerifiedReviewerProof,
         receipt: &DurableApprovalReceipt,
         record: &MemoryRecord,
-        reviewer_principal: &VerifiedPrincipal,
-        organization_ref: &str,
+        reviewer: &VerifiedPrincipal,
         now: u64,
-    ) -> Result<(), G05Error>;
+    ) -> Result<G05ActivationDecision, G05Error>;
 }
 
-/// G11-owned versioned, content-free lifecycle event sink. The receiver MUST
-/// deduplicate by event ID because the durable G05 outbox retries after crashes.
-/// Atomicity with a G05 authority mutation is supplied by the local outbox
-/// transaction, not by this cross-domain delivery call.
+pub trait G01ReviewerProofAuthority: Send + Sync {
+    fn verify_approval_proof(
+        &self,
+        proof: &SignedReviewerProof,
+        principal: &VerifiedPrincipal,
+        receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
+        now: u64,
+    ) -> Result<VerifiedReviewerProof, G05Error>;
+}
+
 pub trait G11MemoryAuditAuthority: Send + Sync {
     fn append_memory_event(&self, event: &AuditEvent) -> Result<(), G05Error>;
 }
 
-/// Composition only: no authority is minted locally. All four domain owners
-/// are required; providers must be authenticated server-side implementations.
-pub struct TrustedGovernanceAdapter<G, C, R, A> {
+pub trait TenantContextResolver: Send + Sync {
+    fn resolve_current_tenant(
+        &self,
+        principal: &VerifiedPrincipal,
+        tenant_id: &str,
+    ) -> Result<TenantContext, G05Error>;
+}
+
+/// Concrete G01 adapter: the proof signature covers designation/delegation,
+/// memory tuple, purpose, classification, policy, and identity-key binding.
+pub struct KernelG01ReviewerProofAdapter<R: ReviewerKeyBindingResolver> {
+    verifier: ReviewerProofVerifier<R>,
+}
+impl<R: ReviewerKeyBindingResolver> KernelG01ReviewerProofAdapter<R> {
+    pub fn new(bindings: R, store: Arc<SqliteSecurityStore>) -> Self {
+        Self { verifier: ReviewerProofVerifier::new(bindings, store) }
+    }
+}
+impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01ReviewerProofAdapter<R> {
+    fn verify_approval_proof(
+        &self,
+        proof: &SignedReviewerProof,
+        principal: &VerifiedPrincipal,
+        receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
+        now: u64,
+    ) -> Result<VerifiedReviewerProof, G05Error> {
+        let p = &proof.payload;
+        let resource = format!(
+            "g05:durable.activate:{}:{}",
+            record.candidate.memory_id, record.candidate.record_version
+        );
+        if receipt.issued_at != p.issued_at
+            || receipt.expires_at != p.expires_at
+            || receipt.proof_ref != p.proof_id
+            || receipt.reviewer_ref != p.reviewer_id
+            || p.tenant_id != record.candidate.tenant_ref
+            || p.memory_id != record.candidate.memory_id
+            || p.record_version != record.candidate.record_version
+            || p.content_sha256 != record.candidate.content_sha256
+            || p.purpose != purpose_key(record.candidate.purpose)
+            || p.classification != classification_key(record.candidate.classification)
+            || p.capability != "g05.memory.durable.activate"
+            || p.resource != resource
+            || p.policy_version != "g05-memory-v1"
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        let verified = self.verifier.verify_and_consume(
+            proof,
+            principal,
+            &receipt.reviewer_ref,
+            &receipt.approval_ref,
+            &record.candidate.tenant_ref,
+            &p.organization_id,
+            &p.designation_id,
+            p.designation_version,
+            p.delegation_id.as_deref(),
+            p.delegation_version,
+            &record.candidate.memory_id,
+            record.candidate.record_version,
+            &record.candidate.content_sha256,
+            purpose_key(record.candidate.purpose),
+            classification_key(record.candidate.classification),
+            "g05.memory.durable.activate",
+            &resource,
+            "g05-memory-v1",
+            now,
+        ).map_err(|_| G05Error::ReviewerNotAuthorized)?;
+        Ok(verified)
+    }
+}
+
+/// Concrete G02 adapter. General G05 operation authorization is supplied by
+/// the authenticated service pipeline; activation authority is always
+/// re-resolved from the canonical G02 store on this request.
+pub struct KernelG02ActivationAdapter<A, T> {
+    resolver: OrganizationAuthorityResolver,
+    request_authorizer: A,
+    tenants: T,
+    max_authority_age_secs: u64,
+}
+impl<A, T> KernelG02ActivationAdapter<A, T> {
+    pub fn new(
+        resolver: OrganizationAuthorityResolver,
+        request_authorizer: A,
+        tenants: T,
+        max_authority_age_secs: u64,
+    ) -> Self {
+        Self { resolver, request_authorizer, tenants, max_authority_age_secs }
+    }
+}
+pub trait G02RequestAuthorizer: Send + Sync {
+    fn authorize(&self, request: &AuthorizationRequest) -> Result<(), G05Error>;
+}
+impl<A: G02RequestAuthorizer, T: TenantContextResolver> G02AuthorizationAuthority
+    for KernelG02ActivationAdapter<A, T>
+{
+    fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error> {
+        self.request_authorizer.authorize(request)
+    }
+
+    fn resolve_g05_activation(
+        &self,
+        proof: &VerifiedReviewerProof,
+        receipt: &DurableApprovalReceipt,
+        record: &MemoryRecord,
+        reviewer: &VerifiedPrincipal,
+        now: u64,
+    ) -> Result<G05ActivationDecision, G05Error> {
+        let tuple = G05ActivationTuple {
+            tenant_id: proof.tenant_id().to_owned(),
+            organization_id: proof.organization_id().to_owned(),
+            reviewer_subject: proof.subject().to_owned(),
+            designation_id: proof.designation_id().to_owned(),
+            designation_version: proof.designation_version(),
+            delegation_id: proof.delegation_id().map(str::to_owned),
+            delegation_version: proof.delegation_version(),
+            action: proof.capability().to_owned(),
+            memory_id: proof.memory_id().to_owned(),
+            record_version: proof.record_version(),
+            content_sha256: proof.content_sha256().to_owned(),
+            purpose: proof.purpose().to_owned(),
+            classification: proof.classification().to_owned(),
+            policy_version: proof.policy_version().to_owned(),
+        };
+        if proof.subject() != reviewer.subject()
+            || proof.tenant_id() != receipt.tenant_ref
+            || proof.organization_id() != receipt.subject_ref
+            || proof.reviewer_id() != receipt.reviewer_ref
+            || proof.approval_id() != receipt.approval_ref
+            || proof.memory_id() != record.candidate.memory_id
+            || proof.record_version() != record.candidate.record_version
+            || proof.content_sha256() != record.candidate.content_sha256
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        let tenant = self.tenants.resolve_current_tenant(reviewer, &tuple.tenant_id)?;
+        self.resolver
+            .resolve_g05_activation(
+                reviewer,
+                &tenant,
+                &tuple,
+                now,
+                self.max_authority_age_secs,
+            )
+            .map_err(|_| G05Error::ReviewerNotAuthorized)
+    }
+}
+
+pub struct TrustedGovernanceAdapter<G, C, P, A> {
     g02: G,
     consent: C,
-    reviewers: R,
+    g01: P,
     g11: A,
 }
-impl<G, C, R, A> TrustedGovernanceAdapter<G, C, R, A> {
-    pub fn new(g02: G, consent: C, reviewers: R, g11: A) -> Self {
-        Self {
-            g02,
-            consent,
-            reviewers,
-            g11,
-        }
-    }
-    pub fn into_parts(self) -> (G, C, R, A) {
-        (self.g02, self.consent, self.reviewers, self.g11)
+impl<G, C, P, A> TrustedGovernanceAdapter<G, C, P, A> {
+    pub fn new(g02: G, consent: C, g01: P, g11: A) -> Self {
+        Self { g02, consent, g01, g11 }
     }
 }
-impl<G, C, R, A> GovernancePort for TrustedGovernanceAdapter<G, C, R, A>
+impl<G, C, P, A> GovernancePort for TrustedGovernanceAdapter<G, C, P, A>
 where
     G: G02AuthorizationAuthority,
     C: EpisodicConsentAuthority,
-    R: DesignatedReviewerAuthority,
+    P: G01ReviewerProofAuthority,
     A: G11MemoryAuditAuthority,
 {
     fn authorize(&self, request: &AuthorizationRequest) -> Result<(), G05Error> {
@@ -109,220 +224,41 @@ where
         purpose: Purpose,
         now: u64,
     ) -> Result<(), G05Error> {
-        self.consent
-            .verify_active_opt_in(reference, tenant, subject, purpose, now)
+        self.consent.verify_active_opt_in(reference, tenant, subject, purpose, now)
     }
     fn verify_durable_approval(
         &self,
         receipt: &DurableApprovalReceipt,
         record: &MemoryRecord,
-        reviewer_principal: &VerifiedPrincipal,
+        reviewer: &VerifiedPrincipal,
         now: u64,
     ) -> Result<(), G05Error> {
-        // The organization scope is part of the G01-signed proof, not a
-        // caller-selected G05 field. Require the receipt selector to agree
-        // with that signed scope before resolving the current designation.
-        let organization_ref = receipt.signed_proof.payload.organization_id.as_str();
-        if organization_ref != receipt.subject_ref {
-            return Err(G05Error::ApprovalBindingMismatch);
-        }
-        self.reviewers.verify_designated_reviewer(
-            receipt,
-            record,
-            reviewer_principal,
-            organization_ref,
-            now,
-        )
+        let verified = self.g01.verify_approval_proof(
+            &receipt.signed_proof, reviewer, receipt, record, now,
+        )?;
+        self.g02.resolve_g05_activation(&verified, receipt, record, reviewer, now)?;
+        Ok(())
     }
     fn append_audit(&self, event: &AuditEvent) -> Result<(), G05Error> {
         self.g11.append_memory_event(event)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    struct AllowG02;
-    impl G02AuthorizationAuthority for AllowG02 {
-        fn authorize_g05(&self, _: &AuthorizationRequest) -> Result<(), G05Error> {
-            Ok(())
-        }
-        fn authorize_organization_scope(
-            &self,
-            _: &AuthorizationRequest,
-            _: &str,
-        ) -> Result<(), G05Error> {
-            Ok(())
-        }
-    }
-    struct DenyConsent;
-    impl EpisodicConsentAuthority for DenyConsent {
-        fn verify_active_opt_in(
-            &self,
-            _: &str,
-            _: &str,
-            _: &str,
-            _: Purpose,
-            _: u64,
-        ) -> Result<(), G05Error> {
-            Err(G05Error::EpisodicOptInRequired)
-        }
-    }
-    struct DenyReviewer;
-    impl DesignatedReviewerAuthority for DenyReviewer {
-        fn verify_designated_reviewer(
-            &self,
-            _: &DurableApprovalReceipt,
-            _: &MemoryRecord,
-            _: &VerifiedPrincipal,
-            _: &str,
-            _: u64,
-        ) -> Result<(), G05Error> {
-            Err(G05Error::ReviewerNotAuthorized)
-        }
-    }
-    struct AllowAudit;
-    impl G11MemoryAuditAuthority for AllowAudit {
-        fn append_memory_event(&self, _: &AuditEvent) -> Result<(), G05Error> {
-            Ok(())
-        }
-    }
-    #[test]
-    fn missing_or_revoked_consent_fails_closed() {
-        let adapter =
-            TrustedGovernanceAdapter::new(AllowG02, DenyConsent, DenyReviewer, AllowAudit);
-        assert_eq!(
-            adapter.verify_episodic_opt_in(
-                "consent:selector",
-                "tenant:1",
-                "principal:1",
-                Purpose::TaskContinuity,
-                100
-            ),
-            Err(G05Error::EpisodicOptInRequired)
-        );
-    }
-    #[test]
-    fn global_g02_capability_does_not_grant_organization_reviewer_authority() {
-        struct CapabilityOnly;
-        impl G02AuthorizationAuthority for CapabilityOnly {
-            fn authorize_g05(&self, _: &AuthorizationRequest) -> Result<(), G05Error> {
-                Ok(())
-            }
-        }
-        let request = AuthorizationRequest {
-            operation: crate::Operation::DesignateReviewer,
-            principal_ref: "principal:actor".into(),
-            tenant_ref: "tenant:one".into(),
-            subject_ref: "org:one".into(),
-            purpose: Purpose::OrganizationalContext,
-            classification: crate::Classification::Confidential,
-            memory_id: None,
-            recipient_refs: vec!["principal:reviewer".into()],
-            correlation_ref: "designation:one".into(),
-        };
-        assert_eq!(
-            CapabilityOnly.authorize_organization_scope(&request, "org:one"),
-            Err(G05Error::ReviewerNotAuthorized)
-        );
+fn purpose_key(p: Purpose) -> &'static str {
+    match p {
+        Purpose::TaskContinuity => "TASK_CONTINUITY",
+        Purpose::UserPreference => "USER_PREFERENCE",
+        Purpose::ProjectContext => "PROJECT_CONTEXT",
+        Purpose::OrganizationalContext => "ORGANIZATIONAL_CONTEXT",
+        Purpose::OperationalHistory => "OPERATIONAL_HISTORY",
+        Purpose::AuthorizedSystemAssurance => "AUTHORIZED_SYSTEM_ASSURANCE",
     }
 }
-
-/// Concrete bridge from G05's transactional outbox payload to the G11-owned
-/// versioned memory lifecycle stream. The adapter deliberately drops the
-/// content digest: it is not needed for lifecycle assurance and can enable
-/// dictionary attacks against low-entropy memory content.
-pub struct KernelG11MemoryAuditAdapter<'a> {
-    sink: &'a iroka_kernel::SqliteMemoryLifecycleAuditStore,
-}
-
-impl<'a> KernelG11MemoryAuditAdapter<'a> {
-    pub fn new(sink: &'a iroka_kernel::SqliteMemoryLifecycleAuditStore) -> Self {
-        Self { sink }
-    }
-}
-
-impl G11MemoryAuditAuthority for KernelG11MemoryAuditAdapter<'_> {
-    fn append_memory_event(&self, event: &AuditEvent) -> Result<(), G05Error> {
-        use iroka_kernel::MemoryLifecycleAuditSink;
-        let purpose = match event.purpose {
-            Purpose::TaskContinuity => "TASK_CONTINUITY",
-            Purpose::UserPreference => "USER_PREFERENCE",
-            Purpose::ProjectContext => "PROJECT_CONTEXT",
-            Purpose::OrganizationalContext => "ORGANIZATIONAL_CONTEXT",
-            Purpose::OperationalHistory => "OPERATIONAL_HISTORY",
-            Purpose::AuthorizedSystemAssurance => "AUTHORIZED_SYSTEM_ASSURANCE",
-        };
-        let versioned = iroka_kernel::MemoryLifecycleEvent::new(
-            event.event_id.clone(),
-            event.event_type.clone(),
-            event.memory_id.clone(),
-            event.tenant_ref.clone(),
-            event.actor_ref.clone(),
-            purpose,
-            event.record_version,
-            event.outcome.clone(),
-            event.correlation_ref.clone(),
-            event.occurred_at,
-        );
-        self.sink
-            .append_memory_event(&versioned)
-            .map_err(|_| G05Error::AuditUnavailable)
-    }
-}
-
-#[cfg(test)]
-mod kernel_g11_adapter_tests {
-    use super::*;
-
-    #[test]
-    fn kernel_g11_adapter_emits_versioned_content_free_events_idempotently() {
-        let sink = iroka_kernel::SqliteMemoryLifecycleAuditStore::open_in_memory().unwrap();
-        let adapter = KernelG11MemoryAuditAdapter::new(&sink);
-        let event = AuditEvent {
-            event_id: "event:consent:1".into(),
-            event_type: "memory.consent.granted".into(),
-            memory_id: "consent:opaque-1".into(),
-            tenant_ref: "tenant:opaque-1".into(),
-            actor_ref: "principal:opaque-1".into(),
-            purpose: Purpose::TaskContinuity,
-            record_version: 1,
-            outcome: "granted".into(),
-            correlation_ref: "trace:opaque-1".into(),
-            occurred_at: 100,
-            content_sha256: "a".repeat(64),
-        };
-        adapter.append_memory_event(&event).unwrap();
-        adapter.append_memory_event(&event).unwrap();
-        sink.verify_integrity().unwrap();
-    }
-
-    #[test]
-    fn kernel_g11_adapter_rejects_invalid_event_and_fails_closed() {
-        let sink = iroka_kernel::SqliteMemoryLifecycleAuditStore::open_in_memory().unwrap();
-        let adapter = KernelG11MemoryAuditAdapter::new(&sink);
-        let mut event = AuditEvent {
-            event_id: "event:1".into(),
-            event_type: "decision.allow".into(),
-            memory_id: "aggregate:1".into(),
-            tenant_ref: "tenant:1".into(),
-            actor_ref: "principal:1".into(),
-            purpose: Purpose::TaskContinuity,
-            record_version: 1,
-            outcome: "accepted".into(),
-            correlation_ref: "trace:1".into(),
-            occurred_at: 100,
-            content_sha256: "b".repeat(64),
-        };
-        assert_eq!(
-            adapter.append_memory_event(&event),
-            Err(G05Error::AuditUnavailable)
-        );
-        event.event_type = "memory.created".into();
-        event.actor_ref.clear();
-        assert_eq!(
-            adapter.append_memory_event(&event),
-            Err(G05Error::AuditUnavailable)
-        );
+fn classification_key(value: crate::Classification) -> &'static str {
+    match value {
+        crate::Classification::Public => "PUBLIC",
+        crate::Classification::Internal => "INTERNAL",
+        crate::Classification::Confidential => "CONFIDENTIAL",
+        crate::Classification::Restricted => "RESTRICTED",
     }
 }
