@@ -197,32 +197,36 @@ fn signed_membership(
     SignedOwnerSecurityCommand::from_signature(payload, signature)
 }
 
-fn signed_organization_command(
-    signer: &SigningKey,
-    command_id: &str,
+struct OrganizationCommandSpec<'a> {
+    command_id: &'a str,
     action: OrganizationAuthorityAction,
-    principal: Option<&str>,
-    designation_id: Option<&str>,
-    delegate: Option<&str>,
+    principal: Option<&'a str>,
+    designation_id: Option<&'a str>,
+    delegate: Option<&'a str>,
     delegation_expires_at: Option<u64>,
     version: u64,
-    capabilities: Vec<&str>,
+    capabilities: Vec<&'a str>,
+}
+
+fn signed_organization_command(
+    signer: &SigningKey,
+    spec: OrganizationCommandSpec<'_>,
 ) -> SignedOrganizationAuthorityCommand {
     let payload = OrganizationAuthorityPayload {
-        command_id: command_id.into(),
+        command_id: spec.command_id.into(),
         owner_subject: "owner:test".into(),
         key_id: "owner-key".into(),
         issued_at: 1_100,
         expires_at: 1_400,
         organization_id: "org:alpha".into(),
         tenant_id: "tenant:alpha".into(),
-        principal: principal.map(str::to_owned),
-        designation_id: designation_id.map(str::to_owned),
-        delegate: delegate.map(str::to_owned),
-        delegation_expires_at,
-        action,
-        version,
-        capabilities: capabilities.into_iter().map(str::to_owned).collect(),
+        principal: spec.principal.map(str::to_owned),
+        designation_id: spec.designation_id.map(str::to_owned),
+        delegate: spec.delegate.map(str::to_owned),
+        delegation_expires_at: spec.delegation_expires_at,
+        action: spec.action,
+        version: spec.version,
+        capabilities: spec.capabilities.into_iter().map(str::to_owned).collect(),
         reason: "Owner-signed integration fixture".into(),
     };
     let signature = signer
@@ -273,14 +277,16 @@ fn g02_owner_signed_membership_designation_and_delegation_resolve_for_authentica
         .apply_organization_command(
             &signed_organization_command(
                 &owner_signer,
-                "organization:create",
-                OrganizationAuthorityAction::CreateOrganization,
-                None,
-                None,
-                None,
-                None,
-                1,
-                vec![],
+                OrganizationCommandSpec {
+                    command_id: "organization:create",
+                    action: OrganizationAuthorityAction::CreateOrganization,
+                    principal: None,
+                    designation_id: None,
+                    delegate: None,
+                    delegation_expires_at: None,
+                    version: 1,
+                    capabilities: vec![],
+                },
             ),
             1_200,
         )
@@ -290,17 +296,19 @@ fn g02_owner_signed_membership_designation_and_delegation_resolve_for_authentica
         .apply_organization_command(
             &signed_organization_command(
                 &owner_signer,
-                "designation:reviewer",
-                OrganizationAuthorityAction::SetDesignation,
-                Some(delegator.subject()),
-                Some("designation:reviewer"),
-                None,
-                None,
-                1,
-                vec![
-                    "g05.memory.durable.activate",
-                    "organization.designation.delegate",
-                ],
+                OrganizationCommandSpec {
+                    command_id: "designation:reviewer",
+                    action: OrganizationAuthorityAction::SetDesignation,
+                    principal: Some(delegator.subject()),
+                    designation_id: Some("designation:reviewer"),
+                    delegate: None,
+                    delegation_expires_at: None,
+                    version: 1,
+                    capabilities: vec![
+                        "g05.memory.durable.activate",
+                        "organization.designation.delegate",
+                    ],
+                },
             ),
             1_200,
         )
@@ -315,14 +323,16 @@ fn g02_owner_signed_membership_designation_and_delegation_resolve_for_authentica
         .apply_organization_command(
             &signed_organization_command(
                 &owner_signer,
-                delegation_id,
-                OrganizationAuthorityAction::SetDelegation,
-                Some(delegator.subject()),
-                Some(delegation_id),
-                Some(delegate.subject()),
-                Some(1_350),
-                1,
-                vec!["g05.memory.durable.activate"],
+                OrganizationCommandSpec {
+                    command_id: delegation_id,
+                    action: OrganizationAuthorityAction::SetDelegation,
+                    principal: Some(delegator.subject()),
+                    designation_id: Some(delegation_id),
+                    delegate: Some(delegate.subject()),
+                    delegation_expires_at: Some(1_350),
+                    version: 1,
+                    capabilities: vec!["g05.memory.durable.activate"],
+                },
             ),
             1_200,
         )
@@ -585,14 +595,16 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
         .apply_organization_command(
             &signed_organization_command(
                 &owner_signer,
-                "organization:create:integration",
-                OrganizationAuthorityAction::CreateOrganization,
-                None,
-                None,
-                None,
-                None,
-                1,
-                vec![],
+                OrganizationCommandSpec {
+                    command_id: "organization:create:integration",
+                    action: OrganizationAuthorityAction::CreateOrganization,
+                    principal: None,
+                    designation_id: None,
+                    delegate: None,
+                    delegation_expires_at: None,
+                    version: 1,
+                    capabilities: vec![],
+                },
             ),
             1_200,
         )
@@ -601,17 +613,19 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
         .apply_organization_command(
             &signed_organization_command(
                 &owner_signer,
-                "designation:delegator",
-                OrganizationAuthorityAction::SetDesignation,
-                Some(delegator.subject()),
-                Some("designation:delegator"),
-                None,
-                None,
-                1,
-                vec![
-                    "g05.memory.durable.activate",
-                    "organization.designation.delegate",
-                ],
+                OrganizationCommandSpec {
+                    command_id: "designation:delegator",
+                    action: OrganizationAuthorityAction::SetDesignation,
+                    principal: Some(delegator.subject()),
+                    designation_id: Some("designation:delegator"),
+                    delegate: None,
+                    delegation_expires_at: None,
+                    version: 1,
+                    capabilities: vec![
+                        "g05.memory.durable.activate",
+                        "organization.designation.delegate",
+                    ],
+                },
             ),
             1_200,
         )
@@ -621,14 +635,16 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
         .apply_organization_command(
             &signed_organization_command(
                 &owner_signer,
-                delegation_id,
-                OrganizationAuthorityAction::SetDelegation,
-                Some(delegator.subject()),
-                Some(delegation_id),
-                Some(reviewer.subject()),
-                Some(1_350),
-                1,
-                vec!["g05.memory.durable.activate"],
+                OrganizationCommandSpec {
+                    command_id: delegation_id,
+                    action: OrganizationAuthorityAction::SetDelegation,
+                    principal: Some(delegator.subject()),
+                    designation_id: Some(delegation_id),
+                    delegate: Some(reviewer.subject()),
+                    delegation_expires_at: Some(1_350),
+                    version: 1,
+                    capabilities: vec!["g05.memory.durable.activate"],
+                },
             ),
             1_200,
         )
