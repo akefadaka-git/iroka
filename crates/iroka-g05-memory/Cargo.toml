@@ -14,5 +14,9 @@ iroka-kernel = { path = "../iroka-kernel" }
 serde_json = "1"
 
 
+[dev-dependencies]
+base64 = "0.22"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+
 [lints]
 workspace = true
