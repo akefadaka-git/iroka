@@ -433,6 +433,8 @@ impl PostgresG11OutboxWorker {
         {
             return Err(G05Error::MalformedRecord);
         }
+        let limit = limit as i32;
+        let lease_seconds = lease_seconds as f64;
         let mut client = self.client.lock().map_err(|_| {
             eprintln!("claim client mutex poisoned");
             G05Error::RepositoryUnavailable
@@ -563,7 +565,7 @@ impl PostgresG11OutboxWorker {
         let hash = hasher.finalize();
         let jitter = u16::from_be_bytes([hash[0], hash[1]]) as i64 % 7;
         let exponent = claim.attempt_count.saturating_sub(1).clamp(0, 10) as u32;
-        let delay = (2_i64.saturating_pow(exponent)).min(3_600) + jitter;
+        let delay = ((2_i64.saturating_pow(exponent)).min(3_600) + jitter) as f64;
         let exhausted = claim.attempt_count >= 12;
         let final_error = if exhausted {
             format!("retry_exhausted:{error_code}")
@@ -754,7 +756,7 @@ impl PostgresG11MemoryAdapter {
             return Err(G05Error::AuditUnavailable);
         }
         let published_at = i64::try_from(published.publication.published_at)
-            .map_err(|_| G05Error::MalformedRecord)?;
+            .map_err(|_| G05Error::MalformedRecord)? as f64;
         let sequence = i64::try_from(published.checkpoint.payload.sequence)
             .map_err(|_| G05Error::MalformedRecord)?;
         let receipt_json = json_value(published)?;
