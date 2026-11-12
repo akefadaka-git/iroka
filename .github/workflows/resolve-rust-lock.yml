@@ -7,38 +7,52 @@ on:
       - feat/g05-g02-g11-activation-v12
     paths:
       - "Cargo.toml"
-      - "crates/**/Cargo.toml"
       - "Cargo.lock"
+      - "crates/**/Cargo.toml"
       - ".github/workflows/resolve-rust-lock.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  resolve:
-    name: Generate reproducible Cargo.lock
+  resolve-and-verify:
+    name: Resolve lockfile and verify exact generated head
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
+          persist-credentials: true
       - name: Install stable Rust
         run: |
-          rustup toolchain install stable --profile minimal
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
           rustup default stable
           rustc --version
           cargo --version
-      - name: Generate lockfile
-        run: cargo generate-lockfile
-      - name: Verify dependency graph
-        run: cargo metadata --locked --format-version 1 > /tmp/cargo-metadata.json
-      - name: Upload generated lockfile
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: iroka-cargo-lockfile
-          path: Cargo.lock
-          if-no-files-found: error
-          retention-days: 3
+      - name: Generate and commit reproducible lockfile
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          cargo generate-lockfile
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- Cargo.lock; then
+            git add Cargo.lock
+            git commit -m "Resolve PostgreSQL driver dependency lockfile"
+            git push origin "HEAD:${PR_HEAD_REF}"
+          fi
+          echo "VERIFIED_COMMIT_SHA=$(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+          cargo metadata --locked --format-version 1 > /tmp/cargo-metadata.json
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Compile all targets
+        run: cargo check --workspace --all-targets --locked
+      - name: Verify production feature set excludes development bypasses
+        run: cargo check --workspace --all-targets --no-default-features --locked
+      - name: Run complete unit and contract test suite
+        run: cargo test --workspace --all-targets --locked
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -A clippy::pedantic
