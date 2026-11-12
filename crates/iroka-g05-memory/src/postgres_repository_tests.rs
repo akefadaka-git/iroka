@@ -121,6 +121,57 @@ mod postgres_tests {
         }
     }
 
+    struct CheckpointTestClock;
+    impl TrustedClock for CheckpointTestClock {
+        fn now_unix_seconds(&self) -> Result<u64, G05Error> {
+            Ok(1_800_000_000)
+        }
+    }
+
+    struct CheckpointTestSigner(ed25519_dalek::SigningKey);
+    impl iroka_kernel::CheckpointSigner for CheckpointTestSigner {
+        fn sign(&self, _key_id: &str, message: &[u8]) -> Result<Vec<u8>, iroka_kernel::CheckpointError> {
+            use ed25519_dalek::Signer;
+            Ok(self.0.sign(message).to_bytes().to_vec())
+        }
+    }
+
+    struct CheckpointTestPublisher(std::sync::atomic::AtomicU64);
+    impl iroka_kernel::ExternalCheckpointPublisher for CheckpointTestPublisher {
+        fn publish(
+            &self,
+            checkpoint: &iroka_kernel::SignedCheckpoint,
+        ) -> Result<iroka_kernel::ExternalPublicationReceipt, iroka_kernel::CheckpointError> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(iroka_kernel::ExternalPublicationReceipt {
+                provider: "test-checkpoint-log".into(),
+                receipt_id: "receipt:g11:1".into(),
+                checkpoint_digest: checkpoint.digest()?,
+                published_at: checkpoint.payload.issued_at + 1,
+                proof_ref: "proof:g11:1".into(),
+            })
+        }
+    }
+
+    struct CheckpointTestPublicationVerifier;
+    impl iroka_kernel::ExternalPublicationVerifier for CheckpointTestPublicationVerifier {
+        fn verify(
+            &self,
+            digest: &str,
+            receipt: &iroka_kernel::ExternalPublicationReceipt,
+        ) -> Result<(), iroka_kernel::CheckpointError> {
+            if receipt.provider == "test-checkpoint-log"
+                && receipt.receipt_id == "receipt:g11:1"
+                && receipt.checkpoint_digest == digest
+                && receipt.proof_ref == "proof:g11:1"
+            {
+                Ok(())
+            } else {
+                Err(iroka_kernel::CheckpointError::InvalidPublicationReceipt)
+            }
+        }
+    }
+
     #[test]
     fn postgres_insert_is_atomic_and_survives_repository_restart() {
         let Some(url) = database_url() else { return };
@@ -408,6 +459,59 @@ mod postgres_tests {
             .unwrap()
             .get(0);
         assert_eq!(receipt_count, 1);
+
+        let checkpoint_signer =
+            CheckpointTestSigner(ed25519_dalek::SigningKey::from_bytes(&[13_u8; 32]));
+        let publisher = CheckpointTestPublisher(AtomicU64::new(0));
+        let published = restarted
+            .publish_checkpoint(
+                "g11:memory",
+                "g11-checkpoint-key-1",
+                &CheckpointTestClock,
+                &checkpoint_signer,
+                &publisher,
+            )
+            .unwrap();
+        let checkpoint_id = published.checkpoint.digest().unwrap();
+        assert_eq!(published.checkpoint.payload.sequence, 1);
+        assert_eq!(publisher.0.load(Ordering::SeqCst), 1);
+        iroka_kernel::verify_published_checkpoint(
+            &published,
+            &checkpoint_signer.0.verifying_key(),
+            "g11:memory",
+            1,
+            None,
+            &CheckpointTestPublicationVerifier,
+        )
+        .unwrap();
+
+        // Repeated publication at the same audit head returns the stored
+        // envelope and does not create a second external publication.
+        let repeated = restarted
+            .publish_checkpoint(
+                "g11:memory",
+                "g11-checkpoint-key-1",
+                &CheckpointTestClock,
+                &checkpoint_signer,
+                &publisher,
+            )
+            .unwrap();
+        assert_eq!(repeated, published);
+        assert_eq!(publisher.0.load(Ordering::SeqCst), 1);
+        let loaded = restarted
+            .load_published_checkpoint(&checkpoint_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(loaded, published);
+        iroka_kernel::verify_published_checkpoint(
+            &loaded,
+            &checkpoint_signer.0.verifying_key(),
+            "g11:memory",
+            1,
+            None,
+            &CheckpointTestPublicationVerifier,
+        )
+        .unwrap();
         cleanup(&mut admin, &[memory_id]);
     }
 }
