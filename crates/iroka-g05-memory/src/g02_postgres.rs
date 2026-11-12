@@ -7,7 +7,8 @@
 use std::sync::{Arc, Mutex};
 
 use native_tls::TlsConnector;
-use postgres::{Client, Row};
+use postgres::{Client, IsolationLevel, Row};
+use sha2::{Digest, Sha256};
 use postgres_native_tls::MakeTlsConnector;
 use iroka_kernel::{Policy, VerifiedPrincipal};
 
@@ -86,11 +87,12 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
         let digest: String = row.get("payload_sha256");
         let canonical_payload: Vec<u8> = row.get("canonical_payload");
         let signature: Vec<u8> = row.get("signature");
-        if epoch <= 0 || issued_at < 0 || expires_at <= issued_at
-            || digest.trim().len() != 64
-            || !digest.trim().bytes().all(|b| b.is_ascii_hexdigit())
-            || canonical_payload.is_empty() || signature.len() != 64
-        {
+        if !valid_snapshot_shape(epoch, issued_at, expires_at, &digest, &canonical_payload, &signature) {
+            return Err(G05Error::AuthorityUnavailable);
+        }
+        let computed = Sha256::digest(&canonical_payload);
+        let computed_hex = computed.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        if computed_hex != digest.trim().to_ascii_lowercase() {
             return Err(G05Error::AuthorityUnavailable);
         }
         Ok(G02PolicySnapshot {
@@ -109,13 +111,26 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
     }
 }
 
+fn valid_snapshot_shape(epoch: i64, issued_at: i64, expires_at: i64, digest: &str, payload: &[u8], signature: &[u8]) -> bool {
+    epoch > 0
+        && issued_at >= 0
+        && expires_at > issued_at
+        && digest.trim().len() == 64
+        && digest.trim().bytes().all(|b| b.is_ascii_hexdigit())
+        && !payload.is_empty()
+        && signature.len() == 64
+}
+
 impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolver<V> {
     fn current_policy(&self, now: u64) -> Result<(Policy, bool), G05Error> {
         let now_i = i64::try_from(now).map_err(|_| G05Error::AuthorityUnavailable)?;
         let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
-        // Join head to immutable evidence and reject revoked/expired snapshots.
-        // This is a single primary-database statement, not a cache or replica read.
-        let row = client.query_opt(
+        let mut tx = client.build_transaction()
+            .isolation_level(IsolationLevel::RepeatableRead)
+            .read_only(true)
+            .start().map_err(|_| G05Error::AuthorityUnavailable)?;
+        // Both policy and emergency-stop reads share one MVCC snapshot.
+        let row = tx.query_opt(
             "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
                     s.signer_issuer,s.signer_key_id,s.issued_at,s.expires_at,
                     s.canonical_payload,s.payload_sha256,s.signature
@@ -133,7 +148,7 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
          .ok_or(G05Error::AuthorizationDenied)?;
         let snapshot = Self::snapshot_from_row(&row)?;
         let policy = self.verifier.verify_snapshot(&snapshot, now)?;
-        let emergency = client.query_opt(
+        let emergency = tx.query_opt(
             "SELECT active,version,changed_at FROM g02_emergency_stop WHERE singleton=TRUE",
             &[],
         ).map_err(|_| G05Error::AuthorityUnavailable)?
@@ -144,6 +159,7 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         if version <= 0 || changed_at < 0 || changed_at > now_i {
             return Err(G05Error::AuthorityUnavailable);
         }
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
         Ok((policy, active))
     }
 
@@ -176,19 +192,17 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::valid_snapshot_shape;
 
     #[test]
-    fn snapshot_shape_rejects_bad_digest_and_signature_lengths() {
-        let mut row = RowFixture::valid();
-        assert!(row.digest.len() == 64);
-        assert_eq!(row.signature.len(), 64);
-        row.digest = "bad".into();
-        assert_ne!(row.digest.trim().len(), 64);
-    }
-
-    struct RowFixture { digest: String, signature: Vec<u8> }
-    impl RowFixture {
-        fn valid() -> Self { Self { digest: "a".repeat(64), signature: vec![7; 64] } }
+    fn malformed_snapshot_rows_fail_closed() {
+        let payload = b"{\"policy\":\"signed\"}";
+        let signature = [9u8; 64];
+        assert!(valid_snapshot_shape(1, 10, 20, &"a".repeat(64), payload, &signature));
+        assert!(!valid_snapshot_shape(0, 10, 20, &"a".repeat(64), payload, &signature));
+        assert!(!valid_snapshot_shape(1, 20, 20, &"a".repeat(64), payload, &signature));
+        assert!(!valid_snapshot_shape(1, 10, 20, "bad", payload, &signature));
+        assert!(!valid_snapshot_shape(1, 10, 20, &"a".repeat(64), &[], &signature));
+        assert!(!valid_snapshot_shape(1, 10, 20, &"a".repeat(64), payload, &[1u8; 63]));
     }
 }
