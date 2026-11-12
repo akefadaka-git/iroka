@@ -484,6 +484,46 @@ mod tests {
     }
 
     #[test]
+    fn outbox_delivery_retries_without_losing_or_mutating_event() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        struct RetryG11 {
+            fail_once: AtomicBool,
+        }
+        impl crate::G11MemoryAuditAuthority for RetryG11 {
+            fn append_memory_event(
+                &self,
+                event: &AuditEvent,
+            ) -> Result<G11Acknowledgment, G05Error> {
+                if self.fail_once.swap(false, Ordering::SeqCst) {
+                    return Err(G05Error::AuditUnavailable);
+                }
+                Ok(G11Acknowledgment {
+                    event_id: event.event_id.clone(),
+                    payload_sha256: audit_event_sha256(event),
+                    accepted_at: event.occurred_at,
+                })
+            }
+        }
+
+        let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
+        let pending = record(LifecycleState::PendingAudit, 2);
+        let event = event(&pending, "memory.durable.activation.pending");
+        repository.insert_with_audit(pending, event.clone()).unwrap();
+        let sink = RetryG11 {
+            fail_once: AtomicBool::new(true),
+        };
+
+        assert_eq!(
+            crate::dispatch_g11_outbox(&repository, &sink, 10),
+            Err(G05Error::AuditUnavailable)
+        );
+        assert_eq!(repository.pending_g11_events(10).unwrap(), vec![event.clone()]);
+        assert_eq!(crate::dispatch_g11_outbox(&repository, &sink, 10), Ok(1));
+        assert!(repository.pending_g11_events(10).unwrap().is_empty());
+    }
+
+    #[test]
     fn g11_acknowledgment_must_match_exact_event_and_is_idempotent() {
         let repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let pending = record(LifecycleState::PendingAudit, 2);
