@@ -373,7 +373,7 @@ mod g11_adapter_tests {
             record_version: 1,
             outcome: "pending_audit".into(),
             correlation_ref: "correlation:test".into(),
-            occurred_at: 1_800_000_000,
+            occurred_at: 1_700_000_000,
             content_sha256: "a".repeat(64),
         }
     }
