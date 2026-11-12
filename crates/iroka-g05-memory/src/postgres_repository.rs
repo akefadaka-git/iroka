@@ -433,6 +433,7 @@ impl PostgresG11OutboxWorker {
         {
             return Err(G05Error::MalformedRecord);
         }
+        let worker_id = worker_id.to_owned();
         let limit = limit as i32;
         let lease_seconds = lease_seconds as f64;
         let mut client = self.client.lock().map_err(|_| {
@@ -467,7 +468,7 @@ impl PostgresG11OutboxWorker {
             })?;
         let mut claims = Vec::with_capacity(rows.len());
         for row in rows {
-            claims.push(decode_claim(row, worker_id).map_err(|error| {
+            claims.push(decode_claim(row, &worker_id).map_err(|error| {
                 eprintln!("claim decode failed: {error:?}");
                 error
             })?);
