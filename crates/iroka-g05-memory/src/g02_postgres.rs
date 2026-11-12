@@ -44,6 +44,11 @@ pub struct PostgresG09PolicyResolver<V> {
 }
 
 impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
+    #[cfg(test)]
+    pub(crate) fn from_client_for_test(client: Client, policy_id: impl Into<String>, verifier: Arc<V>) -> Self {
+        Self { client: Arc::new(Mutex::new(client)), policy_id: policy_id.into(), verifier }
+    }
+
     /// Remote connections require PostgreSQL verify-full TLS (chain + hostname).
     pub fn connect(
         connection_string: &str,
