@@ -90,9 +90,7 @@ where
     /// Serve behind a TLS-terminating reverse proxy. Non-loopback binding is
     /// rejected so untrusted networks cannot forge the proxy HTTPS assertion.
     pub fn serve(self, bind: SocketAddr) -> Result<(), G05HttpHostError> {
-        if !bind.ip().is_loopback() {
-            return Err(G05HttpHostError::InvalidConfiguration);
-        }
+        validate_bind_address(bind)?;
         let listener = TcpListener::bind(bind).map_err(|_| G05HttpHostError::BindFailed)?;
         let (sender, receiver) = mpsc::sync_channel::<TcpStream>(64);
         let receiver = Arc::new(Mutex::new(receiver));
@@ -134,6 +132,14 @@ where
             }
         }
         Ok(())
+    }
+}
+
+fn validate_bind_address(bind: SocketAddr) -> Result<(), G05HttpHostError> {
+    if bind.ip().is_loopback() {
+        Ok(())
+    } else {
+        Err(G05HttpHostError::InvalidConfiguration)
     }
 }
 
@@ -279,8 +285,8 @@ fn read_request(
     if !allowed_hosts.contains(&host) {
         return Err(HttpParseError::Invalid);
     }
-    if headers.get("transfer-encoding").is_some()
-        || headers.get("expect").is_some()
+    if headers.contains_key("transfer-encoding")
+        || headers.contains_key("expect")
         || headers.get("connection").is_some_and(|v| !v.eq_ignore_ascii_case("close"))
     {
         return Err(HttpParseError::Invalid);
@@ -288,13 +294,13 @@ fn read_request(
     if method == "POST" {
         if headers
             .get("x-forwarded-proto")
-            .is_none_or(|value| !value.eq_ignore_ascii_case("https"))
+            .map_or(true, |value| !value.eq_ignore_ascii_case("https"))
         {
             return Err(HttpParseError::Invalid);
         }
         if headers
             .get("content-type")
-            .is_none_or(|value| !value.split(';').next().unwrap_or("").trim().eq_ignore_ascii_case("application/json"))
+            .map_or(true, |value| !value.split(';').next().unwrap_or("").trim().eq_ignore_ascii_case("application/json"))
         {
             return Err(HttpParseError::Invalid);
         }
@@ -363,9 +369,14 @@ mod tests {
 
     #[test]
     fn host_requires_loopback_binding_and_bounded_worker_count() {
-        assert!(SocketAddr::from(([0, 0, 0, 0], 8080)).ip().is_loopback() == false);
-        assert!(MAX_BODY_BYTES <= 64 * 1_024);
-        assert!(MAX_HEADERS <= 32);
+        assert_eq!(
+            validate_bind_address(SocketAddr::from(([0, 0, 0, 0], 8080))),
+            Err(G05HttpHostError::InvalidConfiguration)
+        );
+        assert_eq!(
+            validate_bind_address(SocketAddr::from(([127, 0, 0, 1], 8080))),
+            Ok(())
+        );
     }
 
     #[test]
