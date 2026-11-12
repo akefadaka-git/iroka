@@ -7,6 +7,7 @@ on:
       - feat/a3-8-g01-tenant-reconciliation
       - feat/g05-postgres-g11-multiworker-a3
       - feat/g02-postgres-g09-resolver-a3
+      - feat/g02-owner-signed-commands-checkpoint-http-a3
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -15,7 +16,7 @@ on:
       - ".github/workflows/rust-kernel.yml"
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, edited]
-    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority, feat/g05-g02-g11-activation-v12]
+    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority, feat/g05-g02-g11-activation-v12, feat/g02-owner-signed-commands-checkpoint-http-a3]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"

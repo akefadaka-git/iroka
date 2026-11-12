@@ -33,6 +33,16 @@ fn admin(url: &str) -> Client {
         ))
         .expect("PostgreSQL migration");
     client
+        .batch_execute(include_str!(
+            "../migrations/postgres/0002_g02_authority.sql"
+        ))
+        .expect("G02 PostgreSQL authority migration");
+    client
+        .batch_execute(include_str!(
+            "../migrations/postgres/0003_g02_owner_key_registry.sql"
+        ))
+        .expect("G02 Owner registry migration");
+    client
 }
 
 fn repository(url: &str) -> PostgresMemoryRepository {

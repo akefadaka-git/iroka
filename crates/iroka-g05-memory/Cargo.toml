@@ -15,6 +15,8 @@ serde_json = "1"
 postgres = { version = "=0.19.12", features = ["with-serde_json-1"] }
 postgres-native-tls = "=0.5.0"
 native-tls = "=0.2.12"
+ed25519-dalek = { version = "=2.1.1", default-features = false, features = ["std"] }
+serde_jcs = "=0.2.0"
 
 
 [dev-dependencies]
