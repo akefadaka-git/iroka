@@ -17,6 +17,7 @@ fn admin(url: &str) -> Client {
     c.batch_execute(include_str!("../migrations/postgres/0001_shared_g05_g11.sql")).unwrap();
     c.batch_execute(include_str!("../migrations/postgres/0002_g02_authority.sql")).unwrap();
     c.batch_execute(include_str!("../migrations/postgres/0003_g02_revocation_projections.sql")).unwrap();
+    c.batch_execute(include_str!("../migrations/postgres/0004_g02_authority_outbox_delivery.sql")).unwrap();
     c
 }
 fn trusted(signer: &SigningKey, key_id: &str) -> G02TrustedOwnerKey {
