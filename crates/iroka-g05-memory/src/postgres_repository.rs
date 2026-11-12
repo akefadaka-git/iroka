@@ -631,7 +631,6 @@ fn decode_claim(row: Row, worker_id: &str) -> Result<LeasedG11Event, G05Error> {
 #[path = "postgres_repository_tests.rs"]
 mod postgres_tests;
 
-
 /// Shared G11 append-only receipt stream. This adapter serializes chain-head
 /// advancement in PostgreSQL and makes receipt creation idempotent by event ID
 /// and payload digest across workers and process restarts.
@@ -657,7 +656,10 @@ impl PostgresG11MemoryAdapter {
 
     /// Return the durable chain head for checkpoint signing and publication.
     pub fn head(&self) -> Result<(u64, String), G05Error> {
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let row = client
             .query_one(
                 "SELECT sequence,digest FROM g11_memory_audit_head WHERE singleton=TRUE",
@@ -671,7 +673,10 @@ impl PostgresG11MemoryAdapter {
 
     /// Recompute the full event chain and verify every durable receipt and head.
     pub fn verify_integrity(&self) -> Result<(), G05Error> {
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let rows = client
             .query(
                 "SELECT sequence,event_id,payload_sha256,previous_digest,event_digest,
@@ -692,8 +697,8 @@ impl PostgresG11MemoryAdapter {
             let occurred_at: i64 = row.get(5);
             let accepted_at: i64 = row.get(6);
             let event_json: Value = row.get(7);
-            let event: AuditEvent = serde_json::from_value(event_json)
-                .map_err(|_| G05Error::AuditUnavailable)?;
+            let event: AuditEvent =
+                serde_json::from_value(event_json).map_err(|_| G05Error::AuditUnavailable)?;
             let canonical = format!(
                 "IROKA:G11:MEMORY:AUDIT:V1\0{previous}\0{event_id}\0{payload_digest}\0{occurred_at}\0{accepted_at}"
             );
@@ -737,10 +742,7 @@ impl PostgresG11MemoryAdapter {
 }
 
 impl G11MemoryAuditAuthority for PostgresG11MemoryAdapter {
-    fn append_memory_event(
-        &self,
-        event: &AuditEvent,
-    ) -> Result<G11Acknowledgment, G05Error> {
+    fn append_memory_event(&self, event: &AuditEvent) -> Result<G11Acknowledgment, G05Error> {
         if event.event_id.trim().is_empty()
             || event.event_id.len() > 256
             || event.memory_id.trim().is_empty()
@@ -751,8 +753,13 @@ impl G11MemoryAuditAuthority for PostgresG11MemoryAdapter {
         }
         let payload_digest = audit_event_sha256(event);
         let event_json = json_value(event)?;
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
 
         // A singleton row lock serializes append and duplicate detection across
         // independent connections, not merely threads sharing one client.
@@ -825,7 +832,12 @@ impl G11MemoryAuditAuthority for PostgresG11MemoryAdapter {
             .execute(
                 "UPDATE g11_memory_audit_head SET sequence=$1,digest=$2
                  WHERE singleton=TRUE AND sequence=$3 AND digest=$4",
-                &[&inserted_sequence, &event_digest, &previous_sequence, &previous_digest],
+                &[
+                    &inserted_sequence,
+                    &event_digest,
+                    &previous_sequence,
+                    &previous_digest,
+                ],
             )
             .map_err(|_| G05Error::RepositoryUnavailable)?;
         if changed != 1 {
@@ -841,7 +853,12 @@ impl G11MemoryAuditAuthority for PostgresG11MemoryAdapter {
         tx.execute(
             "INSERT INTO g11_memory_receipts(event_id,payload_sha256,accepted_at,receipt_json)
              VALUES($1,$2,$3,$4)",
-            &[&event.event_id, &payload_digest, &accepted_at, &receipt_json],
+            &[
+                &event.event_id,
+                &payload_digest,
+                &accepted_at,
+                &receipt_json,
+            ],
         )
         .map_err(|_| G05Error::AuditUnavailable)?;
         tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
