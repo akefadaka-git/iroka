@@ -46,6 +46,12 @@ pub use g02_postgres::{
 #[cfg(test)]
 mod owner_authority_postgres_tests;
 
+mod g02_outbox_worker;
+pub use g02_outbox_worker::{
+    G02AuthorityEventSink, G02AuthorityOutboxEvent, G02OutboxDispatchStats,
+    G02OutboxError, PostgresG02AuthorityOutboxWorker,
+};
+
 mod owner_authority_postgres;
 pub use owner_authority_postgres::{
     G02CommandError, G02SecurityAction, G02SecurityCommandPayload, G02TrustedOwnerKey,
