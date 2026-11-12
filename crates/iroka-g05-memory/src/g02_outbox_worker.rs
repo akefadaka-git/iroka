@@ -91,7 +91,7 @@ impl PostgresG02AuthorityOutboxWorker {
             return Err(G02OutboxError::Malformed);
         }
         let limit = i64::try_from(limit).map_err(|_| G02OutboxError::Malformed)?;
-        let lease_secs = i64::try_from(lease_secs).map_err(|_| G02OutboxError::Malformed)?;
+        let lease_secs = lease_secs as f64;
         let mut client = self.client.lock().map_err(|_| G02OutboxError::Unavailable)?;
         let mut tx = client.transaction().map_err(|_| G02OutboxError::Unavailable)?;
         let rows = tx.query(
@@ -158,7 +158,7 @@ impl PostgresG02AuthorityOutboxWorker {
         {
             return Err(G02OutboxError::Malformed);
         }
-        let delay = i64::try_from(retry_delay_secs).map_err(|_| G02OutboxError::Malformed)?;
+        let delay = retry_delay_secs as f64;
         let mut client = self.client.lock().map_err(|_| G02OutboxError::Unavailable)?;
         let changed = client.execute(
             "UPDATE g02_authority_outbox
