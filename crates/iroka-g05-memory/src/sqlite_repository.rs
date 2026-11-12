@@ -1,7 +1,7 @@
 //! Durable SQLite persistence for G05 memory records and the content-free G11 outbox.
 use crate::{
     audit_event_sha256, AuditEvent, G05Error, G11Acknowledgment, LifecycleState, MemoryMetadata,
-    MemoryRecord, MemoryRepository,
+    MemoryRecord, MemoryRepository, G11OutboxRepository,
 };
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use std::path::Path;
@@ -182,6 +182,20 @@ fn persist_outbox(tx: &Transaction<'_>, event: &AuditEvent) -> Result<(), G05Err
         }
     })?;
     Ok(())
+}
+
+impl G11OutboxRepository for SqliteMemoryRepository {
+    fn pending_g11_events(&self, limit: usize) -> Result<Vec<AuditEvent>, G05Error> {
+        SqliteMemoryRepository::pending_g11_events(self, limit)
+    }
+
+    fn acknowledge_g11_event(
+        &self,
+        event: &AuditEvent,
+        acknowledgment: &G11Acknowledgment,
+    ) -> Result<(), G05Error> {
+        SqliteMemoryRepository::acknowledge_g11_event(self, event, acknowledgment)
+    }
 }
 
 impl MemoryRepository for SqliteMemoryRepository {
