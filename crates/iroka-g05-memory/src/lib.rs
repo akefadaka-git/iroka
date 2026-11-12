@@ -772,7 +772,7 @@ pub trait GovernancePort {
 
     /// G11 adapter. Must append a content-free event through an atomic outbox
     /// or equivalent transaction coordinated with the repository mutation.
-    fn append_audit(&self, event: &AuditEvent) -> Result<(), G05Error>;
+    fn append_audit(&self, event: &AuditEvent) -> Result<G11Acknowledgment, G05Error>;
 }
 
 /// Repository contract for a G05-owned persistence adapter. Implementations
@@ -883,8 +883,8 @@ mod tests {
         ) -> Result<(), G05Error> {
             Ok(())
         }
-        fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> {
-            Ok(())
+        fn append_audit(&self, event: &AuditEvent) -> Result<G11Acknowledgment, G05Error> {
+            Ok(G11Acknowledgment { event_id: event.event_id.clone(), payload_sha256: audit_event_sha256(event), accepted_at: event.occurred_at })
         }
     }
 
