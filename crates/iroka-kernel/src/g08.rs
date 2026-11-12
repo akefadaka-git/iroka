@@ -3092,10 +3092,7 @@ mod tests {
 
     struct TestWorkerRevocations;
     impl crate::WorkerRevocationChecker for TestWorkerRevocations {
-        fn worker_revoked(
-            &self,
-            _: &str,
-        ) -> Result<bool, crate::WorkerRevocationError> {
+        fn worker_revoked(&self, _: &str) -> Result<bool, crate::WorkerRevocationError> {
             Ok(false)
         }
 
