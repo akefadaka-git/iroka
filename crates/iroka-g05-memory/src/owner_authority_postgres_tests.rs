@@ -301,6 +301,14 @@ fn postgres_g02_outbox_claim_and_ack_are_lease_bound() {
     assert!(row.get::<_, bool>(0));
     let stored: String = row.get(1);
     assert_eq!(stored.trim(), ack);
+    assert!(db.execute(
+        "UPDATE g02_authority_outbox SET payload_json='{}'::jsonb WHERE event_id=$1",
+        &[&events[0].event_id],
+    ).is_err());
+    assert!(db.execute(
+        "DELETE FROM g02_authority_outbox WHERE event_id=$1",
+        &[&events[0].event_id],
+    ).is_err());
 }
 
 #[test]
