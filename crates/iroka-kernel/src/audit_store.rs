@@ -206,16 +206,6 @@ impl SqliteAuditSink {
         {
             return Err(AuditStoreError::Rejected);
         }
-        let event = AuditEvent::new(
-            event_id,
-            correlation_id,
-            subject,
-            capability,
-            resource,
-            policy_version,
-            DecisionCode::Allow,
-            occurred_at,
-        );
         let accepted_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_err(|_| AuditStoreError::Unavailable)?
@@ -469,6 +459,37 @@ mod tests {
             1_800_000_000,
         )
     }
+    #[test]
+    fn memory_receipts_are_append_only_and_linked_to_the_audit_chain() {
+        let sink = SqliteAuditSink::open_in_memory().unwrap();
+        let receipt = sink
+            .append_memory_receipt(
+                "g05:receipt:1",
+                "trace:g05:1",
+                "reviewer:1",
+                "memory.durable.activation.pending",
+                &format!("g05:memory:tenant:1:memory:1:{}", "a".repeat(64)),
+                "g05-memory-v1",
+                1_700_000_000,
+                &"a".repeat(64),
+            )
+            .unwrap();
+        assert_eq!(receipt.event_id(), "g05:receipt:1");
+        assert_eq!(sink.verify_integrity(), Ok(()));
+        {
+            let connection = sink.connection.lock().unwrap();
+            assert!(connection.execute(
+                "UPDATE audit_memory_receipts SET accepted_at=accepted_at+1 WHERE event_id='g05:receipt:1'",
+                []
+            ).is_err());
+            assert!(connection.execute(
+                "DELETE FROM audit_memory_receipts WHERE event_id='g05:receipt:1'",
+                []
+            ).is_err());
+        }
+        assert_eq!(sink.verify_integrity(), Ok(()));
+    }
+
     #[test]
     fn appends_and_verifies_chain() {
         let s = SqliteAuditSink::open_in_memory().unwrap();
