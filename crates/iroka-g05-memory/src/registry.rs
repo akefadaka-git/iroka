@@ -117,7 +117,10 @@ impl SqliteG05AuthorityRegistry {
         subject_ref: &str,
         now: u64,
     ) -> Result<(), G05Error> {
-        let c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         let changed = c
             .execute(
                 "UPDATE g05_episodic_consents SET revoked_at=?1,version=version+1
