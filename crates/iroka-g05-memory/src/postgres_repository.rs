@@ -4,7 +4,7 @@
 //! delivery across processes and hosts.
 use crate::{
     audit_event_sha256, AuditEvent, G05Error, G11Acknowledgment, LifecycleState, MemoryMetadata,
-    MemoryRecord, MemoryRepository,
+    G11MemoryAuditAuthority, MemoryRecord, MemoryRepository,
 };
 use native_tls::TlsConnector;
 use postgres::{Client, Row};
