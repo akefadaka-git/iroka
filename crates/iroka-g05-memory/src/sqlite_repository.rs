@@ -378,13 +378,20 @@ impl MemoryRepository for SqliteMemoryRepository {
     ) -> Result<(), G05Error> {
         if record.lifecycle_state != LifecycleState::Active
             || record.candidate.memory_class != crate::MemoryClass::Durable
-            || record.candidate.record_version != expected_version
-            || event.memory_id != record.candidate.memory_id
-            || event.tenant_ref != record.candidate.tenant_ref
-            || event.record_version != expected_version
             || event.event_type != "memory.durable.activated"
         {
             return Err(G05Error::InvalidLifecycleTransition);
+        }
+        if record.candidate.record_version != expected_version
+            || event.record_version != expected_version
+        {
+            return Err(G05Error::VersionConflict);
+        }
+        if event.memory_id != record.candidate.memory_id
+            || event.tenant_ref != record.candidate.tenant_ref
+            || event.content_sha256 != record.candidate.content_sha256
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
         }
         let approval_ref = record
             .approval_ref
