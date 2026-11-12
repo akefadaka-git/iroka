@@ -366,7 +366,8 @@ impl SqliteAuditSink {
                  JOIN audit_events e ON e.event_id=r.event_id
                    AND e.sequence=r.audit_sequence AND e.event_hash=r.event_hash
                  WHERE length(r.payload_sha256)=64
-                   AND r.accepted_at>=e.occurred_at",
+                   AND r.accepted_at>=e.occurred_at
+                   AND substr(e.resource,-64)=r.payload_sha256",
                 [],
                 |row| row.get(0),
             )
