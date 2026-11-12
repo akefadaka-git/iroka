@@ -86,11 +86,11 @@ CREATE TABLE IF NOT EXISTS g11_memory_receipts (
 );
 
 CREATE OR REPLACE FUNCTION g11_reject_audit_mutation()
-RETURNS trigger LANGUAGE plpgsql AS $
+RETURNS trigger LANGUAGE plpgsql AS $g11$
 BEGIN
     RAISE EXCEPTION 'G11 audit records and receipts are append-only';
 END;
-$;
+$g11$;
 
 DROP TRIGGER IF EXISTS g11_memory_audit_events_no_update ON g11_memory_audit_events;
 CREATE TRIGGER g11_memory_audit_events_no_update
