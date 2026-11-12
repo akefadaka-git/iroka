@@ -181,6 +181,10 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
                AND NOT EXISTS (
                  SELECT 1 FROM g02_policy_revocations r
                  WHERE r.policy_id=s.policy_id AND r.epoch=s.epoch
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM g02_signing_key_revocations k
+                 WHERE k.issuer=s.signer_issuer AND k.key_id=s.signer_key_id
                )",
                 &[&self.policy_id, &now_i],
             )
