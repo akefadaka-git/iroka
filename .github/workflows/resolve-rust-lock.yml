@@ -1,0 +1,44 @@
+name: Resolve Rust dependency lockfile
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - feat/g05-g02-g11-activation-v12
+    paths:
+      - "Cargo.toml"
+      - "crates/**/Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/resolve-rust-lock.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Generate reproducible Cargo.lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+          cargo --version
+      - name: Generate lockfile
+        run: cargo generate-lockfile
+      - name: Verify dependency graph
+        run: cargo metadata --locked --format-version 1 > /tmp/cargo-metadata.json
+      - name: Upload generated lockfile
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iroka-cargo-lockfile
+          path: Cargo.lock
+          if-no-files-found: error
+          retention-days: 3
