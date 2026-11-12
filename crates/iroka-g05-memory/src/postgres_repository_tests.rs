@@ -337,7 +337,7 @@ mod postgres_tests {
             )
             .unwrap();
         let restarted_worker = worker(&url);
-        let recovered = restarted_worker.claim_batch("worker-b", 10, 30).unwrap();
+        let recovered = restarted_worker.claim_batch(10, 30).unwrap();
         assert_eq!(recovered.len(), 1);
         assert_ne!(recovered[0].lease_token, first_claim[0].lease_token);
 
