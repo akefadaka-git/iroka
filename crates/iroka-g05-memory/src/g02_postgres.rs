@@ -223,9 +223,7 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
             .client
             .lock()
             .map_err(|_| G05Error::AuthorityUnavailable)?;
-        let mut tx = client
-            .transaction()
-            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut tx = client.transaction().map_err(|_| G05Error::AuthorityUnavailable)?;
         tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
             .map_err(|_| G05Error::AuthorityUnavailable)?;
         // Both policy and emergency-stop reads share one MVCC snapshot.
