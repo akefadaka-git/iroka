@@ -397,7 +397,8 @@ impl SqliteWorkerRegistry {
         }
         if p.entries.windows(2).any(|w| {
             (w[0].worker_id.as_str(), w[0].key_id.as_str())
-                >= (w[1].worker_id.as_str(), w[1].key_id.as_str())        }) {
+                >= (w[1].worker_id.as_str(), w[1].key_id.as_str())
+        }) {
             return Err(WorkerRevocationError::Unavailable);
         }
         for entry in &p.entries {
@@ -814,10 +815,20 @@ mod tests {
         let guard = SqliteWorkerReplayGuard::open(&path).unwrap();
         let connection = open_db(&path).unwrap();
         connection.execute_batch("CREATE TRIGGER reject_replay_insert BEFORE INSERT ON g08_worker_sequences BEGIN SELECT RAISE(ABORT,'injected insert failure'); END;").unwrap();
-        assert_eq!(guard.consume_sequence("worker-failure", "key-failure", 1), Err(WorkerReplayError::Unavailable));
-        connection.execute_batch("DROP TRIGGER reject_replay_insert;").unwrap();
-        guard.consume_sequence("worker-failure", "key-failure", 1).unwrap();
-        assert_eq!(guard.consume_sequence("worker-failure", "key-failure", 1), Err(WorkerReplayError::Replay));
+        assert_eq!(
+            guard.consume_sequence("worker-failure", "key-failure", 1),
+            Err(WorkerReplayError::Unavailable)
+        );
+        connection
+            .execute_batch("DROP TRIGGER reject_replay_insert;")
+            .unwrap();
+        guard
+            .consume_sequence("worker-failure", "key-failure", 1)
+            .unwrap();
+        assert_eq!(
+            guard.consume_sequence("worker-failure", "key-failure", 1),
+            Err(WorkerReplayError::Replay)
+        );
         drop(connection);
         drop(guard);
         let _ = std::fs::remove_file(&path);
@@ -827,12 +838,20 @@ mod tests {
     fn worker_registry_failed_snapshot_install_rolls_back_old_snapshot() {
         let path = db_path("registry-rollback");
         let root = SigningKey::from_bytes(&[57u8; 32]);
-        let registry = SqliteWorkerRegistry::open(&path, "owner-root-v1", root.verifying_key().to_bytes(), Arc::new(TestClock(1_010))).unwrap();
+        let registry = SqliteWorkerRegistry::open(
+            &path,
+            "owner-root-v1",
+            root.verifying_key().to_bytes(),
+            Arc::new(TestClock(1_010)),
+        )
+        .unwrap();
         registry.install(&signed_registry(&root, 1, false)).unwrap();
         let connection = open_db(&path).unwrap();
         connection.execute_batch("CREATE TRIGGER reject_registry_insert BEFORE INSERT ON g08_worker_registry_keys BEGIN SELECT RAISE(ABORT,'injected registry insert failure'); END;").unwrap();
         assert!(registry.install(&signed_registry(&root, 2, true)).is_err());
-        connection.execute_batch("DROP TRIGGER reject_registry_insert;").unwrap();
+        connection
+            .execute_batch("DROP TRIGGER reject_registry_insert;")
+            .unwrap();
         assert_eq!(registry.worker_revoked("worker-a"), Ok(false));
         assert_eq!(registry.trust_snapshot().unwrap().len(), 1);
         registry.install(&signed_registry(&root, 2, true)).unwrap();
@@ -853,7 +872,8 @@ mod tests {
                 "consume" => {
                     thread::sleep(Duration::from_millis(200));
                     let guard = SqliteWorkerReplayGuard::open(path).unwrap();
-                    let outcome = match guard.consume_sequence("worker-process", "key-process", 42) {
+                    let outcome = match guard.consume_sequence("worker-process", "key-process", 42)
+                    {
                         Ok(()) => "accepted",
                         Err(WorkerReplayError::Replay) => "replayed",
                         Err(error) => panic!("unexpected subprocess replay error: {error:?}"),
@@ -862,8 +882,18 @@ mod tests {
                 }
                 "revocation" => {
                     let root = SigningKey::from_bytes(&[55u8; 32]);
-                    let registry = SqliteWorkerRegistry::open(&path, "owner-root-v1", root.verifying_key().to_bytes(), Arc::new(TestClock(1_010))).unwrap();
-                    std::fs::write(marker, registry.worker_revoked("worker-a").unwrap().to_string()).unwrap();
+                    let registry = SqliteWorkerRegistry::open(
+                        &path,
+                        "owner-root-v1",
+                        root.verifying_key().to_bytes(),
+                        Arc::new(TestClock(1_010)),
+                    )
+                    .unwrap();
+                    std::fs::write(
+                        marker,
+                        registry.worker_revoked("worker-a").unwrap().to_string(),
+                    )
+                    .unwrap();
                 }
                 _ => panic!("unknown subprocess mode"),
             }
@@ -884,28 +914,55 @@ mod tests {
             children.push(child);
             markers.push(marker);
         }
-        for child in children { assert!(child.wait_with_output().unwrap().status.success()); }
-        let outcomes: Vec<String> = markers.iter().map(|p| std::fs::read_to_string(p).unwrap()).collect();
-        assert_eq!(outcomes.iter().filter(|v| v.as_str() == "accepted").count(), 1);
-        assert_eq!(outcomes.iter().filter(|v| v.as_str() == "replayed").count(), 1);
+        for child in children {
+            assert!(child.wait_with_output().unwrap().status.success());
+        }
+        let outcomes: Vec<String> = markers
+            .iter()
+            .map(|p| std::fs::read_to_string(p).unwrap())
+            .collect();
+        assert_eq!(
+            outcomes.iter().filter(|v| v.as_str() == "accepted").count(),
+            1
+        );
+        assert_eq!(
+            outcomes.iter().filter(|v| v.as_str() == "replayed").count(),
+            1
+        );
         let guard = SqliteWorkerReplayGuard::open(&path).unwrap();
-        assert_eq!(guard.consume_sequence("worker-process", "key-process", 42), Err(WorkerReplayError::Replay));
+        assert_eq!(
+            guard.consume_sequence("worker-process", "key-process", 42),
+            Err(WorkerReplayError::Replay)
+        );
         drop(guard);
-        for marker in markers { let _ = std::fs::remove_file(marker); }
+        for marker in markers {
+            let _ = std::fs::remove_file(marker);
+        }
         let _ = std::fs::remove_file(&path);
 
         let registry_path = db_path("registry-subprocess-revocation");
         let root = SigningKey::from_bytes(&[55u8; 32]);
-        let registry = SqliteWorkerRegistry::open(&registry_path, "owner-root-v1", root.verifying_key().to_bytes(), Arc::new(TestClock(1_010))).unwrap();
+        let registry = SqliteWorkerRegistry::open(
+            &registry_path,
+            "owner-root-v1",
+            root.verifying_key().to_bytes(),
+            Arc::new(TestClock(1_010)),
+        )
+        .unwrap();
         registry.install(&signed_registry(&root, 1, false)).unwrap();
         registry.install(&signed_registry(&root, 2, true)).unwrap();
         let marker = registry_path.with_extension("revocation.result");
         let child = Command::new(exe)
-            .args(["--exact", "g08_trust_adapters::tests::replay_guard_subprocess_race_restart_and_revocation", "--nocapture"])
+            .args([
+                "--exact",
+                "g08_trust_adapters::tests::replay_guard_subprocess_race_restart_and_revocation",
+                "--nocapture",
+            ])
             .env("IROKA_G08_SUBPROCESS_MODE", "revocation")
             .env("IROKA_G08_SUBPROCESS_DB", &registry_path)
             .env("IROKA_G08_SUBPROCESS_MARKER", &marker)
-            .spawn().unwrap();
+            .spawn()
+            .unwrap();
         assert!(child.wait_with_output().unwrap().status.success());
         assert_eq!(std::fs::read_to_string(&marker).unwrap(), "true");
         drop(registry);
