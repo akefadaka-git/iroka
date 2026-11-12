@@ -8,13 +8,13 @@ use std::sync::Arc;
 
 use iroka_kernel::{
     G05ActivationDecision, G05ActivationTuple, OrganizationAuthorityResolver,
-    ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof,
-    SqliteSecurityStore, TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
+    ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof, SqliteSecurityStore,
+    TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
 };
 
 use crate::{
-    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, EpisodicConsentAuthority,
-    G05Error, GovernancePort, G11MemoryAuditAuthority, MemoryRecord, Purpose,
+    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, EpisodicConsentAuthority, G05Error,
+    G11MemoryAuditAuthority, GovernancePort, MemoryRecord, Purpose,
 };
 
 pub trait EpisodicConsentAuthority: Send + Sync {
@@ -53,7 +53,8 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
 }
 
 pub trait G11MemoryAuditAuthority: Send + Sync {
-    fn append_memory_event(&self, event: &AuditEvent) -> Result<crate::G11Acknowledgment, G05Error>;
+    fn append_memory_event(&self, event: &AuditEvent)
+        -> Result<crate::G11Acknowledgment, G05Error>;
 }
 
 pub trait TenantContextResolver: Send + Sync {
@@ -71,7 +72,9 @@ pub struct KernelG01ReviewerProofAdapter<R: ReviewerKeyBindingResolver> {
 }
 impl<R: ReviewerKeyBindingResolver> KernelG01ReviewerProofAdapter<R> {
     pub fn new(bindings: R, store: Arc<SqliteSecurityStore>) -> Self {
-        Self { verifier: ReviewerProofVerifier::new(bindings, store) }
+        Self {
+            verifier: ReviewerProofVerifier::new(bindings, store),
+        }
     }
 }
 impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01ReviewerProofAdapter<R> {
@@ -104,27 +107,30 @@ impl<R: ReviewerKeyBindingResolver> G01ReviewerProofAuthority for KernelG01Revie
         {
             return Err(G05Error::ApprovalBindingMismatch);
         }
-        let verified = self.verifier.verify_and_consume(
-            proof,
-            principal,
-            &receipt.reviewer_ref,
-            &receipt.approval_ref,
-            &record.candidate.tenant_ref,
-            &p.organization_id,
-            &p.designation_id,
-            p.designation_version,
-            p.delegation_id.as_deref(),
-            p.delegation_version,
-            &record.candidate.memory_id,
-            record.candidate.record_version,
-            &record.candidate.content_sha256,
-            purpose_key(record.candidate.purpose),
-            classification_key(record.candidate.classification),
-            "g05.memory.durable.activate",
-            &resource,
-            "g05-memory-v1",
-            now,
-        ).map_err(|_| G05Error::ReviewerNotAuthorized)?;
+        let verified = self
+            .verifier
+            .verify_and_consume(
+                proof,
+                principal,
+                &receipt.reviewer_ref,
+                &receipt.approval_ref,
+                &record.candidate.tenant_ref,
+                &p.organization_id,
+                &p.designation_id,
+                p.designation_version,
+                p.delegation_id.as_deref(),
+                p.delegation_version,
+                &record.candidate.memory_id,
+                record.candidate.record_version,
+                &record.candidate.content_sha256,
+                purpose_key(record.candidate.purpose),
+                classification_key(record.candidate.classification),
+                "g05.memory.durable.activate",
+                &resource,
+                "g05-memory-v1",
+                now,
+            )
+            .map_err(|_| G05Error::ReviewerNotAuthorized)?;
         Ok(verified)
     }
 }
@@ -145,7 +151,12 @@ impl<A, T> KernelG02ActivationAdapter<A, T> {
         tenants: T,
         max_authority_age_secs: u64,
     ) -> Self {
-        Self { resolver, request_authorizer, tenants, max_authority_age_secs }
+        Self {
+            resolver,
+            request_authorizer,
+            tenants,
+            max_authority_age_secs,
+        }
     }
 }
 pub trait G02RequestAuthorizer: Send + Sync {
@@ -192,15 +203,11 @@ impl<A: G02RequestAuthorizer, T: TenantContextResolver> G02AuthorizationAuthorit
         {
             return Err(G05Error::ApprovalBindingMismatch);
         }
-        let tenant = self.tenants.resolve_current_tenant(reviewer, &tuple.tenant_id)?;
+        let tenant = self
+            .tenants
+            .resolve_current_tenant(reviewer, &tuple.tenant_id)?;
         self.resolver
-            .resolve_g05_activation(
-                reviewer,
-                &tenant,
-                &tuple,
-                now,
-                self.max_authority_age_secs,
-            )
+            .resolve_g05_activation(reviewer, &tenant, &tuple, now, self.max_authority_age_secs)
             .map_err(|_| G05Error::ReviewerNotAuthorized)
     }
 }
@@ -213,7 +220,12 @@ pub struct TrustedGovernanceAdapter<G, C, P, A> {
 }
 impl<G, C, P, A> TrustedGovernanceAdapter<G, C, P, A> {
     pub fn new(g02: G, consent: C, g01: P, g11: A) -> Self {
-        Self { g02, consent, g01, g11 }
+        Self {
+            g02,
+            consent,
+            g01,
+            g11,
+        }
     }
 }
 impl<G, C, P, A> GovernancePort for TrustedGovernanceAdapter<G, C, P, A>
@@ -234,7 +246,8 @@ where
         purpose: Purpose,
         now: u64,
     ) -> Result<(), G05Error> {
-        self.consent.verify_active_opt_in(reference, tenant, subject, purpose, now)
+        self.consent
+            .verify_active_opt_in(reference, tenant, subject, purpose, now)
     }
     fn verify_durable_approval(
         &self,
@@ -244,9 +257,14 @@ where
         now: u64,
     ) -> Result<(), G05Error> {
         let verified = self.g01.verify_approval_proof(
-            &receipt.signed_proof, reviewer, receipt, record, now,
+            &receipt.signed_proof,
+            reviewer,
+            receipt,
+            record,
+            now,
         )?;
-        self.g02.resolve_g05_activation(&verified, receipt, record, reviewer, now)?;
+        self.g02
+            .resolve_g05_activation(&verified, receipt, record, reviewer, now)?;
         Ok(())
     }
     fn append_audit(&self, event: &AuditEvent) -> Result<crate::G11Acknowledgment, G05Error> {
