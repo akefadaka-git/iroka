@@ -274,8 +274,7 @@ impl SqliteWorkflowStore {
                 workflow_type: request.workflow_type.clone(),
                 contract_version: existing.contract_version,
                 state: WorkflowState::Draft,
-                version: u64::try_from(existing.version)
-                    .map_err(|_| G08Error::IntegrityFailure)?,
+                version: u64::try_from(existing.version).map_err(|_| G08Error::IntegrityFailure)?,
                 created_at: u64::try_from(existing.created_at)
                     .map_err(|_| G08Error::IntegrityFailure)?,
                 idempotent_replay: true,
