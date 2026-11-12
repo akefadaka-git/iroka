@@ -782,6 +782,71 @@ impl PostgresG11MemoryAdapter {
         Ok((sequence as u64, digest))
     }
 
+    /// Publish the current G11 audit head as an externally anchored checkpoint.
+    /// The external publisher must deduplicate publication by signed checkpoint
+    /// digest so a retry after an ambiguous network result is safe.
+    pub fn publish_checkpoint<C, S, P>(
+        &self,
+        stream_id: &str,
+        signer_key_id: &str,
+        clock: &C,
+        signer: &S,
+        publisher: &P,
+    ) -> Result<iroka_kernel::PublishedCheckpoint, G05Error>
+    where
+        C: crate::TrustedClock,
+        S: iroka_kernel::CheckpointSigner,
+        P: iroka_kernel::ExternalCheckpointPublisher,
+    {
+        if stream_id.trim().is_empty() || signer_key_id.trim().is_empty() {
+            return Err(G05Error::MalformedRecord);
+        }
+        let (sequence, audit_head_digest) = self.head()?;
+        if sequence == 0 {
+            return Err(G05Error::AuditUnavailable);
+        }
+        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let latest = client
+            .query_opt(
+                "SELECT sequence,checkpoint_digest FROM g11_signed_checkpoints
+                 WHERE stream_id=$1 ORDER BY sequence DESC LIMIT 1",
+                &[&stream_id],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let previous_checkpoint_digest = if let Some(row) = latest {
+            let previous_sequence: i64 = row.get(0);
+            let previous_digest: String = row.get(1);
+            if previous_sequence as u64 > sequence {
+                return Err(G05Error::VersionConflict);
+            }
+            if previous_sequence as u64 == sequence {
+                drop(client);
+                return self
+                    .load_published_checkpoint(&previous_digest)?
+                    .ok_or(G05Error::AuditUnavailable);
+            }
+            Some(previous_digest)
+        } else {
+            None
+        };
+        drop(client);
+
+        let issued_at = clock.now_unix_seconds()?;
+        let payload = iroka_kernel::CheckpointPayload {
+            schema_id: iroka_kernel::G11_CHECKPOINT_SCHEMA_ID.into(),
+            stream_id: stream_id.into(),
+            sequence,
+            previous_checkpoint_digest,
+            audit_head_digest,
+            issued_at,
+            signer_key_id: signer_key_id.into(),
+        };
+        let published = iroka_kernel::sign_and_publish_checkpoint(payload, signer, publisher)
+            .map_err(|_| G05Error::AuditUnavailable)?;
+        self.store_published_checkpoint(&published)?;
+        Ok(published)
+    }
+
     /// Recompute the full event chain and verify every durable receipt and head.
     pub fn verify_integrity(&self) -> Result<(), G05Error> {
         let mut client = self
