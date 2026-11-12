@@ -145,7 +145,10 @@ impl iroka_kernel::ExternalCheckpointPublisher for CheckpointTestPublisher {
         &self,
         checkpoint: &iroka_kernel::SignedCheckpoint,
     ) -> Result<iroka_kernel::ExternalPublicationReceipt, iroka_kernel::CheckpointError> {
-        self.0.fetch_add(1, Ordering::SeqCst);
+        let attempt = self.0.fetch_add(1, Ordering::SeqCst);
+        if attempt == 0 {
+            return Err(iroka_kernel::CheckpointError::PublicationUnavailable);
+        }
         Ok(iroka_kernel::ExternalPublicationReceipt {
             provider: "test-checkpoint-log".into(),
             receipt_id: "receipt:g11:1".into(),
@@ -475,7 +478,36 @@ fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restar
     let checkpoint_signer =
         CheckpointTestSigner(ed25519_dalek::SigningKey::from_bytes(&[13_u8; 32]));
     let publisher = CheckpointTestPublisher(AtomicU64::new(0));
-    let published = restarted
+    assert_eq!(
+        restarted.publish_checkpoint(
+            "g11:memory",
+            "g11-checkpoint-key-1",
+            &CheckpointTestClock,
+            &checkpoint_signer,
+            &publisher,
+        ),
+        Err(G05Error::AuditUnavailable)
+    );
+    let pending_count: i64 = admin
+        .query_one(
+            "SELECT count(*) FROM g11_signed_checkpoints
+             WHERE stream_id='g11:memory' AND published_at IS NULL",
+            &[],
+        )
+        .unwrap()
+        .get(0);
+    assert_eq!(pending_count, 1);
+    assert_eq!(publisher.0.load(Ordering::SeqCst), 1);
+    drop(restarted);
+
+    // Restart after an external publication failure; reuse the persisted
+    // signed envelope rather than creating a new signature.
+    let recovered = PostgresG11MemoryAdapter {
+        client: Arc::new(Mutex::new(
+            Client::connect(&url, NoTls).expect("recovered checkpoint connection"),
+        )),
+    };
+    let published = recovered
         .publish_checkpoint(
             "g11:memory",
             "g11-checkpoint-key-1",
@@ -486,7 +518,7 @@ fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restar
         .unwrap();
     let checkpoint_id = published.checkpoint.digest().unwrap();
     assert_eq!(published.checkpoint.payload.sequence, 1);
-    assert_eq!(publisher.0.load(Ordering::SeqCst), 1);
+    assert_eq!(publisher.0.load(Ordering::SeqCst), 2);
     iroka_kernel::verify_published_checkpoint(
         &published,
         &checkpoint_signer.0.verifying_key(),
@@ -499,7 +531,7 @@ fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restar
 
     // Repeated publication at the same audit head returns the stored
     // envelope and does not create a second external publication.
-    let repeated = restarted
+    let repeated = recovered
         .publish_checkpoint(
             "g11:memory",
             "g11-checkpoint-key-1",
@@ -509,8 +541,8 @@ fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restar
         )
         .unwrap();
     assert_eq!(repeated, published);
-    assert_eq!(publisher.0.load(Ordering::SeqCst), 1);
-    let loaded = restarted
+    assert_eq!(publisher.0.load(Ordering::SeqCst), 2);
+    let loaded = recovered
         .load_published_checkpoint(&checkpoint_id)
         .unwrap()
         .unwrap();
