@@ -28,7 +28,7 @@ mod tenant;
 mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
-pub use audit_store::{AuditStoreError, SqliteAuditSink};
+pub use audit_store::{AuditStoreError, MemoryAuditReceipt, SqliteAuditSink};
 pub use cultural_context::{
     CalendarSystem, CommunityReviewStatus, CulturalContextError, CulturalContextRecord,
     ScriptSystem,
