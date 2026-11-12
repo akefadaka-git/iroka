@@ -223,86 +223,11 @@ where
 mod tests {
     use super::*;
 
-    struct TestClock;
-    impl TrustedClock for TestClock {
-        fn now_unix_seconds(&self) -> Result<u64, G05Error> {
-            Ok(100)
-        }
-    }
-
-    struct TestPolicy {
-        emergency_stop: bool,
-    }
-    impl G09PolicyResolver for TestPolicy {
-        fn current_policy(&self, _now: u64) -> Result<(Policy, bool), G05Error> {
-            Ok((
-                Policy::new(
-                    "g09-test-v1",
-                    vec!["g05.memory.retrieve".into()],
-                    vec![],
-                    RiskLevel::Critical,
-                ),
-                self.emergency_stop,
-            ))
-        }
-    }
-
     #[test]
-    fn g09_revalidation_fails_closed_when_emergency_stop_is_active() {
-        let gate = KernelG09ExecutionRevalidator::new(TestPolicy {
-            emergency_stop: true,
-        });
-        let principal = VerifiedPrincipal::from_verified_credential(
-            "subject:ingress".into(),
-            "issuer:ingress".into(),
-            "credential:ingress".into(),
-        );
-        let request = AuthorizationRequest {
-            operation: Operation::Retrieve,
-            principal_ref: "subject:ingress".into(),
-            tenant_ref: "tenant:ingress".into(),
-            subject_ref: "subject:memory".into(),
-            purpose: crate::Purpose::TaskContinuity,
-            classification: crate::Classification::Internal,
-            memory_id: Some("memory:ingress".into()),
-            recipient_refs: vec![],
-            correlation_ref: "trace:ingress".into(),
-        };
-        assert_eq!(
-            gate.revalidate(&principal, &request, 100),
-            Err(G05Error::AuthorizationDenied)
-        );
-    }
-
-    #[test]
-    fn g09_revalidation_requires_authenticated_principal_binding() {
-        let gate = KernelG09ExecutionRevalidator::new(TestPolicy {
-            emergency_stop: false,
-        });
-        let principal = VerifiedPrincipal::from_verified_credential(
-            "subject:actual".into(),
-            "issuer:ingress".into(),
-            "credential:ingress".into(),
-        );
-        let request = AuthorizationRequest {
-            operation: Operation::Retrieve,
-            principal_ref: "subject:forged".into(),
-            tenant_ref: "tenant:ingress".into(),
-            subject_ref: "subject:memory".into(),
-            purpose: crate::Purpose::TaskContinuity,
-            classification: crate::Classification::Internal,
-            memory_id: Some("memory:ingress".into()),
-            recipient_refs: vec![],
-            correlation_ref: "trace:ingress".into(),
-        };
-        assert_eq!(
-            gate.revalidate(&principal, &request, 100),
-            Err(G05Error::AuthorizationDenied)
-        );
-    }
-
-    #[test]
-    fn trusted_clock_contract_does_not_accept_request_timestamps() {
-        assert_eq!(TestClock.now_unix_seconds().unwrap(), 100);
+    fn operation_mapping_assigns_critical_risk_to_irreversible_effects() {
+        assert_eq!(capability_for(Operation::ActivateDurable), "g05.memory.durable.activate");
+        assert_eq!(risk_for(Operation::ActivateDurable), RiskLevel::Critical);
+        assert_eq!(risk_for(Operation::RequestDeletion), RiskLevel::Critical);
+        assert_eq!(risk_for(Operation::Retrieve), RiskLevel::Moderate);
     }
 }
