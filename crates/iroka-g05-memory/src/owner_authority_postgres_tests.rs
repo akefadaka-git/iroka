@@ -6,7 +6,9 @@ use crate::owner_authority_postgres::{
 use crate::{AuthorizationRequest, Classification, Operation, Purpose, G09PolicyResolver};
 use ed25519_dalek::{Signer, SigningKey};
 use postgres::{Client, NoTls};
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, Mutex};
+
+static PG_TEST_LOCK: Mutex<()> = Mutex::new(());
 use std::thread;
 
 fn test_url() -> Option<String> {
@@ -17,6 +19,7 @@ fn admin(url: &str) -> Client {
     c.batch_execute(include_str!("../migrations/postgres/0001_shared_g05_g11.sql")).unwrap();
     c.batch_execute(include_str!("../migrations/postgres/0002_g02_authority.sql")).unwrap();
     c.batch_execute(include_str!("../migrations/postgres/0003_g02_revocation_projections.sql")).unwrap();
+    c.batch_execute(include_str!("../migrations/postgres/0004_g02_authority_outbox_delivery.sql")).unwrap();
     c
 }
 fn trusted(signer: &SigningKey, key_id: &str) -> G02TrustedOwnerKey {
@@ -133,6 +136,7 @@ fn verified_principal(
 #[test]
 fn postgres_g02_migrations_command_replay_monotonicity_and_rollback_are_live() {
     let Some(url)=test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut db=admin(&url);
     let signer=SigningKey::from_bytes(&[81u8;32]);
     let auth=verifier(&url,&signer,"owner-key");
@@ -161,6 +165,7 @@ fn postgres_g02_migrations_command_replay_monotonicity_and_rollback_are_live() {
 #[test]
 fn postgres_g02_duplicate_concurrent_command_has_one_commit_and_one_replay() {
     let Some(url)=test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db=admin(&url);
     let signer=SigningKey::from_bytes(&[82u8;32]);
     let payload=command(&signer,"owner-key",&unique("concurrent"),G02SecurityAction::SetTenantMembership{
@@ -185,6 +190,7 @@ fn postgres_g02_duplicate_concurrent_command_has_one_commit_and_one_replay() {
 #[test]
 fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() {
     let Some(url)=test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut db=admin(&url);
     let signer=SigningKey::from_bytes(&[83u8;32]);
     let policy_id=unique("policy");
@@ -193,6 +199,14 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
         active:false,version:1,reason:"initial safe state".into()
     });
     auth.apply_security_command(&baseline,1_200).unwrap();
+    let stop = command(&signer,"owner-key",&unique("stop-active"),G02SecurityAction::SetEmergencyStop{
+        active:true,version:2,reason:"security incident".into()
+    });
+    auth.apply_security_command(&stop,1_201).unwrap();
+    let stale_stop = command(&signer,"owner-key",&unique("stop-stale"),G02SecurityAction::SetEmergencyStop{
+        active:false,version:1,reason:"stale clear attempt".into()
+    });
+    assert_eq!(auth.apply_security_command(&stale_stop,1_202),Err(G02CommandError::Rollback));
     let (snapshot,signature)=policy_snapshot(&signer,"owner-key",&policy_id);
     install_snapshot(&mut db,&snapshot,&signature,&policy_id);
     let subject=unique("subject");
@@ -205,20 +219,21 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
         Client::connect(&url,NoTls).unwrap(),policy_id,Arc::clone(&auth)
     );
     resolver.verify_schema().unwrap();
-    let (policy,stopped)=resolver.current_policy(1_200).unwrap();
+    let (policy,stopped)=resolver.current_policy(1_202).unwrap();
     assert_eq!(policy.version(),"policy-v1");
-    assert!(!stopped);
+    assert!(stopped);
     let principal = verified_principal(&auth, &subject);
     let request=AuthorizationRequest { operation:Operation::Retrieve,principal_ref:subject,
         tenant_ref:tenant,subject_ref:"subject:resource".into(),purpose:Purpose::TaskContinuity,
         classification:Classification::Internal,memory_id:None,recipient_refs:vec![],
         correlation_ref:"trace:g09-test".into() };
-    resolver.authorize_resource_scope(&principal,&request,1_200).unwrap();
+    resolver.authorize_resource_scope(&principal,&request,1_202).unwrap();
 }
 
 #[test]
 fn postgres_g02_revoked_owner_key_is_rejected_for_new_policy_verification() {
     let Some(url)=test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut db=admin(&url);
     let policy_signer=SigningKey::from_bytes(&[84u8;32]);
     let revoker=SigningKey::from_bytes(&[85u8;32]);
@@ -238,4 +253,202 @@ fn postgres_g02_revoked_owner_key_is_rejected_for_new_policy_verification() {
         Client::connect(&url,NoTls).unwrap(),policy_id,Arc::new(auth)
     );
     assert_eq!(resolver.current_policy(1_200),Err(G05Error::AuthorizationDenied));
+}
+
+
+#[test]
+fn postgres_g02_outbox_claim_and_ack_are_lease_bound() {
+    let Some(url) = test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let _db = admin(&url);
+    let mut cleanup = Client::connect(&url, NoTls).unwrap();
+    cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
+    let signer = SigningKey::from_bytes(&[86u8; 32]);
+    let auth = verifier(&url, &signer, "owner-key");
+    let signed = command(
+        &signer,
+        "owner-key",
+        &unique("outbox-ack"),
+        G02SecurityAction::SetTenantMembership {
+            subject: unique("outbox-subject"),
+            tenant_id: unique("outbox-tenant"),
+            active: true,
+            version: 1,
+            reason: "outbox ack test".into(),
+        },
+    );
+    auth.apply_security_command(&signed, 1_200).unwrap();
+    let worker = PostgresG02AuthorityOutboxWorker::from_client_for_test(
+        Client::connect(&url, NoTls).unwrap(),
+    );
+    let token = "11111111-1111-4111-8111-111111111111";
+    let events = worker.claim_batch("worker-test", token, 1, 30).unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].command_id, signed.payload.command_id);
+    assert_eq!(events[0].attempt_count, 1);
+    let ack = "d".repeat(64);
+    worker.acknowledge(&events[0].event_id, token, &ack).unwrap();
+    assert_eq!(
+        worker.acknowledge(&events[0].event_id, token, &ack),
+        Err(G02OutboxError::LeaseLost)
+    );
+    let mut db = Client::connect(&url, NoTls).unwrap();
+    let row = db.query_one(
+        "SELECT delivered_at IS NOT NULL,acknowledgment_sha256
+         FROM g02_authority_outbox WHERE event_id=$1",
+        &[&events[0].event_id],
+    ).unwrap();
+    assert!(row.get::<_, bool>(0));
+    let stored: String = row.get(1);
+    assert_eq!(stored.trim(), ack);
+    assert!(db.execute(
+        "UPDATE g02_authority_outbox SET payload_json='{}'::jsonb WHERE event_id=$1",
+        &[&events[0].event_id],
+    ).is_err());
+    assert!(db.execute(
+        "DELETE FROM g02_authority_outbox WHERE event_id=$1",
+        &[&events[0].event_id],
+    ).is_err());
+}
+
+#[test]
+fn postgres_g02_outbox_workers_claim_distinct_rows_with_skip_locked() {
+    let Some(url) = test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let _db = admin(&url);
+    let mut cleanup = Client::connect(&url, NoTls).unwrap();
+    cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
+    let signer = SigningKey::from_bytes(&[87u8; 32]);
+    let auth = verifier(&url, &signer, "owner-key");
+    for _ in 0..2 {
+        let signed = command(
+            &signer,
+            "owner-key",
+            &unique("outbox-skip-locked"),
+            G02SecurityAction::SetTenantMembership {
+                subject: unique("outbox-subject"),
+                tenant_id: unique("outbox-tenant"),
+                active: true,
+                version: 1,
+                reason: "skip locked test".into(),
+            },
+        );
+        auth.apply_security_command(&signed, 1_200).unwrap();
+    }
+    let first = PostgresG02AuthorityOutboxWorker::from_client_for_test(
+        Client::connect(&url, NoTls).unwrap(),
+    );
+    let second = PostgresG02AuthorityOutboxWorker::from_client_for_test(
+        Client::connect(&url, NoTls).unwrap(),
+    );
+    let a = first.claim_batch(
+        "worker-a",
+        "22222222-2222-4222-8222-222222222222",
+        1,
+        30,
+    ).unwrap();
+    let b = second.claim_batch(
+        "worker-b",
+        "33333333-3333-4333-8333-333333333333",
+        1,
+        30,
+    ).unwrap();
+    assert_eq!(a.len(), 1);
+    assert_eq!(b.len(), 1);
+    assert_ne!(a[0].event_id, b[0].event_id);
+}
+
+
+#[test]
+fn postgres_g02_outbox_dispatch_acknowledges_durable_sink_receipt() {
+    struct AckSink;
+    impl G02AuthorityEventSink for AckSink {
+        fn deliver(&self, _event: &G02AuthorityOutboxEvent) -> Result<String, G02OutboxError> {
+            Ok("e".repeat(64))
+        }
+    }
+    let Some(url) = test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let _db = admin(&url);
+    let mut cleanup = Client::connect(&url, NoTls).unwrap();
+    cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
+    let signer = SigningKey::from_bytes(&[88u8; 32]);
+    let auth = verifier(&url, &signer, "owner-key");
+    let signed = command(
+        &signer,
+        "owner-key",
+        &unique("outbox-dispatch"),
+        G02SecurityAction::SetTenantMembership {
+            subject: unique("dispatch-subject"),
+            tenant_id: unique("dispatch-tenant"),
+            active: true,
+            version: 1,
+            reason: "dispatch test".into(),
+        },
+    );
+    auth.apply_security_command(&signed, 1_200).unwrap();
+    let worker = PostgresG02AuthorityOutboxWorker::from_client_for_test(
+        Client::connect(&url, NoTls).unwrap(),
+    );
+    worker.verify_schema().unwrap();
+    let stats = worker.dispatch_once(
+        "dispatch-worker",
+        "44444444-4444-4444-8444-444444444444",
+        1,
+        30,
+        10,
+        &AckSink,
+    ).unwrap();
+    assert_eq!(stats, G02OutboxDispatchStats { claimed: 1, acknowledged: 1, retry_scheduled: 0 });
+}
+
+#[test]
+fn postgres_g02_outbox_dispatch_schedules_retry_after_sink_failure() {
+    struct FailedSink;
+    impl G02AuthorityEventSink for FailedSink {
+        fn deliver(&self, _event: &G02AuthorityOutboxEvent) -> Result<String, G02OutboxError> {
+            Err(G02OutboxError::Unavailable)
+        }
+    }
+    let Some(url) = test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let _db = admin(&url);
+    let mut cleanup = Client::connect(&url, NoTls).unwrap();
+    cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
+    let signer = SigningKey::from_bytes(&[89u8; 32]);
+    let auth = verifier(&url, &signer, "owner-key");
+    let signed = command(
+        &signer,
+        "owner-key",
+        &unique("outbox-retry"),
+        G02SecurityAction::SetTenantMembership {
+            subject: unique("retry-subject"),
+            tenant_id: unique("retry-tenant"),
+            active: true,
+            version: 1,
+            reason: "retry test".into(),
+        },
+    );
+    auth.apply_security_command(&signed, 1_200).unwrap();
+    let worker = PostgresG02AuthorityOutboxWorker::from_client_for_test(
+        Client::connect(&url, NoTls).unwrap(),
+    );
+    let stats = worker.dispatch_once(
+        "retry-worker",
+        "55555555-5555-4555-8555-555555555555",
+        1,
+        30,
+        60,
+        &FailedSink,
+    ).unwrap();
+    assert_eq!(stats, G02OutboxDispatchStats { claimed: 1, acknowledged: 0, retry_scheduled: 1 });
+    let mut db = Client::connect(&url, NoTls).unwrap();
+    let row = db.query_one(
+        "SELECT delivered_at IS NULL,last_error_code,lease_token IS NULL
+         FROM g02_authority_outbox WHERE command_id=$1",
+        &[&signed.payload.command_id],
+    ).unwrap();
+    assert!(row.get::<_, bool>(0));
+    assert_eq!(row.get::<_, String>(1), "sink_delivery_failed");
+    assert!(row.get::<_, bool>(2));
 }
