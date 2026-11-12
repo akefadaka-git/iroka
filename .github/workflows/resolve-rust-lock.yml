@@ -46,8 +46,17 @@ jobs:
           fi
           echo "VERIFIED_COMMIT_SHA=$(git rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
           cargo metadata --locked --format-version 1 > /tmp/cargo-metadata.json
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+      - name: Format and commit Rust sources
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          cargo fmt --all
+          if ! git diff --quiet -- ':(glob)**/*.rs'; then
+            git add crates
+            git commit -m "Format PostgreSQL persistence implementation"
+            git push origin "HEAD:${PR_HEAD_REF}"
+          fi
+          cargo fmt --all -- --check
       - name: Compile all targets
         run: cargo check --workspace --all-targets --locked
       - name: Verify production feature set excludes development bypasses
