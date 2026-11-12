@@ -146,7 +146,6 @@ fn g01_rejects_a_credential_with_a_forged_signature_before_principal_creation() 
     );
 }
 
-
 fn authenticated_principal(
     issuer_signer: &SigningKey,
     subject: &str,
@@ -247,13 +246,18 @@ fn g02_owner_signed_membership_designation_and_delegation_resolve_for_authentica
             not_after: 5_000,
         }],
         store.clone(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let delegator = authenticated_principal(
-        &issuer_signer, "reviewer:integration", "credential:integration-1",
+        &issuer_signer,
+        "reviewer:integration",
+        "credential:integration-1",
     );
     let delegate = authenticated_principal(
-        &issuer_signer, "delegate:integration", "credential:delegate-1",
+        &issuer_signer,
+        "delegate:integration",
+        "credential:delegate-1",
     );
 
     for (subject, id) in [
@@ -343,7 +347,6 @@ fn g02_owner_signed_membership_designation_and_delegation_resolve_for_authentica
     assert_eq!(resolved.designation_version(), 1);
     assert_eq!(resolved.version(), 1);
 }
-
 
 struct StaticReviewerBinding {
     public_key: [u8; 32],
@@ -482,7 +485,6 @@ fn g01_signed_reviewer_proof_is_bound_to_authenticated_principal_and_consumed_on
         Err(ReviewerProofError::Replay)
     );
 }
-
 
 struct ExactG05RequestAuthorizer {
     reviewer: String,
