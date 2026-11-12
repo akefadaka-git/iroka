@@ -429,14 +429,8 @@ impl PostgresG11OutboxWorker {
             return Err(G05Error::MalformedRecord);
         }
         let lease_seconds = lease_seconds as f64;
-        let mut client = self.client.lock().map_err(|_| {
-            eprintln!("claim client mutex poisoned");
-            G05Error::RepositoryUnavailable
-        })?;
-        let mut tx = client.transaction().map_err(|error| {
-            eprintln!("claim transaction failed: {error}");
-            G05Error::RepositoryUnavailable
-        })?;
+        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
         let rows = tx
             .query(
                 "WITH picked AS (
@@ -455,21 +449,12 @@ impl PostgresG11OutboxWorker {
                  RETURNING o.payload_json,o.lease_owner,o.lease_token::text,o.attempt_count",
                 &[&limit, &lease_seconds],
             )
-            .map_err(|error| {
-                eprintln!("claim query failed: {error}");
-                G05Error::RepositoryUnavailable
-            })?;
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let mut claims = Vec::with_capacity(rows.len());
         for row in rows {
-            claims.push(decode_claim(row).map_err(|error| {
-                eprintln!("claim decode failed: {error:?}");
-                error
-            })?);
+            claims.push(decode_claim(row)?);
         }
-        tx.commit().map_err(|error| {
-            eprintln!("claim commit failed: {error}");
-            G05Error::RepositoryUnavailable
-        })?;
+        tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
         Ok(claims)
     }
 
@@ -621,10 +606,8 @@ impl PostgresG11OutboxWorker {
 
 fn decode_claim(row: Row) -> Result<LeasedG11Event, G05Error> {
     let payload: Value = row.get(0);
-    let event: AuditEvent = serde_json::from_value(payload).map_err(|error| {
-        eprintln!("claim payload decode error: {error}");
-        G05Error::RepositoryUnavailable
-    })?;
+    let event: AuditEvent =
+        serde_json::from_value(payload).map_err(|_| G05Error::RepositoryUnavailable)?;
     let lease_owner: String = row.get(1);
     let lease_token: String = row.get(2);
     let attempt_count: i64 = row.get(3);
@@ -704,10 +687,7 @@ impl PostgresG11MemoryAdapter {
                  FROM g11_signed_checkpoints WHERE stream_id=$1 AND sequence=$2 FOR UPDATE",
                 &[&payload.stream_id, &sequence],
             )
-            .map_err(|error| {
-                eprintln!("G11 pending checkpoint lookup failed: {error}");
-                G05Error::RepositoryUnavailable
-            })?;
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let stored_digest: String = row.get(0);
         let stored_payload: Value = row.get(1);
         let stored_signature: Vec<u8> = row.get(2);
@@ -887,10 +867,7 @@ impl PostgresG11MemoryAdapter {
                 "SELECT sequence,digest FROM g11_memory_audit_head WHERE singleton=TRUE",
                 &[],
             )
-            .map_err(|error| {
-                eprintln!("G11 head query failed: {error}");
-                G05Error::RepositoryUnavailable
-            })?;
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let sequence: i64 = row.get(0);
         let digest: String = row.get(1);
         Ok((sequence as u64, digest))
@@ -931,10 +908,7 @@ impl PostgresG11MemoryAdapter {
                  ORDER BY sequence DESC LIMIT 1",
                 &[&stream_id],
             )
-            .map_err(|error| {
-                eprintln!("G11 checkpoint latest query failed: {error}");
-                G05Error::RepositoryUnavailable
-            })?;
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
 
         let pending = if let Some(row) = latest {
             let latest_sequence: i64 = row.get(0);
