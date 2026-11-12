@@ -34,11 +34,11 @@ pub use cultural_context::{
     ScriptSystem,
 };
 pub use decision::{Decision, DecisionCode, DecisionReason};
-pub use g05_activation::{G05ActivationDecision, G05ActivationDecisionError, G05ActivationTuple};
 pub use ethical_programme::{
     BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EthicalPrinciple,
     EvidenceKind, EvidenceReference, EvidenceValidationError, LicenceStatus, TraitAssessment,
 };
+pub use g05_activation::{G05ActivationDecision, G05ActivationDecisionError, G05ActivationTuple};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
