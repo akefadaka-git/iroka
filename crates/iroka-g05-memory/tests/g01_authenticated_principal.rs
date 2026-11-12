@@ -288,6 +288,8 @@ fn g02_owner_signed_membership_designation_and_delegation_resolve_for_authentica
 
 struct StaticReviewerBinding {
     public_key: [u8; 32],
+    subject: String,
+    credential_id: String,
 }
 
 impl ReviewerKeyBindingResolver for StaticReviewerBinding {
@@ -300,8 +302,8 @@ impl ReviewerKeyBindingResolver for StaticReviewerBinding {
         now: u64,
     ) -> Result<Option<ReviewerKeyBinding>, ReviewerProofError> {
         if issuer != "issuer:iroka-integration"
-            || subject != "reviewer:integration"
-            || credential_id != "credential:integration-1"
+            || subject != self.subject
+            || credential_id != self.credential_id
             || key_id != "credential-key-1"
         {
             return Ok(None);
@@ -356,7 +358,11 @@ fn g01_signed_reviewer_proof_is_bound_to_authenticated_principal_and_consumed_on
     let signature = issuer_signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
     let proof = SignedReviewerProof::from_signature(payload, signature);
     let verifier = ReviewerProofVerifier::new(
-        StaticReviewerBinding { public_key: issuer_signer.verifying_key().to_bytes() },
+        StaticReviewerBinding {
+            public_key: issuer_signer.verifying_key().to_bytes(),
+            subject: "reviewer:integration".into(),
+            credential_id: "credential:integration-1".into(),
+        },
         store,
     );
 
@@ -383,4 +389,262 @@ fn g01_signed_reviewer_proof_is_bound_to_authenticated_principal_and_consumed_on
         ),
         Err(ReviewerProofError::Replay)
     );
+}
+
+
+struct ExactG05RequestAuthorizer {
+    reviewer: String,
+}
+impl iroka_g05_memory::G02RequestAuthorizer for ExactG05RequestAuthorizer {
+    fn authorize(
+        &self,
+        request: &iroka_g05_memory::AuthorizationRequest,
+    ) -> Result<(), iroka_g05_memory::G05Error> {
+        if request.operation == iroka_g05_memory::Operation::ActivateDurable
+            && request.principal_ref == self.reviewer
+            && request.tenant_ref == "tenant:alpha"
+            && request.memory_id.as_deref() == Some("memory:integrated")
+        {
+            Ok(())
+        } else {
+            Err(iroka_g05_memory::G05Error::AuthorizationDenied)
+        }
+    }
+}
+
+struct KernelTenantResolver(TenantMembershipResolver);
+impl iroka_g05_memory::TenantContextResolver for KernelTenantResolver {
+    fn resolve_current_tenant(
+        &self,
+        principal: &iroka_kernel::VerifiedPrincipal,
+        tenant_id: &str,
+    ) -> Result<iroka_kernel::TenantContext, iroka_g05_memory::G05Error> {
+        self.0.resolve(principal, tenant_id, 1_200, 600)
+            .map_err(|_| iroka_g05_memory::G05Error::ReviewerNotAuthorized)
+    }
+}
+
+struct NoConsent;
+impl iroka_g05_memory::EpisodicConsentAuthority for NoConsent {
+    fn verify_active_opt_in(
+        &self, _: &str, _: &str, _: &str,
+        _: iroka_g05_memory::Purpose, _: u64,
+    ) -> Result<(), iroka_g05_memory::G05Error> {
+        Err(iroka_g05_memory::G05Error::AuthorizationDenied)
+    }
+}
+
+#[test]
+fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas() {
+    use iroka_g05_memory::{
+        commit_durable_activation, dispatch_g11_outbox, durable_activation_audit_event,
+        prepare_durable_activation, AuditEvent, Classification, DurableApprovalReceipt,
+        G11OutboxRepository, KernelG01ReviewerProofAdapter, KernelG02ActivationAdapter,
+        KernelSqliteG11MemoryAdapter, LifecycleState, MemoryCandidate, MemoryClass,
+        MemoryRecord, MemoryRepository, Operation, Provenance, ProvenanceKind, Purpose,
+        SqliteMemoryRepository, TrustedGovernanceAdapter,
+    };
+    use iroka_kernel::{OrganizationAuthorityResolver, SqliteAuditSink};
+
+    let owner_signer = SigningKey::from_bytes(&[71_u8; 32]);
+    let issuer_signer = SigningKey::from_bytes(&[72_u8; 32]);
+    let security_store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+    let owner = OwnerApprovalVerifier::new(
+        vec![TrustedOwnerKey {
+            owner_subject: "owner:test".into(),
+            key_id: "owner-key".into(),
+            public_key: owner_signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 5_000,
+        }],
+        security_store.clone(),
+    ).unwrap();
+    let delegator = authenticated_principal(
+        &issuer_signer, "reviewer:delegator", "credential:delegator",
+    );
+    let reviewer = authenticated_principal(
+        &issuer_signer, "reviewer:delegate", "credential:delegate",
+    );
+
+    for subject in [delegator.subject(), reviewer.subject()] {
+        owner.apply_security_command(
+            &signed_membership(&owner_signer, subject, &format!("membership:{subject}")),
+            1_200,
+        ).unwrap();
+    }
+    owner.apply_organization_command(
+        &signed_organization_command(
+            &owner_signer, "organization:create:integration",
+            OrganizationAuthorityAction::CreateOrganization,
+            None, None, None, None, 1, vec![],
+        ), 1_200,
+    ).unwrap();
+    owner.apply_organization_command(
+        &signed_organization_command(
+            &owner_signer, "designation:delegator",
+            OrganizationAuthorityAction::SetDesignation,
+            Some(delegator.subject()), Some("designation:delegator"),
+            None, None, 1,
+            vec!["g05.memory.durable.activate", "organization.designation.delegate"],
+        ), 1_200,
+    ).unwrap();
+    let delegation_id = "delegation:integrated";
+    owner.apply_organization_command(
+        &signed_organization_command(
+            &owner_signer, delegation_id,
+            OrganizationAuthorityAction::SetDelegation,
+            Some(delegator.subject()), Some(delegation_id),
+            Some(reviewer.subject()), Some(1_350), 1,
+            vec!["g05.memory.durable.activate"],
+        ), 1_200,
+    ).unwrap();
+
+    let tenant_resolver = TenantMembershipResolver::new(security_store.clone());
+    let g02 = KernelG02ActivationAdapter::new(
+        OrganizationAuthorityResolver::new(security_store.clone()),
+        ExactG05RequestAuthorizer { reviewer: reviewer.subject().into() },
+        KernelTenantResolver(tenant_resolver),
+        600,
+    );
+    let g01 = KernelG01ReviewerProofAdapter::new(
+        StaticReviewerBinding {
+            public_key: issuer_signer.verifying_key().to_bytes(),
+            subject: reviewer.subject().into(),
+            credential_id: reviewer.credential_id().into(),
+        },
+        security_store.clone(),
+    );
+    let g11_sink = Arc::new(SqliteAuditSink::open_in_memory().unwrap());
+    let g11 = KernelSqliteG11MemoryAdapter::new(g11_sink.clone());
+    let governance = TrustedGovernanceAdapter::new(g02, NoConsent, g01, g11);
+
+    let content = "synthetic durable memory for integration verification";
+    let digest = iroka_g05_memory::sha256_hex(content.as_bytes());
+    let candidate = MemoryCandidate {
+        schema_id: iroka_g05_memory::RECORD_SCHEMA_ID.into(),
+        contract_version: iroka_g05_memory::CONTRACT_VERSION.into(),
+        memory_id: "memory:integrated".into(),
+        tenant_ref: "tenant:alpha".into(),
+        subject_ref: delegator.subject().into(),
+        actor_ref: reviewer.subject().into(),
+        memory_class: MemoryClass::Durable,
+        content: content.into(),
+        content_sha256: digest.clone(),
+        purpose: Purpose::OrganizationalContext,
+        classification: Classification::Confidential,
+        provenance: Provenance {
+            kind: ProvenanceKind::HumanReviewed,
+            source_refs: vec!["source:integration".into()],
+            source_revision_refs: vec!["revision:1".into()],
+            derived_from: vec![],
+            recorded_by_ref: reviewer.subject().into(),
+            recorded_at: 1_150,
+        },
+        confidence_milli: Some(1_000),
+        created_at: 1_100,
+        expires_at: None,
+        retention_policy_ref: "retention:durable-v1".into(),
+        episodic_opt_in_ref: None,
+        record_version: 1,
+    };
+    let record = MemoryRecord {
+        candidate,
+        lifecycle_state: LifecycleState::PendingReview,
+        approval_ref: None,
+        approved_by_ref: None,
+        approved_at: None,
+        updated_at: 1_150,
+    };
+
+    let proof_payload = ReviewerProofPayload {
+        proof_id: "proof:integrated".into(),
+        issuer: reviewer.issuer().into(),
+        subject: reviewer.subject().into(),
+        credential_id: reviewer.credential_id().into(),
+        reviewer_id: reviewer.subject().into(),
+        binding_id: "binding:reviewer-integration".into(),
+        binding_version: 3,
+        designation_id: "designation:delegator".into(),
+        designation_version: 1,
+        delegation_id: Some(delegation_id.into()),
+        delegation_version: Some(1),
+        key_id: "credential-key-1".into(),
+        approval_id: "approval:integrated".into(),
+        tenant_id: "tenant:alpha".into(),
+        organization_id: "org:alpha".into(),
+        memory_id: "memory:integrated".into(),
+        record_version: 1,
+        content_sha256: digest.clone(),
+        purpose: "ORGANIZATIONAL_CONTEXT".into(),
+        classification: "CONFIDENTIAL".into(),
+        capability: "g05.memory.durable.activate".into(),
+        resource: "g05:durable.activate:memory:integrated:1".into(),
+        policy_version: "g05-memory-v1".into(),
+        issued_at: 1_150,
+        expires_at: 1_350,
+    };
+    let proof_signature = issuer_signer.sign(&proof_payload.signing_bytes().unwrap()).to_bytes().to_vec();
+    let signed_proof = SignedReviewerProof::from_signature(proof_payload, proof_signature);
+    let receipt = DurableApprovalReceipt {
+        approval_ref: "approval:integrated".into(),
+        memory_id: "memory:integrated".into(),
+        tenant_ref: "tenant:alpha".into(),
+        subject_ref: delegator.subject().into(),
+        content_sha256: digest.clone(),
+        reviewer_ref: reviewer.subject().into(),
+        issued_at: 1_150,
+        expires_at: 1_350,
+        proof_ref: "proof:integrated".into(),
+        signed_proof,
+    };
+    let request = iroka_g05_memory::AuthorizationRequest {
+        operation: Operation::ActivateDurable,
+        principal_ref: reviewer.subject().into(),
+        tenant_ref: "tenant:alpha".into(),
+        subject_ref: delegator.subject().into(),
+        purpose: Purpose::OrganizationalContext,
+        classification: Classification::Confidential,
+        memory_id: Some("memory:integrated".into()),
+        recipient_refs: vec![],
+        correlation_ref: "correlation:integrated".into(),
+    };
+
+    let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
+    let created_event = AuditEvent {
+        event_id: "g05:memory:integrated:created".into(),
+        event_type: "memory.durable.proposed".into(),
+        memory_id: "memory:integrated".into(),
+        tenant_ref: "tenant:alpha".into(),
+        actor_ref: reviewer.subject().into(),
+        purpose: Purpose::OrganizationalContext,
+        record_version: 1,
+        outcome: "pending_review".into(),
+        correlation_ref: "correlation:integrated".into(),
+        occurred_at: 1_150,
+        content_sha256: digest.clone(),
+    };
+    repository.insert_with_audit(record.clone(), created_event).unwrap();
+
+    let pending = prepare_durable_activation(
+        &record, &receipt, &reviewer, &request, &governance, 1_200,
+    ).unwrap();
+    let pending_event = durable_activation_audit_event(&pending).unwrap();
+    repository.replace_with_audit(pending.clone(), 1, pending_event.clone()).unwrap();
+    assert_eq!(
+        repository.get_metadata("memory:integrated").unwrap().unwrap().lifecycle_state,
+        LifecycleState::PendingAudit
+    );
+
+    let acknowledgments = dispatch_g11_outbox(&repository, &governance, 10).unwrap();
+    assert_eq!(g11_sink.verify_integrity(), Ok(()));
+    let pending_ack = acknowledgments.into_iter()
+        .find(|ack| ack.event_id() == pending_event.event_id)
+        .unwrap();
+
+    commit_durable_activation(&mut repository, &pending, &pending_ack, 2, 1_210).unwrap();
+    assert_eq!(
+        repository.get_metadata("memory:integrated").unwrap().unwrap().lifecycle_state,
+        LifecycleState::Active
+    );
+    assert_eq!(g11_sink.verify_integrity(), Ok(()));
 }
