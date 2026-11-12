@@ -332,3 +332,54 @@
         assert_eq!(row.get::<_, String>(2), "g11_temporarily_unavailable");
         cleanup(&mut admin, &[id]);
     }
+
+
+#[test]
+fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restart() {
+    let Some(url) = database_url() else { return };
+    let mut admin = admin(&url);
+    let suffix = unique_id();
+    let record = test_record(&suffix, LifecycleState::PendingReview, 1);
+    let event = test_event(
+        &record,
+        "memory.durable.proposed",
+        &format!("event:{suffix}:g11-receipt"),
+    );
+    let memory_id = record.candidate.memory_id.clone();
+
+    let sink = PostgresG11MemoryAdapter {
+        client: Arc::new(Mutex::new(
+            Client::connect(&url, NoTls).expect("G11 connection"),
+        )),
+    };
+    let first = sink.append_memory_event(&event).unwrap();
+    let duplicate = sink.append_memory_event(&event).unwrap();
+    assert_eq!(first, duplicate);
+    assert_eq!(sink.head().unwrap().0, 1);
+    sink.verify_integrity().unwrap();
+    drop(sink);
+
+    let restarted = PostgresG11MemoryAdapter {
+        client: Arc::new(Mutex::new(
+            Client::connect(&url, NoTls).expect("restarted G11 connection"),
+        )),
+    };
+    assert_eq!(restarted.head().unwrap().0, 1);
+    restarted.verify_integrity().unwrap();
+
+    let mut changed = event.clone();
+    changed.outcome = "changed-payload".into();
+    assert_eq!(
+        restarted.append_memory_event(&changed),
+        Err(G05Error::AuditUnavailable)
+    );
+    let receipt_count: i64 = admin
+        .query_one(
+            "SELECT count(*) FROM g11_memory_receipts WHERE event_id=$1",
+            &[&event.event_id],
+        )
+        .unwrap()
+        .get(0);
+    assert_eq!(receipt_count, 1);
+    cleanup(&mut admin, &[memory_id]);
+}
