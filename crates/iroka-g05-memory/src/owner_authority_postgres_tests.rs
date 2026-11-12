@@ -199,6 +199,14 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
         active:false,version:1,reason:"initial safe state".into()
     });
     auth.apply_security_command(&baseline,1_200).unwrap();
+    let stop = command(&signer,"owner-key",&unique("stop-active"),G02SecurityAction::SetEmergencyStop{
+        active:true,version:2,reason:"security incident".into()
+    });
+    auth.apply_security_command(&stop,1_201).unwrap();
+    let stale_stop = command(&signer,"owner-key",&unique("stop-stale"),G02SecurityAction::SetEmergencyStop{
+        active:false,version:1,reason:"stale clear attempt".into()
+    });
+    assert_eq!(auth.apply_security_command(&stale_stop,1_202),Err(G02CommandError::Rollback));
     let (snapshot,signature)=policy_snapshot(&signer,"owner-key",&policy_id);
     install_snapshot(&mut db,&snapshot,&signature,&policy_id);
     let subject=unique("subject");
@@ -213,7 +221,7 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
     resolver.verify_schema().unwrap();
     let (policy,stopped)=resolver.current_policy(1_200).unwrap();
     assert_eq!(policy.version(),"policy-v1");
-    assert!(!stopped);
+    assert!(stopped);
     let principal = verified_principal(&auth, &subject);
     let request=AuthorizationRequest { operation:Operation::Retrieve,principal_ref:subject,
         tenant_ref:tenant,subject_ref:"subject:resource".into(),purpose:Purpose::TaskContinuity,
