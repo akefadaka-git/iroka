@@ -42,7 +42,7 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
 }
 
 pub trait G11MemoryAuditAuthority: Send + Sync {
-    fn append_memory_event(&self, event: &AuditEvent) -> Result<(), G05Error>;
+    fn append_memory_event(&self, event: &AuditEvent) -> Result<crate::G11Acknowledgment, G05Error>;
 }
 
 pub trait TenantContextResolver: Send + Sync {
@@ -239,7 +239,7 @@ where
         self.g02.resolve_g05_activation(&verified, receipt, record, reviewer, now)?;
         Ok(())
     }
-    fn append_audit(&self, event: &AuditEvent) -> Result<(), G05Error> {
+    fn append_audit(&self, event: &AuditEvent) -> Result<crate::G11Acknowledgment, G05Error> {
         self.g11.append_memory_event(event)
     }
 }
