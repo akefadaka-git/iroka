@@ -194,11 +194,7 @@ impl crate::G02RequestAuthorizer for PostgresG02RequestAuthorizer {
         if !active || version <= 0 {
             return Err(G05Error::TenantScopeMismatch);
         }
-        tx.commit().map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G09 authority snapshot commit failed: {error}");
-            G05Error::AuthorityUnavailable
-        })?;
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
         Ok(())
     }
 }
@@ -227,17 +223,9 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
             .client
             .lock()
             .map_err(|_| G05Error::AuthorityUnavailable)?;
-        let mut tx = client.transaction().map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G09 transaction begin failed: {error}");
-            G05Error::AuthorityUnavailable
-        })?;
+        let mut tx = client.transaction().map_err(|_| G05Error::AuthorityUnavailable)?;
         tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
-            .map_err(|error| {
-                #[cfg(test)]
-                eprintln!("G09 read snapshot setup failed: {error}");
-                G05Error::AuthorityUnavailable
-            })?;
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         // Both policy and emergency-stop reads share one MVCC snapshot.
         let row = tx
             .query_opt(
@@ -259,32 +247,16 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
                )",
                 &[&self.policy_id, &now_i],
             )
-            .map_err(|error| {
-                #[cfg(test)]
-                eprintln!("G09 active policy SQL failed: {error}");
-                G05Error::AuthorityUnavailable
-            })?
+            .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorizationDenied)?;
-        let snapshot = Self::snapshot_from_row(&row).map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G09 snapshot row validation failed: {error:?}");
-            error
-        })?;
-        let policy = self.verifier.verify_snapshot(&snapshot, now).map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G09 canonical G02 policy verification failed: {error:?}");
-            error
-        })?;
+        let snapshot = Self::snapshot_from_row(&row)?;
+        let policy = self.verifier.verify_snapshot(&snapshot, now)?;
         let emergency = tx
             .query_opt(
                 "SELECT active,version,changed_at FROM g02_emergency_stop WHERE singleton=TRUE",
                 &[],
             )
-            .map_err(|error| {
-                #[cfg(test)]
-                eprintln!("G09 emergency-stop SQL failed: {error}");
-                G05Error::AuthorityUnavailable
-            })?
+            .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorityUnavailable)?;
         let active: bool = emergency.get(0);
         let version: i64 = emergency.get(1);
@@ -292,11 +264,7 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         if version <= 0 || changed_at < 0 || changed_at > now_i {
             return Err(G05Error::AuthorityUnavailable);
         }
-        tx.commit().map_err(|error| {
-            #[cfg(test)]
-            eprintln!("G09 MVCC snapshot commit failed: {error}");
-            G05Error::AuthorityUnavailable
-        })?;
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
         Ok((policy, active))
     }
 
@@ -319,11 +287,7 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
              WHERE subject_ref=$1 AND tenant_ref=$2",
                 &[&request.principal_ref, &request.tenant_ref],
             )
-            .map_err(|error| {
-                #[cfg(test)]
-                eprintln!("G09 tenant membership SQL failed: {error}");
-                G05Error::AuthorityUnavailable
-            })?
+            .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::TenantScopeMismatch)?;
         let active: bool = row.get(0);
         let version: i64 = row.get(1);
