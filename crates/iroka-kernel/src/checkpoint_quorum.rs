@@ -445,8 +445,9 @@ fn verify_checkpoint_signer(
 ) -> Result<(), CheckpointQuorumError> {
     let signer = &policy.signer;
     if checkpoint.payload.signer_key_id != signer.key_id
-        || now < signer.not_before
+        || checkpoint.payload.issued_at < signer.not_before
         || checkpoint.payload.issued_at >= signer.not_after
+        || checkpoint.payload.issued_at > now.saturating_add(MAX_CLOCK_SKEW_SECS)
     {
         return Err(CheckpointQuorumError::InvalidSigner);
     }
@@ -491,7 +492,6 @@ fn verify_witness_quorum(
             || trust.key_id != receipt.key_id
             || !operators.insert(trust.operator_id.clone())
             || receipt.verified_at < trust.not_before
-            || receipt.verified_at >= trust.not_after
             || receipt.verified_at >= trust.not_after
         {
             return Err(CheckpointQuorumError::InvalidWitnessReceipt);
@@ -544,7 +544,6 @@ fn verify_retention_quorum(
             || trust.key_id != receipt.key_id
             || !operators.insert(trust.operator_id.clone())
             || receipt.retained_at < trust.not_before
-            || receipt.retained_at >= trust.not_after
             || receipt.retained_at >= trust.not_after
         {
             return Err(CheckpointQuorumError::InvalidRetentionReceipt);
