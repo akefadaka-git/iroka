@@ -336,7 +336,6 @@ mod postgres_tests {
                 &[&event.event_id],
             )
             .unwrap();
-        drop(first_worker);
         let restarted_worker = worker(&url);
         let recovered = restarted_worker.claim_batch("worker-b", 10, 30).unwrap();
         assert_eq!(recovered.len(), 1);
