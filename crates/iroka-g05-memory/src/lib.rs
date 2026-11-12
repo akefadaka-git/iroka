@@ -81,6 +81,7 @@ pub enum ProvenanceKind {
 pub enum LifecycleState {
     Proposed,
     PendingReview,
+    PendingAudit,
     Active,
     Rejected,
     Restricted,
@@ -482,6 +483,7 @@ pub fn transition_allowed(from: LifecycleState, to: LifecycleState) -> bool {
     matches!(
         (from, to),
         (S::Proposed, S::PendingReview)
+            | (S::PendingReview, S::PendingAudit)
             | (S::Proposed, S::Rejected)
             | (S::PendingReview, S::Rejected)
             | (S::Active, S::Restricted)
@@ -589,9 +591,9 @@ pub fn authorize_durable_activation<G: GovernancePort>(
     Ok(())
 }
 
-/// Prepare an approved durable record transition. The returned value is not
-/// persisted; the caller MUST commit it with the G11 outbox using the G05
-/// repository transaction port. A replayed or stale version fails closed.
+/// Prepare an approved durable record transition, but do not activate it.
+/// The record remains non-active until G11 acknowledges the exact content-free
+/// lifecycle event and the repository performs a final optimistic version CAS.
 pub fn prepare_durable_activation<G: GovernancePort>(
     record: &MemoryRecord,
     receipt: &DurableApprovalReceipt,
@@ -608,18 +610,86 @@ pub fn prepare_durable_activation<G: GovernancePort>(
         governance,
         now,
     )?;
-    let mut activated = record.clone();
-    activated.candidate.record_version = record
+    let mut pending = record.clone();
+    pending.candidate.record_version = record
         .candidate
         .record_version
         .checked_add(1)
         .ok_or(G05Error::VersionConflict)?;
-    activated.lifecycle_state = LifecycleState::Active;
-    activated.approval_ref = Some(receipt.approval_ref.clone());
-    activated.approved_by_ref = Some(receipt.reviewer_ref.clone());
-    activated.approved_at = Some(now);
-    activated.updated_at = now;
-    Ok(activated)
+    pending.lifecycle_state = LifecycleState::PendingAudit;
+    pending.approval_ref = Some(receipt.approval_ref.clone());
+    pending.approved_by_ref = Some(receipt.reviewer_ref.clone());
+    pending.approved_at = Some(now);
+    pending.updated_at = now;
+    Ok(pending)
+}
+
+/// Content-free acknowledgment returned by G11 after durable acceptance.
+/// A production adapter must construct it only from G11's durable receipt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct G11Acknowledgment {
+    pub event_id: String,
+    pub payload_sha256: String,
+    pub accepted_at: u64,
+}
+
+/// Finalize only after matching G11 acknowledgment and a final repository
+/// version read. Persistence MUST still use MemoryRepository's atomic CAS.
+pub fn finalize_durable_activation(
+    pending: &MemoryRecord,
+    acknowledgment: &G11Acknowledgment,
+    expected_current_version: u64,
+    now: u64,
+) -> Result<MemoryRecord, G05Error> {
+    if pending.lifecycle_state != LifecycleState::PendingAudit
+        || pending.candidate.memory_class != MemoryClass::Durable
+        || pending.candidate.record_version != expected_current_version
+        || acknowledgment.accepted_at > now
+        || acknowledgment.accepted_at < pending.updated_at
+    {
+        return Err(G05Error::VersionConflict);
+    }
+    let event = durable_activation_audit_event(pending)?;
+    if acknowledgment.event_id != event.event_id
+        || acknowledgment.payload_sha256 != audit_event_sha256(&event)
+    {
+        return Err(G05Error::AuditUnavailable);
+    }
+    let mut active = pending.clone();
+    active.lifecycle_state = LifecycleState::Active;
+    active.updated_at = now;
+    Ok(active)
+}
+
+/// Stable, content-free event identity and canonical digest for G11 receipt
+/// matching. The memory content itself is never included.
+pub fn durable_activation_audit_event(record: &MemoryRecord) -> Result<AuditEvent, G05Error> {
+    if record.lifecycle_state != LifecycleState::PendingAudit {
+        return Err(G05Error::InvalidLifecycleTransition);
+    }
+    let approval = record.approval_ref.as_deref().ok_or(G05Error::DurableApprovalRequired)?;
+    let event_id = format!(
+        "g05:durable-activation:{}:{}:{}",
+        record.candidate.memory_id, record.candidate.record_version, approval
+    );
+    Ok(AuditEvent {
+        event_id,
+        event_type: "memory.durable.activation.pending".into(),
+        memory_id: record.candidate.memory_id.clone(),
+        tenant_ref: record.candidate.tenant_ref.clone(),
+        actor_ref: record.approved_by_ref.clone().ok_or(G05Error::DurableApprovalRequired)?,
+        purpose: record.candidate.purpose,
+        record_version: record.candidate.record_version,
+        outcome: "pending_g11_acknowledgment".into(),
+        correlation_ref: approval.to_owned(),
+        occurred_at: record.updated_at,
+        content_sha256: record.candidate.content_sha256.clone(),
+    })
+}
+
+fn audit_event_sha256(event: &AuditEvent) -> String {
+    let canonical = serde_jcs::to_vec(event).unwrap_or_default();
+    sha256_hex(&canonical)
 }
 
 /// Verify opt-in through the authoritative consent/governance adapter before
@@ -732,6 +802,18 @@ pub trait MemoryRepository: Send + Sync {
         expected_version: u64,
         event: AuditEvent,
     ) -> Result<(), G05Error>;
+
+    /// Must atomically require a PendingAudit row at expected_version, verify
+    /// the G11 receipt has already been checked by the service, set Active,
+    /// and append the final content-free event. Default is fail-closed.
+    fn finalize_pending_activation(
+        &mut self,
+        _record: MemoryRecord,
+        _expected_version: u64,
+        _event: AuditEvent,
+    ) -> Result<(), G05Error> {
+        Err(G05Error::AuditUnavailable)
+    }
 }
 
 impl<T: MemoryRepository> CanonicalMemoryMetadataResolver for T {
