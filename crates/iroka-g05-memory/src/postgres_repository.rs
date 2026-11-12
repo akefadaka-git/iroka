@@ -117,7 +117,7 @@ fn insert_outbox(tx: &mut postgres::Transaction<'_>, event: &AuditEvent) -> Resu
 }
 
 fn record_columns(record: &MemoryRecord) -> Result<(Value, Value), G05Error> {
-    Ok((json_value(&metadata(record))?, json_value(record)?))
+    Ok((json_value(&metadata(record)?)?, json_value(record)?))
 }
 
 fn enum_text<T: serde::Serialize>(value: &T) -> Result<String, G05Error> {
