@@ -23,8 +23,7 @@ impl PostgresMemoryRepository {
     /// Remote connection strings must explicitly use sslmode=verify-full.
     pub fn connect(connection_string: &str) -> Result<Self, G05Error> {
         if !connection_string
-            .split_whitespace()
-            .any(|part| part == "sslmode=verify-full")
+            .contains("sslmode=verify-full")
         {
             return Err(G05Error::RepositoryUnavailable);
         }
@@ -332,7 +331,7 @@ impl MemoryRepository for PostgresMemoryRepository {
             || pending.memory_id != record.candidate.memory_id
             || pending.tenant_ref != record.candidate.tenant_ref
             || pending.record_version != expected_version
-            || delivered_at.is_none_or(|accepted| accepted < pending.occurred_at as i64)
+            || delivered_at.map_or(true, |accepted| accepted < pending.occurred_at as i64)
             || ack_digest.as_deref() != Some(digest.as_str())
         {
             return Err(G05Error::AuditUnavailable);
@@ -539,7 +538,7 @@ impl PostgresG11OutboxWorker {
                      ELSE clock_timestamp()+($5 * interval '1 second') END,
                      last_error_code=$6,lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL
                  WHERE event_id=$1 AND lease_owner=$2 AND lease_token=$3::uuid
-                   AND delivered_at IS NULL",
+                   AND delivered_at IS NULL AND lease_expires_at > clock_timestamp()",
                 &[
                     &claim.event.event_id,
                     &claim.lease_owner,
