@@ -28,4 +28,27 @@ CREATE TABLE IF NOT EXISTS g02_approval_revocations (
     revoked_at BIGINT NOT NULL CHECK (revoked_at >= 0)
 );
 
+
+CREATE OR REPLACE FUNCTION g02_reject_revocation_mutation()
+RETURNS trigger LANGUAGE plpgsql AS $g02$
+BEGIN
+    RAISE EXCEPTION 'G02 revocation history is append-only';
+END;
+$g02$;
+
+DROP TRIGGER IF EXISTS g02_signing_key_revocations_no_mutation ON g02_signing_key_revocations;
+CREATE TRIGGER g02_signing_key_revocations_no_mutation
+BEFORE UPDATE OR DELETE ON g02_signing_key_revocations
+FOR EACH ROW EXECUTE FUNCTION g02_reject_revocation_mutation();
+
+DROP TRIGGER IF EXISTS g02_credential_revocations_no_mutation ON g02_credential_revocations;
+CREATE TRIGGER g02_credential_revocations_no_mutation
+BEFORE UPDATE OR DELETE ON g02_credential_revocations
+FOR EACH ROW EXECUTE FUNCTION g02_reject_revocation_mutation();
+
+DROP TRIGGER IF EXISTS g02_approval_revocations_no_mutation ON g02_approval_revocations;
+CREATE TRIGGER g02_approval_revocations_no_mutation
+BEFORE UPDATE OR DELETE ON g02_approval_revocations
+FOR EACH ROW EXECUTE FUNCTION g02_reject_revocation_mutation();
+
 COMMIT;
