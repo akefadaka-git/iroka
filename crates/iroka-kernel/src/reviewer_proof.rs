@@ -323,6 +323,58 @@ mod tests {
         assert_eq!(verify(&v,&proof,&principal),Err(ReviewerProofError::Replay));
     }
     #[test]
+    fn signed_delegation_id_and_version_are_verified_and_consumed_once() {
+        let (key, verifier, principal) = fixture(false);
+        let mut proof = signed(&key, "proof:delegated-once");
+        proof.payload.delegation_id = Some("delegation:1".into());
+        proof.payload.delegation_version = Some(7);
+        proof.signature = key
+            .sign(&proof.payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+
+        let verify_delegated = |p: &SignedReviewerProof| {
+            verifier.verify_and_consume(
+                p,
+                &principal,
+                "reviewer:maale-01",
+                "approval:17",
+                "tenant:alpha",
+                "org:alpha",
+                "designation:1",
+                3,
+                Some("delegation:1"),
+                Some(7),
+                "memory:1",
+                4,
+                &"a".repeat(64),
+                "ORGANIZATIONAL_CONTEXT",
+                "CONFIDENTIAL",
+                "content.review",
+                "translation:chapter-1",
+                "policy:v1",
+                1200,
+            )
+        };
+        let verified = verify_delegated(&proof).unwrap();
+        assert_eq!(verified.delegation_id(), Some("delegation:1"));
+        assert_eq!(verified.delegation_version(), Some(7));
+        assert_eq!(verify_delegated(&proof), Err(ReviewerProofError::Replay));
+
+        let mut mismatched = signed(&key, "proof:delegated-mismatch");
+        mismatched.payload.delegation_id = Some("delegation:other".into());
+        mismatched.payload.delegation_version = Some(7);
+        mismatched.signature = key
+            .sign(&mismatched.payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        assert_eq!(
+            verify_delegated(&mismatched),
+            Err(ReviewerProofError::ScopeMismatch)
+        );
+    }
+
+    #[test]
     fn rejects_wrong_approval_scope_and_wrong_principal() {
         let (key,v,principal)=fixture(false);
         let mut proof=signed(&key,"proof:scope");
