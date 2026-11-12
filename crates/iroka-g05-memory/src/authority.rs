@@ -75,9 +75,10 @@ impl G11MemoryAuditAuthority for KernelSqliteG11MemoryAdapter {
         &self,
         event: &AuditEvent,
     ) -> Result<crate::G11Acknowledgment, G05Error> {
+        let payload_digest = audit_event_sha256(event);
         let resource = format!(
-            "g05:memory:{}:{}:{}",
-            event.tenant_ref, event.memory_id, event.record_version
+            "g05:memory:{}:{}:{}:{}",
+            event.tenant_ref, event.memory_id, event.record_version, payload_digest
         );
         let receipt = self
             .sink
@@ -89,7 +90,7 @@ impl G11MemoryAuditAuthority for KernelSqliteG11MemoryAdapter {
                 &resource,
                 "g05-memory-v1",
                 event.occurred_at,
-                &audit_event_sha256(event),
+                &payload_digest,
             )
             .map_err(|error| match error {
                 AuditStoreError::Unavailable | AuditStoreError::IntegrityFailure => {
