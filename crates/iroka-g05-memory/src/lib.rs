@@ -23,9 +23,9 @@ pub use registry::SqliteG05AuthorityRegistry;
 
 mod authority;
 pub use authority::{
-    EpisodicConsentAuthority, G01ReviewerProofAuthority, G02AuthorizationAuthority, G02RequestAuthorizer,
-    G11MemoryAuditAuthority, KernelG01ReviewerProofAdapter, KernelG02ActivationAdapter,
-    TenantContextResolver, TrustedGovernanceAdapter,
+    EpisodicConsentAuthority, G01ReviewerProofAuthority, G02AuthorizationAuthority,
+    G02RequestAuthorizer, G11MemoryAuditAuthority, KernelG01ReviewerProofAdapter,
+    KernelG02ActivationAdapter, TenantContextResolver, TrustedGovernanceAdapter,
 };
 
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
@@ -677,7 +677,10 @@ pub fn durable_activation_audit_event(record: &MemoryRecord) -> Result<AuditEven
     if record.lifecycle_state != LifecycleState::PendingAudit {
         return Err(G05Error::InvalidLifecycleTransition);
     }
-    let approval = record.approval_ref.as_deref().ok_or(G05Error::DurableApprovalRequired)?;
+    let approval = record
+        .approval_ref
+        .as_deref()
+        .ok_or(G05Error::DurableApprovalRequired)?;
     let event_id = format!(
         "g05:durable-activation:{}:{}:{}",
         record.candidate.memory_id, record.candidate.record_version, approval
@@ -687,7 +690,10 @@ pub fn durable_activation_audit_event(record: &MemoryRecord) -> Result<AuditEven
         event_type: "memory.durable.activation.pending".into(),
         memory_id: record.candidate.memory_id.clone(),
         tenant_ref: record.candidate.tenant_ref.clone(),
-        actor_ref: record.approved_by_ref.clone().ok_or(G05Error::DurableApprovalRequired)?,
+        actor_ref: record
+            .approved_by_ref
+            .clone()
+            .ok_or(G05Error::DurableApprovalRequired)?,
         purpose: record.candidate.purpose,
         record_version: record.candidate.record_version,
         outcome: "pending_g11_acknowledgment".into(),
@@ -826,7 +832,6 @@ pub trait MemoryRepository: Send + Sync {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -857,7 +862,11 @@ mod tests {
             Ok(())
         }
         fn append_audit(&self, event: &AuditEvent) -> Result<G11Acknowledgment, G05Error> {
-            Ok(G11Acknowledgment { event_id: event.event_id.clone(), payload_sha256: audit_event_sha256(event), accepted_at: event.occurred_at })
+            Ok(G11Acknowledgment {
+                event_id: event.event_id.clone(),
+                payload_sha256: audit_event_sha256(event),
+                accepted_at: event.occurred_at,
+            })
         }
     }
 
@@ -986,7 +995,9 @@ mod tests {
             signed_proof: test_signed_proof("proof:1"),
         };
         let reviewer = VerifiedPrincipal::from_verified_credential(
-            "reviewer:1".into(), "issuer:test".into(), "credential:reviewer".into(),
+            "reviewer:1".into(),
+            "issuer:test".into(),
+            "credential:reviewer".into(),
         );
         let request = AuthorizationRequest {
             operation: Operation::ActivateDurable,
@@ -1000,8 +1011,14 @@ mod tests {
             correlation_ref: "trace:activation".into(),
         };
         let pending = prepare_durable_activation(
-            &record, &receipt, &reviewer, &request, &AllowGovernance, 110,
-        ).unwrap();
+            &record,
+            &receipt,
+            &reviewer,
+            &request,
+            &AllowGovernance,
+            110,
+        )
+        .unwrap();
         assert_eq!(pending.lifecycle_state, LifecycleState::PendingAudit);
         assert_ne!(pending.lifecycle_state, LifecycleState::Active);
 
@@ -1014,12 +1031,17 @@ mod tests {
         let mut mismatched_ack = ack.clone();
         mismatched_ack.payload_sha256 = "0".repeat(64);
         assert_eq!(
-            finalize_durable_activation(&pending, &mismatched_ack, pending.candidate.record_version, 112),
+            finalize_durable_activation(
+                &pending,
+                &mismatched_ack,
+                pending.candidate.record_version,
+                112
+            ),
             Err(G05Error::AuditUnavailable),
         );
-        let active = finalize_durable_activation(
-            &pending, &ack, pending.candidate.record_version, 112,
-        ).unwrap();
+        let active =
+            finalize_durable_activation(&pending, &ack, pending.candidate.record_version, 112)
+                .unwrap();
         assert_eq!(active.lifecycle_state, LifecycleState::Active);
     }
 
