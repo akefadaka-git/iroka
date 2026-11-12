@@ -449,8 +449,8 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
     use iroka_g05_memory::{
         commit_durable_activation, dispatch_g11_outbox, durable_activation_audit_event,
         prepare_durable_activation, AuditEvent, Classification, DurableApprovalReceipt,
-        G11MemoryAuditAuthority, G11OutboxRepository, KernelG01ReviewerProofAdapter,
-        KernelG02ActivationAdapter, KernelSqliteG11MemoryAdapter, LifecycleState,
+        KernelG01ReviewerProofAdapter, KernelG02ActivationAdapter,
+        KernelSqliteG11MemoryAdapter, LifecycleState,
         MemoryCandidate, MemoryClass,
         MemoryRecord, MemoryRepository, Operation, Provenance, ProvenanceKind, Purpose,
         SqliteMemoryRepository, TrustedGovernanceAdapter,
