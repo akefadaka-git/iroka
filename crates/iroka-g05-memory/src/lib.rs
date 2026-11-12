@@ -1007,13 +1007,9 @@ mod tests {
             Err(G05Error::AuditUnavailable),
         );
 
-        let active = finalize_durable_activation(
-            &pending,
-            &ack,
-            pending.candidate.record_version,
-            112,
-        )
-        .unwrap();
+        let active =
+            finalize_durable_activation(&pending, &ack, pending.candidate.record_version, 112)
+                .unwrap();
         assert_eq!(active.lifecycle_state, LifecycleState::Active);
     }
 
