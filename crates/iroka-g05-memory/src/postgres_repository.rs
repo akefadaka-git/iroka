@@ -654,7 +654,6 @@ impl PostgresG11MemoryAdapter {
         })
     }
 
-
     fn persist_pending_checkpoint(
         &self,
         checkpoint: &iroka_kernel::SignedCheckpoint,
