@@ -57,6 +57,21 @@ impl PostgresG02AuthorityOutboxWorker {
         Ok(Self { client: Arc::new(Mutex::new(client)) })
     }
 
+    pub fn verify_schema(&self) -> Result<(), G02OutboxError> {
+        let mut client = self.client.lock().map_err(|_| G02OutboxError::Unavailable)?;
+        let row = client.query_one(
+            "SELECT to_regclass('public.g02_authority_outbox') IS NOT NULL
+              AND EXISTS (SELECT 1 FROM information_schema.columns
+                          WHERE table_schema='public' AND table_name='g02_authority_outbox'
+                            AND column_name='acknowledgment_sha256')
+              AND EXISTS (SELECT 1 FROM information_schema.columns
+                          WHERE table_schema='public' AND table_name='g02_authority_outbox'
+                            AND column_name='last_error_code')",
+            &[],
+        ).map_err(|_| G02OutboxError::Unavailable)?;
+        if row.get::<_, bool>(0) { Ok(()) } else { Err(G02OutboxError::Unavailable) }
+    }
+
     #[cfg(test)]
     pub(crate) fn from_client_for_test(client: Client) -> Self {
         Self { client: Arc::new(Mutex::new(client)) }
