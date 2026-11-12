@@ -458,12 +458,12 @@ impl PostgresG11OutboxWorker {
                  RETURNING o.payload_json,o.lease_token::text,o.attempt_count",
                 &[&worker_id, &limit, &lease_seconds],
             )
-            .map_err(|_| G05Error::RepositoryUnavailable)?;
+            .map_err(|error| { eprintln!("claim query failed: {error}"); G05Error::RepositoryUnavailable })?;
         let mut claims = Vec::with_capacity(rows.len());
         for row in rows {
-            claims.push(decode_claim(row, worker_id)?);
+            claims.push(decode_claim(row, worker_id).map_err(|error| { eprintln!("claim decode failed: {error:?}"); error })?);
         }
-        tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
+        tx.commit().map_err(|error| { eprintln!("claim commit failed: {error}"); G05Error::RepositoryUnavailable })?;
         Ok(claims)
     }
 
@@ -615,8 +615,7 @@ impl PostgresG11OutboxWorker {
 
 fn decode_claim(row: Row, worker_id: &str) -> Result<LeasedG11Event, G05Error> {
     let payload: Value = row.get(0);
-    let event: AuditEvent =
-        serde_json::from_value(payload).map_err(|_| G05Error::RepositoryUnavailable)?;
+    let event: AuditEvent = serde_json::from_value(payload).map_err(|error| { eprintln!("claim payload decode error: {error}"); G05Error::RepositoryUnavailable })?;
     let lease_token: String = row.get(1);
     let attempt_count: i64 = row.get(2);
     Ok(LeasedG11Event {
