@@ -11,7 +11,7 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    AuthenticatedWorker, Ed25519WorkerAuthenticator, RetryFailureClass, RetryPolicy,
+    Ed25519WorkerAuthenticator, RetryFailureClass, RetryPolicy,
     RetryPolicyError, RetrySchedule, SignedWorkerProof, TrustedClock, VerifiedPrincipal,
     WorkerAuthError, WorkerOperationScope, WorkerReplayGuard, WorkerRevocationChecker,
 };
