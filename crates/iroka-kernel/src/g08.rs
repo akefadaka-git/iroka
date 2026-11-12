@@ -670,6 +670,16 @@ impl SqliteWorkflowStore {
         let (workflow_id, task_key, current_state_text, current_version) =
             current.ok_or(G08Error::TenantAuthorityRejected)?;
         let current_state = parse_task_state(&current_state_text)?;
+        if current_state == TaskState::Running {
+            let active_lease: bool = transaction.query_row(
+                "SELECT EXISTS(SELECT 1 FROM g08_task_leases WHERE task_id=?1 AND expires_at>?2)",
+                params![request.task_id, i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?],
+                |row| row.get(0),
+            ).map_err(|_| G08Error::StoreUnavailable)?;
+            if active_lease {
+                return Err(G08Error::TenantAuthorityRejected);
+            }
+        }
         let expected =
             i64::try_from(request.expected_version).map_err(|_| G08Error::InvalidInput)?;
         if current_version != expected || !valid_task_transition(current_state, request.next_state)
