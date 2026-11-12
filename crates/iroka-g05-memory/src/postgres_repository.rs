@@ -428,7 +428,6 @@ impl PostgresG11OutboxWorker {
         if !(1..=500).contains(&limit) || !(5..=900).contains(&lease_seconds) {
             return Err(G05Error::MalformedRecord);
         }
-        let limit = limit as i32;
         let lease_seconds = lease_seconds as f64;
         let mut client = self.client.lock().map_err(|_| {
             eprintln!("claim client mutex poisoned");
@@ -601,7 +600,6 @@ impl PostgresG11OutboxWorker {
         if !(1..=500).contains(&limit) {
             return Err(G05Error::MalformedRecord);
         }
-        let limit = limit as i32;
         let mut client = self
             .client
             .lock()
