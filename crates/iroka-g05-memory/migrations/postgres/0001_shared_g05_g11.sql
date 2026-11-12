@@ -3,6 +3,9 @@
 -- least-privilege grants required by their service role.
 BEGIN;
 
+-- Serialize concurrent migration/bootstrap attempts across processes.
+SELECT pg_advisory_xact_lock(77305111);
+
 CREATE TABLE IF NOT EXISTS g05_memory_records (
     memory_id TEXT PRIMARY KEY,
     tenant_ref TEXT NOT NULL,
