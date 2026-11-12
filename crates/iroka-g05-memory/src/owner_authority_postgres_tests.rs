@@ -136,7 +136,7 @@ fn verified_principal(
 #[test]
 fn postgres_g02_migrations_command_replay_monotonicity_and_rollback_are_live() {
     let Some(url)=test_url() else { return };
-    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut db=admin(&url);
     let signer=SigningKey::from_bytes(&[81u8;32]);
     let auth=verifier(&url,&signer,"owner-key");
