@@ -47,6 +47,25 @@ pub struct PostgresOwnerSignatureVerifier {
 }
 
 impl PostgresOwnerSignatureVerifier {
+    #[cfg(test)]
+    pub(crate) fn from_client_for_test(
+        client: Client,
+        trusted_keys: Vec<G02TrustedOwnerKey>,
+    ) -> Result<Self, G02CommandError> {
+        let mut keys = HashMap::new();
+        for key in trusted_keys {
+            let verifying_key = VerifyingKey::from_bytes(&key.public_key)
+                .map_err(|_| G02CommandError::Malformed)?;
+            keys.insert(key.key_id, OwnerKey {
+                owner_subject: key.owner_subject,
+                verifying_key,
+                not_before: key.not_before,
+                not_after: key.not_after,
+            });
+        }
+        Ok(Self { client: Arc::new(Mutex::new(client)), keys: Arc::new(keys) })
+    }
+
     pub fn connect(
         connection_string: &str,
         trusted_keys: Vec<G02TrustedOwnerKey>,
