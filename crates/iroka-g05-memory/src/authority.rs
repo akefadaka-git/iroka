@@ -173,7 +173,6 @@ impl<A: G02RequestAuthorizer, T: TenantContextResolver> G02AuthorizationAuthorit
         };
         if proof.subject() != reviewer.subject()
             || proof.tenant_id() != receipt.tenant_ref
-            || proof.organization_id() != receipt.subject_ref
             || proof.reviewer_id() != receipt.reviewer_ref
             || proof.approval_id() != receipt.approval_ref
             || proof.memory_id() != record.candidate.memory_id
