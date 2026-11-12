@@ -151,3 +151,20 @@ fn to_i64(v: u64) -> Result<i64, G05Error> {
 fn from_i64(v: i64) -> Result<u64, G05Error> {
     u64::try_from(v).map_err(|_| G05Error::AuthorityUnavailable)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn g05_registry_does_not_create_local_reviewer_authority() {
+        let registry = SqliteG05AuthorityRegistry::open_in_memory().unwrap();
+        let connection = registry.connection.lock().unwrap();
+        let count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='g05_reviewer_designations'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(count, 0);
+    }
+}
