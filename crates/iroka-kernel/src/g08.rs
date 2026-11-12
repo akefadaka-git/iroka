@@ -10,7 +10,11 @@ use std::sync::Mutex;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha2::{Digest, Sha256};
 
-use crate::{RetryFailureClass, RetryPolicy, RetryPolicyError, RetrySchedule, VerifiedPrincipal};
+use crate::{
+    AuthenticatedWorker, Ed25519WorkerAuthenticator, RetryFailureClass, RetryPolicy,
+    RetryPolicyError, RetrySchedule, SignedWorkerProof, TrustedClock, VerifiedPrincipal,
+    WorkerAuthError, WorkerOperationScope, WorkerReplayGuard, WorkerRevocationChecker,
+};
 
 const MAX_FIELD_LEN: usize = 256;
 const MAX_PAYLOAD_DIGEST_LEN: usize = 32;
@@ -23,6 +27,8 @@ pub enum G08Error {
     StoreUnavailable,
     IdempotencyConflict,
     IntegrityFailure,
+    TrustedTimeUnavailable,
+    WorkerAuthenticationFailed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -189,6 +195,43 @@ pub struct TaskClaimRequest {
     pub claim_nonce: [u8; 32],
     pub lease_seconds: u64,
     pub now: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthenticatedTaskClaimRequest {
+    pub tenant_selector: String,
+    pub lease_seconds: u64,
+    pub proof: SignedWorkerProof,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthenticatedTaskLeaseRenewalRequest {
+    pub tenant_selector: String,
+    pub task_id: String,
+    pub lease_token: String,
+    pub expected_lease_version: u64,
+    pub lease_seconds: u64,
+    pub proof: SignedWorkerProof,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthenticatedTaskLeaseCompletionRequest {
+    pub tenant_selector: String,
+    pub task_id: String,
+    pub lease_token: String,
+    pub expected_lease_version: u64,
+    pub expected_task_version: u64,
+    pub next_state: TaskState,
+    pub proof: SignedWorkerProof,
+}
+
+fn map_worker_auth_error(error: WorkerAuthError) -> G08Error {
+    match error {
+        WorkerAuthError::ClockUnavailable | WorkerAuthError::InvalidClock => {
+            G08Error::TrustedTimeUnavailable
+        }
+        _ => G08Error::WorkerAuthenticationFailed,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -886,11 +929,116 @@ impl SqliteWorkflowStore {
         })
     }
 
+    /// Secure worker claim entry point. Time is obtained from the trusted clock,
+    /// and worker_id is derived only from a verified, scope-bound Ed25519 proof.
+    pub fn claim_next_task_authenticated<A, R, G>(
+        &self,
+        authority: &A,
+        principal: &VerifiedPrincipal,
+        authenticator: &Ed25519WorkerAuthenticator<R, G>,
+        clock: &dyn TrustedClock,
+        request: &AuthenticatedTaskClaimRequest,
+    ) -> Result<Option<TaskLeaseReceipt>, G08Error>
+    where
+        A: TenantAuthority,
+        R: WorkerRevocationChecker,
+        G: WorkerReplayGuard,
+    {
+        let scope = WorkerOperationScope::new(
+            "task.claim",
+            request.tenant_selector.clone(),
+            None,
+        )
+        .map_err(|_| G08Error::WorkerAuthenticationFailed)?;
+        let worker = authenticator
+            .authenticate(&request.proof, &scope, clock)
+            .map_err(map_worker_auth_error)?;
+        let internal = TaskClaimRequest {
+            tenant_selector: request.tenant_selector.clone(),
+            worker_id: worker.worker_id().to_owned(),
+            claim_nonce: worker.proof_digest(),
+            lease_seconds: request.lease_seconds,
+            now: worker.authenticated_at(),
+        };
+        self.claim_next_task(authority, principal, &internal)
+    }
+
+    /// Secure lease renewal. The proof is bound to task.lease.renew and task_id.
+    pub fn renew_task_lease_authenticated<A, R, G>(
+        &self,
+        authority: &A,
+        principal: &VerifiedPrincipal,
+        authenticator: &Ed25519WorkerAuthenticator<R, G>,
+        clock: &dyn TrustedClock,
+        request: &AuthenticatedTaskLeaseRenewalRequest,
+    ) -> Result<TaskLeaseReceipt, G08Error>
+    where
+        A: TenantAuthority,
+        R: WorkerRevocationChecker,
+        G: WorkerReplayGuard,
+    {
+        let scope = WorkerOperationScope::new(
+            "task.lease.renew",
+            request.tenant_selector.clone(),
+            Some(request.task_id.clone()),
+        )
+        .map_err(|_| G08Error::WorkerAuthenticationFailed)?;
+        let worker = authenticator
+            .authenticate(&request.proof, &scope, clock)
+            .map_err(map_worker_auth_error)?;
+        let internal = TaskLeaseRenewalRequest {
+            tenant_selector: request.tenant_selector.clone(),
+            task_id: request.task_id.clone(),
+            worker_id: worker.worker_id().to_owned(),
+            lease_token: request.lease_token.clone(),
+            expected_lease_version: request.expected_lease_version,
+            lease_seconds: request.lease_seconds,
+            now: worker.authenticated_at(),
+        };
+        self.renew_task_lease(authority, principal, &internal)
+    }
+
+    /// Secure lease completion. The proof is bound to task.lease.complete and task_id.
+    pub fn complete_task_lease_authenticated<A, R, G>(
+        &self,
+        authority: &A,
+        principal: &VerifiedPrincipal,
+        authenticator: &Ed25519WorkerAuthenticator<R, G>,
+        clock: &dyn TrustedClock,
+        request: &AuthenticatedTaskLeaseCompletionRequest,
+    ) -> Result<TaskReceipt, G08Error>
+    where
+        A: TenantAuthority,
+        R: WorkerRevocationChecker,
+        G: WorkerReplayGuard,
+    {
+        let scope = WorkerOperationScope::new(
+            "task.lease.complete",
+            request.tenant_selector.clone(),
+            Some(request.task_id.clone()),
+        )
+        .map_err(|_| G08Error::WorkerAuthenticationFailed)?;
+        let worker = authenticator
+            .authenticate(&request.proof, &scope, clock)
+            .map_err(map_worker_auth_error)?;
+        let internal = TaskLeaseCompletionRequest {
+            tenant_selector: request.tenant_selector.clone(),
+            task_id: request.task_id.clone(),
+            worker_id: worker.worker_id().to_owned(),
+            lease_token: request.lease_token.clone(),
+            expected_lease_version: request.expected_lease_version,
+            expected_task_version: request.expected_task_version,
+            next_state: request.next_state,
+            now: worker.authenticated_at(),
+        };
+        self.complete_task_lease(authority, principal, &internal)
+    }
+
     /// Claims the oldest eligible task for this workflow owner. Expired leases are
     /// atomically fenced by rotating the lease version and token. This SQLite
     /// implementation is single-node; worker identity must be authenticated by a
     /// future G01/G02-bound worker adapter before production use.
-    pub fn claim_next_task<A: TenantAuthority>(
+    pub(crate) fn claim_next_task<A: TenantAuthority>(
         &self,
         authority: &A,
         principal: &VerifiedPrincipal,
@@ -1069,7 +1217,7 @@ impl SqliteWorkflowStore {
 
     /// Renews an active lease with token rotation. Expired or superseded tokens
     /// cannot renew; callers must claim again after expiry.
-    pub fn renew_task_lease<A: TenantAuthority>(
+    pub(crate) fn renew_task_lease<A: TenantAuthority>(
         &self,
         authority: &A,
         principal: &VerifiedPrincipal,
@@ -1195,7 +1343,7 @@ impl SqliteWorkflowStore {
 
     /// Completes a task only with its current, unexpired lease capability.
     /// Successful completion atomically unlocks newly-satisfied dependents.
-    pub fn complete_task_lease<A: TenantAuthority>(
+    pub(crate) fn complete_task_lease<A: TenantAuthority>(
         &self,
         authority: &A,
         principal: &VerifiedPrincipal,
