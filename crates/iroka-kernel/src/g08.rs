@@ -216,9 +216,9 @@ impl SqliteWorkflowStore {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| G08Error::StoreUnavailable)?;
 
-        let existing: Option<(String, Vec<u8>, String, String, i64, i64)> = transaction
+        let existing: Option<(String, String, Vec<u8>, String, String, i64, i64)> = transaction
             .query_row(
-                "SELECT workflow_id, request_digest, contract_version, state, version, created_at
+                "SELECT workflow_id, owner_subject, request_digest, contract_version, state, version, created_at
                  FROM g08_workflows
                  WHERE tenant_id=?1 AND workflow_type=?2 AND idempotency_key=?3",
                 params![
@@ -234,13 +234,19 @@ impl SqliteWorkflowStore {
                         row.get(3)?,
                         row.get(4)?,
                         row.get(5)?,
+                        row.get(6)?,
                     ))
                 },
             )
             .optional()
             .map_err(|_| G08Error::StoreUnavailable)?;
 
-        if let Some((id, prior_digest, contract, state, version, created_at)) = existing {
+        if let Some((id, owner_subject, prior_digest, contract, state, version, created_at)) = existing {
+            // Idempotency receipts are owner-bound; another tenant member must not
+            // learn or reuse a workflow created by a different subject.
+            if owner_subject != scope.subject() {
+                return Err(G08Error::TenantAuthorityRejected);
+            }
             if prior_digest.as_slice() != digest {
                 return Err(G08Error::IdempotencyConflict);
             }
@@ -464,6 +470,30 @@ mod tests {
             .unwrap();
         assert_eq!(first.workflow_id, second.workflow_id);
         assert!(second.idempotent_replay);
+        assert_eq!(store.workflow_count().unwrap(), 1);
+        assert_eq!(store.event_count().unwrap(), 1);
+    }
+
+    #[test]
+    fn same_tenant_different_subject_cannot_replay_workflow_receipt() {
+        let store = SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority = TestAuthority {
+            tenant_id: "tenant:test".into(),
+            resolved_at: 1_800_000_000,
+        };
+        store
+            .create_workflow(&authority, &principal(), &request())
+            .unwrap();
+
+        let other = VerifiedPrincipal::from_verified_credential(
+            "principal:other".into(),
+            "issuer:test".into(),
+            "credential:other".into(),
+        );
+        assert_eq!(
+            store.create_workflow(&authority, &other, &request()),
+            Err(G08Error::TenantAuthorityRejected)
+        );
         assert_eq!(store.workflow_count().unwrap(), 1);
         assert_eq!(store.event_count().unwrap(), 1);
     }
