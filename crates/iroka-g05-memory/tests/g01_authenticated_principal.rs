@@ -439,8 +439,9 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
     use iroka_g05_memory::{
         commit_durable_activation, dispatch_g11_outbox, durable_activation_audit_event,
         prepare_durable_activation, AuditEvent, Classification, DurableApprovalReceipt,
-        G11OutboxRepository, KernelG01ReviewerProofAdapter, KernelG02ActivationAdapter,
-        KernelSqliteG11MemoryAdapter, LifecycleState, MemoryCandidate, MemoryClass,
+        G11MemoryAuditAuthority, G11OutboxRepository, KernelG01ReviewerProofAdapter,
+        KernelG02ActivationAdapter, KernelSqliteG11MemoryAdapter, LifecycleState,
+        MemoryCandidate, MemoryClass,
         MemoryRecord, MemoryRepository, Operation, Provenance, ProvenanceKind, Purpose,
         SqliteMemoryRepository, TrustedGovernanceAdapter,
     };
@@ -517,6 +518,7 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
     let g11_sink = Arc::new(SqliteAuditSink::open_in_memory().unwrap());
     let g11 = KernelSqliteG11MemoryAdapter::new(g11_sink.clone());
     let governance = TrustedGovernanceAdapter::new(g02, NoConsent, g01, g11);
+    let g11_dispatch = KernelSqliteG11MemoryAdapter::new(g11_sink.clone());
 
     let content = "synthetic durable memory for integration verification";
     let digest = iroka_g05_memory::sha256_hex(content.as_bytes());
@@ -635,7 +637,7 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
         LifecycleState::PendingAudit
     );
 
-    let acknowledgments = dispatch_g11_outbox(&repository, &governance, 10).unwrap();
+    let acknowledgments = dispatch_g11_outbox(&repository, &g11_dispatch, 10).unwrap();
     assert_eq!(g11_sink.verify_integrity(), Ok(()));
     let pending_ack = acknowledgments.into_iter()
         .find(|ack| ack.event_id() == pending_event.event_id)
