@@ -8,6 +8,18 @@ use std::{path::Path, sync::Mutex, time::Duration};
 
 const ZERO: [u8; 32] = [0; 32];
 
+struct StoredAuditEventProjection {
+    correlation_id: String,
+    subject: String,
+    capability: String,
+    resource: String,
+    policy_version: String,
+    decision: String,
+    event_id: String,
+    occurred_at: i64,
+    event_hash: Vec<u8>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditStoreError {
     Unavailable,
@@ -245,31 +257,40 @@ impl SqliteAuditSink {
             if stored_payload != payload_sha256 {
                 return Err(AuditStoreError::Rejected);
             }
-            let stored_event: Option<(String,String,String,String,String,String,String,i64,Vec<u8>)> =
-                tx.query_row(
+            let stored_event: Option<StoredAuditEventProjection> = tx
+                .query_row(
                     "SELECT correlation_id,subject,capability,resource,policy_version,decision,event_id,
                             occurred_at,event_hash
                      FROM audit_events WHERE sequence=?1",
                     params![sequence],
-                    |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,
-                              row.get(5)?,row.get(6)?,row.get(7)?,row.get(8)?)),
+                    |row| {
+                        Ok(StoredAuditEventProjection {
+                            correlation_id: row.get(0)?,
+                            subject: row.get(1)?,
+                            capability: row.get(2)?,
+                            resource: row.get(3)?,
+                            policy_version: row.get(4)?,
+                            decision: row.get(5)?,
+                            event_id: row.get(6)?,
+                            occurred_at: row.get(7)?,
+                            event_hash: row.get(8)?,
+                        })
+                    },
                 )
                 .optional()
                 .map_err(|_| AuditStoreError::Unavailable)?;
-            let Some((trace, stored_subject, cap, res, policy, decision, id, at, hash)) =
-                stored_event
-            else {
+            let Some(stored_event) = stored_event else {
                 return Err(AuditStoreError::IntegrityFailure);
             };
-            if trace != correlation_id
-                || stored_subject != subject
-                || cap != capability
-                || res != resource
-                || policy != policy_version
-                || decision != "ALLOW"
-                || id != event_id
-                || at != occurred_at_i64
-                || hash != stored_hash
+            if stored_event.correlation_id != correlation_id
+                || stored_event.subject != subject
+                || stored_event.capability != capability
+                || stored_event.resource != resource
+                || stored_event.policy_version != policy_version
+                || stored_event.decision != "ALLOW"
+                || stored_event.event_id != event_id
+                || stored_event.occurred_at != occurred_at_i64
+                || stored_event.event_hash != stored_hash
             {
                 return Err(AuditStoreError::IntegrityFailure);
             }
