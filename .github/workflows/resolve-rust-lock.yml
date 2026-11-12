@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: resolve-rust-lock-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   resolve-and-verify:
     name: Resolve lockfile and verify exact generated head
@@ -54,6 +58,8 @@ jobs:
           if ! git diff --quiet -- ':(glob)**/*.rs'; then
             git add crates
             git commit -m "Format PostgreSQL persistence implementation"
+            git fetch origin "${PR_HEAD_REF}"
+            git rebase FETCH_HEAD
             git push origin "HEAD:${PR_HEAD_REF}"
           fi
           cargo fmt --all -- --check
