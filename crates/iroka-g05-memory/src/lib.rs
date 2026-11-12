@@ -681,16 +681,6 @@ pub fn finalize_durable_activation(
 
 /// Stable, content-free event identity and canonical digest for G11 receipt
 /// matching. The memory content itself is never included.
-/// Ask G11 to durably accept the exact pending activation event. A successful
-/// return is the only supported source of an activation acknowledgment.
-pub fn request_g11_activation_acknowledgment<G: GovernancePort>(
-    pending: &MemoryRecord,
-    governance: &G,
-) -> Result<G11Acknowledgment, G05Error> {
-    let event = durable_activation_audit_event(pending)?;
-    governance.append_audit(&event)
-}
-
 /// Persist the Active transition only through the repository's atomic
 /// PendingAudit -> Active compare-and-swap. The default repository method
 /// denies, so no implementation can activate without explicitly supplying
@@ -921,19 +911,19 @@ pub fn dispatch_g11_outbox<R, G>(
     repository: &R,
     g11: &G,
     limit: usize,
-) -> Result<usize, G05Error>
+) -> Result<Vec<G11Acknowledgment>, G05Error>
 where
     R: G11OutboxRepository,
     G: G11MemoryAuditAuthority,
 {
     let events = repository.pending_g11_events(limit)?;
-    let mut delivered = 0;
+    let mut acknowledgments = Vec::with_capacity(events.len());
     for event in events {
         let acknowledgment = g11.append_memory_event(&event)?;
         repository.acknowledge_g11_event(&event, &acknowledgment)?;
-        delivered += 1;
+        acknowledgments.push(acknowledgment);
     }
-    Ok(delivered)
+    Ok(acknowledgments)
 }
 
 #[cfg(test)]
