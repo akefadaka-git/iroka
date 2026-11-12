@@ -2032,6 +2032,292 @@ mod tests {
     }
 
     #[test]
+    fn persisted_retry_waits_until_due_and_stops_at_attempt_budget() {
+        let store = SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority = TestAuthority {
+            tenant_id: "tenant:test".into(),
+            resolved_at: 1_800_000_000,
+        };
+        let workflow = store
+            .create_workflow(&authority, &principal(), &request())
+            .unwrap();
+        let created = store
+            .create_task_graph(
+                &authority,
+                &principal(),
+                "tenant:test",
+                &workflow.workflow_id,
+                &[TaskSpec {
+                    task_key: "retry-me".into(),
+                    task_type: "compute".into(),
+                    depends_on: vec![],
+                }],
+                1_800_000_000,
+            )
+            .unwrap();
+        let policy = RetryPolicy::new(3, 5, 10).unwrap();
+        let first = store
+            .claim_next_task(
+                &authority,
+                &principal(),
+                &TaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    worker_id: "worker-a".into(),
+                    claim_nonce: [31; 32],
+                    lease_seconds: 10,
+                    now: 1_800_000_001,
+                },
+            )
+            .unwrap()
+            .unwrap();
+        store
+            .complete_task_lease(
+                &authority,
+                &principal(),
+                &TaskLeaseCompletionRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: first.task.task_id.clone(),
+                    worker_id: "worker-a".into(),
+                    lease_token: first.lease_token,
+                    expected_lease_version: 1,
+                    expected_task_version: first.task.version,
+                    next_state: TaskState::Failed,
+                    now: 1_800_000_002,
+                },
+            )
+            .unwrap();
+        let first_schedule = store
+            .schedule_task_retry(
+                &authority,
+                &principal(),
+                &TaskRetryRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: created[0].task_id.clone(),
+                    failure: RetryFailureClass::WorkerUnavailable,
+                    now: 1_800_000_002,
+                },
+                policy,
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(first_schedule.not_before, 1_800_000_007);
+        assert!(store
+            .claim_next_task(
+                &authority,
+                &principal(),
+                &TaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    worker_id: "worker-b".into(),
+                    claim_nonce: [32; 32],
+                    lease_seconds: 10,
+                    now: 1_800_000_006,
+                },
+            )
+            .unwrap()
+            .is_none());
+        let second = store
+            .claim_next_task(
+                &authority,
+                &principal(),
+                &TaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    worker_id: "worker-b".into(),
+                    claim_nonce: [33; 32],
+                    lease_seconds: 10,
+                    now: 1_800_000_007,
+                },
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(second.task.state, TaskState::Running);
+        store
+            .complete_task_lease(
+                &authority,
+                &principal(),
+                &TaskLeaseCompletionRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: second.task.task_id.clone(),
+                    worker_id: "worker-b".into(),
+                    lease_token: second.lease_token,
+                    expected_lease_version: 2,
+                    expected_task_version: second.task.version,
+                    next_state: TaskState::Failed,
+                    now: 1_800_000_008,
+                },
+            )
+            .unwrap();
+        let second_schedule = store
+            .schedule_task_retry(
+                &authority,
+                &principal(),
+                &TaskRetryRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: created[0].task_id.clone(),
+                    failure: RetryFailureClass::TransientStore,
+                    now: 1_800_000_008,
+                },
+                policy,
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(second_schedule.not_before, 1_800_000_018);
+        let third = store
+            .claim_next_task(
+                &authority,
+                &principal(),
+                &TaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    worker_id: "worker-c".into(),
+                    claim_nonce: [34; 32],
+                    lease_seconds: 10,
+                    now: 1_800_000_018,
+                },
+            )
+            .unwrap()
+            .unwrap();
+        store
+            .complete_task_lease(
+                &authority,
+                &principal(),
+                &TaskLeaseCompletionRequest {
+                    tenant_selector: "tenant:test".into(),
+                    task_id: third.task.task_id.clone(),
+                    worker_id: "worker-c".into(),
+                    lease_token: third.lease_token,
+                    expected_lease_version: 3,
+                    expected_task_version: third.task.version,
+                    next_state: TaskState::Failed,
+                    now: 1_800_000_019,
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            store
+                .schedule_task_retry(
+                    &authority,
+                    &principal(),
+                    &TaskRetryRequest {
+                        tenant_selector: "tenant:test".into(),
+                        task_id: created[0].task_id.clone(),
+                        failure: RetryFailureClass::WorkerUnavailable,
+                        now: 1_800_000_019,
+                    },
+                    policy,
+                )
+                .unwrap(),
+            None
+        );
+        assert!(store
+            .claim_next_task(
+                &authority,
+                &principal(),
+                &TaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    worker_id: "worker-d".into(),
+                    claim_nonce: [35; 32],
+                    lease_seconds: 10,
+                    now: 1_800_000_100,
+                },
+            )
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn workflow_cancellation_atomically_cancels_tasks_and_invalidates_leases() {
+        let store = SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority = TestAuthority {
+            tenant_id: "tenant:test".into(),
+            resolved_at: 1_800_000_000,
+        };
+        let workflow = store
+            .create_workflow(&authority, &principal(), &request())
+            .unwrap();
+        let created = store
+            .create_task_graph(
+                &authority,
+                &principal(),
+                "tenant:test",
+                &workflow.workflow_id,
+                &[
+                    TaskSpec {
+                        task_key: "active".into(),
+                        task_type: "compute".into(),
+                        depends_on: vec![],
+                    },
+                    TaskSpec {
+                        task_key: "blocked".into(),
+                        task_type: "transform".into(),
+                        depends_on: vec!["active".into()],
+                    },
+                ],
+                1_800_000_000,
+            )
+            .unwrap();
+        let lease = store
+            .claim_next_task(
+                &authority,
+                &principal(),
+                &TaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    worker_id: "worker-a".into(),
+                    claim_nonce: [41; 32],
+                    lease_seconds: 60,
+                    now: 1_800_000_001,
+                },
+            )
+            .unwrap()
+            .unwrap();
+        let request = WorkflowCancellationRequest {
+            tenant_selector: "tenant:test".into(),
+            workflow_id: workflow.workflow_id.clone(),
+            now: 1_800_000_002,
+        };
+        let cancelled = store
+            .cancel_workflow(&authority, &principal(), &request)
+            .unwrap();
+        assert_eq!(cancelled.cancelled_tasks, 2);
+        assert!(!cancelled.idempotent_replay);
+        let replay = store
+            .cancel_workflow(&authority, &principal(), &request)
+            .unwrap();
+        assert_eq!(replay.cancelled_tasks, 2);
+        assert!(replay.idempotent_replay);
+        assert!(store
+            .claim_next_task(
+                &authority,
+                &principal(),
+                &TaskClaimRequest {
+                    tenant_selector: "tenant:test".into(),
+                    worker_id: "worker-b".into(),
+                    claim_nonce: [42; 32],
+                    lease_seconds: 10,
+                    now: 1_800_000_003,
+                },
+            )
+            .unwrap()
+            .is_none());
+        let connection = store.connection.lock().unwrap();
+        let cancelled_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM g08_tasks WHERE workflow_id=?1 AND state='CANCELLED'",
+                params![workflow.workflow_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let lease_count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM g08_task_leases WHERE task_id=?1",
+                params![lease.task.task_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(cancelled_count, 2);
+        assert_eq!(lease_count, 0);
+        assert_eq!(created.len(), 2);
+    }
+
+    #[test]
     fn task_claim_is_atomic_and_expired_lease_is_fenced_on_reclaim() {
         let store = SqliteWorkflowStore::open_in_memory().unwrap();
         let authority = TestAuthority {
