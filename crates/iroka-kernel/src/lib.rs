@@ -119,11 +119,10 @@ pub fn evaluate(
     )
 }
 
-
 pub use g08_trust_adapters::{
     SignedTimeAttestation, SignedWorkerRegistryBundle, SqliteQuorumTrustedClock,
-    SqliteWorkerRegistry, SqliteWorkerReplayGuard, TimeAttestationPayload,
-    TimeAuthorityKey, WorkerRegistryEntry, WorkerRegistryPayload,
+    SqliteWorkerRegistry, SqliteWorkerReplayGuard, TimeAttestationPayload, TimeAuthorityKey,
+    WorkerRegistryEntry, WorkerRegistryPayload,
 };
 
 pub use g08_trust::{
