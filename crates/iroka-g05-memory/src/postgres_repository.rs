@@ -1146,26 +1146,24 @@ impl G11MemoryAuditAuthority for PostgresG11MemoryAdapter {
             event.event_id, event.occurred_at
         );
         let event_digest = crate::sha256_hex(canonical.as_bytes());
-        let inserted_sequence: i64 = tx
-            .query_one(
-                "INSERT INTO g11_memory_audit_events
-                 (event_id,payload_sha256,previous_digest,event_digest,occurred_at,accepted_at,event_json)
-                 VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING sequence",
-                &[
-                    &event.event_id,
-                    &payload_digest,
-                    &previous_digest,
-                    &event_digest,
-                    &(event.occurred_at as i64),
-                    &accepted_at,
-                    &event_json,
-                ],
-            )
-            .map_err(|_| G05Error::AuditUnavailable)?
-            .get(0);
-        if inserted_sequence != previous_sequence + 1 {
-            return Err(G05Error::AuditUnavailable);
-        }
+        let inserted_sequence = previous_sequence + 1;
+        tx.execute(
+            "INSERT INTO g11_memory_audit_events
+             (sequence,event_id,payload_sha256,previous_digest,event_digest,
+              occurred_at,accepted_at,event_json)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+            &[
+                &inserted_sequence,
+                &event.event_id,
+                &payload_digest,
+                &previous_digest,
+                &event_digest,
+                &(event.occurred_at as i64),
+                &accepted_at,
+                &event_json,
+            ],
+        )
+        .map_err(|_| G05Error::AuditUnavailable)?;
         let changed = tx
             .execute(
                 "UPDATE g11_memory_audit_head SET sequence=$1,digest=$2
