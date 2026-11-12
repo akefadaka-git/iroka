@@ -653,6 +653,20 @@ mod tests {
     }
 
     #[test]
+    fn g05_activation_denies_when_canonical_g02_store_is_unavailable() {
+        let (signer, owner, store, principal) = fixture();
+        let tenant = tenant_context(&signer, &owner, &principal, store.clone());
+        create_org_and_designation(&signer, &owner, &principal);
+        let resolver = OrganizationAuthorityResolver::new(store.clone());
+        let tuple = g05_activation_tuple(&principal, "designation:g05", None);
+        store.poison_connection_for_test();
+        assert_eq!(
+            resolver.resolve_g05_activation(&principal, &tenant, &tuple, 1200, 600),
+            Err(crate::G05ActivationDecisionError::OrganizationAuthorityDenied)
+        );
+    }
+
+    #[test]
     fn g05_activation_accepts_only_live_exact_delegation_tuple() {
         let (signer, owner, store, delegator) = fixture();
         create_org_and_designation(&signer, &owner, &delegator);
