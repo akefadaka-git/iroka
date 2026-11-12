@@ -49,8 +49,7 @@ pub trait WorkerReplayGuard: Send + Sync {
 /// Must consult current worker and key revocation state. Unavailable means deny.
 pub trait WorkerRevocationChecker: Send + Sync {
     fn worker_revoked(&self, worker_id: &str) -> Result<bool, WorkerReplayError>;
-    fn key_revoked(&self, worker_id: &str, key_id: &str)
-        -> Result<bool, WorkerReplayError>;
+    fn key_revoked(&self, worker_id: &str, key_id: &str) -> Result<bool, WorkerReplayError>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -158,7 +157,9 @@ impl WorkerOperationScope {
             || tenant_selector.trim().is_empty()
             || operation.len() > 128
             || tenant_selector.len() > 256
-            || resource_id.as_ref().is_some_and(|v| v.trim().is_empty() || v.len() > 256)
+            || resource_id
+                .as_ref()
+                .is_some_and(|v| v.trim().is_empty() || v.len() > 256)
         {
             return Err(WorkerAuthError::MalformedProof);
         }
@@ -274,9 +275,7 @@ impl<R: WorkerRevocationChecker, G: WorkerReplayGuard> Ed25519WorkerAuthenticato
         if p.expires_at <= now {
             return Err(WorkerAuthError::Expired);
         }
-        if p.expires_at <= p.issued_at
-            || p.expires_at - p.issued_at > MAX_WORKER_PROOF_TTL_SECS
-        {
+        if p.expires_at <= p.issued_at || p.expires_at - p.issued_at > MAX_WORKER_PROOF_TTL_SECS {
             return Err(WorkerAuthError::ExcessiveLifetime);
         }
         let record = self
@@ -304,8 +303,8 @@ impl<R: WorkerRevocationChecker, G: WorkerReplayGuard> Ed25519WorkerAuthenticato
         if proof.signature.len() != 64 {
             return Err(WorkerAuthError::MalformedProof);
         }
-        let signature = Signature::from_slice(&proof.signature)
-            .map_err(|_| WorkerAuthError::MalformedProof)?;
+        let signature =
+            Signature::from_slice(&proof.signature).map_err(|_| WorkerAuthError::MalformedProof)?;
         let signing_bytes = proof.signing_bytes()?;
         record
             .key
@@ -319,10 +318,8 @@ impl<R: WorkerRevocationChecker, G: WorkerReplayGuard> Ed25519WorkerAuthenticato
                 WorkerReplayError::Unavailable => WorkerAuthError::ReplayGuardUnavailable,
             })?;
 
-        let proof_digest: [u8; 32] = Sha256::digest(
-            [signing_bytes.as_slice(), proof.signature.as_slice()].concat(),
-        )
-        .into();
+        let proof_digest: [u8; 32] =
+            Sha256::digest([signing_bytes.as_slice(), proof.signature.as_slice()].concat()).into();
         Ok(AuthenticatedWorker {
             worker_id: p.worker_id.clone(),
             key_id: p.key_id.clone(),
@@ -364,7 +361,10 @@ mod tests {
         ) -> Result<(), WorkerReplayError> {
             let mut values = self.0.lock().map_err(|_| WorkerReplayError::Unavailable)?;
             let key = (worker_id.to_owned(), key_id.to_owned());
-            if values.get(&key).is_some_and(|previous| sequence <= *previous) {
+            if values
+                .get(&key)
+                .is_some_and(|previous| sequence <= *previous)
+            {
                 return Err(WorkerReplayError::Replay);
             }
             values.insert(key, sequence);
@@ -462,8 +462,7 @@ mod tests {
     fn rejects_scope_substitution() {
         let (signing, verifier) = fixture(NoRevocations);
         let wrong_scope =
-            WorkerOperationScope::new("task.complete", "tenant:1", Some("task:1".into()))
-                .unwrap();
+            WorkerOperationScope::new("task.complete", "tenant:1", Some("task:1".into())).unwrap();
         assert_eq!(
             verifier.authenticate(&proof(&signing, 1), &wrong_scope, &FixedClock(1_010)),
             Err(WorkerAuthError::ScopeMismatch)
