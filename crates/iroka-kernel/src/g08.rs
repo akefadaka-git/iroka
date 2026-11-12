@@ -944,19 +944,15 @@ impl SqliteWorkflowStore {
         R: WorkerRevocationChecker,
         G: WorkerReplayGuard,
     {
-        let scope = WorkerOperationScope::new(
-            "task.claim",
-            request.tenant_selector.clone(),
-            None,
-        )
-        .map_err(|_| G08Error::WorkerAuthenticationFailed)?;
+        let scope = WorkerOperationScope::new("task.claim", request.tenant_selector.clone(), None)
+            .map_err(|_| G08Error::WorkerAuthenticationFailed)?;
         let worker = authenticator
             .authenticate(&request.proof, &scope, clock)
             .map_err(map_worker_auth_error)?;
         let internal = TaskClaimRequest {
             tenant_selector: request.tenant_selector.clone(),
             worker_id: worker.worker_id().to_owned(),
-            claim_nonce: worker.proof_digest(),
+            claim_nonce: worker.request_nonce(),
             lease_seconds: request.lease_seconds,
             now: worker.authenticated_at(),
         };
