@@ -17,6 +17,17 @@ use crate::{
     G05Error, GovernancePort, G11MemoryAuditAuthority, MemoryRecord, Purpose,
 };
 
+pub trait EpisodicConsentAuthority: Send + Sync {
+    fn verify_active_opt_in(
+        &self,
+        reference: &str,
+        tenant: &str,
+        subject: &str,
+        purpose: Purpose,
+        now: u64,
+    ) -> Result<(), G05Error>;
+}
+
 pub trait G02AuthorizationAuthority: Send + Sync {
     fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error>;
 
