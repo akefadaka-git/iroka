@@ -654,6 +654,117 @@ impl PostgresG11MemoryAdapter {
         })
     }
 
+
+    /// Persist a signed checkpoint only after external publication returned a
+    /// receipt. Repeated storage is idempotent for the exact signed envelope
+    /// and receipt; a changed envelope at the same checkpoint ID is rejected.
+    pub fn store_published_checkpoint(
+        &self,
+        published: &iroka_kernel::PublishedCheckpoint,
+    ) -> Result<String, G05Error> {
+        if published.checkpoint.payload.schema_id != iroka_kernel::G11_CHECKPOINT_SCHEMA_ID {
+            return Err(G05Error::MalformedRecord);
+        }
+        let digest = published
+            .checkpoint
+            .digest()
+            .map_err(|_| G05Error::AuditUnavailable)?;
+        if published.publication.checkpoint_digest != digest
+            || published.publication.provider.trim().is_empty()
+            || published.publication.receipt_id.trim().is_empty()
+            || published.publication.proof_ref.trim().is_empty()
+        {
+            return Err(G05Error::AuditUnavailable);
+        }
+        let published_at = i64::try_from(published.publication.published_at)
+            .map_err(|_| G05Error::MalformedRecord)?;
+        let receipt_json = json_value(published)?;
+        let payload = &published.checkpoint.payload;
+        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        if let Some(existing) = tx
+            .query_opt(
+                "SELECT checkpoint_digest,signer_key_id,signature,publication_receipt
+                 FROM g11_signed_checkpoints WHERE checkpoint_id=$1 FOR UPDATE",
+                &[&digest],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?
+        {
+            let old_digest: String = existing.get(0);
+            let old_key: String = existing.get(1);
+            let old_signature: Vec<u8> = existing.get(2);
+            let old_receipt: Option<Value> = existing.get(3);
+            if old_digest != digest
+                || old_key != payload.signer_key_id
+                || old_signature != published.checkpoint.signature
+                || old_receipt.as_ref() != Some(&receipt_json)
+            {
+                return Err(G05Error::VersionConflict);
+            }
+            tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
+            return Ok(digest);
+        }
+        tx.execute(
+            "INSERT INTO g11_signed_checkpoints
+             (checkpoint_id,stream_id,sequence,previous_digest,checkpoint_digest,
+              signer_key_id,signature,published_at,publication_receipt)
+             VALUES($1,$2,$3,$4,$5,$6,$7,to_timestamp($8::double precision),$9)",
+            &[
+                &digest,
+                &payload.stream_id,
+                &(payload.sequence as i64),
+                &payload.previous_checkpoint_digest,
+                &digest,
+                &payload.signer_key_id,
+                &published.checkpoint.signature,
+                &published_at,
+                &receipt_json,
+            ],
+        )
+        .map_err(|_| G05Error::VersionConflict)?;
+        tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
+        Ok(digest)
+    }
+
+    /// Load the exact externally published envelope. Callers must still invoke
+    /// verify_published_checkpoint with an independently provisioned trust key
+    /// and publication verifier before treating it as verified.
+    pub fn load_published_checkpoint(
+        &self,
+        checkpoint_id: &str,
+    ) -> Result<Option<iroka_kernel::PublishedCheckpoint>, G05Error> {
+        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let row = client
+            .query_opt(
+                "SELECT checkpoint_digest,stream_id,sequence,signer_key_id,signature,
+                        publication_receipt
+                 FROM g11_signed_checkpoints WHERE checkpoint_id=$1 AND published_at IS NOT NULL",
+                &[&checkpoint_id],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        row.map(|row| {
+            let digest: String = row.get(0);
+            let stream_id: String = row.get(1);
+            let sequence: i64 = row.get(2);
+            let signer_key_id: String = row.get(3);
+            let signature: Vec<u8> = row.get(4);
+            let receipt: Value = row.get(5);
+            let published: iroka_kernel::PublishedCheckpoint =
+                serde_json::from_value(receipt).map_err(|_| G05Error::RepositoryUnavailable)?;
+            if digest != checkpoint_id
+                || published.checkpoint.payload.stream_id != stream_id
+                || published.checkpoint.payload.sequence != sequence as u64
+                || published.checkpoint.payload.signer_key_id != signer_key_id
+                || published.checkpoint.signature != signature
+                || published.checkpoint.digest().map_err(|_| G05Error::AuditUnavailable)? != digest
+            {
+                return Err(G05Error::AuditUnavailable);
+            }
+            Ok(published)
+        })
+        .transpose()
+    }
+
     /// Return the durable chain head for checkpoint signing and publication.
     pub fn head(&self) -> Result<(u64, String), G05Error> {
         let mut client = self
