@@ -7,6 +7,8 @@ use iroka_kernel::{
     SignedOwnerSecurityCommand, TrustedOwnerKey, OrganizationAuthorityAction,
     OrganizationAuthorityPayload, SignedOrganizationAuthorityCommand,
     OrganizationAuthorityResolver, TenantMembershipResolver,
+    ReviewerKeyBinding, ReviewerKeyBindingResolver, ReviewerProofError,
+    ReviewerProofPayload, ReviewerProofVerifier, SignedReviewerProof,
 };
 use std::sync::Arc;
 
@@ -281,4 +283,104 @@ fn g02_owner_signed_membership_designation_and_delegation_resolve_for_authentica
     assert_eq!(resolved.designation_id(), "designation:reviewer");
     assert_eq!(resolved.designation_version(), 1);
     assert_eq!(resolved.version(), 1);
+}
+
+
+struct StaticReviewerBinding {
+    public_key: [u8; 32],
+}
+
+impl ReviewerKeyBindingResolver for StaticReviewerBinding {
+    fn resolve_current_binding(
+        &self,
+        issuer: &str,
+        subject: &str,
+        credential_id: &str,
+        key_id: &str,
+        now: u64,
+    ) -> Result<Option<ReviewerKeyBinding>, ReviewerProofError> {
+        if issuer != "issuer:iroka-integration"
+            || subject != "reviewer:integration"
+            || credential_id != "credential:integration-1"
+            || key_id != "credential-key-1"
+        {
+            return Ok(None);
+        }
+        Ok(Some(ReviewerKeyBinding {
+            binding_id: "binding:reviewer-integration".into(),
+            binding_version: 3,
+            public_key: self.public_key,
+            not_before: 900,
+            not_after: 2_000,
+            revoked: false,
+            credential_revoked: false,
+            resolved_at: now,
+        }))
+    }
+}
+
+#[test]
+fn g01_signed_reviewer_proof_is_bound_to_authenticated_principal_and_consumed_once() {
+    let issuer_signer = SigningKey::from_bytes(&[62_u8; 32]);
+    let principal = authenticated_principal(
+        &issuer_signer, "reviewer:integration", "credential:integration-1",
+    );
+    let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+    let payload = ReviewerProofPayload {
+        proof_id: "proof:durable-activation-1".into(),
+        issuer: principal.issuer().into(),
+        subject: principal.subject().into(),
+        credential_id: principal.credential_id().into(),
+        reviewer_id: "reviewer:integration".into(),
+        binding_id: "binding:reviewer-integration".into(),
+        binding_version: 3,
+        designation_id: "designation:reviewer".into(),
+        designation_version: 1,
+        delegation_id: Some("delegation:reviewer-to-delegate".into()),
+        delegation_version: Some(1),
+        key_id: "credential-key-1".into(),
+        approval_id: "approval:durable-activation-1".into(),
+        tenant_id: "tenant:alpha".into(),
+        organization_id: "org:alpha".into(),
+        memory_id: "memory:integration-1".into(),
+        record_version: 7,
+        content_sha256: "a".repeat(64),
+        purpose: "ORGANIZATIONAL_CONTEXT".into(),
+        classification: "CONFIDENTIAL".into(),
+        capability: "g05.memory.durable.activate".into(),
+        resource: "memory:integration-1".into(),
+        policy_version: "g05-memory-v1".into(),
+        issued_at: 1_150,
+        expires_at: 1_350,
+    };
+    let signature = issuer_signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+    let proof = SignedReviewerProof::from_signature(payload, signature);
+    let verifier = ReviewerProofVerifier::new(
+        StaticReviewerBinding { public_key: issuer_signer.verifying_key().to_bytes() },
+        store,
+    );
+
+    let verified = verifier.verify_and_consume(
+        &proof, &principal, "reviewer:integration", "approval:durable-activation-1",
+        "tenant:alpha", "org:alpha", "designation:reviewer", 1,
+        Some("delegation:reviewer-to-delegate"), Some(1),
+        "memory:integration-1", 7, &"a".repeat(64),
+        "ORGANIZATIONAL_CONTEXT", "CONFIDENTIAL",
+        "g05.memory.durable.activate", "memory:integration-1", "g05-memory-v1", 1_200,
+    ).unwrap();
+
+    assert_eq!(verified.subject(), principal.subject());
+    assert_eq!(verified.designation_version(), 1);
+    assert_eq!(verified.delegation_version(), Some(1));
+    assert_eq!(
+        verifier.verify_and_consume(
+            &proof, &principal, "reviewer:integration", "approval:durable-activation-1",
+            "tenant:alpha", "org:alpha", "designation:reviewer", 1,
+            Some("delegation:reviewer-to-delegate"), Some(1),
+            "memory:integration-1", 7, &"a".repeat(64),
+            "ORGANIZATIONAL_CONTEXT", "CONFIDENTIAL",
+            "g05.memory.durable.activate", "memory:integration-1", "g05-memory-v1", 1_200,
+        ),
+        Err(ReviewerProofError::Replay)
+    );
 }
