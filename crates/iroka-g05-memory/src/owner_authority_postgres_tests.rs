@@ -163,8 +163,9 @@ fn postgres_g02_duplicate_concurrent_command_has_one_commit_and_one_replay() {
     let Some(url)=test_url() else { return };
     let _db=admin(&url);
     let signer=SigningKey::from_bytes(&[82u8;32]);
-    let payload=command(&signer,"owner-key",&unique("concurrent"),G02SecurityAction::SetEmergencyStop{
-        active:false,version:1,reason:"initial baseline".into()
+    let payload=command(&signer,"owner-key",&unique("concurrent"),G02SecurityAction::SetTenantMembership{
+        subject:unique("concurrent-subject"),tenant_id:unique("concurrent-tenant"),
+        active:true,version:1,reason:"concurrent replay test".into()
     });
     let barrier=Arc::new(Barrier::new(2));
     let mut handles=Vec::new();
@@ -177,8 +178,8 @@ fn postgres_g02_duplicate_concurrent_command_has_one_commit_and_one_replay() {
         }));
     }
     let results:Vec<_>=handles.into_iter().map(|h|h.join().unwrap()).collect();
-    assert_eq!(results.iter().filter(|r|r.is_ok()).count(),1);
-    assert_eq!(results.iter().filter(|r|**r==Err(G02CommandError::Replay)).count(),1);
+    assert_eq!(results.iter().filter(|r|r.is_ok()).count(),1,"results: {results:?}");
+    assert_eq!(results.iter().filter(|r|**r==Err(G02CommandError::Replay)).count(),1,"results: {results:?}");
 }
 
 #[test]
