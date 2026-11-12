@@ -21,6 +21,9 @@ use std::collections::BTreeSet;
 mod registry;
 pub use registry::SqliteG05AuthorityRegistry;
 
+mod sqlite_repository;
+pub use sqlite_repository::SqliteMemoryRepository;
+
 mod repository;
 pub use repository::SqliteMemoryRepository;
 
