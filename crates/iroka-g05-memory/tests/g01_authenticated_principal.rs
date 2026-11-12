@@ -226,7 +226,10 @@ fn signed_organization_command(
         capabilities: capabilities.into_iter().map(str::to_owned).collect(),
         reason: "Owner-signed integration fixture".into(),
     };
-    let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+    let signature = signer
+        .sign(&payload.signing_bytes().unwrap())
+        .to_bytes()
+        .to_vec();
     SignedOrganizationAuthorityCommand::from_signature(payload, signature)
 }
 
@@ -381,7 +384,9 @@ impl ReviewerKeyBindingResolver for StaticReviewerBinding {
 fn g01_signed_reviewer_proof_is_bound_to_authenticated_principal_and_consumed_once() {
     let issuer_signer = SigningKey::from_bytes(&[62_u8; 32]);
     let principal = authenticated_principal(
-        &issuer_signer, "reviewer:integration", "credential:integration-1",
+        &issuer_signer,
+        "reviewer:integration",
+        "credential:integration-1",
     );
     let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
     let payload = ReviewerProofPayload {
@@ -411,7 +416,10 @@ fn g01_signed_reviewer_proof_is_bound_to_authenticated_principal_and_consumed_on
         issued_at: 1_150,
         expires_at: 1_350,
     };
-    let signature = issuer_signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+    let signature = issuer_signer
+        .sign(&payload.signing_bytes().unwrap())
+        .to_bytes()
+        .to_vec();
     let proof = SignedReviewerProof::from_signature(payload, signature);
     let verifier = ReviewerProofVerifier::new(
         StaticReviewerBinding {
@@ -422,14 +430,29 @@ fn g01_signed_reviewer_proof_is_bound_to_authenticated_principal_and_consumed_on
         store,
     );
 
-    let verified = verifier.verify_and_consume(
-        &proof, &principal, "reviewer:integration", "approval:durable-activation-1",
-        "tenant:alpha", "org:alpha", "designation:reviewer", 1,
-        Some("delegation:reviewer-to-delegate"), Some(1),
-        "memory:integration-1", 7, &"a".repeat(64),
-        "ORGANIZATIONAL_CONTEXT", "CONFIDENTIAL",
-        "g05.memory.durable.activate", "memory:integration-1", "g05-memory-v1", 1_200,
-    ).unwrap();
+    let verified = verifier
+        .verify_and_consume(
+            &proof,
+            &principal,
+            "reviewer:integration",
+            "approval:durable-activation-1",
+            "tenant:alpha",
+            "org:alpha",
+            "designation:reviewer",
+            1,
+            Some("delegation:reviewer-to-delegate"),
+            Some(1),
+            "memory:integration-1",
+            7,
+            &"a".repeat(64),
+            "ORGANIZATIONAL_CONTEXT",
+            "CONFIDENTIAL",
+            "g05.memory.durable.activate",
+            "memory:integration-1",
+            "g05-memory-v1",
+            1_200,
+        )
+        .unwrap();
 
     assert_eq!(verified.subject(), principal.subject());
     assert_eq!(verified.designation_version(), 1);
@@ -488,7 +511,8 @@ impl iroka_g05_memory::TenantContextResolver for KernelTenantResolver {
         principal: &iroka_kernel::VerifiedPrincipal,
         tenant_id: &str,
     ) -> Result<iroka_kernel::TenantContext, iroka_g05_memory::G05Error> {
-        self.0.resolve(principal, tenant_id, 1_200, 600)
+        self.0
+            .resolve(principal, tenant_id, 1_200, 600)
             .map_err(|_| iroka_g05_memory::G05Error::ReviewerNotAuthorized)
     }
 }
@@ -540,7 +564,8 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
             not_after: 5_000,
         }],
         security_store.clone(),
-    ).unwrap();
+    )
+    .unwrap();
     let delegator =
         authenticated_principal(&issuer_signer, "reviewer:delegator", "credential:delegator");
     let reviewer =
@@ -762,7 +787,11 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
         Err(iroka_g05_memory::G05Error::AuditUnavailable)
     );
     assert_eq!(
-        repository.get_metadata("memory:integrated").unwrap().unwrap().lifecycle_state,
+        repository
+            .get_metadata("memory:integrated")
+            .unwrap()
+            .unwrap()
+            .lifecycle_state,
         LifecycleState::PendingAudit
     );
 
