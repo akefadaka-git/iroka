@@ -349,3 +349,98 @@ fn postgres_g02_outbox_workers_claim_distinct_rows_with_skip_locked() {
     assert_eq!(b.len(), 1);
     assert_ne!(a[0].event_id, b[0].event_id);
 }
+
+
+#[test]
+fn postgres_g02_outbox_dispatch_acknowledges_durable_sink_receipt() {
+    struct AckSink;
+    impl G02AuthorityEventSink for AckSink {
+        fn deliver(&self, _event: &G02AuthorityOutboxEvent) -> Result<String, G02OutboxError> {
+            Ok("e".repeat(64))
+        }
+    }
+    let Some(url) = test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _db = admin(&url);
+    let mut cleanup = Client::connect(&url, NoTls).unwrap();
+    cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
+    let signer = SigningKey::from_bytes(&[88u8; 32]);
+    let auth = verifier(&url, &signer, "owner-key");
+    let signed = command(
+        &signer,
+        "owner-key",
+        &unique("outbox-dispatch"),
+        G02SecurityAction::SetTenantMembership {
+            subject: unique("dispatch-subject"),
+            tenant_id: unique("dispatch-tenant"),
+            active: true,
+            version: 1,
+            reason: "dispatch test".into(),
+        },
+    );
+    auth.apply_security_command(&signed, 1_200).unwrap();
+    let worker = PostgresG02AuthorityOutboxWorker::from_client_for_test(
+        Client::connect(&url, NoTls).unwrap(),
+    );
+    worker.verify_schema().unwrap();
+    let stats = worker.dispatch_once(
+        "dispatch-worker",
+        "44444444-4444-4444-8444-444444444444",
+        1,
+        30,
+        10,
+        &AckSink,
+    ).unwrap();
+    assert_eq!(stats, G02OutboxDispatchStats { claimed: 1, acknowledged: 1, retry_scheduled: 0 });
+}
+
+#[test]
+fn postgres_g02_outbox_dispatch_schedules_retry_after_sink_failure() {
+    struct FailedSink;
+    impl G02AuthorityEventSink for FailedSink {
+        fn deliver(&self, _event: &G02AuthorityOutboxEvent) -> Result<String, G02OutboxError> {
+            Err(G02OutboxError::Unavailable)
+        }
+    }
+    let Some(url) = test_url() else { return };
+    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _db = admin(&url);
+    let mut cleanup = Client::connect(&url, NoTls).unwrap();
+    cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
+    let signer = SigningKey::from_bytes(&[89u8; 32]);
+    let auth = verifier(&url, &signer, "owner-key");
+    let signed = command(
+        &signer,
+        "owner-key",
+        &unique("outbox-retry"),
+        G02SecurityAction::SetTenantMembership {
+            subject: unique("retry-subject"),
+            tenant_id: unique("retry-tenant"),
+            active: true,
+            version: 1,
+            reason: "retry test".into(),
+        },
+    );
+    auth.apply_security_command(&signed, 1_200).unwrap();
+    let worker = PostgresG02AuthorityOutboxWorker::from_client_for_test(
+        Client::connect(&url, NoTls).unwrap(),
+    );
+    let stats = worker.dispatch_once(
+        "retry-worker",
+        "55555555-5555-4555-8555-555555555555",
+        1,
+        30,
+        60,
+        &FailedSink,
+    ).unwrap();
+    assert_eq!(stats, G02OutboxDispatchStats { claimed: 1, acknowledged: 0, retry_scheduled: 1 });
+    let mut db = Client::connect(&url, NoTls).unwrap();
+    let row = db.query_one(
+        "SELECT delivered_at IS NULL,last_error_code,lease_token IS NULL
+         FROM g02_authority_outbox WHERE command_id=$1",
+        &[&signed.payload.command_id],
+    ).unwrap();
+    assert!(row.get::<_, bool>(0));
+    assert_eq!(row.get::<_, String>(1), "sink_delivery_failed");
+    assert!(row.get::<_, bool>(2));
+}
