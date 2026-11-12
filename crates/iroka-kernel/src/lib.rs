@@ -9,6 +9,7 @@ mod decision;
 mod g08;
 mod g08_retry;
 mod g08_trust;
+mod g08_trust_adapters;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -117,6 +118,13 @@ pub fn evaluate(
         policy.version(),
     )
 }
+
+
+pub use g08_trust_adapters::{
+    SignedTimeAttestation, SignedWorkerRegistryBundle, SqliteQuorumTrustedClock,
+    SqliteWorkerRegistry, SqliteWorkerReplayGuard, TimeAttestationPayload,
+    TimeAuthorityKey, WorkerRegistryEntry, WorkerRegistryPayload,
+};
 
 pub use g08_trust::{
     AuthenticatedWorker, Ed25519WorkerAuthenticator, SignedWorkerProof, TrustedClock,
