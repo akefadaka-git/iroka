@@ -194,7 +194,11 @@ impl crate::G02RequestAuthorizer for PostgresG02RequestAuthorizer {
         if !active || version <= 0 {
             return Err(G05Error::TenantScopeMismatch);
         }
-        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
+        tx.commit().map_err(|error| {
+            #[cfg(test)]
+            eprintln!("G09 authority snapshot commit failed: {error}");
+            G05Error::AuthorityUnavailable
+        })?;
         Ok(())
     }
 }
@@ -251,8 +255,16 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
             )
             .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorizationDenied)?;
-        let snapshot = Self::snapshot_from_row(&row)?;
-        let policy = self.verifier.verify_snapshot(&snapshot, now)?;
+        let snapshot = Self::snapshot_from_row(&row).map_err(|error| {
+            #[cfg(test)]
+            eprintln!("G09 snapshot row validation failed: {error:?}");
+            error
+        })?;
+        let policy = self.verifier.verify_snapshot(&snapshot, now).map_err(|error| {
+            #[cfg(test)]
+            eprintln!("G09 canonical G02 policy verification failed: {error:?}");
+            error
+        })?;
         let emergency = tx
             .query_opt(
                 "SELECT active,version,changed_at FROM g02_emergency_stop WHERE singleton=TRUE",
