@@ -236,5 +236,5 @@ fn postgres_g02_revoked_owner_key_is_rejected_for_new_policy_verification() {
     let resolver=PostgresG09PolicyResolver::from_client_for_test(
         Client::connect(&url,NoTls).unwrap(),policy_id,Arc::new(auth)
     );
-    assert_eq!(resolver.current_policy(1_200),Err(G05Error::AuthorityUnavailable));
+    assert_eq!(resolver.current_policy(1_200),Err(G05Error::AuthorizationDenied));
 }
