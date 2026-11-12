@@ -3,6 +3,7 @@ mod postgres_tests {
     use super::super::*;
     use crate::{
         Classification, MemoryCandidate, MemoryClass, Provenance, ProvenanceKind, Purpose,
+        TrustedClock,
     };
     use postgres::NoTls;
     use std::sync::{
