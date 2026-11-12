@@ -669,24 +669,89 @@ impl SqliteWorkflowStore {
             )
             .map_err(|_| G08Error::StoreUnavailable)?;
         if request.next_state == TaskState::Succeeded {
-            transaction
-                .execute(
-                    "UPDATE g08_tasks SET state='READY', version=version+1, updated_at=?1
-                 WHERE workflow_id=?2 AND state='BLOCKED'
-                 AND task_key IN (SELECT task_key FROM g08_task_dependencies
-                                  WHERE workflow_id=?2)
-                 AND NOT EXISTS (
-                   SELECT 1 FROM g08_task_dependencies d JOIN g08_tasks dep
-                     ON dep.workflow_id=d.workflow_id AND dep.task_key=d.depends_on_task_key
-                   WHERE d.workflow_id=g08_tasks.workflow_id
-                     AND d.task_key=g08_tasks.task_key AND dep.state<>'SUCCEEDED'
-                 )",
-                    params![
-                        i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?,
-                        workflow_id
-                    ],
-                )
-                .map_err(|_| G08Error::StoreUnavailable)?;
+            let newly_ready = {
+                let mut statement = transaction
+                    .prepare(
+                        "SELECT t.task_id, t.task_key, t.version
+                         FROM g08_tasks t
+                         WHERE t.workflow_id=?1 AND t.state='BLOCKED'
+                           AND EXISTS (
+                             SELECT 1 FROM g08_task_dependencies d
+                             WHERE d.workflow_id=t.workflow_id AND d.task_key=t.task_key
+                           )
+                           AND NOT EXISTS (
+                             SELECT 1 FROM g08_task_dependencies d
+                             JOIN g08_tasks dep
+                               ON dep.workflow_id=d.workflow_id
+                              AND dep.task_key=d.depends_on_task_key
+                             WHERE d.workflow_id=t.workflow_id
+                               AND d.task_key=t.task_key
+                               AND dep.state<>'SUCCEEDED'
+                           )
+                         ORDER BY t.task_key",
+                    )
+                    .map_err(|_| G08Error::StoreUnavailable)?;
+                let rows = statement
+                    .query_map(params![workflow_id], |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                        ))
+                    })
+                    .map_err(|_| G08Error::StoreUnavailable)?;
+                let mut selected = Vec::new();
+                for row in rows {
+                    selected.push(row.map_err(|_| G08Error::StoreUnavailable)?);
+                }
+                selected
+            };
+            for (ready_task_id, ready_task_key, ready_version) in newly_ready {
+                let next_ready_version = ready_version
+                    .checked_add(1)
+                    .ok_or(G08Error::IntegrityFailure)?;
+                let changed = transaction
+                    .execute(
+                        "UPDATE g08_tasks SET state='READY', version=?1, updated_at=?2
+                         WHERE task_id=?3 AND state='BLOCKED' AND version=?4",
+                        params![
+                            next_ready_version,
+                            i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?,
+                            ready_task_id,
+                            ready_version
+                        ],
+                    )
+                    .map_err(|_| G08Error::StoreUnavailable)?;
+                if changed != 1 {
+                    return Err(G08Error::IntegrityFailure);
+                }
+                let ready_event_id = format!(
+                    "g08_task_evt_{}",
+                    hex_digest(&Sha256::digest(
+                        format!("{ready_task_id}:{next_ready_version}:{}:unblocked", request.now)
+                            .as_bytes()
+                    ))
+                );
+                transaction
+                    .execute(
+                        "INSERT INTO g08_task_events(
+                           event_id, task_id, workflow_id, tenant_id, actor_subject,
+                           event_type, from_state, to_state, from_version, to_version, occurred_at
+                         ) VALUES(?1,?2,?3,?4,?5,'TASK_UNBLOCKED','BLOCKED','READY',?6,?7,?8)",
+                        params![
+                            ready_event_id,
+                            ready_task_id,
+                            workflow_id,
+                            scope.tenant_id(),
+                            scope.subject(),
+                            ready_version,
+                            next_ready_version,
+                            i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?
+                        ],
+                    )
+                    .map_err(|_| G08Error::StoreUnavailable)?;
+                let _ = ready_task_key;
+            }
         }
         transaction
             .commit()
