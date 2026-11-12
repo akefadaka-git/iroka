@@ -184,7 +184,7 @@ where
     let context = match ingress.authorize(&envelope.credential, envelope.request) {
         Ok(context) => context,
         Err(error) => {
-            let (status, label) = status_for_g05_error(error);
+            let (status, label) = status_for_g05_error(&error);
             write_response(stream, status, label, &json!({"error":format!("{error:?}")}));
             return Ok(());
         }
@@ -202,7 +202,7 @@ where
     Ok(())
 }
 
-fn status_for_g05_error(error: G05Error) -> (u16, &'static str) {
+fn status_for_g05_error(error: &G05Error) -> (u16, &'static str) {
     match error {
         G05Error::AuthorityUnavailable | G05Error::AuditUnavailable => {
             (503, "Service Unavailable")
