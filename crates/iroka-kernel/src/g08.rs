@@ -444,78 +444,127 @@ impl SqliteWorkflowStore {
             return Err(G08Error::TenantAuthorityRejected);
         }
         let graph_digest = validate_and_digest_graph(tasks)?;
-        let mut connection = self.connection.lock().map_err(|_| G08Error::StoreUnavailable)?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let mut connection = self
+            .connection
+            .lock()
             .map_err(|_| G08Error::StoreUnavailable)?;
-        let owner: Option<String> = transaction.query_row(
-            "SELECT owner_subject FROM g08_workflows WHERE workflow_id=?1 AND tenant_id=?2",
-            params![workflow_id, scope.tenant_id()],
-            |row| row.get(0),
-        ).optional().map_err(|_| G08Error::StoreUnavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let owner: Option<String> = transaction
+            .query_row(
+                "SELECT owner_subject FROM g08_workflows WHERE workflow_id=?1 AND tenant_id=?2",
+                params![workflow_id, scope.tenant_id()],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         if owner.as_deref() != Some(scope.subject()) {
             return Err(G08Error::TenantAuthorityRejected);
         }
-        let existing: Option<Vec<u8>> = transaction.query_row(
-            "SELECT graph_digest FROM g08_task_graphs WHERE workflow_id=?1",
-            params![workflow_id],
-            |row| row.get(0),
-        ).optional().map_err(|_| G08Error::StoreUnavailable)?;
+        let existing: Option<Vec<u8>> = transaction
+            .query_row(
+                "SELECT graph_digest FROM g08_task_graphs WHERE workflow_id=?1",
+                params![workflow_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         if let Some(existing_digest) = existing {
             if existing_digest.as_slice() != graph_digest {
                 return Err(G08Error::IdempotencyConflict);
             }
-            let mut statement = transaction.prepare(
-                "SELECT task_id, workflow_id, task_key, state, version FROM g08_tasks
-                 WHERE workflow_id=?1 ORDER BY task_key"
-            ).map_err(|_| G08Error::StoreUnavailable)?;
-            let rows = statement.query_map(params![workflow_id], |row| {
-                let state: String = row.get(3)?;
-                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?, state, row.get::<_, i64>(4)?))
-            }).map_err(|_| G08Error::StoreUnavailable)?;
+            let mut statement = transaction
+                .prepare(
+                    "SELECT task_id, workflow_id, task_key, state, version FROM g08_tasks
+                 WHERE workflow_id=?1 ORDER BY task_key",
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
+            let rows = statement
+                .query_map(params![workflow_id], |row| {
+                    let state: String = row.get(3)?;
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        state,
+                        row.get::<_, i64>(4)?,
+                    ))
+                })
+                .map_err(|_| G08Error::StoreUnavailable)?;
             let mut receipts = Vec::new();
             for row in rows {
                 let (task_id, workflow_id, task_key, state, version) =
                     row.map_err(|_| G08Error::StoreUnavailable)?;
                 receipts.push(TaskReceipt {
-                    task_id, workflow_id, task_key,
+                    task_id,
+                    workflow_id,
+                    task_key,
                     state: parse_task_state(&state)?,
                     version: u64::try_from(version).map_err(|_| G08Error::IntegrityFailure)?,
                 });
             }
-            transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+            drop(statement);
+            transaction
+                .commit()
+                .map_err(|_| G08Error::StoreUnavailable)?;
             return Ok(receipts);
         }
-        transaction.execute(
-            "INSERT INTO g08_task_graphs(workflow_id, graph_digest, created_at) VALUES(?1,?2,?3)",
-            params![workflow_id, graph_digest.as_slice(),
-                i64::try_from(now).map_err(|_| G08Error::InvalidInput)?],
-        ).map_err(|_| G08Error::StoreUnavailable)?;
+        transaction
+            .execute(
+                "INSERT INTO g08_task_graphs(workflow_id, graph_digest, created_at) VALUES(?1,?2,?3)",
+                params![
+                    workflow_id,
+                    graph_digest.as_slice(),
+                    i64::try_from(now).map_err(|_| G08Error::InvalidInput)?
+                ],
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
         let mut receipts = Vec::with_capacity(tasks.len());
         for task in tasks {
             let task_id = task_id(workflow_id, &task.task_key);
-            let state = if task.depends_on.is_empty() { TaskState::Ready } else { TaskState::Blocked };
-            transaction.execute(
-                "INSERT INTO g08_tasks(task_id, workflow_id, tenant_id, task_key, task_type,
+            let state = if task.depends_on.is_empty() {
+                TaskState::Ready
+            } else {
+                TaskState::Blocked
+            };
+            transaction
+                .execute(
+                    "INSERT INTO g08_tasks(task_id, workflow_id, tenant_id, task_key, task_type,
                  state, version, created_at, updated_at) VALUES(?1,?2,?3,?4,?5,?6,1,?7,?7)",
-                params![task_id, workflow_id, scope.tenant_id(), task.task_key,
-                    task.task_type, state.as_str(), i64::try_from(now).map_err(|_| G08Error::InvalidInput)?],
-            ).map_err(|_| G08Error::StoreUnavailable)?;
+                    params![
+                        task_id,
+                        workflow_id,
+                        scope.tenant_id(),
+                        task.task_key,
+                        task.task_type,
+                        state.as_str(),
+                        i64::try_from(now).map_err(|_| G08Error::InvalidInput)?
+                    ],
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
             receipts.push(TaskReceipt {
-                task_id, workflow_id: workflow_id.to_owned(), task_key: task.task_key.clone(),
-                state, version: 1,
+                task_id,
+                workflow_id: workflow_id.to_owned(),
+                task_key: task.task_key.clone(),
+                state,
+                version: 1,
             });
         }
         for task in tasks {
             for dependency in &task.depends_on {
-                transaction.execute(
-                    "INSERT INTO g08_task_dependencies(workflow_id, task_key, depends_on_task_key)
+                transaction
+                    .execute(
+                        "INSERT INTO g08_task_dependencies(workflow_id, task_key, depends_on_task_key)
                      VALUES(?1,?2,?3)",
-                    params![workflow_id, task.task_key, dependency],
-                ).map_err(|_| G08Error::IntegrityFailure)?;
+                        params![workflow_id, task.task_key, dependency],
+                    )
+                    .map_err(|_| G08Error::IntegrityFailure)?;
             }
         }
-        transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+        transaction
+            .commit()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         receipts.sort_by(|a, b| a.task_key.cmp(&b.task_key));
         Ok(receipts)
     }
@@ -543,16 +592,23 @@ impl SqliteWorkflowStore {
         {
             return Err(G08Error::TenantAuthorityRejected);
         }
-        let mut connection = self.connection.lock().map_err(|_| G08Error::StoreUnavailable)?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let mut connection = self
+            .connection
+            .lock()
             .map_err(|_| G08Error::StoreUnavailable)?;
-        let current: Option<(String, String, String, i64)> = transaction.query_row(
-            "SELECT t.workflow_id, t.task_key, t.state, t.version
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| G08Error::StoreUnavailable)?;
+        let current: Option<(String, String, String, i64)> = transaction
+            .query_row(
+                "SELECT t.workflow_id, t.task_key, t.state, t.version
              FROM g08_tasks t JOIN g08_workflows w ON w.workflow_id=t.workflow_id
              WHERE t.task_id=?1 AND t.tenant_id=?2 AND w.owner_subject=?3",
-            params![task_id, scope.tenant_id(), scope.subject()],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        ).optional().map_err(|_| G08Error::StoreUnavailable)?;
+                params![task_id, scope.tenant_id(), scope.subject()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         let (workflow_id, task_key, current_state_text, current_version) =
             current.ok_or(G08Error::TenantAuthorityRejected)?;
         let current_state = parse_task_state(&current_state_text)?;
@@ -560,31 +616,55 @@ impl SqliteWorkflowStore {
         if current_version != expected || !valid_task_transition(current_state, next_state) {
             return Err(G08Error::IntegrityFailure);
         }
-        let next_version = current_version.checked_add(1).ok_or(G08Error::IntegrityFailure)?;
-        let changed = transaction.execute(
-            "UPDATE g08_tasks SET state=?1, version=?2, updated_at=?3
+        let next_version = current_version
+            .checked_add(1)
+            .ok_or(G08Error::IntegrityFailure)?;
+        let changed = transaction
+            .execute(
+                "UPDATE g08_tasks SET state=?1, version=?2, updated_at=?3
              WHERE task_id=?4 AND version=?5 AND state=?6",
-            params![next_state.as_str(), next_version,
-                i64::try_from(now).map_err(|_| G08Error::InvalidInput)?,
-                task_id, expected, current_state.as_str()],
-        ).map_err(|_| G08Error::StoreUnavailable)?;
+                params![
+                    next_state.as_str(),
+                    next_version,
+                    i64::try_from(now).map_err(|_| G08Error::InvalidInput)?,
+                    task_id,
+                    expected,
+                    current_state.as_str()
+                ],
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
         if changed != 1 {
             return Err(G08Error::IntegrityFailure);
         }
-        let event_id = format!("g08_task_evt_{}", hex_digest(
-            &Sha256::digest(format!("{task_id}:{next_version}:{now}").as_bytes())
-        ));
-        transaction.execute(
-            "INSERT INTO g08_task_events(event_id, task_id, workflow_id, tenant_id,
+        let event_id = format!(
+            "g08_task_evt_{}",
+            hex_digest(&Sha256::digest(
+                format!("{task_id}:{next_version}:{now}").as_bytes()
+            ))
+        );
+        transaction
+            .execute(
+                "INSERT INTO g08_task_events(event_id, task_id, workflow_id, tenant_id,
              actor_subject, event_type, from_state, to_state, from_version, to_version, occurred_at)
              VALUES(?1,?2,?3,?4,?5,'TASK_STATE_CHANGED',?6,?7,?8,?9,?10)",
-            params![event_id, task_id, workflow_id, scope.tenant_id(), scope.subject(),
-                current_state.as_str(), next_state.as_str(), current_version, next_version,
-                i64::try_from(now).map_err(|_| G08Error::InvalidInput)?],
-        ).map_err(|_| G08Error::StoreUnavailable)?;
+                params![
+                    event_id,
+                    task_id,
+                    workflow_id,
+                    scope.tenant_id(),
+                    scope.subject(),
+                    current_state.as_str(),
+                    next_state.as_str(),
+                    current_version,
+                    next_version,
+                    i64::try_from(now).map_err(|_| G08Error::InvalidInput)?
+                ],
+            )
+            .map_err(|_| G08Error::StoreUnavailable)?;
         if next_state == TaskState::Succeeded {
-            transaction.execute(
-                "UPDATE g08_tasks SET state='READY', version=version+1, updated_at=?1
+            transaction
+                .execute(
+                    "UPDATE g08_tasks SET state='READY', version=version+1, updated_at=?1
                  WHERE workflow_id=?2 AND state='BLOCKED'
                  AND task_key IN (SELECT task_key FROM g08_task_dependencies
                                   WHERE workflow_id=?2)
@@ -594,12 +674,20 @@ impl SqliteWorkflowStore {
                    WHERE d.workflow_id=g08_tasks.workflow_id
                      AND d.task_key=g08_tasks.task_key AND dep.state<>'SUCCEEDED'
                  )",
-                params![i64::try_from(now).map_err(|_| G08Error::InvalidInput)?, workflow_id],
-            ).map_err(|_| G08Error::StoreUnavailable)?;
+                    params![
+                        i64::try_from(now).map_err(|_| G08Error::InvalidInput)?,
+                        workflow_id
+                    ],
+                )
+                .map_err(|_| G08Error::StoreUnavailable)?;
         }
-        transaction.commit().map_err(|_| G08Error::StoreUnavailable)?;
+        transaction
+            .commit()
+            .map_err(|_| G08Error::StoreUnavailable)?;
         Ok(TaskReceipt {
-            task_id: task_id.to_owned(), workflow_id, task_key,
+            task_id: task_id.to_owned(),
+            workflow_id,
+            task_key,
             state: next_state,
             version: u64::try_from(next_version).map_err(|_| G08Error::IntegrityFailure)?,
         })
@@ -669,8 +757,10 @@ fn validate_and_digest_graph(tasks: &[TaskSpec]) -> Result<[u8; 32], G08Error> {
     }
     let mut by_key = BTreeMap::new();
     for task in tasks {
-        if task.task_key.trim().is_empty() || task.task_type.trim().is_empty()
-            || task.task_key.len() > MAX_FIELD_LEN || task.task_type.len() > MAX_FIELD_LEN
+        if task.task_key.trim().is_empty()
+            || task.task_type.trim().is_empty()
+            || task.task_key.len() > MAX_FIELD_LEN
+            || task.task_type.len() > MAX_FIELD_LEN
             || by_key.insert(task.task_key.as_str(), task).is_some()
         {
             return Err(G08Error::InvalidInput);
@@ -679,23 +769,31 @@ fn validate_and_digest_graph(tasks: &[TaskSpec]) -> Result<[u8; 32], G08Error> {
     for task in tasks {
         let mut seen = BTreeSet::new();
         for dependency in &task.depends_on {
-            if dependency == &task.task_key || !by_key.contains_key(dependency.as_str())
+            if dependency == &task.task_key
+                || !by_key.contains_key(dependency.as_str())
                 || !seen.insert(dependency)
             {
                 return Err(G08Error::InvalidInput);
             }
         }
     }
-    let mut indegree: BTreeMap<&str, usize> = tasks.iter()
-        .map(|task| (task.task_key.as_str(), task.depends_on.len())).collect();
+    let mut indegree: BTreeMap<&str, usize> = tasks
+        .iter()
+        .map(|task| (task.task_key.as_str(), task.depends_on.len()))
+        .collect();
     let mut dependents: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for task in tasks {
         for dependency in &task.depends_on {
-            dependents.entry(dependency.as_str()).or_default().push(task.task_key.as_str());
+            dependents
+                .entry(dependency.as_str())
+                .or_default()
+                .push(task.task_key.as_str());
         }
     }
-    let mut ready: Vec<&str> = indegree.iter()
-        .filter_map(|(key, degree)| (*degree == 0).then_some(*key)).collect();
+    let mut ready: Vec<&str> = indegree
+        .iter()
+        .filter_map(|(key, degree)| (*degree == 0).then_some(*key))
+        .collect();
     let mut visited = 0usize;
     while let Some(key) = ready.pop() {
         visited += 1;
