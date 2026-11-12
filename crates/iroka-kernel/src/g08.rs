@@ -164,6 +164,15 @@ impl TaskState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskTransitionRequest {
+    pub tenant_selector: String,
+    pub task_id: String,
+    pub expected_version: u64,
+    pub next_state: TaskState,
+    pub now: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskReceipt {
     pub task_id: String,
     pub workflow_id: String,
@@ -497,7 +506,7 @@ impl SqliteWorkflowStore {
                 let (task_id, workflow_id, task_key, state, version) =
                     row.map_err(|_| G08Error::StoreUnavailable)?;
                 receipts.push(TaskReceipt {
-                    task_id,
+                    &request.task_id,
                     workflow_id,
                     task_key,
                     state: parse_task_state(&state)?,
@@ -516,7 +525,7 @@ impl SqliteWorkflowStore {
                 params![
                     workflow_id,
                     graph_digest.as_slice(),
-                    i64::try_from(now).map_err(|_| G08Error::InvalidInput)?
+                    i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?
                 ],
             )
             .map_err(|_| G08Error::StoreUnavailable)?;
@@ -575,20 +584,23 @@ impl SqliteWorkflowStore {
         &self,
         authority: &A,
         principal: &VerifiedPrincipal,
-        tenant_selector: &str,
-        task_id: &str,
-        expected_version: u64,
-        next_state: TaskState,
-        now: u64,
+        request: &TaskTransitionRequest,
     ) -> Result<TaskReceipt, G08Error> {
-        if task_id.trim().is_empty() || expected_version == 0 || now == 0 {
+        if request.task_id.trim().is_empty()
+            || request.expected_version == 0
+            || request.now == 0
+        {
             return Err(G08Error::InvalidInput);
         }
-        let scope = authority.resolve_tenant(principal, tenant_selector, now)?;
+        let scope = authority.resolve_tenant(
+            principal,
+            &request.tenant_selector,
+            request.now,
+        )?;
         if scope.subject() != principal.subject()
-            || scope.tenant_id() != tenant_selector
-            || scope.resolved_at() > now
-            || now.saturating_sub(scope.resolved_at()) > 30
+            || scope.tenant_id() != request.tenant_selector
+            || scope.resolved_at() > request.now
+            || request.now.saturating_sub(scope.resolved_at()) > 30
         {
             return Err(G08Error::TenantAuthorityRejected);
         }
@@ -604,7 +616,7 @@ impl SqliteWorkflowStore {
                 "SELECT t.workflow_id, t.task_key, t.state, t.version
              FROM g08_tasks t JOIN g08_workflows w ON w.workflow_id=t.workflow_id
              WHERE t.task_id=?1 AND t.tenant_id=?2 AND w.owner_subject=?3",
-                params![task_id, scope.tenant_id(), scope.subject()],
+                params![&request.task_id, scope.tenant_id(), scope.subject()],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .optional()
@@ -612,8 +624,8 @@ impl SqliteWorkflowStore {
         let (workflow_id, task_key, current_state_text, current_version) =
             current.ok_or(G08Error::TenantAuthorityRejected)?;
         let current_state = parse_task_state(&current_state_text)?;
-        let expected = i64::try_from(expected_version).map_err(|_| G08Error::InvalidInput)?;
-        if current_version != expected || !valid_task_transition(current_state, next_state) {
+        let expected = i64::try_from(request.expected_version).map_err(|_| G08Error::InvalidInput)?;
+        if current_version != expected || !valid_task_transition(current_state, request.next_state) {
             return Err(G08Error::IntegrityFailure);
         }
         let next_version = current_version
@@ -624,10 +636,10 @@ impl SqliteWorkflowStore {
                 "UPDATE g08_tasks SET state=?1, version=?2, updated_at=?3
              WHERE task_id=?4 AND version=?5 AND state=?6",
                 params![
-                    next_state.as_str(),
+                    request.next_state.as_str(),
                     next_version,
-                    i64::try_from(now).map_err(|_| G08Error::InvalidInput)?,
-                    task_id,
+                    i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?,
+                    &request.task_id,
                     expected,
                     current_state.as_str()
                 ],
@@ -639,7 +651,7 @@ impl SqliteWorkflowStore {
         let event_id = format!(
             "g08_task_evt_{}",
             hex_digest(&Sha256::digest(
-                format!("{task_id}:{next_version}:{now}").as_bytes()
+                format!("{}:{next_version}:{}", request.task_id, request.now).as_bytes()
             ))
         );
         transaction
@@ -654,14 +666,14 @@ impl SqliteWorkflowStore {
                     scope.tenant_id(),
                     scope.subject(),
                     current_state.as_str(),
-                    next_state.as_str(),
+                    request.next_state.as_str(),
                     current_version,
                     next_version,
                     i64::try_from(now).map_err(|_| G08Error::InvalidInput)?
                 ],
             )
             .map_err(|_| G08Error::StoreUnavailable)?;
-        if next_state == TaskState::Succeeded {
+        if request.next_state == TaskState::Succeeded {
             transaction
                 .execute(
                     "UPDATE g08_tasks SET state='READY', version=version+1, updated_at=?1
@@ -675,7 +687,7 @@ impl SqliteWorkflowStore {
                      AND d.task_key=g08_tasks.task_key AND dep.state<>'SUCCEEDED'
                  )",
                     params![
-                        i64::try_from(now).map_err(|_| G08Error::InvalidInput)?,
+                        i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?,
                         workflow_id
                     ],
                 )
@@ -685,10 +697,10 @@ impl SqliteWorkflowStore {
             .commit()
             .map_err(|_| G08Error::StoreUnavailable)?;
         Ok(TaskReceipt {
-            task_id: task_id.to_owned(),
+            task_id: request.task_id.clone(),
             workflow_id,
             task_key,
-            state: next_state,
+            state: request.next_state,
             version: u64::try_from(next_version).map_err(|_| G08Error::IntegrityFailure)?,
         })
     }
