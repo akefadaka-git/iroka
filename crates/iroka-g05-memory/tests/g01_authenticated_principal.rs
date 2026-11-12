@@ -114,8 +114,13 @@ fn g01_rejects_a_credential_with_a_forged_signature_before_principal_creation() 
     .unwrap();
 
     let mut token = signed_credential(&issuer_signer);
-    let last = token.pop().unwrap();
-    token.push(if last == 'A' { 'B' } else { 'A' });
+    let signature_start = token.rfind('.').unwrap() + 1;
+    let replacement = if token.as_bytes()[signature_start] == b'A' {
+        'B'
+    } else {
+        'A'
+    };
+    token.replace_range(signature_start..signature_start + 1, &replacement.to_string());
 
     assert_eq!(
         verifier.authenticate(&token, "iroka", 1_200),
