@@ -40,6 +40,13 @@ pub use authority::{
 mod g02_postgres;
 pub use g02_postgres::{G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG09PolicyResolver};
 
+mod owner_authority_postgres;
+pub use owner_authority_postgres::{
+    G02CommandError, G02SecurityAction, G02SecurityCommandPayload, G02TrustedOwnerKey,
+    PolicySnapshotPayload as PostgresPolicySnapshotPayload, PostgresOwnerSignatureVerifier,
+    SignedG02SecurityCommand,
+};
+
 mod ingress;
 pub use ingress::{
     AuthenticatedG05Request, G05IngressService, G09ExecutionRevalidator, G09PolicyResolver,
