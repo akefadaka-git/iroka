@@ -165,7 +165,7 @@ fn postgres_g02_migrations_command_replay_monotonicity_and_rollback_are_live() {
 #[test]
 fn postgres_g02_duplicate_concurrent_command_has_one_commit_and_one_replay() {
     let Some(url)=test_url() else { return };
-    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db=admin(&url);
     let signer=SigningKey::from_bytes(&[82u8;32]);
     let payload=command(&signer,"owner-key",&unique("concurrent"),G02SecurityAction::SetTenantMembership{
@@ -190,7 +190,7 @@ fn postgres_g02_duplicate_concurrent_command_has_one_commit_and_one_replay() {
 #[test]
 fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() {
     let Some(url)=test_url() else { return };
-    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut db=admin(&url);
     let signer=SigningKey::from_bytes(&[83u8;32]);
     let policy_id=unique("policy");
@@ -233,7 +233,7 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
 #[test]
 fn postgres_g02_revoked_owner_key_is_rejected_for_new_policy_verification() {
     let Some(url)=test_url() else { return };
-    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut db=admin(&url);
     let policy_signer=SigningKey::from_bytes(&[84u8;32]);
     let revoker=SigningKey::from_bytes(&[85u8;32]);
@@ -259,7 +259,7 @@ fn postgres_g02_revoked_owner_key_is_rejected_for_new_policy_verification() {
 #[test]
 fn postgres_g02_outbox_claim_and_ack_are_lease_bound() {
     let Some(url) = test_url() else { return };
-    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db = admin(&url);
     let mut cleanup = Client::connect(&url, NoTls).unwrap();
     cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
@@ -314,7 +314,7 @@ fn postgres_g02_outbox_claim_and_ack_are_lease_bound() {
 #[test]
 fn postgres_g02_outbox_workers_claim_distinct_rows_with_skip_locked() {
     let Some(url) = test_url() else { return };
-    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db = admin(&url);
     let mut cleanup = Client::connect(&url, NoTls).unwrap();
     cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
@@ -368,7 +368,7 @@ fn postgres_g02_outbox_dispatch_acknowledges_durable_sink_receipt() {
         }
     }
     let Some(url) = test_url() else { return };
-    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db = admin(&url);
     let mut cleanup = Client::connect(&url, NoTls).unwrap();
     cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
@@ -411,7 +411,7 @@ fn postgres_g02_outbox_dispatch_schedules_retry_after_sink_failure() {
         }
     }
     let Some(url) = test_url() else { return };
-    let _guard = PG_TEST_LOCK.lock().unwrap();
+    let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db = admin(&url);
     let mut cleanup = Client::connect(&url, NoTls).unwrap();
     cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
