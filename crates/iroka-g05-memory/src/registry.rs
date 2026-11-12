@@ -253,11 +253,13 @@ mod migration_tests {
     #[test]
     fn legacy_reviewer_tables_are_quarantined_not_authoritative() {
         let connection = Connection::open_in_memory().unwrap();
-        connection.execute_batch(
-            "CREATE TABLE g05_reviewer_designations (designation_ref TEXT PRIMARY KEY);
-             CREATE INDEX g05_reviewer_scope ON g05_reviewer_designations(designation_ref);
-             CREATE TABLE g05_consumed_reviewer_approvals (approval_ref TEXT PRIMARY KEY);",
-        ).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE g05_reviewer_designations (designation_ref TEXT PRIMARY KEY);
+                 CREATE INDEX g05_reviewer_scope ON g05_reviewer_designations(designation_ref);
+                 CREATE TABLE g05_consumed_reviewer_approvals (approval_ref TEXT PRIMARY KEY);",
+            )
+            .unwrap();
         let _registry = SqliteG05AuthorityRegistry::from_connection(connection).unwrap();
         let c = _registry.connection.lock().unwrap();
         let active_count: i64 = c.query_row(
