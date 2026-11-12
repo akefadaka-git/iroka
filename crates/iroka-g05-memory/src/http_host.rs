@@ -206,7 +206,9 @@ fn status_for_g05_error(error: G05Error) -> (u16, &'static str) {
         G05Error::AuthorityUnavailable | G05Error::AuditUnavailable => {
             (503, "Service Unavailable")
         }
-        G05Error::AuthorizationDenied | G05Error::ReviewerNotAuthorized => {
+        G05Error::AuthorizationDenied
+        | G05Error::ReviewerNotAuthorized
+        | G05Error::TenantScopeMismatch => {
             (403, "Forbidden")
         }
         G05Error::MalformedRecord | G05Error::ContentTooLarge => (400, "Bad Request"),
@@ -245,6 +247,7 @@ fn read_request(
 
     let mut headers = std::collections::HashMap::<String, String>::new();
     let mut header_bytes = request_line.len();
+    let mut headers_terminated = false;
     for _ in 0..MAX_HEADERS {
         let line = read_limited_line(&mut reader, MAX_HEADER_LINE)?;
         header_bytes = header_bytes.saturating_add(line.len());
@@ -252,6 +255,7 @@ fn read_request(
             return Err(HttpParseError::HeadersTooLarge);
         }
         if line.is_empty() {
+            headers_terminated = true;
             break;
         }
         let (name, value) = line.split_once(':').ok_or(HttpParseError::Invalid)?;
@@ -267,6 +271,9 @@ fn read_request(
         }
     }
 
+    if !headers_terminated {
+        return Err(HttpParseError::HeadersTooLarge);
+    }
     let host = headers.get("host").ok_or(HttpParseError::Invalid)?.to_ascii_lowercase();
     if !allowed_hosts.contains(&host) {
         return Err(HttpParseError::Invalid);
@@ -313,18 +320,27 @@ fn read_request(
 
 fn read_limited_line(reader: &mut impl BufRead, limit: usize) -> Result<String, HttpParseError> {
     let mut bytes = Vec::new();
+    let mut saw_cr = false;
     loop {
         let mut byte = [0u8; 1];
         reader.read_exact(&mut byte).map_err(|_| HttpParseError::Io)?;
         if byte[0] == b'\n' {
+            if !saw_cr {
+                return Err(HttpParseError::Invalid);
+            }
             break;
         }
-        if byte[0] != b'\r' {
-            if bytes.len() >= limit {
-                return Err(HttpParseError::HeadersTooLarge);
-            }
-            bytes.push(byte[0]);
+        if saw_cr {
+            return Err(HttpParseError::Invalid);
         }
+        if byte[0] == b'\r' {
+            saw_cr = true;
+            continue;
+        }
+        if bytes.len() >= limit {
+            return Err(HttpParseError::HeadersTooLarge);
+        }
+        bytes.push(byte[0]);
     }
     String::from_utf8(bytes).map_err(|_| HttpParseError::Invalid)
 }
