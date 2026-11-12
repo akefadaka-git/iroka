@@ -51,6 +51,41 @@ impl SqliteG05AuthorityRegistry {
                    ON g05_episodic_consents(tenant_ref,subject_ref,purpose);",
             )
             .map_err(|_| G05Error::AuthorityUnavailable)?;
+
+        // Preserve historical rows for forensic review, but remove the legacy
+        // authority table names so no G05 code can treat them as canonical.
+        let legacy_designations: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='g05_reviewer_designations')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        if legacy_designations {
+            connection
+                .execute_batch(
+                    "DROP INDEX IF EXISTS g05_reviewer_scope;
+                     ALTER TABLE g05_reviewer_designations
+                     RENAME TO g05_legacy_reviewer_designations_non_authoritative;",
+                )
+                .map_err(|_| G05Error::AuthorityUnavailable)?;
+        }
+        let legacy_consumptions: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='g05_consumed_reviewer_approvals')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        if legacy_consumptions {
+            connection
+                .execute_batch(
+                    "ALTER TABLE g05_consumed_reviewer_approvals
+                     RENAME TO g05_legacy_reviewer_consumptions_non_authoritative;",
+                )
+                .map_err(|_| G05Error::AuthorityUnavailable)?;
+        }
+
         Ok(Self {
             connection: Arc::new(Mutex::new(connection)),
         })
@@ -208,5 +243,40 @@ mod tests {
             |row| row.get(0),
         ).unwrap();
         assert_eq!(count, 0);
+    }
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::*;
+
+    #[test]
+    fn legacy_reviewer_tables_are_quarantined_not_authoritative() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch(
+            "CREATE TABLE g05_reviewer_designations (designation_ref TEXT PRIMARY KEY);
+             CREATE INDEX g05_reviewer_scope ON g05_reviewer_designations(designation_ref);
+             CREATE TABLE g05_consumed_reviewer_approvals (approval_ref TEXT PRIMARY KEY);",
+        ).unwrap();
+        let _registry = SqliteG05AuthorityRegistry::from_connection(connection).unwrap();
+        let c = _registry.connection.lock().unwrap();
+        let active_count: i64 = c.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='g05_reviewer_designations'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        let legacy_count: i64 = c.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='g05_legacy_reviewer_designations_non_authoritative'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        let consumed_legacy_count: i64 = c.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='g05_legacy_reviewer_consumptions_non_authoritative'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(active_count, 0);
+        assert_eq!(legacy_count, 1);
+        assert_eq!(consumed_legacy_count, 1);
     }
 }
