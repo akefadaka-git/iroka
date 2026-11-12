@@ -190,6 +190,8 @@ pub struct DelegationContext {
     delegate: String,
     tenant_id: String,
     organization_id: String,
+    designation_id: String,
+    designation_version: u64,
     version: u64,
     capability: String,
     resolved_at: u64,
@@ -202,6 +204,8 @@ impl DelegationContext {
     pub fn delegate(&self) -> &str { &self.delegate }
     pub fn tenant_id(&self) -> &str { &self.tenant_id }
     pub fn organization_id(&self) -> &str { &self.organization_id }
+    pub fn designation_id(&self) -> &str { &self.designation_id }
+    pub fn designation_version(&self) -> u64 { self.designation_version }
     pub fn version(&self) -> u64 { self.version }
     pub fn capability(&self) -> &str { &self.capability }
     pub fn resolved_at(&self) -> u64 { self.resolved_at }
@@ -306,7 +310,7 @@ impl OrganizationAuthorityResolver {
         if !delegation_caps.iter().any(|item| item == capability) {
             return Err(OrganizationAuthorityError::CapabilityDenied);
         }
-        let (_designation_id, designation_active, designation_caps_json, _, designation_updated) = self.store.organization_designation(organization_id, &delegator)?
+        let (designation_id, designation_active, designation_caps_json, designation_version, designation_updated) = self.store.organization_designation(organization_id, &delegator)?
             .ok_or(OrganizationAuthorityError::DesignationMissing)?;
         if !designation_active { return Err(OrganizationAuthorityError::DesignationInactive); }
         if designation_updated > now || now.saturating_sub(designation_updated) > max_age_secs {
@@ -325,7 +329,7 @@ impl OrganizationAuthorityResolver {
         Ok(DelegationContext {
             delegation_id: delegation_id.to_owned(), delegator, delegate: delegate.subject().to_owned(),
             tenant_id: tenant.tenant_id().to_owned(), organization_id: organization_id.to_owned(),
-            version, capability: capability.to_owned(), resolved_at: now,
+            designation_id, designation_version, version, capability: capability.to_owned(), resolved_at: now,
         })
     }
 
