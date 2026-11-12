@@ -816,7 +816,11 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
             .lifecycle_state,
         LifecycleState::PendingAudit
     );
-    commit_durable_activation(&mut repository, &pending, &pending_ack, 2, 1_210).unwrap();
+    let trusted_now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    commit_durable_activation(&mut repository, &pending, &pending_ack, 2, trusted_now).unwrap();
     assert_eq!(
         repository
             .get_metadata("memory:integrated")
