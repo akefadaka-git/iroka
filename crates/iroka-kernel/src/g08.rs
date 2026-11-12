@@ -502,7 +502,7 @@ mod tests {
         };
         assert_eq!(
             store.create_workflow(&authority, &principal(), &request()),
-            Err(G08Error::TenantAuthorityUnavailable)
+            Err(G08Error::TenantAuthorityRejected)
         );
         assert_eq!(store.workflow_count().unwrap(), 0);
     }
