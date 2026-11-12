@@ -38,7 +38,10 @@ pub use authority::{
 };
 
 mod g02_postgres;
-pub use g02_postgres::{G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG09PolicyResolver};
+pub use g02_postgres::{
+    G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG02RequestAuthorizer,
+    PostgresG09PolicyResolver,
+};
 
 #[cfg(test)]
 mod owner_authority_postgres_tests;
