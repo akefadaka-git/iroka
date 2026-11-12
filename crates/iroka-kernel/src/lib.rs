@@ -471,6 +471,7 @@ mod tests {
 pub use g08_trust::{
     AuthenticatedWorker, Ed25519WorkerAuthenticator, SignedWorkerProof, TrustedClock,
     TrustedTimeError, WorkerAuthError, WorkerKey, WorkerOperationScope, WorkerProofPayload,
-    WorkerReplayError, WorkerReplayGuard, WorkerRevocationChecker, WorkerTrustStore,
+    WorkerReplayError, WorkerReplayGuard, WorkerRevocationChecker, WorkerRevocationError,
+    WorkerTrustStore,
     G08_WORKER_AUDIENCE, MAX_WORKER_PROOF_TTL_SECS,
 };
