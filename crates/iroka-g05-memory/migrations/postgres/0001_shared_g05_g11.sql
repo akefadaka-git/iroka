@@ -55,13 +55,52 @@ CREATE INDEX IF NOT EXISTS g05_g11_outbox_expired_lease
     ON g05_memory_g11_outbox (lease_expires_at)
     WHERE delivered_at IS NULL AND lease_token IS NOT NULL;
 
+CREATE TABLE IF NOT EXISTS g11_memory_audit_events (
+    sequence BIGSERIAL PRIMARY KEY,
+    event_id TEXT NOT NULL UNIQUE,
+    payload_sha256 CHAR(64) NOT NULL CHECK (length(payload_sha256) = 64),
+    previous_digest CHAR(64) NOT NULL CHECK (length(previous_digest) = 64),
+    event_digest CHAR(64) NOT NULL CHECK (length(event_digest) = 64),
+    occurred_at BIGINT NOT NULL,
+    accepted_at BIGINT NOT NULL,
+    event_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE TABLE IF NOT EXISTS g11_memory_audit_head (
+    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    sequence BIGINT NOT NULL CHECK (sequence >= 0),
+    digest CHAR(64) NOT NULL CHECK (length(digest) = 64)
+);
+
+INSERT INTO g11_memory_audit_head (singleton, sequence, digest)
+VALUES (TRUE, 0, repeat('0', 64))
+ON CONFLICT (singleton) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS g11_memory_receipts (
-    event_id TEXT PRIMARY KEY,
-    payload_sha256 CHAR(64) NOT NULL,
+    event_id TEXT PRIMARY KEY REFERENCES g11_memory_audit_events(event_id),
+    payload_sha256 CHAR(64) NOT NULL CHECK (length(payload_sha256) = 64),
     accepted_at BIGINT NOT NULL,
     receipt_json JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
+
+CREATE OR REPLACE FUNCTION g11_reject_audit_mutation()
+RETURNS trigger LANGUAGE plpgsql AS $
+BEGIN
+    RAISE EXCEPTION 'G11 audit records and receipts are append-only';
+END;
+$;
+
+DROP TRIGGER IF EXISTS g11_memory_audit_events_no_update ON g11_memory_audit_events;
+CREATE TRIGGER g11_memory_audit_events_no_update
+BEFORE UPDATE OR DELETE ON g11_memory_audit_events
+FOR EACH ROW EXECUTE FUNCTION g11_reject_audit_mutation();
+
+DROP TRIGGER IF EXISTS g11_memory_receipts_no_update ON g11_memory_receipts;
+CREATE TRIGGER g11_memory_receipts_no_update
+BEFORE UPDATE OR DELETE ON g11_memory_receipts
+FOR EACH ROW EXECUTE FUNCTION g11_reject_audit_mutation();
 
 CREATE TABLE IF NOT EXISTS g11_signed_checkpoints (
     checkpoint_id TEXT PRIMARY KEY,
