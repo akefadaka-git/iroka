@@ -510,7 +510,7 @@ mod tests {
     fn active_transition_requires_pending_audit_and_exact_cas() {
         let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let pending = record(LifecycleState::PendingAudit, 2);
-        let pending_event = event(&pending, "memory.durable.activation.pending");
+        let pending_event = crate::durable_activation_audit_event(&pending).unwrap();
         repository.insert_with_audit(pending.clone(), pending_event.clone()).unwrap();
         let mut active = pending.clone();
         active.lifecycle_state = LifecycleState::Active;
@@ -585,7 +585,7 @@ mod tests {
     fn durable_activation_runs_through_g11_receipt_and_final_repository_cas() {
         let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let pending = record(LifecycleState::PendingAudit, 2);
-        let pending_event = event(&pending, "memory.durable.activation.pending");
+        let pending_event = crate::durable_activation_audit_event(&pending).unwrap();
         repository.insert_with_audit(pending.clone(), pending_event.clone()).unwrap();
 
         let g11_sink = std::sync::Arc::new(
