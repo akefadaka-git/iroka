@@ -4,7 +4,7 @@
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
-const CHECKPOINT_SCHEMA: &str = "iroka.g11.signed-checkpoint.v1";
+pub const G11_CHECKPOINT_SCHEMA_ID: &str = "iroka.g11.signed-checkpoint.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckpointError {
@@ -42,7 +42,7 @@ impl CheckpointPayload {
     }
 
     pub fn validate(&self) -> Result<(), CheckpointError> {
-        if self.schema_id != CHECKPOINT_SCHEMA
+        if self.schema_id != G11_CHECKPOINT_SCHEMA_ID
             || self.stream_id.trim().is_empty()
             || self.stream_id.len() > 256
             || self.sequence == 0
@@ -255,7 +255,7 @@ mod tests {
     fn signed_checkpoint_requires_signature_and_external_receipt() {
         let signer = LocalSigner(SigningKey::from_bytes(&[7_u8; 32]));
         let payload = CheckpointPayload {
-            schema_id: CHECKPOINT_SCHEMA.into(),
+            schema_id: G11_CHECKPOINT_SCHEMA_ID.into(),
             stream_id: "g11:memory".into(),
             sequence: 42,
             previous_checkpoint_digest: Some("a".repeat(64)),
