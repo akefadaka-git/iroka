@@ -64,6 +64,72 @@ fn unique(prefix:&str)->String {
     format!("{prefix}-{}",std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos())
 }
 
+
+fn verified_principal(
+    auth: &PostgresOwnerSignatureVerifier,
+    subject: &str,
+) -> iroka_kernel::VerifiedPrincipal {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+    let identity_signer = SigningKey::from_bytes(&[91u8; 32]);
+    let root_signer = SigningKey::from_bytes(&[92u8; 32]);
+    let trust_payload = iroka_kernel::TrustBundlePayload {
+        version: 1,
+        issued_at: 1_000,
+        expires_at: 5_000,
+        trusted_issuers: vec!["issuer:g01-test".into()],
+        keys: vec![iroka_kernel::TrustedKey {
+            issuer: "issuer:g01-test".into(),
+            key_id: "g01-key".into(),
+            public_key: identity_signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 5_000,
+        }],
+    };
+    let root = iroka_kernel::TrustRoot {
+        key_id: "g01-root".into(),
+        public_key: root_signer.verifying_key().to_bytes(),
+        not_before: 900,
+        not_after: 5_000,
+        provenance_ref: "test-only-root-ceremony".into(),
+    };
+    let trust_bytes =
+        iroka_kernel::SignedTrustBundle::signing_bytes_for("g01-root", &trust_payload).unwrap();
+    let trust_signature = root_signer.sign(&trust_bytes).to_bytes().to_vec();
+    let bundle = iroka_kernel::SignedTrustBundle::from_signature(
+        "g01-root",
+        trust_payload,
+        trust_signature,
+    );
+    let local_anti_rollback =
+        std::sync::Arc::new(iroka_kernel::SqliteSecurityStore::open_in_memory().unwrap());
+    let credential_verifier = iroka_kernel::Ed25519CredentialVerifier::from_signed_bundle(
+        &bundle,
+        &root,
+        &local_anti_rollback,
+        auth.clone(),
+        1_200,
+    )
+    .unwrap();
+    let header =
+        URL_SAFE_NO_PAD.encode(br#"{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"g01-key"}"#);
+    let claims_json = serde_json::json!({
+        "iss": "issuer:g01-test",
+        "sub": subject,
+        "aud": "iroka-g05",
+        "exp": 1_500,
+        "nbf": 1_100,
+        "iat": 1_100,
+        "jti": unique("credential"),
+    });
+    let claims = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&claims_json).unwrap());
+    let signing_input = format!("{header}.{claims}");
+    let signature = identity_signer.sign(signing_input.as_bytes()).to_bytes();
+    let token = format!("{signing_input}.{}", URL_SAFE_NO_PAD.encode(signature));
+    credential_verifier
+        .authenticate(&token, "iroka-g05", 1_200)
+        .unwrap()
+}
+
 #[test]
 fn postgres_g02_migrations_command_replay_monotonicity_and_rollback_are_live() {
     let Some(url)=test_url() else { return };
