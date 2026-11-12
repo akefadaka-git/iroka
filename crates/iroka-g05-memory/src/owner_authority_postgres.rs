@@ -235,17 +235,17 @@ impl G02PolicySnapshotVerifier for PostgresOwnerSignatureVerifier {
         let mut signing = Vec::with_capacity(POLICY_DOMAIN.len() + canonical.len());
         signing.extend_from_slice(POLICY_DOMAIN);
         signing.extend_from_slice(&canonical);
-        let signature = Signature::from_slice(&snapshot.signature)
-            .map_err(|_| G05Error::AuthorityUnavailable)?;
-        key.verifying_key.verify(&signing, &signature)
-            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let signature = Signature::from_slice(&snapshot.signature).map_err(|_| G05Error::AuthorityUnavailable)?;
+        key.verifying_key.verify(&signing, &signature).map_err(|_| G05Error::AuthorityUnavailable)?;
         let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
         let revoked: bool = client.query_one(
             "SELECT EXISTS(SELECT 1 FROM g02_signing_key_revocations
              WHERE issuer=$1 AND key_id=$2)",
             &[&OWNER_ISSUER, &payload.key_id],
         ).map_err(|_| G05Error::AuthorityUnavailable)?.get(0);
-        if revoked { return Err(G05Error::AuthorityUnavailable); }
+        if revoked {
+            return Err(G05Error::AuthorityUnavailable);
+        }
         Ok(Policy::new(payload.policy_version, payload.allowed_capabilities,
             payload.approval_required, payload.maximum_risk.into()))
     }

@@ -9,6 +9,7 @@ on:
       - feat/g02-postgres-g09-resolver-a3
       - feat/g02-postgres-command-processor-a3
       - feat/g05-http-host-a3
+      - feat/g11-provider-adapters-a3-rebased
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
