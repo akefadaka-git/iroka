@@ -131,7 +131,11 @@ mod postgres_tests {
 
     struct CheckpointTestSigner(ed25519_dalek::SigningKey);
     impl iroka_kernel::CheckpointSigner for CheckpointTestSigner {
-        fn sign(&self, _key_id: &str, message: &[u8]) -> Result<Vec<u8>, iroka_kernel::CheckpointError> {
+        fn sign(
+            &self,
+            _key_id: &str,
+            message: &[u8],
+        ) -> Result<Vec<u8>, iroka_kernel::CheckpointError> {
             use ed25519_dalek::Signer;
             Ok(self.0.sign(message).to_bytes().to_vec())
         }
@@ -142,7 +146,8 @@ mod postgres_tests {
         fn publish(
             &self,
             checkpoint: &iroka_kernel::SignedCheckpoint,
-        ) -> Result<iroka_kernel::ExternalPublicationReceipt, iroka_kernel::CheckpointError> {
+        ) -> Result<iroka_kernel::ExternalPublicationReceipt, iroka_kernel::CheckpointError>
+        {
             self.0.fetch_add(1, Ordering::SeqCst);
             Ok(iroka_kernel::ExternalPublicationReceipt {
                 provider: "test-checkpoint-log".into(),
@@ -313,7 +318,10 @@ mod postgres_tests {
                 worker.claim_batch(worker_id, 10, 30).unwrap()
             }));
         }
-        let claims: Vec<_> = handles.into_iter().map(|handle| handle.join().unwrap()).collect();
+        let claims: Vec<_> = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect();
         assert_eq!(claims.iter().map(Vec::len).sum::<usize>(), 1);
         assert_eq!(claims.iter().filter(|batch| batch.is_empty()).count(), 1);
         let first_claim = claims.into_iter().find(|batch| !batch.is_empty()).unwrap();
