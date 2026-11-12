@@ -986,6 +986,114 @@ impl SqliteWorkflowStore {
         })
     }
 
+
+    /// Completes a task only with its current, unexpired lease capability.
+    /// Successful completion atomically unlocks newly-satisfied dependents.
+    pub fn complete_task_lease<A: TenantAuthority>(
+        &self,
+        authority: &A,
+        principal: &VerifiedPrincipal,
+        request: &TaskLeaseCompletionRequest,
+    ) -> Result<TaskReceipt, G08Error> {
+        if request.task_id.trim().is_empty() || request.worker_id.trim().is_empty()
+            || request.lease_token.is_empty() || request.expected_lease_version == 0
+            || request.expected_task_version == 0 || request.now == 0
+            || !matches!(request.next_state, TaskState::Succeeded | TaskState::Failed)
+        { return Err(G08Error::InvalidInput); }
+        let scope=authority.resolve_tenant(principal,&request.tenant_selector,request.now)?;
+        if scope.subject()!=principal.subject() || scope.tenant_id()!=request.tenant_selector
+            || scope.resolved_at()>request.now || request.now.saturating_sub(scope.resolved_at())>30
+        { return Err(G08Error::TenantAuthorityRejected); }
+        let token_digest=Sha256::digest(request.lease_token.as_bytes());
+        let mut connection=self.connection.lock().map_err(|_|G08Error::StoreUnavailable)?;
+        let transaction=connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_|G08Error::StoreUnavailable)?;
+        let row:Option<(String,String,String,i64,i64,i64)>=transaction.query_row(
+            "SELECT t.workflow_id,t.task_key,t.state,t.version,l.lease_version,l.expires_at
+             FROM g08_tasks t JOIN g08_workflows w ON w.workflow_id=t.workflow_id
+             JOIN g08_task_leases l ON l.task_id=t.task_id
+             WHERE t.task_id=?1 AND t.tenant_id=?2 AND w.owner_subject=?3
+               AND l.worker_id=?4 AND l.token_digest=?5",
+            params![request.task_id,scope.tenant_id(),scope.subject(),request.worker_id,token_digest.as_slice()],
+            |row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?))
+        ).optional().map_err(|_|G08Error::StoreUnavailable)?;
+        let (workflow_id,task_key,state_text,task_version,lease_version,expires_at)=row.ok_or(G08Error::TenantAuthorityRejected)?;
+        if state_text!="RUNNING"
+            || task_version!=i64::try_from(request.expected_task_version).map_err(|_|G08Error::InvalidInput)?
+            || lease_version!=i64::try_from(request.expected_lease_version).map_err(|_|G08Error::InvalidInput)?
+            || expires_at<=i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?
+        { return Err(G08Error::TenantAuthorityRejected); }
+        let next_version=task_version.checked_add(1).ok_or(G08Error::IntegrityFailure)?;
+        let changed=transaction.execute(
+            "UPDATE g08_tasks SET state=?1,version=?2,updated_at=?3
+             WHERE task_id=?4 AND state='RUNNING' AND version=?5",
+            params![request.next_state.as_str(),next_version,
+                i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?,request.task_id,task_version]
+        ).map_err(|_|G08Error::StoreUnavailable)?;
+        if changed!=1 { return Err(G08Error::IntegrityFailure); }
+        let event_id=format!("g08_lease_evt_{}",hex_digest(&Sha256::digest(
+            format!("{}:{}:{}:complete",request.task_id,next_version,request.now).as_bytes()
+        )));
+        transaction.execute(
+            "INSERT INTO g08_task_events(event_id,task_id,workflow_id,tenant_id,actor_subject,event_type,
+             from_state,to_state,from_version,to_version,occurred_at)
+             VALUES(?1,?2,?3,?4,?5,'TASK_LEASE_COMPLETED','RUNNING',?6,?7,?8)",
+            params![event_id,request.task_id,workflow_id,scope.tenant_id(),scope.subject(),
+                request.next_state.as_str(),task_version,next_version,
+                i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?]
+        ).map_err(|_|G08Error::StoreUnavailable)?;
+        transaction.execute("DELETE FROM g08_task_leases WHERE task_id=?1 AND lease_version=?2",
+            params![request.task_id,lease_version]).map_err(|_|G08Error::StoreUnavailable)?;
+        if request.next_state==TaskState::Succeeded {
+            let ready_tasks={
+                let mut statement=transaction.prepare(
+                    "SELECT t.task_id,t.version FROM g08_tasks t
+                     WHERE t.workflow_id=?1 AND t.state='BLOCKED'
+                       AND EXISTS (SELECT 1 FROM g08_task_dependencies d
+                         WHERE d.workflow_id=t.workflow_id AND d.task_key=t.task_key)
+                       AND NOT EXISTS (SELECT 1 FROM g08_task_dependencies d
+                         JOIN g08_tasks dep ON dep.workflow_id=d.workflow_id
+                           AND dep.task_key=d.depends_on_task_key
+                         WHERE d.workflow_id=t.workflow_id AND d.task_key=t.task_key
+                           AND dep.state<>'SUCCEEDED') ORDER BY t.task_key"
+                ).map_err(|_|G08Error::StoreUnavailable)?;
+                let rows=statement.query_map(params![workflow_id],|row|
+                    Ok((row.get::<_,String>(0)?,row.get::<_,i64>(1)?))
+                ).map_err(|_|G08Error::StoreUnavailable)?;
+                let mut values=Vec::new();
+                for row in rows { values.push(row.map_err(|_|G08Error::StoreUnavailable)?); }
+                values
+            };
+            for (dependent_id,dependent_version) in ready_tasks {
+                let next_dependent_version=dependent_version.checked_add(1).ok_or(G08Error::IntegrityFailure)?;
+                let changed=transaction.execute(
+                    "UPDATE g08_tasks SET state='READY',version=?1,updated_at=?2
+                     WHERE task_id=?3 AND state='BLOCKED' AND version=?4",
+                    params![next_dependent_version,
+                        i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?,
+                        dependent_id,dependent_version]
+                ).map_err(|_|G08Error::StoreUnavailable)?;
+                if changed!=1 { return Err(G08Error::IntegrityFailure); }
+                let unblock_event=format!("g08_lease_evt_{}",hex_digest(&Sha256::digest(
+                    format!("{dependent_id}:{next_dependent_version}:{}:unblocked",request.now).as_bytes()
+                )));
+                transaction.execute(
+                    "INSERT INTO g08_task_events(event_id,task_id,workflow_id,tenant_id,actor_subject,
+                     event_type,from_state,to_state,from_version,to_version,occurred_at)
+                     VALUES(?1,?2,?3,?4,?5,'TASK_UNBLOCKED','BLOCKED','READY',?6,?7,?8)",
+                    params![unblock_event,dependent_id,workflow_id,scope.tenant_id(),scope.subject(),
+                        dependent_version,next_dependent_version,
+                        i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?]
+                ).map_err(|_|G08Error::StoreUnavailable)?;
+            }
+        }
+        transaction.commit().map_err(|_|G08Error::StoreUnavailable)?;
+        Ok(TaskReceipt{
+            task_id:request.task_id.clone(),workflow_id,task_key,state:request.next_state,
+            version:u64::try_from(next_version).map_err(|_|G08Error::IntegrityFailure)?,
+        })
+    }
+
     pub fn workflow_count(&self) -> Result<u64, G08Error> {
         let connection = self
             .connection
@@ -1386,6 +1494,32 @@ mod tests {
             tenant_selector:"tenant:test".into(),task_id:claim.task.task_id,worker_id:"worker-a".into(),
             lease_token:claim.lease_token,expected_lease_version:1,lease_seconds:20,now:1_800_000_006
         }),Err(G08Error::TenantAuthorityRejected));
+    }
+
+
+    #[test]
+    fn leased_completion_requires_current_token_and_unblocks_dependents() {
+        let store=SqliteWorkflowStore::open_in_memory().unwrap();
+        let authority=TestAuthority{tenant_id:"tenant:test".into(),resolved_at:1_800_000_000};
+        let workflow=store.create_workflow(&authority,&principal(),&request()).unwrap();
+        let tasks=[
+            TaskSpec{task_key:"source".into(),task_type:"source".into(),depends_on:vec![]},
+            TaskSpec{task_key:"next".into(),task_type:"transform".into(),depends_on:vec!["source".into()]},
+        ];
+        let created=store.create_task_graph(&authority,&principal(),"tenant:test",&workflow.workflow_id,&tasks,1_800_000_000).unwrap();
+        let claim=store.claim_next_task(&authority,&principal(),&TaskClaimRequest{
+            tenant_selector:"tenant:test".into(),worker_id:"worker-a".into(),claim_nonce:[8;32],lease_seconds:30,now:1_800_000_001
+        }).unwrap().unwrap();
+        let completed=store.complete_task_lease(&authority,&principal(),&TaskLeaseCompletionRequest{
+            tenant_selector:"tenant:test".into(),task_id:claim.task.task_id.clone(),worker_id:"worker-a".into(),
+            lease_token:claim.lease_token,expected_lease_version:1,expected_task_version:claim.task.version,
+            next_state:TaskState::Succeeded,now:1_800_000_002
+        }).unwrap();
+        assert_eq!(completed.state,TaskState::Succeeded);
+        let connection=store.connection.lock().unwrap();
+        let state:String=connection.query_row("SELECT state FROM g08_tasks WHERE task_id=?1",
+            params![created.iter().find(|task|task.task_key=="next").unwrap().task_id],|row|row.get(0)).unwrap();
+        assert_eq!(state,"READY");
     }
 
     #[test]
