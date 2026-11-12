@@ -33,7 +33,7 @@ pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, MemoryAuditReceipt, SqliteAuditSink};
 pub use checkpoint_quorum::{
     publish_checkpoint_package, verify_externally_anchored_checkpoint, CheckpointPackage,
-    CheckpointQuorumError, CheckpointQuorumPolicy, CheckpointSegmentManifest,
+    CheckpointChainPosition, CheckpointQuorumError, CheckpointQuorumPolicy, CheckpointSegmentManifest,
     CheckpointSignerTrust, CheckpointWitnessProvider, ExternallyAnchoredCheckpoint,
     ImmutableRetentionMode, ImmutableRetentionProvider, RetentionDomainTrust,
     RetentionReceipt, WitnessReceipt, WitnessTrust,
