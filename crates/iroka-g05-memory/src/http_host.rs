@@ -111,7 +111,7 @@ where
                 let _ = handle_connection(
                     &mut stream,
                     &ingress,
-                    &executor,
+                    executor.as_ref(),
                     &allowed_hosts,
                 );
             });
@@ -195,7 +195,7 @@ where
     match result {
         Ok(value) => write_response(stream, 200, "OK", &json!({"result":value})),
         Err(error) => {
-            let (status, label) = status_for_g05_error(error);
+            let (status, label) = status_for_g05_error(&error);
             write_response(stream, status, label, &json!({"error":format!("{error:?}")}));
         }
     }
