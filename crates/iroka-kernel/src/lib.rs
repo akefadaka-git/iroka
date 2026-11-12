@@ -33,7 +33,7 @@ pub use audit_store::{AuditStoreError, MemoryAuditReceipt, SqliteAuditSink};
 pub use checkpoint::{
     sign_and_publish_checkpoint, verify_published_checkpoint, CheckpointError, CheckpointPayload,
     CheckpointSigner, ExternalCheckpointPublisher, ExternalPublicationReceipt,
-    ExternalPublicationVerifier, PublishedCheckpoint, SignedCheckpoint,
+    ExternalPublicationVerifier, PublishedCheckpoint, SignedCheckpoint, G11_CHECKPOINT_SCHEMA_ID,
 };
 pub use cultural_context::{
     CalendarSystem, CommunityReviewStatus, CulturalContextError, CulturalContextRecord,
