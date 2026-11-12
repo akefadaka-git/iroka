@@ -24,8 +24,6 @@ pub use registry::SqliteG05AuthorityRegistry;
 mod sqlite_repository;
 pub use sqlite_repository::SqliteMemoryRepository;
 
-mod postgres_outbox;
-pub use postgres_outbox::{LeasedG11Event, PostgresG11OutboxStore};
 
 mod authority;
 pub use authority::{
