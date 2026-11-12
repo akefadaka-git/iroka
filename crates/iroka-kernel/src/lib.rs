@@ -25,9 +25,9 @@ pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use g08::{
     CreateWorkflow, G08Error, SqliteWorkflowStore, TaskClaimRequest, TaskLeaseCompletionRequest,
-    TaskLeaseReceipt, TaskLeaseRenewalRequest, TaskReceipt, TaskSpec, TaskState,
-    TaskRetryRequest, TaskTransitionRequest, TenantAuthority, TenantScope,
-    WorkflowCancellationReceipt, WorkflowCancellationRequest, WorkflowReceipt, WorkflowState,
+    TaskLeaseReceipt, TaskLeaseRenewalRequest, TaskReceipt, TaskRetryRequest, TaskSpec, TaskState,
+    TaskTransitionRequest, TenantAuthority, TenantScope, WorkflowCancellationReceipt,
+    WorkflowCancellationRequest, WorkflowReceipt, WorkflowState,
 };
 pub use g08_retry::{RetryFailureClass, RetryPolicy, RetryPolicyError, RetrySchedule};
 #[cfg(test)]

@@ -1548,8 +1548,8 @@ impl SqliteWorkflowStore {
                 )
                 .map_err(|_| G08Error::StoreUnavailable)?;
             transaction
-            .commit()
-            .map_err(|_| G08Error::StoreUnavailable)?;
+                .commit()
+                .map_err(|_| G08Error::StoreUnavailable)?;
             return Ok(WorkflowCancellationReceipt {
                 workflow_id: request.workflow_id.clone(),
                 cancelled_tasks: u64::try_from(count).map_err(|_| G08Error::IntegrityFailure)?,
