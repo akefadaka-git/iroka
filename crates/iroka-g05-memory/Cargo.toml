@@ -12,6 +12,8 @@ sha2 = "=0.10.9"
 rusqlite = { version = "=0.32.1", features = ["bundled"] }
 iroka-kernel = { path = "../iroka-kernel" }
 serde_json = "1"
+serde_jcs = "=0.2.0"
+ed25519-dalek = { version = "=2.1.1", default-features = false, features = ["std"] }
 postgres = { version = "=0.19.12", features = ["with-serde_json-1"] }
 postgres-native-tls = "=0.5.0"
 native-tls = "=0.2.12"
@@ -19,7 +21,6 @@ native-tls = "=0.2.12"
 
 [dev-dependencies]
 base64 = "0.22"
-ed25519-dalek = "2"
 
 [lints]
 workspace = true
