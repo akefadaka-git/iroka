@@ -895,7 +895,11 @@ mod tests {
             Ok(())
         }
         fn append_audit(&self, event: &AuditEvent) -> Result<G11Acknowledgment, G05Error> {
-            Ok(G11Acknowledgment { event_id: event.event_id.clone(), payload_sha256: audit_event_sha256(event), accepted_at: event.occurred_at })
+            Ok(G11Acknowledgment {
+                event_id: event.event_id.clone(),
+                payload_sha256: audit_event_sha256(event),
+                accepted_at: event.occurred_at,
+            })
         }
     }
 
