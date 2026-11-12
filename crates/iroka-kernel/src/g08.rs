@@ -2325,6 +2325,168 @@ mod tests {
     }
 
     #[test]
+    fn sqlite_restart_recovers_workflow_and_monotonic_lease_epoch() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-g08-recovery-{}-{unique}.sqlite",
+            std::process::id()
+        ));
+        let authority = TestAuthority {
+            tenant_id: "tenant:test".into(),
+            resolved_at: 1_800_000_000,
+        };
+        let workflow_id;
+        let task_id_value;
+        {
+            let store = SqliteWorkflowStore::open(&path).unwrap();
+            let workflow = store
+                .create_workflow(&authority, &principal(), &request())
+                .unwrap();
+            workflow_id = workflow.workflow_id;
+            let tasks = store
+                .create_task_graph(
+                    &authority,
+                    &principal(),
+                    "tenant:test",
+                    &workflow_id,
+                    &[TaskSpec {
+                        task_key: "recoverable".into(),
+                        task_type: "compute".into(),
+                        depends_on: vec![],
+                    }],
+                    1_800_000_000,
+                )
+                .unwrap();
+            task_id_value = tasks[0].task_id.clone();
+            let first = store
+                .claim_next_task(
+                    &authority,
+                    &principal(),
+                    &TaskClaimRequest {
+                        tenant_selector: "tenant:test".into(),
+                        worker_id: "worker-before-restart".into(),
+                        claim_nonce: [51; 32],
+                        lease_seconds: 5,
+                        now: 1_800_000_001,
+                    },
+                )
+                .unwrap()
+                .unwrap();
+            assert_eq!(first.lease_version, 1);
+        }
+
+        {
+            let store = SqliteWorkflowStore::open(&path).unwrap();
+            assert_eq!(store.workflow_count().unwrap(), 1);
+            assert_eq!(store.event_count().unwrap(), 1);
+            assert!(store
+                .claim_next_task(
+                    &authority,
+                    &principal(),
+                    &TaskClaimRequest {
+                        tenant_selector: "tenant:test".into(),
+                        worker_id: "worker-after-restart-early".into(),
+                        claim_nonce: [52; 32],
+                        lease_seconds: 5,
+                        now: 1_800_000_002,
+                    },
+                )
+                .unwrap()
+                .is_none());
+            let recovered = store
+                .claim_next_task(
+                    &authority,
+                    &principal(),
+                    &TaskClaimRequest {
+                        tenant_selector: "tenant:test".into(),
+                        worker_id: "worker-after-restart".into(),
+                        claim_nonce: [53; 32],
+                        lease_seconds: 5,
+                        now: 1_800_000_006,
+                    },
+                )
+                .unwrap()
+                .unwrap();
+            assert_eq!(recovered.task.task_id, task_id_value);
+            assert_eq!(recovered.lease_version, 2);
+        }
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+        assert!(!workflow_id.is_empty());
+    }
+
+    #[test]
+    fn concurrent_workers_cannot_claim_the_same_ready_task() {
+        use std::sync::{Arc, Barrier};
+
+        let store = Arc::new(SqliteWorkflowStore::open_in_memory().unwrap());
+        let authority = TestAuthority {
+            tenant_id: "tenant:test".into(),
+            resolved_at: 1_800_000_000,
+        };
+        let workflow = store
+            .create_workflow(&authority, &principal(), &request())
+            .unwrap();
+        store
+            .create_task_graph(
+                &authority,
+                &principal(),
+                "tenant:test",
+                &workflow.workflow_id,
+                &[TaskSpec {
+                    task_key: "single-winner".into(),
+                    task_type: "compute".into(),
+                    depends_on: vec![],
+                }],
+                1_800_000_000,
+            )
+            .unwrap();
+        let barrier = Arc::new(Barrier::new(3));
+        let mut handles = Vec::new();
+        for (worker, nonce) in [("worker-a", 61_u8), ("worker-b", 62_u8)] {
+            let store = Arc::clone(&store);
+            let barrier = Arc::clone(&barrier);
+            let worker = worker.to_owned();
+            handles.push(std::thread::spawn(move || {
+                let authority = TestAuthority {
+                    tenant_id: "tenant:test".into(),
+                    resolved_at: 1_800_000_000,
+                };
+                let worker_principal = principal();
+                barrier.wait();
+                store
+                    .claim_next_task(
+                        &authority,
+                        &worker_principal,
+                        &TaskClaimRequest {
+                            tenant_selector: "tenant:test".into(),
+                            worker_id: worker,
+                            claim_nonce: [nonce; 32],
+                            lease_seconds: 30,
+                            now: 1_800_000_001,
+                        },
+                    )
+                    .unwrap()
+                    .is_some()
+            }));
+        }
+        barrier.wait();
+        let winners = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .filter(|won| *won)
+            .count();
+        assert_eq!(winners, 1);
+    }
+
+    #[test]
     fn task_claim_is_atomic_and_expired_lease_is_fenced_on_reclaim() {
         let store = SqliteWorkflowStore::open_in_memory().unwrap();
         let authority = TestAuthority {
