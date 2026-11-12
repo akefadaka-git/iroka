@@ -975,22 +975,28 @@ mod tests {
         let path = db_path("replay-commit-rollback");
         let guard = SqliteWorkerReplayGuard::open(&path).unwrap();
         let connection = open_db(&path).unwrap();
-        connection.execute_batch(
-            "CREATE TABLE commit_parent(id INTEGER PRIMARY KEY);
+        connection
+            .execute_batch(
+                "CREATE TABLE commit_parent(id INTEGER PRIMARY KEY);
              CREATE TABLE commit_tripwire(
                parent_id INTEGER REFERENCES commit_parent(id)
                  DEFERRABLE INITIALLY DEFERRED
              );
              CREATE TRIGGER reject_replay_commit
              AFTER INSERT ON g08_worker_sequences
-             BEGIN INSERT INTO commit_tripwire(parent_id) VALUES(999); END;"
-        ).unwrap();
+             BEGIN INSERT INTO commit_tripwire(parent_id) VALUES(999); END;",
+            )
+            .unwrap();
         assert_eq!(
             guard.consume_sequence("worker-commit", "key-commit", 9),
             Err(WorkerReplayError::Unavailable)
         );
-        connection.execute_batch("DROP TRIGGER reject_replay_commit;").unwrap();
-        guard.consume_sequence("worker-commit", "key-commit", 9).unwrap();
+        connection
+            .execute_batch("DROP TRIGGER reject_replay_commit;")
+            .unwrap();
+        guard
+            .consume_sequence("worker-commit", "key-commit", 9)
+            .unwrap();
         assert_eq!(
             guard.consume_sequence("worker-commit", "key-commit", 9),
             Err(WorkerReplayError::Replay)
