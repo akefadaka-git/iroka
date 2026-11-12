@@ -7,6 +7,7 @@ mod assurance;
 mod audit_store;
 mod decision;
 mod g08;
+mod g08_retry;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -22,6 +23,7 @@ mod trust_lifecycle;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use g08_retry::{RetryFailureClass, RetryPolicy, RetryPolicyError, RetrySchedule};
 pub use g08::{
     CreateWorkflow, G08Error, SqliteWorkflowStore, TaskClaimRequest, TaskLeaseCompletionRequest,
     TaskLeaseReceipt, TaskLeaseRenewalRequest, TaskReceipt, TaskSpec, TaskState,
