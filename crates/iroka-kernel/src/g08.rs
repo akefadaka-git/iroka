@@ -1227,7 +1227,7 @@ impl SqliteWorkflowStore {
         transaction.execute(
             "INSERT INTO g08_task_events(event_id,task_id,workflow_id,tenant_id,actor_subject,event_type,
              from_state,to_state,from_version,to_version,occurred_at)
-             VALUES(?1,?2,?3,?4,?5,'TASK_LEASE_COMPLETED','RUNNING',?6,?7,?8)",
+             VALUES(?1,?2,?3,?4,?5,'TASK_LEASE_COMPLETED','RUNNING',?6,?7,?8,?9)",
             params![event_id,request.task_id,workflow_id,scope.tenant_id(),scope.subject(),
                 request.next_state.as_str(),task_version,next_version,
                 i64::try_from(request.now).map_err(|_|G08Error::InvalidInput)?]
