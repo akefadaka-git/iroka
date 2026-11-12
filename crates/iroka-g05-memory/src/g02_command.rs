@@ -450,7 +450,7 @@ mod tests {
     use postgres::NoTls;
 
     fn test_authority(url: &str, roots: Vec<TrustRoot>) -> PostgresG02Authority {
-        let client = Client::connect(url, NoTls).expect("test PostgreSQL connection");
+        let mut client = Client::connect(url, NoTls).expect("test PostgreSQL connection");
         client
             .batch_execute(include_str!(
                 "../migrations/postgres/0002_g02_authority.sql"
@@ -553,8 +553,8 @@ mod tests {
                 issued_at: 1_100,
                 expires_at: 1_200,
                 action: OwnerCommandAction::SetTenantMembership {
-                    subject_ref: "subject:test".into(),
-                    tenant_ref: "tenant:test".into(),
+                    subject_ref: subject_ref.clone(),
+                    tenant_ref: tenant_ref.clone(),
                     active: true,
                     version: 1,
                 },
@@ -566,8 +566,8 @@ mod tests {
             .execute(&membership, 1_101)
             .expect("signed membership command");
         let row = authority.client.query_one(
-            "SELECT active,version FROM g02_tenant_memberships WHERE subject_ref='subject:test' AND tenant_ref='tenant:test'",
-            &[]).expect("membership projection");
+            "SELECT active,version FROM g02_tenant_memberships WHERE subject_ref=$1 AND tenant_ref=$2",
+            &[&subject_ref, &tenant_ref]).expect("membership projection");
         assert!(row.get::<_, bool>(0));
         assert_eq!(row.get::<_, i64>(1), 1);
         let outbox: i64 = authority.client.query_one(
@@ -607,8 +607,8 @@ mod tests {
                 issued_at: 1_120,
                 expires_at: 1_200,
                 action: OwnerCommandAction::SetTenantMembership {
-                    subject_ref: "subject:test-2".into(),
-                    tenant_ref: "tenant:test".into(),
+                    subject_ref: format!("subject:test-revoked:{suffix}"),
+                    tenant_ref: tenant_ref.clone(),
                     active: true,
                     version: 1,
                 },
