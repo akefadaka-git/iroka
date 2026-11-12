@@ -629,3 +629,7 @@ fn decode_claim(row: Row, worker_id: &str) -> Result<LeasedG11Event, G05Error> {
         attempt_count,
     })
 }
+
+#[cfg(test)]
+#[path = "postgres_repository_tests.rs"]
+mod postgres_tests;
