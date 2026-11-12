@@ -153,7 +153,7 @@ impl HttpsJsonEndpoint {
             }
         }
         if !terminated || headers.contains_key("transfer-encoding")
-            || !headers.get("content-type").map_or(false, |v|
+            || !headers.get("content-type").is_some_and(|v|
                 v.split(';').next().unwrap_or("").trim().eq_ignore_ascii_case("application/json"))
         {
             return Err(CheckpointQuorumError::ProviderUnavailable);
