@@ -142,7 +142,11 @@ impl PostgresG02AuthorityOutboxWorker {
                  lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,last_error_code=NULL
              WHERE event_id=$1 AND lease_token=$2::text::uuid AND delivered_at IS NULL",
             &[&event_id,&lease_token,&acknowledgment_sha256],
-        ).map_err(|_| G02OutboxError::Unavailable)?;
+        ).map_err(|error| {
+            #[cfg(test)]
+            eprintln!("G02 outbox acknowledgement SQL error: {error}");
+            G02OutboxError::Unavailable
+        })?;
         if changed == 1 { Ok(()) } else { Err(G02OutboxError::LeaseLost) }
     }
 
@@ -166,7 +170,11 @@ impl PostgresG02AuthorityOutboxWorker {
                  lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,last_error_code=$4
              WHERE event_id=$1 AND lease_token=$2::uuid AND delivered_at IS NULL",
             &[&event_id,&lease_token,&delay,&error_code],
-        ).map_err(|_| G02OutboxError::Unavailable)?;
+        ).map_err(|error| {
+            #[cfg(test)]
+            eprintln!("G02 outbox retry SQL error: {error}");
+            G02OutboxError::Unavailable
+        })?;
         if changed == 1 { Ok(()) } else { Err(G02OutboxError::LeaseLost) }
     }
 
