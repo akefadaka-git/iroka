@@ -222,6 +222,9 @@ impl SqliteAuditSink {
             .as_secs();
         let accepted_at_i64 = i64::try_from(accepted_at).map_err(|_| AuditStoreError::Rejected)?;
         let occurred_at_i64 = i64::try_from(occurred_at).map_err(|_| AuditStoreError::Rejected)?;
+        if accepted_at_i64 < occurred_at_i64 {
+            return Err(AuditStoreError::Rejected);
+        }
         let mut connection = self.connection.lock().map_err(|_| AuditStoreError::Unavailable)?;
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
