@@ -24,12 +24,23 @@ pub use registry::SqliteG05AuthorityRegistry;
 mod sqlite_repository;
 pub use sqlite_repository::SqliteMemoryRepository;
 
+mod postgres_repository;
+pub use postgres_repository::{
+    LeasedG11Event, PostgresG11MemoryAdapter, PostgresG11OutboxWorker, PostgresMemoryRepository,
+};
+
 mod authority;
 pub use authority::{
     EpisodicConsentAuthority, G01ReviewerProofAuthority, G02AuthorizationAuthority,
     G02RequestAuthorizer, G11MemoryAuditAuthority, KernelG01ReviewerProofAdapter,
     KernelG02ActivationAdapter, KernelSqliteG11MemoryAdapter, TenantContextResolver,
     TrustedGovernanceAdapter,
+};
+
+mod ingress;
+pub use ingress::{
+    AuthenticatedG05Request, G05IngressService, G09ExecutionRevalidator, G09PolicyResolver,
+    KernelG09ExecutionRevalidator, TrustedClock,
 };
 
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";

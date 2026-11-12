@@ -5,6 +5,7 @@ on:
     branches:
       - feat/igacms-a3-implementation
       - feat/a3-8-g01-tenant-reconciliation
+      - feat/g05-postgres-g11-multiworker-a3
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -13,7 +14,7 @@ on:
       - ".github/workflows/rust-kernel.yml"
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, edited]
-    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority]
+    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority, feat/g05-g02-g11-activation-v12]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -35,6 +36,22 @@ jobs:
   verify:
     name: Format, compile, test and lint
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iroka_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d iroka_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      IROKA_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iroka_test?sslmode=disable
     timeout-minutes: 20
     steps:
       - name: Checkout
