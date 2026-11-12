@@ -684,12 +684,8 @@ pub fn commit_durable_activation<R: MemoryRepository>(
     expected_current_version: u64,
     now: u64,
 ) -> Result<(), G05Error> {
-    let active = finalize_durable_activation(
-        pending,
-        acknowledgment,
-        expected_current_version,
-        now,
-    )?;
+    let active =
+        finalize_durable_activation(pending, acknowledgment, expected_current_version, now)?;
     let event = durable_activation_committed_audit_event(&active)?;
     repository.finalize_pending_activation(active, expected_current_version, event)
 }
