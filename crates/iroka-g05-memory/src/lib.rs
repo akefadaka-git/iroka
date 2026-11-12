@@ -673,6 +673,61 @@ pub fn request_g11_activation_acknowledgment<G: GovernancePort>(
     governance.append_audit(&event)
 }
 
+/// Persist the Active transition only through the repository's atomic
+/// PendingAudit -> Active compare-and-swap. The default repository method
+/// denies, so no implementation can activate without explicitly supplying
+/// the final version check.
+pub fn commit_durable_activation<R: MemoryRepository>(
+    repository: &mut R,
+    pending: &MemoryRecord,
+    acknowledgment: &G11Acknowledgment,
+    expected_current_version: u64,
+    now: u64,
+) -> Result<(), G05Error> {
+    let active = finalize_durable_activation(
+        pending,
+        acknowledgment,
+        expected_current_version,
+        now,
+    )?;
+    let event = durable_activation_committed_audit_event(&active)?;
+    repository.finalize_pending_activation(active, expected_current_version, event)
+}
+
+/// Final content-free event emitted atomically with the repository CAS.
+pub fn durable_activation_committed_audit_event(
+    active: &MemoryRecord,
+) -> Result<AuditEvent, G05Error> {
+    if active.lifecycle_state != LifecycleState::Active
+        || active.candidate.memory_class != MemoryClass::Durable
+    {
+        return Err(G05Error::InvalidLifecycleTransition);
+    }
+    let approval = active
+        .approval_ref
+        .as_deref()
+        .ok_or(G05Error::DurableApprovalRequired)?;
+    Ok(AuditEvent {
+        event_id: format!(
+            "g05:durable-activation:committed:{}:{}:{}",
+            active.candidate.memory_id, active.candidate.record_version, approval
+        ),
+        event_type: "memory.durable.activated".into(),
+        memory_id: active.candidate.memory_id.clone(),
+        tenant_ref: active.candidate.tenant_ref.clone(),
+        actor_ref: active
+            .approved_by_ref
+            .clone()
+            .ok_or(G05Error::DurableApprovalRequired)?,
+        purpose: active.candidate.purpose,
+        record_version: active.candidate.record_version,
+        outcome: "active".into(),
+        correlation_ref: approval.to_owned(),
+        occurred_at: active.updated_at,
+        content_sha256: active.candidate.content_sha256.clone(),
+    })
+}
+
 pub fn durable_activation_audit_event(record: &MemoryRecord) -> Result<AuditEvent, G05Error> {
     if record.lifecycle_state != LifecycleState::PendingAudit {
         return Err(G05Error::InvalidLifecycleTransition);
@@ -811,7 +866,9 @@ pub trait MemoryRepository: Send + Sync {
     fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error>;
 
     /// Atomically compare the expected version, replace the record, and
-    /// enqueue its G11 event. A conflict MUST NOT partially commit.
+    /// enqueue its G11 event. A conflict MUST NOT partially commit. This
+    /// method MUST reject PendingAudit -> Active; that transition is reserved
+    /// for finalize_pending_activation after a verified G11 acknowledgment.
     fn replace_with_audit(
         &mut self,
         record: MemoryRecord,
