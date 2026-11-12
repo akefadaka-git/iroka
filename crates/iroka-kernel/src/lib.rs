@@ -5,6 +5,7 @@
 
 mod assurance;
 mod audit_store;
+mod checkpoint;
 mod cultural_context;
 mod decision;
 mod ethical_programme;
@@ -29,6 +30,11 @@ mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, MemoryAuditReceipt, SqliteAuditSink};
+pub use checkpoint::{
+    sign_and_publish_checkpoint, verify_published_checkpoint, CheckpointError, CheckpointPayload,
+    CheckpointSigner, ExternalCheckpointPublisher, ExternalPublicationReceipt,
+    ExternalPublicationVerifier, PublishedCheckpoint, SignedCheckpoint,
+};
 pub use cultural_context::{
     CalendarSystem, CommunityReviewStatus, CulturalContextError, CulturalContextRecord,
     ScriptSystem,
