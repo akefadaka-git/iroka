@@ -433,19 +433,14 @@ impl PostgresG11OutboxWorker {
         {
             return Err(G05Error::MalformedRecord);
         }
-        let mut client = self
-            .client
-            .lock()
-            .map_err(|_| {
-                eprintln!("claim client mutex poisoned");
-                G05Error::RepositoryUnavailable
-            })?;
-        let mut tx = client
-            .transaction()
-            .map_err(|error| {
-                eprintln!("claim transaction failed: {error}");
-                G05Error::RepositoryUnavailable
-            })?;
+        let mut client = self.client.lock().map_err(|_| {
+            eprintln!("claim client mutex poisoned");
+            G05Error::RepositoryUnavailable
+        })?;
+        let mut tx = client.transaction().map_err(|error| {
+            eprintln!("claim transaction failed: {error}");
+            G05Error::RepositoryUnavailable
+        })?;
         let rows = tx
             .query(
                 "WITH picked AS (
