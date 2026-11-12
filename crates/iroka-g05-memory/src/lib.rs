@@ -812,7 +812,7 @@ mod tests {
             proof_id: proof_id.into(), issuer: "issuer:test".into(), subject: "reviewer:1".into(),
             credential_id: "credential:test".into(), reviewer_id: "reviewer:1".into(),
             binding_id: "binding:1".into(), binding_version: 1,
-            designation_id: "designation:1".into(), designation_version: 1, key_id: "key:1".into(),
+            designation_id: "designation:1".into(), designation_version: 1, delegation_id: None, delegation_version: None, key_id: "key:1".into(),
             approval_id: "approval:1".into(), tenant_id: "tenant:1".into(), organization_id: "principal:1".into(),
             memory_id: "memory:1".into(), record_version: 1, content_sha256: "a".repeat(64),
             purpose: "TASK_CONTINUITY".into(), classification: "INTERNAL".into(),
