@@ -309,13 +309,13 @@ mod postgres_tests {
 
         let barrier = Arc::new(Barrier::new(2));
         let mut handles = Vec::new();
-        for worker_id in ["worker-a", "worker-b"] {
+        for _worker_number in 0..2 {
             let url = url.clone();
             let barrier = barrier.clone();
             handles.push(thread::spawn(move || {
                 let worker = worker(&url);
                 barrier.wait();
-                worker.claim_batch(worker_id, 10, 30).unwrap()
+                worker.claim_batch(10, 30).unwrap()
             }));
         }
         let claims: Vec<_> = handles
@@ -384,7 +384,7 @@ mod postgres_tests {
         repo.insert_with_audit(record, event.clone()).unwrap();
 
         let worker = worker(&url);
-        let mut claim = worker.claim_batch("worker-retry", 1, 30).unwrap().remove(0);
+        let mut claim = worker.claim_batch(1, 30).unwrap().remove(0);
         for attempt in 1..=12 {
             worker
                 .schedule_retry(&claim, "g11_temporarily_unavailable")
@@ -397,7 +397,7 @@ mod postgres_tests {
                         &[&event.event_id],
                     )
                     .unwrap();
-                claim = worker.claim_batch("worker-retry", 1, 30).unwrap().remove(0);
+                claim = worker.claim_batch(1, 30).unwrap().remove(0);
             }
         }
         let exhausted = worker.exhausted_events(10).unwrap();
