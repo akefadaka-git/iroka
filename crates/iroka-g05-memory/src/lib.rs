@@ -687,7 +687,7 @@ pub fn durable_activation_audit_event(record: &MemoryRecord) -> Result<AuditEven
     })
 }
 
-fn audit_event_sha256(event: &AuditEvent) -> String {
+pub fn audit_event_sha256(event: &AuditEvent) -> String {
     let canonical = serde_json::to_vec(event).unwrap_or_default();
     sha256_hex(&canonical)
 }
@@ -854,8 +854,8 @@ mod tests {
         ) -> Result<(), G05Error> {
             Ok(())
         }
-        fn append_audit(&self, _event: &AuditEvent) -> Result<(), G05Error> {
-            Ok(())
+        fn append_audit(&self, event: &AuditEvent) -> Result<G11Acknowledgment, G05Error> {
+            Ok(G11Acknowledgment { event_id: event.event_id.clone(), payload_sha256: audit_event_sha256(event), accepted_at: event.occurred_at })
         }
     }
 
