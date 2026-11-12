@@ -2,7 +2,9 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation]
+    branches:
+      - feat/igacms-a3-implementation
+      - feat/a3-8-g01-tenant-reconciliation
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -10,7 +12,8 @@ on:
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+    branches: [main, architecture/igacms-a2-ci-base, feat/a3-8-g02-owner-organization-authority]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
