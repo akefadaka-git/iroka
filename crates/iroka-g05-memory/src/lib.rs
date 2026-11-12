@@ -37,6 +37,9 @@ pub use authority::{
     TrustedGovernanceAdapter,
 };
 
+mod g02_postgres;
+pub use g02_postgres::{G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG09PolicyResolver};
+
 mod ingress;
 pub use ingress::{
     AuthenticatedG05Request, G05IngressService, G09ExecutionRevalidator, G09PolicyResolver,
