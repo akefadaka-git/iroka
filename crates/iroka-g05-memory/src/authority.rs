@@ -263,8 +263,27 @@ where
             record,
             now,
         )?;
-        self.g02
+        let decision = self
+            .g02
             .resolve_g05_activation(&verified, receipt, record, reviewer, now)?;
+        let tuple = decision.tuple();
+        if tuple.tenant_id != record.candidate.tenant_ref
+            || tuple.organization_id != verified.organization_id()
+            || tuple.reviewer_subject != reviewer.subject()
+            || tuple.designation_id != verified.designation_id()
+            || tuple.designation_version != verified.designation_version()
+            || tuple.delegation_id.as_deref() != verified.delegation_id()
+            || tuple.delegation_version != verified.delegation_version()
+            || tuple.action != "g05.memory.durable.activate"
+            || tuple.memory_id != record.candidate.memory_id
+            || tuple.record_version != record.candidate.record_version
+            || tuple.content_sha256 != record.candidate.content_sha256
+            || tuple.purpose != purpose_key(record.candidate.purpose)
+            || tuple.classification != classification_key(record.candidate.classification)
+            || tuple.policy_version != "g05-memory-v1"
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
         Ok(())
     }
     fn append_audit(&self, event: &AuditEvent) -> Result<crate::G11Acknowledgment, G05Error> {
