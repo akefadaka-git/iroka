@@ -342,7 +342,7 @@ impl MemoryRepository for SqliteMemoryRepository {
             "g05:durable-activation:{}:{}:{}",
             record.candidate.memory_id, expected_version, approval_ref
         );
-        let connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
         let tx = connection.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
         let receipt_row: Option<(String, String, Option<i64>, Option<String>)> = tx
             .query_row(
@@ -372,8 +372,6 @@ impl MemoryRepository for SqliteMemoryRepository {
         let metadata_json = serde_json::to_string(&metadata(&record)?)
             .map_err(|_| G05Error::RepositoryUnavailable)?;
         let record_json = serde_json::to_string(&record).map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let tx = connection.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
         let updated = tx.execute(
             "UPDATE g05_memory_records SET lifecycle_state=?3,metadata_json=?4,record_json=?5
              WHERE memory_id=?1 AND record_version=?2 AND lifecycle_state=?6",
@@ -497,13 +495,21 @@ mod tests {
     fn active_transition_requires_pending_audit_and_exact_cas() {
         let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
         let pending = record(LifecycleState::PendingAudit, 2);
-        repository.insert_with_audit(
-            pending.clone(),
-            event(&pending, "memory.durable.activation.pending"),
-        ).unwrap();
+        let pending_event = event(&pending, "memory.durable.activation.pending");
+        repository.insert_with_audit(pending.clone(), pending_event.clone()).unwrap();
         let mut active = pending.clone();
         active.lifecycle_state = LifecycleState::Active;
         let activation_event = event(&active, "memory.durable.activated");
+        assert_eq!(
+            repository.finalize_pending_activation(active.clone(), 2, activation_event.clone()),
+            Err(G05Error::AuditUnavailable)
+        );
+        let acknowledgment = G11Acknowledgment {
+            event_id: pending_event.event_id.clone(),
+            payload_sha256: audit_event_sha256(&pending_event),
+            accepted_at: pending_event.occurred_at,
+        };
+        repository.acknowledge_g11_event(&pending_event, &acknowledgment).unwrap();
         assert_eq!(
             repository.finalize_pending_activation(active.clone(), 1, activation_event.clone()),
             Err(G05Error::VersionConflict)
