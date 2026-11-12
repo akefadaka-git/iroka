@@ -97,28 +97,34 @@ impl OrganizationAuthorityResolver {
         {
             return Err(G05ActivationDecisionError::PrincipalMismatch);
         }
-        let designation = self.resolve(
-            reviewer, tenant, &tuple.organization_id, G05_ACTIVATE_CAPABILITY,
-            now, max_age_secs,
-        )?;
-        if designation.designation_id() != tuple.designation_id
-            || designation.designation_version() != tuple.designation_version
-            || designation.tenant_id() != tuple.tenant_id
-            || designation.organization_id() != tuple.organization_id
-        {
-            return Err(G05ActivationDecisionError::DesignationMismatch);
-        }
         if let (Some(id), Some(version)) = (&tuple.delegation_id, tuple.delegation_version) {
+            // Delegated reviewers are authorized through the live delegation
+            // and the delegator's current designation; they need not hold a
+            // separate direct designation of their own.
             let delegation = self.resolve_delegation(
                 reviewer, tenant, &tuple.organization_id, id,
                 G05_ACTIVATE_CAPABILITY, now, max_age_secs,
             )?;
             if delegation.version() != version
+                || delegation.designation_id() != tuple.designation_id
+                || delegation.designation_version() != tuple.designation_version
                 || delegation.tenant_id() != tuple.tenant_id
                 || delegation.organization_id() != tuple.organization_id
                 || delegation.delegate() != reviewer.subject()
             {
                 return Err(G05ActivationDecisionError::DelegationMismatch);
+            }
+        } else {
+            let designation = self.resolve(
+                reviewer, tenant, &tuple.organization_id, G05_ACTIVATE_CAPABILITY,
+                now, max_age_secs,
+            )?;
+            if designation.designation_id() != tuple.designation_id
+                || designation.designation_version() != tuple.designation_version
+                || designation.tenant_id() != tuple.tenant_id
+                || designation.organization_id() != tuple.organization_id
+            {
+                return Err(G05ActivationDecisionError::DesignationMismatch);
             }
         }
         Ok(G05ActivationDecision { tuple: tuple.clone(), resolved_at: now })
