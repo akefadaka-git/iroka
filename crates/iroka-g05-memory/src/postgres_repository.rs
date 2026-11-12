@@ -451,11 +451,11 @@ impl PostgresG11OutboxWorker {
                       AND next_attempt_at <= clock_timestamp()
                       AND (lease_token IS NULL OR lease_expires_at <= clock_timestamp())
                     ORDER BY occurred_at,event_id
-                    LIMIT $2 FOR UPDATE SKIP LOCKED
+                    LIMIT $1 FOR UPDATE SKIP LOCKED
                  )
                  UPDATE g05_memory_g11_outbox AS o
                  SET lease_owner=pg_backend_pid()::text,lease_token=gen_random_uuid(),
-                     lease_expires_at=clock_timestamp()+($3 * interval '1 second'),
+                     lease_expires_at=clock_timestamp()+($2 * interval '1 second'),
                      attempt_count=o.attempt_count+1
                  FROM picked WHERE o.event_id=picked.event_id
                  RETURNING o.payload_json,o.lease_owner,o.lease_token::text,o.attempt_count",
@@ -626,14 +626,15 @@ impl PostgresG11OutboxWorker {
     }
 }
 
-fn decode_claim(row: Row, worker_id: &str) -> Result<LeasedG11Event, G05Error> {
+fn decode_claim(row: Row) -> Result<LeasedG11Event, G05Error> {
     let payload: Value = row.get(0);
     let event: AuditEvent = serde_json::from_value(payload).map_err(|error| {
         eprintln!("claim payload decode error: {error}");
         G05Error::RepositoryUnavailable
     })?;
-    let lease_token: String = row.get(1);
-    let attempt_count: i64 = row.get(2);
+    let lease_owner: String = row.get(1);
+    let lease_token: String = row.get(2);
+    let attempt_count: i64 = row.get(3);
     Ok(LeasedG11Event {
         event,
         lease_owner,
