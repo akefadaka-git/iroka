@@ -3335,5 +3335,4 @@ mod tests {
             .unwrap();
         assert_eq!(state, "READY");
     }
-
 }
