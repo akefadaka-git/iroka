@@ -54,6 +54,9 @@ pub use owner_authority_postgres::{
     SignedG02SecurityCommand,
 };
 
+pub mod checkpoint_https;
+pub use checkpoint_https::{HttpsCheckpointWitnessProvider, HttpsImmutableRetentionProvider};
+
 pub mod http_host;
 pub use http_host::{G05HttpHost, G05HttpHostError, G05OperationExecutor};
 
