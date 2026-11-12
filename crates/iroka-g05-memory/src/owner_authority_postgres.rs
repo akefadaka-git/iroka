@@ -244,8 +244,6 @@ impl G02PolicySnapshotVerifier for PostgresOwnerSignatureVerifier {
             &[&OWNER_ISSUER, &payload.key_id],
         ).map_err(|_| G05Error::AuthorityUnavailable)?.get(0);
         if revoked {
-            #[cfg(test)]
-            eprintln!("G02 policy signer is currently revoked");
             return Err(G05Error::AuthorityUnavailable);
         }
         Ok(Policy::new(payload.policy_version, payload.allowed_capabilities,
