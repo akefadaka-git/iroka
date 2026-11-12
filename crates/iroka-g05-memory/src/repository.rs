@@ -430,3 +430,159 @@ fn to_i64(value: u64) -> Result<i64, G05Error> {
 fn from_i64(value: i64) -> Result<u64, G05Error> {
     u64::try_from(value).map_err(|_| G05Error::RepositoryUnavailable)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{sha256_hex, MemoryCandidate, Provenance, ProvenanceKind, RECORD_SCHEMA_ID, CONTRACT_VERSION};
+
+    fn record(class: MemoryClass, state: LifecycleState, version: u64) -> MemoryRecord {
+        let content = "repository adapter synthetic fixture".to_owned();
+        MemoryRecord {
+            candidate: MemoryCandidate {
+                schema_id: RECORD_SCHEMA_ID.to_owned(),
+                contract_version: CONTRACT_VERSION.to_owned(),
+                memory_id: "memory:repo-test".to_owned(),
+                tenant_ref: "tenant:repo-test".to_owned(),
+                subject_ref: "subject:repo-test".to_owned(),
+                actor_ref: "actor:repo-test".to_owned(),
+                memory_class: class,
+                content_sha256: sha256_hex(content.as_bytes()),
+                content,
+                purpose: Purpose::TaskContinuity,
+                classification: Classification::Internal,
+                provenance: Provenance {
+                    kind: ProvenanceKind::UserExplicit,
+                    source_refs: vec![],
+                    source_revision_refs: vec![],
+                    derived_from: vec![],
+                    recorded_by_ref: "actor:repo-test".to_owned(),
+                    recorded_at: 100,
+                },
+                confidence_milli: None,
+                created_at: 100,
+                expires_at: Some(1000),
+                retention_policy_ref: "retention:test".to_owned(),
+                episodic_opt_in_ref: None,
+                record_version: version,
+            },
+            lifecycle_state: state,
+            approval_ref: (class == MemoryClass::Durable).then(|| "approval:repo-test".to_owned()),
+            approved_by_ref: (class == MemoryClass::Durable).then(|| "reviewer:repo-test".to_owned()),
+            approved_at: (class == MemoryClass::Durable).then_some(110),
+            updated_at: 110,
+        }
+    }
+
+    fn event(record: &MemoryRecord, event_type: &str, suffix: &str) -> AuditEvent {
+        AuditEvent {
+            event_id: format!("event:{}:{}:{suffix}", record.candidate.memory_id, record.candidate.record_version),
+            event_type: event_type.to_owned(),
+            memory_id: record.candidate.memory_id.clone(),
+            tenant_ref: record.candidate.tenant_ref.clone(),
+            actor_ref: record.candidate.actor_ref.clone(),
+            purpose: record.candidate.purpose,
+            record_version: record.candidate.record_version,
+            outcome: "accepted".to_owned(),
+            correlation_ref: "correlation:repo-test".to_owned(),
+            occurred_at: 110,
+            content_sha256: record.candidate.content_sha256.clone(),
+        }
+    }
+
+    #[test]
+    fn insert_is_atomic_and_metadata_projection_excludes_content() {
+        let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
+        let record = record(MemoryClass::Working, LifecycleState::Active, 1);
+        let event = event(&record, "memory.working.created", "insert");
+        repository.insert_with_audit(record.clone(), event).unwrap();
+
+        let metadata = repository.get_metadata("memory:repo-test").unwrap().unwrap();
+        assert_eq!(metadata.record_version, 1);
+        assert_eq!(metadata.lifecycle_state, LifecycleState::Active);
+        let content = repository.get_content("memory:repo-test").unwrap().unwrap();
+        assert_eq!(content.candidate.content, record.candidate.content);
+        assert_eq!(repository.pending_audit_events(10).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn optimistic_replace_rejects_stale_version_without_partial_outbox_write() {
+        let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
+        let initial = record(MemoryClass::Working, LifecycleState::Active, 1);
+        repository
+            .insert_with_audit(initial.clone(), event(&initial, "memory.created", "v1"))
+            .unwrap();
+
+        let mut replacement = initial.clone();
+        replacement.candidate.record_version = 2;
+        replacement.updated_at = 120;
+        replacement.candidate.content = "updated synthetic memory".to_owned();
+        replacement.candidate.content_sha256 = sha256_hex(replacement.candidate.content.as_bytes());
+        let replacement_event = event(&replacement, "memory.updated", "v2");
+        repository
+            .replace_with_audit(replacement.clone(), 1, replacement_event.clone())
+            .unwrap();
+
+        assert_eq!(
+            repository.replace_with_audit(replacement, 1, replacement_event),
+            Err(G05Error::VersionConflict)
+        );
+        assert_eq!(repository.get_metadata("memory:repo-test").unwrap().unwrap().record_version, 2);
+        assert_eq!(repository.pending_audit_events(10).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn durable_activation_requires_pending_audit_row_and_atomic_final_event() {
+        let mut repository = SqliteMemoryRepository::open_in_memory().unwrap();
+        let pending = record(MemoryClass::Durable, LifecycleState::PendingAudit, 4);
+        repository
+            .insert_with_audit(
+                pending.clone(),
+                event(&pending, "memory.durable.activation.pending", "pending"),
+            )
+            .unwrap();
+
+        let mut active = pending.clone();
+        active.lifecycle_state = LifecycleState::Active;
+        active.updated_at = 130;
+        let final_event = event(&active, "memory.durable.activated", "active");
+        repository
+            .finalize_pending_activation(active.clone(), 4, final_event)
+            .unwrap();
+
+        assert_eq!(
+            repository.get_metadata("memory:repo-test").unwrap().unwrap().lifecycle_state,
+            LifecycleState::Active
+        );
+        assert_eq!(repository.pending_audit_events(10).unwrap().len(), 2);
+
+        assert_eq!(
+            repository.finalize_pending_activation(
+                active.clone(),
+                4,
+                event(&active, "memory.durable.activated", "replay")
+            ),
+            Err(G05Error::VersionConflict)
+        );
+        assert_eq!(repository.pending_audit_events(10).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn outbox_delivery_requires_exact_event_digest() {
+        let repository = SqliteMemoryRepository::open_in_memory().unwrap();
+        let mut writable = repository.clone();
+        let item = record(MemoryClass::Working, LifecycleState::Active, 1);
+        let audit = event(&item, "memory.working.created", "delivery");
+        let digest = audit_event_sha256(&audit);
+        writable.insert_with_audit(item, audit.clone()).unwrap();
+
+        assert_eq!(
+            repository.mark_audit_event_delivered(&audit.event_id, &"0".repeat(64), 120),
+            Err(G05Error::AuditUnavailable)
+        );
+        repository
+            .mark_audit_event_delivered(&audit.event_id, &digest, 120)
+            .unwrap();
+        assert!(repository.pending_audit_events(10).unwrap().is_empty());
+    }
+}
