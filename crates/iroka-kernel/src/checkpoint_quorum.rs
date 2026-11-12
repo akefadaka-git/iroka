@@ -165,7 +165,7 @@ impl CheckpointSegmentManifest {
             || self.stream_id.len() > 256
             || self.first_sequence == 0
             || self.last_sequence < self.first_sequence
-            || self.entry_count != self.last_sequence - self.first_sequence + 1
+            || self.last_sequence.checked_sub(self.first_sequence).and_then(|v| v.checked_add(1)) != Some(self.entry_count)
             || !valid_digest(&self.audit_head_digest)
             || !valid_digest(&self.entries_merkle_root)
             || self.previous_checkpoint_digest.as_deref().is_some_and(|d| !valid_digest(d))
@@ -446,7 +446,7 @@ fn verify_checkpoint_signer(
     let signer = &policy.signer;
     if checkpoint.payload.signer_key_id != signer.key_id
         || now < signer.not_before
-        || now >= signer.not_after
+        || checkpoint.payload.issued_at >= signer.not_after
     {
         return Err(CheckpointQuorumError::InvalidSigner);
     }
@@ -492,7 +492,7 @@ fn verify_witness_quorum(
             || !operators.insert(trust.operator_id.clone())
             || receipt.verified_at < trust.not_before
             || receipt.verified_at >= trust.not_after
-            || now >= trust.not_after
+            || receipt.verified_at >= trust.not_after
         {
             return Err(CheckpointQuorumError::InvalidWitnessReceipt);
         }
@@ -545,7 +545,7 @@ fn verify_retention_quorum(
             || !operators.insert(trust.operator_id.clone())
             || receipt.retained_at < trust.not_before
             || receipt.retained_at >= trust.not_after
-            || now >= trust.not_after
+            || receipt.retained_at >= trust.not_after
         {
             return Err(CheckpointQuorumError::InvalidRetentionReceipt);
         }
@@ -601,6 +601,13 @@ mod tests {
             };
             receipt.signature = self.signer.sign(&receipt.signing_bytes()?).to_bytes().to_vec();
             Ok(receipt)
+        }
+    }
+
+    struct FailingWitness;
+    impl CheckpointWitnessProvider for FailingWitness {
+        fn attest(&self, _: &CheckpointPackage) -> Result<WitnessReceipt, CheckpointQuorumError> {
+            Err(CheckpointQuorumError::ProviderUnavailable)
         }
     }
 
@@ -720,8 +727,12 @@ mod tests {
     #[test]
     fn enforces_two_of_three_witnesses_and_both_immutable_domains() {
         let (package, policy, witnesses, retention, _) = fixture();
-        let witness_refs: Vec<&dyn CheckpointWitnessProvider> =
-            witnesses.iter().map(|p| p as &dyn CheckpointWitnessProvider).collect();
+        let failing = FailingWitness;
+        let witness_refs: Vec<&dyn CheckpointWitnessProvider> = vec![
+            &witnesses[0],
+            &witnesses[1],
+            &failing,
+        ];
         let retention_refs: Vec<&dyn ImmutableRetentionProvider> =
             retention.iter().map(|p| p as &dyn ImmutableRetentionProvider).collect();
         let anchored = publish_checkpoint_package(
