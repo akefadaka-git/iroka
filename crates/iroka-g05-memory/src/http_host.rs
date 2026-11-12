@@ -222,6 +222,7 @@ enum HttpParseError {
     HeadersTooLarge,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 struct ParsedRequest {
     method: String,
     path: String,
