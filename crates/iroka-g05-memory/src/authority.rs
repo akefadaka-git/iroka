@@ -8,13 +8,13 @@ use std::sync::Arc;
 
 use iroka_kernel::{
     G05ActivationDecision, G05ActivationTuple, OrganizationAuthorityResolver,
-    ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof, SqliteSecurityStore,
-    TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
+    AuditStoreError, ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof,
+    SqliteAuditSink, SqliteSecurityStore, TenantContext, VerifiedPrincipal, VerifiedReviewerProof,
 };
 
 use crate::{
     AuditEvent, AuthorizationRequest, DurableApprovalReceipt, G05Error, GovernancePort,
-    MemoryRecord, Purpose,
+    MemoryRecord, Purpose, audit_event_sha256,
 };
 
 pub trait EpisodicConsentAuthority: Send + Sync {
@@ -55,6 +55,54 @@ pub trait G01ReviewerProofAuthority: Send + Sync {
 pub trait G11MemoryAuditAuthority: Send + Sync {
     fn append_memory_event(&self, event: &AuditEvent)
         -> Result<crate::G11Acknowledgment, G05Error>;
+}
+
+/// Concrete single-node G11 adapter over the kernel's append-only, hash-chained
+/// audit store. The durable receipt is committed atomically with the audit
+/// event and duplicate delivery is accepted only for the same payload digest.
+pub struct KernelSqliteG11MemoryAdapter {
+    sink: Arc<SqliteAuditSink>,
+}
+
+impl KernelSqliteG11MemoryAdapter {
+    pub fn new(sink: Arc<SqliteAuditSink>) -> Self {
+        Self { sink }
+    }
+}
+
+impl G11MemoryAuditAuthority for KernelSqliteG11MemoryAdapter {
+    fn append_memory_event(
+        &self,
+        event: &AuditEvent,
+    ) -> Result<crate::G11Acknowledgment, G05Error> {
+        let resource = format!(
+            "g05:memory:{}:{}:{}",
+            event.tenant_ref, event.memory_id, event.record_version
+        );
+        let receipt = self
+            .sink
+            .append_memory_receipt(
+                &event.event_id,
+                &event.correlation_ref,
+                &event.actor_ref,
+                &event.event_type,
+                &resource,
+                "g05-memory-v1",
+                event.occurred_at,
+                &audit_event_sha256(event),
+            )
+            .map_err(|error| match error {
+                AuditStoreError::Unavailable | AuditStoreError::IntegrityFailure => {
+                    G05Error::AuditUnavailable
+                }
+                AuditStoreError::Rejected => G05Error::ApprovalBindingMismatch,
+            })?;
+        Ok(crate::G11Acknowledgment {
+            event_id: receipt.event_id().to_owned(),
+            payload_sha256: receipt.payload_sha256().to_owned(),
+            accepted_at: receipt.accepted_at(),
+        })
+    }
 }
 
 pub trait TenantContextResolver: Send + Sync {
