@@ -1,10 +1,14 @@
-
 #[cfg(test)]
 mod postgres_tests {
     use super::*;
-    use crate::{Classification, MemoryCandidate, MemoryClass, Provenance, ProvenanceKind, Purpose};
+    use crate::{
+        Classification, MemoryCandidate, MemoryClass, Provenance, ProvenanceKind, Purpose,
+    };
     use postgres::NoTls;
-    use std::sync::{atomic::{AtomicU64, Ordering}, Barrier};
+    use std::sync::{
+        atomic::{AtomicU64, Ordering},
+        Barrier,
+    };
     use std::thread;
 
     static NEXT_ID: AtomicU64 = AtomicU64::new(1);
@@ -25,20 +29,26 @@ mod postgres_tests {
     fn admin(url: &str) -> Client {
         let mut client = Client::connect(url, NoTls).expect("PostgreSQL test connection");
         client
-            .batch_execute(include_str!("../migrations/postgres/0001_shared_g05_g11.sql"))
+            .batch_execute(include_str!(
+                "../migrations/postgres/0001_shared_g05_g11.sql"
+            ))
             .expect("PostgreSQL migration");
         client
     }
 
     fn repository(url: &str) -> PostgresMemoryRepository {
         PostgresMemoryRepository {
-            client: Arc::new(Mutex::new(Client::connect(url, NoTls).expect("repository connection"))),
+            client: Arc::new(Mutex::new(
+                Client::connect(url, NoTls).expect("repository connection"),
+            )),
         }
     }
 
     fn worker(url: &str) -> PostgresG11OutboxWorker {
         PostgresG11OutboxWorker {
-            client: Arc::new(Mutex::new(Client::connect(url, NoTls).expect("worker connection"))),
+            client: Arc::new(Mutex::new(
+                Client::connect(url, NoTls).expect("worker connection"),
+            )),
         }
     }
 
@@ -100,7 +110,10 @@ mod postgres_tests {
     fn cleanup(client: &mut Client, ids: &[String]) {
         for id in ids {
             client
-                .execute("DELETE FROM g05_memory_g11_outbox WHERE memory_id=$1", &[id])
+                .execute(
+                    "DELETE FROM g05_memory_g11_outbox WHERE memory_id=$1",
+                    &[id],
+                )
                 .expect("delete test outbox");
             client
                 .execute("DELETE FROM g05_memory_records WHERE memory_id=$1", &[id])
@@ -122,26 +135,34 @@ mod postgres_tests {
         let first_id = first.candidate.memory_id.clone();
 
         let mut repo = repository(&url);
-        repo.insert_with_audit(first.clone(), first_event.clone()).unwrap();
+        repo.insert_with_audit(first.clone(), first_event.clone())
+            .unwrap();
         drop(repo);
 
         // A fresh connection models process restart and confirms committed data.
         let restarted = repository(&url);
-        assert_eq!(restarted.get_content(&first_id).unwrap(), Some(first.clone()));
         assert_eq!(
-            restarted.get_metadata(&first_id).unwrap().unwrap().record_version,
+            restarted.get_content(&first_id).unwrap(),
+            Some(first.clone())
+        );
+        assert_eq!(
+            restarted
+                .get_metadata(&first_id)
+                .unwrap()
+                .unwrap()
+                .record_version,
             1
         );
 
         // A duplicate event ID fails after the record INSERT; the enclosing
         // transaction must roll that record back as well.
-        let second = test_record(&format!("{suffix}-rollback"), LifecycleState::PendingReview, 1);
-        let second_id = second.candidate.memory_id.clone();
-        let duplicate_event = test_event(
-            &second,
-            "memory.durable.proposed",
-            &first_event.event_id,
+        let second = test_record(
+            &format!("{suffix}-rollback"),
+            LifecycleState::PendingReview,
+            1,
         );
+        let second_id = second.candidate.memory_id.clone();
+        let duplicate_event = test_event(&second, "memory.durable.proposed", &first_event.event_id);
         let mut writer = repository(&url);
         assert_eq!(
             writer.insert_with_audit(second, duplicate_event),
@@ -162,7 +183,11 @@ mod postgres_tests {
         setup
             .insert_with_audit(
                 initial.clone(),
-                test_event(&initial, "memory.durable.proposed", &format!("event:{suffix}:initial")),
+                test_event(
+                    &initial,
+                    "memory.durable.proposed",
+                    &format!("event:{suffix}:initial"),
+                ),
             )
             .unwrap();
 
@@ -193,11 +218,18 @@ mod postgres_tests {
         let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
         assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
         assert_eq!(
-            results.iter().filter(|r| **r == Err(G05Error::VersionConflict)).count(),
+            results
+                .iter()
+                .filter(|r| **r == Err(G05Error::VersionConflict))
+                .count(),
             1
         );
         assert_eq!(
-            repository(&url).get_metadata(&id).unwrap().unwrap().record_version,
+            repository(&url)
+                .get_metadata(&id)
+                .unwrap()
+                .unwrap()
+                .record_version,
             2
         );
         cleanup(&mut admin, &[id]);
@@ -222,7 +254,10 @@ mod postgres_tests {
         let second_worker = worker(&url);
         let first_claim = first_worker.claim_batch("worker-a", 10, 30).unwrap();
         assert_eq!(first_claim.len(), 1);
-        assert!(second_worker.claim_batch("worker-b", 10, 30).unwrap().is_empty());
+        assert!(second_worker
+            .claim_batch("worker-b", 10, 30)
+            .unwrap()
+            .is_empty());
 
         // Force expiry through database time to model a crashed worker without
         // sleeping; a new process/connection must reclaim the event.
@@ -249,8 +284,12 @@ mod postgres_tests {
             restarted_worker.acknowledge(&first_claim[0], &stale_ack),
             Err(G05Error::AuditUnavailable)
         );
-        restarted_worker.acknowledge(&recovered[0], &stale_ack).unwrap();
-        restarted_worker.acknowledge(&recovered[0], &stale_ack).unwrap();
+        restarted_worker
+            .acknowledge(&recovered[0], &stale_ack)
+            .unwrap();
+        restarted_worker
+            .acknowledge(&recovered[0], &stale_ack)
+            .unwrap();
 
         let delivered: bool = admin
             .query_one(
@@ -280,7 +319,9 @@ mod postgres_tests {
 
         let worker = worker(&url);
         let claim = worker.claim_batch("worker-retry", 1, 30).unwrap().remove(0);
-        worker.schedule_retry(&claim, "g11_temporarily_unavailable").unwrap();
+        worker
+            .schedule_retry(&claim, "g11_temporarily_unavailable")
+            .unwrap();
         let row = admin
             .query_one(
                 "SELECT lease_token IS NULL,delivered_at IS NULL,last_error_code
@@ -290,10 +331,7 @@ mod postgres_tests {
             .unwrap();
         assert!(row.get::<_, bool>(0));
         assert!(row.get::<_, bool>(1));
-        assert_eq!(
-            row.get::<_, String>(2),
-            "g11_temporarily_unavailable"
-        );
+        assert_eq!(row.get::<_, String>(2), "g11_temporarily_unavailable");
         cleanup(&mut admin, &[id]);
     }
 }

@@ -405,8 +405,7 @@ pub struct PostgresG11OutboxWorker {
 
 impl PostgresG11OutboxWorker {
     pub fn connect(connection_string: &str) -> Result<Self, G05Error> {
-        if !connection_string.contains("sslmode=verify-full")
-        {
+        if !connection_string.contains("sslmode=verify-full") {
             return Err(G05Error::RepositoryUnavailable);
         }
         let tls = TlsConnector::builder()
