@@ -28,7 +28,8 @@ mod authority;
 pub use authority::{
     EpisodicConsentAuthority, G01ReviewerProofAuthority, G02AuthorizationAuthority,
     G02RequestAuthorizer, G11MemoryAuditAuthority, KernelG01ReviewerProofAdapter,
-    KernelG02ActivationAdapter, TenantContextResolver, TrustedGovernanceAdapter,
+    KernelG02ActivationAdapter, KernelSqliteG11MemoryAdapter, TenantContextResolver,
+    TrustedGovernanceAdapter,
 };
 
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
