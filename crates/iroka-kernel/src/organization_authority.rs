@@ -1090,7 +1090,10 @@ mod tests {
             capabilities: capabilities.into_iter().map(str::to_owned).collect(),
             reason: "Owner-authorized exact-scope delegation".into(),
         };
-        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         SignedOrganizationAuthorityCommand::from_signature(payload, signature)
     }
 
@@ -1103,11 +1106,13 @@ mod tests {
             "principal:bob".into(), "issuer:test".into(), "credential:bob".into(),
         );
         let bob_tenant = tenant_context(&signer, &owner, &bob, store.clone());
-        owner.apply_organization_command(
-            &signed_org(&signer,"org:create",OrganizationAuthorityAction::CreateOrganization,None,None,vec![],1), 1200,
+        owner
+            .apply_organization_command(
+                &signed_org(&signer,"org:create",OrganizationAuthorityAction::CreateOrganization,None,None,vec![],1), 1200,
         ).unwrap();
-        owner.apply_organization_command(
-            &signed_org(&signer,"org:designate-alice",OrganizationAuthorityAction::SetDesignation,
+        owner
+            .apply_organization_command(
+                &signed_org(&signer,"org:designate-alice",OrganizationAuthorityAction::SetDesignation,
                 Some(alice.subject()),Some("designation:alice"),vec!["organization.designation.delegate","records.review"],1),1200,
         ).unwrap();
         let grant = signed_delegation(&signer,"delegation:grant",OrganizationAuthorityAction::SetDelegation,
