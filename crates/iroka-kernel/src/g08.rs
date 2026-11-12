@@ -525,7 +525,7 @@ impl SqliteWorkflowStore {
                 params![
                     workflow_id,
                     graph_digest.as_slice(),
-                    i64::try_from(request.now).map_err(|_| G08Error::InvalidInput)?
+                    i64::try_from(now).map_err(|_| G08Error::InvalidInput)?
                 ],
             )
             .map_err(|_| G08Error::StoreUnavailable)?;
