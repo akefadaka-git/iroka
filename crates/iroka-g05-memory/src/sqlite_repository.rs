@@ -344,6 +344,21 @@ impl MemoryRepository for SqliteMemoryRepository {
         );
         let mut connection = self.connection.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
         let tx = connection.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let current_state: Option<String> = tx
+            .query_row(
+                "SELECT lifecycle_state FROM g05_memory_records
+                 WHERE memory_id=?1 AND record_version=?2",
+                params![record.candidate.memory_id, expected_version as i64],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let current_state = current_state.ok_or(G05Error::VersionConflict)?;
+        let current_state: LifecycleState = serde_json::from_str(&current_state)
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        if current_state != LifecycleState::PendingAudit {
+            return Err(G05Error::VersionConflict);
+        }
         let receipt_row: Option<(String, String, Option<i64>, Option<String>)> = tx
             .query_row(
                 "SELECT payload_json,payload_sha256,delivered_at,acknowledgment_sha256
