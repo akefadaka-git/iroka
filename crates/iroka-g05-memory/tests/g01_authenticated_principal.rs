@@ -434,6 +434,16 @@ impl iroka_g05_memory::EpisodicConsentAuthority for NoConsent {
     }
 }
 
+struct UnavailableG11;
+impl iroka_g05_memory::G11MemoryAuditAuthority for UnavailableG11 {
+    fn append_memory_event(
+        &self,
+        _: &iroka_g05_memory::AuditEvent,
+    ) -> Result<iroka_g05_memory::G11Acknowledgment, iroka_g05_memory::G05Error> {
+        Err(iroka_g05_memory::G05Error::AuditUnavailable)
+    }
+}
+
 #[test]
 fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas() {
     use iroka_g05_memory::{
@@ -637,12 +647,29 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
         LifecycleState::PendingAudit
     );
 
+    assert_eq!(
+        dispatch_g11_outbox(&repository, &UnavailableG11, 10),
+        Err(iroka_g05_memory::G05Error::AuditUnavailable)
+    );
+    assert_eq!(
+        repository.get_metadata("memory:integrated").unwrap().unwrap().lifecycle_state,
+        LifecycleState::PendingAudit
+    );
+
     let acknowledgments = dispatch_g11_outbox(&repository, &g11_dispatch, 10).unwrap();
     assert_eq!(g11_sink.verify_integrity(), Ok(()));
     let pending_ack = acknowledgments.into_iter()
         .find(|ack| ack.event_id() == pending_event.event_id)
         .unwrap();
 
+    assert_eq!(
+        commit_durable_activation(&mut repository, &pending, &pending_ack, 1, 1_210),
+        Err(iroka_g05_memory::G05Error::VersionConflict)
+    );
+    assert_eq!(
+        repository.get_metadata("memory:integrated").unwrap().unwrap().lifecycle_state,
+        LifecycleState::PendingAudit
+    );
     commit_durable_activation(&mut repository, &pending, &pending_ack, 2, 1_210).unwrap();
     assert_eq!(
         repository.get_metadata("memory:integrated").unwrap().unwrap().lifecycle_state,
