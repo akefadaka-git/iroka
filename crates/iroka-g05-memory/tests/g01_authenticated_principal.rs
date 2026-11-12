@@ -809,12 +809,20 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
         Err(iroka_g05_memory::G05Error::VersionConflict)
     );
     assert_eq!(
-        repository.get_metadata("memory:integrated").unwrap().unwrap().lifecycle_state,
+        repository
+            .get_metadata("memory:integrated")
+            .unwrap()
+            .unwrap()
+            .lifecycle_state,
         LifecycleState::PendingAudit
     );
     commit_durable_activation(&mut repository, &pending, &pending_ack, 2, 1_210).unwrap();
     assert_eq!(
-        repository.get_metadata("memory:integrated").unwrap().unwrap().lifecycle_state,
+        repository
+            .get_metadata("memory:integrated")
+            .unwrap()
+            .unwrap()
+            .lifecycle_state,
         LifecycleState::Active
     );
     assert_eq!(g11_sink.verify_integrity(), Ok(()));
