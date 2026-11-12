@@ -84,7 +84,10 @@ impl CheckpointQuorumPolicy {
         }
         validate_key(&signer.public_key, &signer.key_id, signer.not_before, signer.not_after)?;
         let mut operators = HashSet::new();
-        if signer.operator_id.trim().is_empty() || !operators.insert(signer.operator_id.clone()) {
+        if signer.operator_id.trim().is_empty()
+            || signer.operator_id.len() > 256
+            || !operators.insert(signer.operator_id.clone())
+        {
             return Err(CheckpointQuorumError::InvalidPolicy);
         }
         let mut witness_map = HashMap::new();
@@ -135,6 +138,7 @@ fn validate_key(
     not_after: u64,
 ) -> Result<(), CheckpointQuorumError> {
     if key_id.trim().is_empty()
+        || key_id.len() > 256
         || not_before >= not_after
         || VerifyingKey::from_bytes(public_key).is_err()
     {
