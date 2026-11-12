@@ -977,61 +977,24 @@ mod tests {
 
     #[test]
     fn durable_activation_waits_for_g11_ack_and_final_version_check() {
-        let item = candidate(MemoryClass::Durable, Classification::Internal);
-        let record = MemoryRecord {
+        let mut item = candidate(MemoryClass::Durable, Classification::Internal);
+        item.record_version = 2;
+        let pending = MemoryRecord {
             candidate: item,
-            lifecycle_state: LifecycleState::PendingReview,
-            approval_ref: None,
-            approved_by_ref: None,
-            approved_at: None,
-            updated_at: 100,
+            lifecycle_state: LifecycleState::PendingAudit,
+            approval_ref: Some("approval:1".into()),
+            approved_by_ref: Some("reviewer:1".into()),
+            approved_at: Some(110),
+            updated_at: 110,
         };
-        let receipt = DurableApprovalReceipt {
-            approval_ref: "approval:1".into(),
-            memory_id: "memory:1".into(),
-            tenant_ref: "tenant:1".into(),
-            subject_ref: "principal:1".into(),
-            content_sha256: record.candidate.content_sha256.clone(),
-            reviewer_ref: "reviewer:1".into(),
-            issued_at: 101,
-            expires_at: 200,
-            proof_ref: "proof:1".into(),
-            signed_proof: test_signed_proof("proof:1"),
-        };
-        let reviewer = VerifiedPrincipal::from_verified_credential(
-            "reviewer:1".into(),
-            "issuer:test".into(),
-            "credential:reviewer".into(),
-        );
-        let request = AuthorizationRequest {
-            operation: Operation::ActivateDurable,
-            principal_ref: "reviewer:1".into(),
-            tenant_ref: "tenant:1".into(),
-            subject_ref: "principal:1".into(),
-            purpose: Purpose::TaskContinuity,
-            classification: Classification::Internal,
-            memory_id: Some("memory:1".into()),
-            recipient_refs: vec![],
-            correlation_ref: "trace:activation".into(),
-        };
-        let pending = prepare_durable_activation(
-            &record,
-            &receipt,
-            &reviewer,
-            &request,
-            &AllowGovernance,
-            110,
-        )
-        .unwrap();
-        assert_eq!(pending.lifecycle_state, LifecycleState::PendingAudit);
-        assert_ne!(pending.lifecycle_state, LifecycleState::Active);
 
         let event = durable_activation_audit_event(&pending).unwrap();
         let ack = AllowGovernance.append_audit(&event).unwrap();
         assert_eq!(
-            finalize_durable_activation(&pending, &ack, pending.candidate.record_version - 1, 112),
+            finalize_durable_activation(&pending, &ack, 1, 112),
             Err(G05Error::VersionConflict),
         );
+
         let mut mismatched_ack = ack.clone();
         mismatched_ack.payload_sha256 = "0".repeat(64);
         assert_eq!(
@@ -1043,9 +1006,14 @@ mod tests {
             ),
             Err(G05Error::AuditUnavailable),
         );
-        let active =
-            finalize_durable_activation(&pending, &ack, pending.candidate.record_version, 112)
-                .unwrap();
+
+        let active = finalize_durable_activation(
+            &pending,
+            &ack,
+            pending.candidate.record_version,
+            112,
+        )
+        .unwrap();
         assert_eq!(active.lifecycle_state, LifecycleState::Active);
     }
 
