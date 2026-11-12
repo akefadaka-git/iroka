@@ -429,8 +429,13 @@ impl PostgresG11OutboxWorker {
             return Err(G05Error::MalformedRecord);
         }
         let lease_seconds = lease_seconds as f64;
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         let rows = tx
             .query(
                 "WITH picked AS (
