@@ -11,4 +11,30 @@ CREATE INDEX IF NOT EXISTS g02_authority_outbox_expired_lease
     ON g02_authority_outbox(lease_expires_at)
     WHERE delivered_at IS NULL AND lease_token IS NOT NULL;
 
+
+CREATE OR REPLACE FUNCTION g02_protect_authority_outbox_payload()
+RETURNS trigger LANGUAGE plpgsql AS $g02$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        RAISE EXCEPTION 'G02 authority outbox history is append-only';
+    END IF;
+    IF NEW.event_id IS DISTINCT FROM OLD.event_id
+        OR NEW.command_id IS DISTINCT FROM OLD.command_id
+        OR NEW.event_kind IS DISTINCT FROM OLD.event_kind
+        OR NEW.payload_sha256 IS DISTINCT FROM OLD.payload_sha256
+        OR NEW.payload_json IS DISTINCT FROM OLD.payload_json
+        OR NEW.occurred_at IS DISTINCT FROM OLD.occurred_at
+        OR NEW.created_at IS DISTINCT FROM OLD.created_at
+    THEN
+        RAISE EXCEPTION 'G02 authority outbox payload is immutable';
+    END IF;
+    RETURN NEW;
+END;
+$g02$;
+
+DROP TRIGGER IF EXISTS g02_authority_outbox_immutable_payload ON g02_authority_outbox;
+CREATE TRIGGER g02_authority_outbox_immutable_payload
+BEFORE UPDATE OR DELETE ON g02_authority_outbox
+FOR EACH ROW EXECUTE FUNCTION g02_protect_authority_outbox_payload();
+
 COMMIT;
