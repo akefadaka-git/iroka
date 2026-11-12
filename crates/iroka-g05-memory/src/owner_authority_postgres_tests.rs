@@ -317,7 +317,7 @@ fn postgres_g02_outbox_workers_claim_distinct_rows_with_skip_locked() {
     let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db = admin(&url);
     let mut cleanup = Client::connect(&url, NoTls).unwrap();
-    cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
+    cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
     let signer = SigningKey::from_bytes(&[87u8; 32]);
     let auth = verifier(&url, &signer, "owner-key");
     for _ in 0..2 {
@@ -371,7 +371,7 @@ fn postgres_g02_outbox_dispatch_acknowledges_durable_sink_receipt() {
     let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db = admin(&url);
     let mut cleanup = Client::connect(&url, NoTls).unwrap();
-    cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
+    cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
     let signer = SigningKey::from_bytes(&[88u8; 32]);
     let auth = verifier(&url, &signer, "owner-key");
     let signed = command(
@@ -414,7 +414,7 @@ fn postgres_g02_outbox_dispatch_schedules_retry_after_sink_failure() {
     let _guard = PG_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let _db = admin(&url);
     let mut cleanup = Client::connect(&url, NoTls).unwrap();
-    cleanup.execute("DELETE FROM g02_authority_outbox WHERE delivered_at IS NULL", &[]).unwrap();
+    cleanup.batch_execute("TRUNCATE TABLE g02_authority_outbox").unwrap();
     let signer = SigningKey::from_bytes(&[89u8; 32]);
     let auth = verifier(&url, &signer, "owner-key");
     let signed = command(
