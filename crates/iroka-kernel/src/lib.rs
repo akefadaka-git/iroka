@@ -26,7 +26,8 @@ pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use g08::{
     CreateWorkflow, G08Error, SqliteWorkflowStore, TaskClaimRequest, TaskLeaseCompletionRequest,
     TaskLeaseReceipt, TaskLeaseRenewalRequest, TaskReceipt, TaskSpec, TaskState,
-    TaskTransitionRequest, TenantAuthority, TenantScope, WorkflowReceipt, WorkflowState,
+    TaskRetryRequest, TaskTransitionRequest, TenantAuthority, TenantScope,
+    WorkflowCancellationReceipt, WorkflowCancellationRequest, WorkflowReceipt, WorkflowState,
 };
 pub use g08_retry::{RetryFailureClass, RetryPolicy, RetryPolicyError, RetrySchedule};
 #[cfg(test)]
