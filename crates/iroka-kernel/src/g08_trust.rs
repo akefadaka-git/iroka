@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -321,7 +321,7 @@ impl<R: WorkerRevocationChecker, G: WorkerReplayGuard> Ed25519WorkerAuthenticato
         let signing_bytes = proof.signing_bytes()?;
         record
             .key
-            .verify(&signing_bytes, &signature)
+            .verify_strict(&signing_bytes, &signature)
             .map_err(|_| WorkerAuthError::InvalidSignature)?;
 
         self.replay_guard
@@ -433,7 +433,7 @@ mod tests {
             tenant_selector: "tenant:1".into(),
             resource_id: None,
             sequence,
-            request_nonce: [sequence as u8; 32],
+            request_nonce: [0x5a; 32],
             issued_at: 1_000,
             expires_at: 1_020,
         };
