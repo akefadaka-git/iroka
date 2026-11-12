@@ -954,8 +954,11 @@ impl SqliteWorkflowStore {
         let event_id = format!(
             "g08_lease_evt_{}",
             hex_digest(&Sha256::digest(
-                format!("{task_id_value}:{next_task_version}:{}:{event_kind}", request.now)
-                    .as_bytes()
+                format!(
+                    "{task_id_value}:{next_task_version}:{}:{event_kind}",
+                    request.now
+                )
+                .as_bytes()
             ))
         );
         transaction.execute(
