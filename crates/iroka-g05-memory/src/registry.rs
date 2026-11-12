@@ -20,7 +20,8 @@ impl SqliteG05AuthorityRegistry {
     }
 
     pub fn open_in_memory() -> Result<Self, G05Error> {
-        let connection = Connection::open_in_memory().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let connection =
+            Connection::open_in_memory().map_err(|_| G05Error::AuthorityUnavailable)?;
         Self::from_connection(connection)
     }
 
@@ -70,21 +71,40 @@ impl SqliteG05AuthorityRegistry {
         expires_at: u64,
         action_ref: &str,
     ) -> Result<(), G05Error> {
-        if [consent_ref, tenant_ref, subject_ref, issuer, credential_id, action_ref]
-            .iter()
-            .any(|v| v.trim().is_empty() || v.len() > 512)
+        if [
+            consent_ref,
+            tenant_ref,
+            subject_ref,
+            issuer,
+            credential_id,
+            action_ref,
+        ]
+        .iter()
+        .any(|v| v.trim().is_empty() || v.len() > 512)
             || granted_at >= expires_at
         {
             return Err(G05Error::MalformedRecord);
         }
-        let c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let c = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         c.execute(
             "INSERT INTO g05_episodic_consents
              (consent_ref,tenant_ref,subject_ref,purpose,grant_issuer,grant_credential_id,
               granted_at,expires_at,revoked_at,version,action_ref)
              VALUES(?1,?2,?3,?4,?5,?6,?7,?8,NULL,1,?9)",
-            params![consent_ref,tenant_ref,subject_ref,purpose_key(purpose),issuer,credential_id,
-                to_i64(granted_at)?,to_i64(expires_at)?,action_ref],
+            params![
+                consent_ref,
+                tenant_ref,
+                subject_ref,
+                purpose_key(purpose),
+                issuer,
+                credential_id,
+                to_i64(granted_at)?,
+                to_i64(expires_at)?,
+                action_ref
+            ],
         )
         .map_err(|_| G05Error::DuplicateRecord)?;
         Ok(())
@@ -98,12 +118,16 @@ impl SqliteG05AuthorityRegistry {
         now: u64,
     ) -> Result<(), G05Error> {
         let c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
-        let changed = c.execute(
-            "UPDATE g05_episodic_consents SET revoked_at=?1,version=version+1
-             WHERE consent_ref=?2 AND tenant_ref=?3 AND subject_ref=?4 AND revoked_at IS NULL",
-            params![to_i64(now)?,consent_ref,tenant_ref,subject_ref],
-        ).map_err(|_| G05Error::AuthorityUnavailable)?;
-        if changed != 1 { return Err(G05Error::EpisodicOptInRequired); }
+        let changed = c
+            .execute(
+                "UPDATE g05_episodic_consents SET revoked_at=?1,version=version+1
+                 WHERE consent_ref=?2 AND tenant_ref=?3 AND subject_ref=?4 AND revoked_at IS NULL",
+                params![to_i64(now)?, consent_ref, tenant_ref, subject_ref],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        if changed != 1 {
+            return Err(G05Error::EpisodicOptInRequired);
+        }
         Ok(())
     }
 }
@@ -118,13 +142,25 @@ impl EpisodicConsentAuthority for SqliteG05AuthorityRegistry {
         now: u64,
     ) -> Result<(), G05Error> {
         let c = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
-        let row: Option<(String,String,String,i64,i64,Option<i64>)> = c.query_row(
-            "SELECT tenant_ref,subject_ref,purpose,granted_at,expires_at,revoked_at
-             FROM g05_episodic_consents WHERE consent_ref=?1",
-            [reference],
-            |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?)),
-        ).optional().map_err(|_| G05Error::AuthorityUnavailable)?;
-        let (t,s,p,g,e,revoked) = row.ok_or(G05Error::EpisodicOptInRequired)?;
+        let row: Option<(String, String, String, i64, i64, Option<i64>)> = c
+            .query_row(
+                "SELECT tenant_ref,subject_ref,purpose,granted_at,expires_at,revoked_at
+                 FROM g05_episodic_consents WHERE consent_ref=?1",
+                [reference],
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                    ))
+                },
+            )
+            .optional()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let (t, s, p, g, e, revoked) = row.ok_or(G05Error::EpisodicOptInRequired)?;
         if t != tenant || s != subject || p != purpose_key(purpose) {
             return Err(G05Error::ConsentScopeMismatch);
         }
