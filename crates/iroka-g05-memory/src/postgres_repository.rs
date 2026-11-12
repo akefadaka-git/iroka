@@ -422,15 +422,10 @@ impl PostgresG11OutboxWorker {
     /// workers from claiming the same live event; expired leases are reclaimed.
     pub fn claim_batch(
         &self,
-        worker_id: &str,
         limit: i64,
         lease_seconds: i64,
     ) -> Result<Vec<LeasedG11Event>, G05Error> {
-        if worker_id.trim().is_empty()
-            || worker_id.len() > 256
-            || !(1..=500).contains(&limit)
-            || !(5..=900).contains(&lease_seconds)
-        {
+        if !(1..=500).contains(&limit) || !(5..=900).contains(&lease_seconds) {
             return Err(G05Error::MalformedRecord);
         }
         let limit = limit as i32;
