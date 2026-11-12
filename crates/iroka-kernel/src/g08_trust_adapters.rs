@@ -228,7 +228,7 @@ impl SqliteQuorumTrustedClock {
         if high.saturating_sub(low) > self.max_skew_seconds {
             return Err(TrustedTimeError::Invalid);
         }
-        let candidate = valid[valid.len() / 2].2;
+        let candidate = valid[(valid.len() - 1) / 2].2;
         let expires_at = valid
             .iter()
             .map(|v| v.3)
@@ -426,7 +426,7 @@ impl SqliteWorkerRegistry {
         let signature = Signature::from_slice(&bundle.signature)
             .map_err(|_| WorkerRevocationError::Unavailable)?;
         self.root
-            .verify(&bytes, &signature)
+            .verify_strict(&bytes, &signature)
             .map_err(|_| WorkerRevocationError::Unavailable)?;
         let digest: [u8; 32] = sha2::Sha256::digest(&bytes).into();
         let mut connection = open_db(&self.path).map_err(|_| WorkerRevocationError::Unavailable)?;
@@ -494,10 +494,11 @@ impl SqliteWorkerRegistry {
         }
         let mut statement = connection.prepare(
             "SELECT worker_id,key_id,public_key,not_before,not_after FROM g08_worker_registry_keys
-             WHERE worker_revoked=0 AND key_revoked=0 ORDER BY worker_id,key_id"
+             WHERE worker_revoked=0 AND key_revoked=0
+               AND not_before<=?1 AND not_after>?1 ORDER BY worker_id,key_id"
         ).map_err(|_|WorkerRevocationError::Unavailable)?;
         let rows = statement
-            .query_map([], |r| {
+            .query_map([i64::try_from(now).map_err(|_| WorkerRevocationError::Unavailable)?], |r| {
                 Ok(WorkerKey {
                     worker_id: r.get(0)?,
                     key_id: r.get(1)?,
@@ -561,5 +562,239 @@ impl WorkerRevocationChecker for SqliteWorkerRegistry {
     }
     fn key_revoked(&self, worker_id: &str, key_id: &str) -> Result<bool, WorkerRevocationError> {
         self.status(worker_id, Some(key_id))
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
+    use std::{
+        sync::{Arc, Barrier},
+        thread,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    fn db_path(label: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("iroka-g08-{label}-{}-{nonce}.sqlite", std::process::id()))
+    }
+
+    #[test]
+    fn replay_guard_survives_restart_and_rejects_old_sequence() {
+        let path = db_path("replay-restart");
+        {
+            let guard = SqliteWorkerReplayGuard::open(&path).unwrap();
+            guard.consume_sequence("worker-a", "key-a", 7).unwrap();
+        }
+        let guard = SqliteWorkerReplayGuard::open(&path).unwrap();
+        assert_eq!(
+            guard.consume_sequence("worker-a", "key-a", 7),
+            Err(WorkerReplayError::Replay)
+        );
+        guard.consume_sequence("worker-a", "key-a", 8).unwrap();
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn replay_guard_serializes_competing_process_style_connections() {
+        let path = db_path("replay-race");
+        let barrier = Arc::new(Barrier::new(8));
+        let mut workers = Vec::new();
+        for _ in 0..8 {
+            let path = path.clone();
+            let barrier = Arc::clone(&barrier);
+            workers.push(thread::spawn(move || {
+                let guard = SqliteWorkerReplayGuard::open(path).unwrap();
+                barrier.wait();
+                guard.consume_sequence("worker-race", "key-race", 42)
+            }));
+        }
+        let results: Vec<_> = workers.into_iter().map(|w| w.join().unwrap()).collect();
+        assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+        assert_eq!(
+            results.iter().filter(|r| **r == Err(WorkerReplayError::Replay)).count(),
+            7
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    struct TestClock(u64);
+    impl TrustedClock for TestClock {
+        fn now_unix_seconds(&self) -> Result<u64, TrustedTimeError> {
+            Ok(self.0)
+        }
+    }
+
+    fn signed_time(
+        signing: &SigningKey,
+        source_id: &str,
+        sequence: u64,
+        unix_seconds: u64,
+    ) -> SignedTimeAttestation {
+        let payload = TimeAttestationPayload {
+            source_id: source_id.to_owned(),
+            key_id: "clock-key".to_owned(),
+            sequence,
+            unix_seconds,
+            expires_at: unix_seconds + 20,
+        };
+        let bytes = serde_jcs::to_vec(&payload).unwrap();
+        SignedTimeAttestation {
+            payload,
+            signature: signing.sign(&bytes).to_bytes().to_vec(),
+        }
+    }
+
+    #[test]
+    fn trusted_clock_requires_fresh_quorum_after_restart_and_rejects_rollback() {
+        let path = db_path("clock-restart");
+        let signing = SigningKey::from_bytes(&[31u8; 32]);
+        let authority = TimeAuthorityKey {
+            source_id: "clock-a".into(),
+            key_id: "clock-key".into(),
+            public_key: signing.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 2_000,
+        };
+        {
+            let clock = SqliteQuorumTrustedClock::open(&path, vec![authority.clone()], 1, 0).unwrap();
+            assert_eq!(clock.now_unix_seconds(), Err(TrustedTimeError::Unavailable));
+            assert_eq!(clock.observe(&[signed_time(&signing, "clock-a", 1, 1_000)]), Ok(1_000));
+            assert_eq!(clock.now_unix_seconds(), Ok(1_000));
+            assert_eq!(
+                clock.observe(&[signed_time(&signing, "clock-a", 1, 999)]),
+                Err(TrustedTimeError::Invalid)
+            );
+        }
+        let clock = SqliteQuorumTrustedClock::open(&path, vec![authority], 1, 0).unwrap();
+        assert_eq!(clock.now_unix_seconds(), Err(TrustedTimeError::Unavailable));
+        assert_eq!(
+            clock.observe(&[signed_time(&signing, "clock-a", 2, 1_001)]),
+            Ok(1_001)
+        );
+        assert_eq!(clock.now_unix_seconds(), Ok(1_001));
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn trusted_clock_rejects_duplicate_sources_and_bad_signatures() {
+        let path = db_path("clock-invalid");
+        let a = SigningKey::from_bytes(&[32u8; 32]);
+        let b = SigningKey::from_bytes(&[33u8; 32]);
+        let keys = vec![
+            TimeAuthorityKey {
+                source_id: "clock-a".into(),
+                key_id: "clock-key".into(),
+                public_key: a.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 2_000,
+            },
+            TimeAuthorityKey {
+                source_id: "clock-b".into(),
+                key_id: "clock-key".into(),
+                public_key: b.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 2_000,
+            },
+        ];
+        let clock = SqliteQuorumTrustedClock::open(&path, keys, 2, 2).unwrap();
+        let duplicate = [
+            signed_time(&a, "clock-a", 1, 1_000),
+            signed_time(&a, "clock-a", 2, 1_000),
+        ];
+        assert_eq!(clock.observe(&duplicate), Err(TrustedTimeError::Invalid));
+        let mut invalid = signed_time(&b, "clock-b", 1, 1_001);
+        invalid.signature[0] ^= 1;
+        assert_eq!(
+            clock.observe(&[signed_time(&a, "clock-a", 1, 1_000), invalid]),
+            Err(TrustedTimeError::Invalid)
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[derive(Serialize)]
+    struct RegistrySigningPayload<'a> {
+        root_key_id: &'a str,
+        payload: &'a WorkerRegistryPayload,
+    }
+
+    fn signed_registry(
+        root: &SigningKey,
+        version: u64,
+        revoked: bool,
+    ) -> SignedWorkerRegistryBundle {
+        let worker = SigningKey::from_bytes(&[44u8; 32]);
+        let payload = WorkerRegistryPayload {
+            version,
+            issued_at: 1_000,
+            expires_at: 1_100,
+            entries: vec![WorkerRegistryEntry {
+                worker_id: "worker-a".into(),
+                key_id: "worker-key".into(),
+                public_key: worker.verifying_key().to_bytes(),
+                not_before: 1_000,
+                not_after: 1_090,
+                worker_revoked: revoked,
+                key_revoked: false,
+            }],
+        };
+        let envelope = RegistrySigningPayload {
+            root_key_id: "owner-root-v1",
+            payload: &payload,
+        };
+        let bytes = serde_jcs::to_vec(&envelope).unwrap();
+        SignedWorkerRegistryBundle {
+            root_key_id: "owner-root-v1".into(),
+            payload,
+            signature: root.sign(&bytes).to_bytes().to_vec(),
+        }
+    }
+
+    #[test]
+    fn worker_registry_installs_signed_versions_and_enforces_revocation() {
+        let path = db_path("registry");
+        let root = SigningKey::from_bytes(&[55u8; 32]);
+        let registry = SqliteWorkerRegistry::open(
+            &path,
+            "owner-root-v1",
+            root.verifying_key().to_bytes(),
+            Arc::new(TestClock(1_010)),
+        )
+        .unwrap();
+        registry.install(&signed_registry(&root, 1, false)).unwrap();
+        assert_eq!(registry.worker_revoked("worker-a"), Ok(false));
+        assert_eq!(registry.key_revoked("worker-a", "worker-key"), Ok(false));
+        assert_eq!(registry.trust_snapshot().unwrap().len(), 1);
+        assert!(registry.install(&signed_registry(&root, 1, true)).is_err());
+        registry.install(&signed_registry(&root, 2, true)).unwrap();
+        assert_eq!(registry.worker_revoked("worker-a"), Ok(true));
+        assert_eq!(registry.key_revoked("worker-a", "worker-key"), Ok(true));
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn worker_registry_rejects_forged_bundle_and_unknown_worker() {
+        let path = db_path("registry-forged");
+        let root = SigningKey::from_bytes(&[56u8; 32]);
+        let registry = SqliteWorkerRegistry::open(
+            &path,
+            "owner-root-v1",
+            root.verifying_key().to_bytes(),
+            Arc::new(TestClock(1_010)),
+        )
+        .unwrap();
+        let mut forged = signed_registry(&root, 1, false);
+        forged.payload.entries[0].worker_id = "worker-forged".into();
+        assert!(registry.install(&forged).is_err());
+        assert_eq!(
+            registry.worker_revoked("unknown"),
+            Err(WorkerRevocationError::Unavailable)
+        );
+        let _ = std::fs::remove_file(path);
     }
 }
