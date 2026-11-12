@@ -219,7 +219,7 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
         Client::connect(&url,NoTls).unwrap(),policy_id,Arc::clone(&auth)
     );
     resolver.verify_schema().unwrap();
-    let (policy,stopped)=resolver.current_policy(1_200).unwrap();
+    let (policy,stopped)=resolver.current_policy(1_202).unwrap();
     assert_eq!(policy.version(),"policy-v1");
     assert!(stopped);
     let principal = verified_principal(&auth, &subject);
@@ -227,7 +227,7 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
         tenant_ref:tenant,subject_ref:"subject:resource".into(),purpose:Purpose::TaskContinuity,
         classification:Classification::Internal,memory_id:None,recipient_refs:vec![],
         correlation_ref:"trace:g09-test".into() };
-    resolver.authorize_resource_scope(&principal,&request,1_200).unwrap();
+    resolver.authorize_resource_scope(&principal,&request,1_202).unwrap();
 }
 
 #[test]
