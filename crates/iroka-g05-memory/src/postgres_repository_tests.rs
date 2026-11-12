@@ -1,4 +1,6 @@
-    use super::*;
+#[cfg(test)]
+mod postgres_tests {
+    use super::super::*;
     use crate::{
         Classification, MemoryCandidate, MemoryClass, Provenance, ProvenanceKind, Purpose,
     };
@@ -382,4 +384,5 @@ fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restar
         .get(0);
     assert_eq!(receipt_count, 1);
     cleanup(&mut admin, &[memory_id]);
+}
 }
