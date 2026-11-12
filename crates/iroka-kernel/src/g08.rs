@@ -3099,11 +3099,7 @@ mod tests {
             Ok(false)
         }
 
-        fn key_revoked(
-            &self,
-            _: &str,
-            _: &str,
-        ) -> Result<bool, crate::WorkerRevocationError> {
+        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, crate::WorkerRevocationError> {
             Ok(false)
         }
     }
