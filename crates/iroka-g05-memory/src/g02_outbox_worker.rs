@@ -107,7 +107,7 @@ impl PostgresG02AuthorityOutboxWorker {
              )
              UPDATE g02_authority_outbox AS o
              SET lease_owner=$2,
-                 lease_token=$3::uuid,
+                 lease_token=$3::text::uuid,
                  lease_expires_at=clock_timestamp()+($4 * INTERVAL '1 second'),
                  attempt_count=o.attempt_count+1
              FROM ready
@@ -140,7 +140,7 @@ impl PostgresG02AuthorityOutboxWorker {
             "UPDATE g02_authority_outbox
              SET delivered_at=clock_timestamp(),acknowledgment_sha256=$3,
                  lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,last_error_code=NULL
-             WHERE event_id=$1 AND lease_token=$2::uuid AND delivered_at IS NULL",
+             WHERE event_id=$1 AND lease_token=$2::text::uuid AND delivered_at IS NULL",
             &[&event_id,&lease_token,&acknowledgment_sha256],
         ).map_err(|_| G02OutboxError::Unavailable)?;
         if changed == 1 { Ok(()) } else { Err(G02OutboxError::LeaseLost) }
