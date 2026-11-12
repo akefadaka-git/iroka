@@ -455,12 +455,12 @@ impl PostgresG11OutboxWorker {
                     LIMIT $2 FOR UPDATE SKIP LOCKED
                  )
                  UPDATE g05_memory_g11_outbox AS o
-                 SET lease_owner=$1,lease_token=gen_random_uuid(),
+                 SET lease_owner=$1::text,lease_token=gen_random_uuid(),
                      lease_expires_at=clock_timestamp()+($3 * interval '1 second'),
                      attempt_count=o.attempt_count+1
                  FROM picked WHERE o.event_id=picked.event_id
                  RETURNING o.payload_json,o.lease_token::text,o.attempt_count",
-                &[&worker_id, &limit, &lease_seconds],
+                &[&worker_id.as_str(), &limit, &lease_seconds],
             )
             .map_err(|error| {
                 eprintln!("claim query failed: {error}");
