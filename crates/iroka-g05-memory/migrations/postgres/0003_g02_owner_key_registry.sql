@@ -49,6 +49,11 @@ CREATE TRIGGER g02_owner_registry_versions_no_mutation
 BEFORE UPDATE OR DELETE ON g02_owner_key_registry_versions
 FOR EACH ROW EXECUTE FUNCTION g02_reject_owner_registry_mutation();
 
+DROP TRIGGER IF EXISTS g02_owner_keys_no_mutation ON g02_owner_keys;
+CREATE TRIGGER g02_owner_keys_no_mutation
+BEFORE UPDATE OR DELETE ON g02_owner_keys
+FOR EACH ROW EXECUTE FUNCTION g02_reject_owner_registry_mutation();
+
 DROP TRIGGER IF EXISTS g02_owner_key_revocations_no_mutation ON g02_owner_key_revocations;
 CREATE TRIGGER g02_owner_key_revocations_no_mutation
 BEFORE UPDATE OR DELETE ON g02_owner_key_revocations
