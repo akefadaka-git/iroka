@@ -765,6 +765,75 @@ mod tests {
     }
 
     #[test]
+    fn offline_verifier_rejects_tampered_witness_receipt() {
+        let (package, policy, witnesses, retention, _) = fixture();
+        let previous_digest = "a".repeat(64);
+        let position = CheckpointChainPosition {
+            stream_id: "g11:memory",
+            sequence: 7,
+            previous_digest: Some(&previous_digest),
+            previous_sequence: 5,
+        };
+        let failing = FailingWitness;
+        let witness_refs: Vec<&dyn CheckpointWitnessProvider> =
+            vec![&witnesses[0], &witnesses[1], &failing];
+        let retention_refs: Vec<&dyn ImmutableRetentionProvider> =
+            retention.iter().map(|p| p as &dyn ImmutableRetentionProvider).collect();
+        let mut anchored = publish_checkpoint_package(
+            package,
+            &witness_refs,
+            &retention_refs,
+            &policy,
+            &position,
+            1_803,
+        ).unwrap();
+        anchored.witness_receipts[0].signature[0] ^= 0x01;
+        assert_eq!(
+            verify_externally_anchored_checkpoint(&anchored, &policy, &position, 1_803),
+            Err(CheckpointQuorumError::InvalidWitnessReceipt)
+        );
+    }
+
+    #[test]
+    fn policy_rejects_reused_public_keys_across_independent_roles() {
+        let signer = SigningKey::from_bytes(&[31u8; 32]);
+        let shared = signer.verifying_key().to_bytes();
+        let signer_trust = CheckpointSignerTrust {
+            operator_id: "operator:signer".into(),
+            key_id: "signer-key".into(),
+            public_key: shared,
+            not_before: 1,
+            not_after: 100,
+        };
+        let witnesses = (0..3).map(|i| {
+            let key = SigningKey::from_bytes(&[40 + i; 32]);
+            WitnessTrust {
+                witness_id: format!("witness-{i}"),
+                operator_id: format!("operator:witness-{i}"),
+                key_id: format!("witness-key-{i}"),
+                public_key: key.verifying_key().to_bytes(),
+                not_before: 1,
+                not_after: 100,
+            }
+        }).collect();
+        let retentions = (0..2).map(|i| {
+            let key = SigningKey::from_bytes(&[50 + i; 32]);
+            RetentionDomainTrust {
+                domain_id: format!("retention-{i}"),
+                operator_id: format!("operator:retention-{i}"),
+                key_id: format!("retention-key-{i}"),
+                public_key: if i == 0 { shared } else { key.verifying_key().to_bytes() },
+                not_before: 1,
+                not_after: 100,
+            }
+        }).collect();
+        assert!(matches!(
+            CheckpointQuorumPolicy::new(signer_trust, witnesses, retentions, 10),
+            Err(CheckpointQuorumError::InvalidPolicy)
+        ));
+    }
+
+    #[test]
     fn policy_rejects_shared_operator_domains() {
         let (package, policy, _, _, _) = fixture();
         let _ = (package, policy);
