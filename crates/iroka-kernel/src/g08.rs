@@ -728,8 +728,11 @@ impl SqliteWorkflowStore {
                 let ready_event_id = format!(
                     "g08_task_evt_{}",
                     hex_digest(&Sha256::digest(
-                        format!("{ready_task_id}:{next_ready_version}:{}:unblocked", request.now)
-                            .as_bytes()
+                        format!(
+                            "{ready_task_id}:{next_ready_version}:{}:unblocked",
+                            request.now
+                        )
+                        .as_bytes()
                     ))
                 );
                 transaction
@@ -1113,14 +1116,20 @@ mod tests {
                 depends_on: vec!["a".into()],
             },
         ];
-        assert_eq!(validate_and_digest_graph(&cycle), Err(G08Error::InvalidInput));
+        assert_eq!(
+            validate_and_digest_graph(&cycle),
+            Err(G08Error::InvalidInput)
+        );
 
         let missing = [TaskSpec {
             task_key: "a".into(),
             task_type: "compute".into(),
             depends_on: vec!["unknown".into()],
         }];
-        assert_eq!(validate_and_digest_graph(&missing), Err(G08Error::InvalidInput));
+        assert_eq!(
+            validate_and_digest_graph(&missing),
+            Err(G08Error::InvalidInput)
+        );
 
         let duplicate = [
             TaskSpec {
@@ -1134,7 +1143,10 @@ mod tests {
                 depends_on: vec![],
             },
         ];
-        assert_eq!(validate_and_digest_graph(&duplicate), Err(G08Error::InvalidInput));
+        assert_eq!(
+            validate_and_digest_graph(&duplicate),
+            Err(G08Error::InvalidInput)
+        );
     }
 
     #[test]
@@ -1203,11 +1215,19 @@ mod tests {
             .unwrap();
         assert_eq!(created.len(), 2);
         assert_eq!(
-            created.iter().find(|task| task.task_key == "source").unwrap().state,
+            created
+                .iter()
+                .find(|task| task.task_key == "source")
+                .unwrap()
+                .state,
             TaskState::Ready
         );
         assert_eq!(
-            created.iter().find(|task| task.task_key == "transform").unwrap().state,
+            created
+                .iter()
+                .find(|task| task.task_key == "transform")
+                .unwrap()
+                .state,
             TaskState::Blocked
         );
         let replay = store
@@ -1222,7 +1242,10 @@ mod tests {
             .unwrap();
         assert_eq!(created, replay);
 
-        let source = created.iter().find(|task| task.task_key == "source").unwrap();
+        let source = created
+            .iter()
+            .find(|task| task.task_key == "source")
+            .unwrap();
         store
             .transition_task(
                 &authority,
