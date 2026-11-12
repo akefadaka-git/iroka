@@ -119,11 +119,18 @@ where
         reviewer_principal: &VerifiedPrincipal,
         now: u64,
     ) -> Result<(), G05Error> {
+        // The organization scope is part of the G01-signed proof, not a
+        // caller-selected G05 field. Require the receipt selector to agree
+        // with that signed scope before resolving the current designation.
+        let organization_ref = receipt.signed_proof.payload.organization_id.as_str();
+        if organization_ref != receipt.subject_ref {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
         self.reviewers.verify_designated_reviewer(
             receipt,
             record,
             reviewer_principal,
-            &receipt.subject_ref,
+            organization_ref,
             now,
         )
     }
