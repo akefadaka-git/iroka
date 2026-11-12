@@ -197,7 +197,7 @@ impl SqliteWorkflowStore {
         validate_request(request)?;
         let scope = authority
             .resolve_tenant(principal, &request.tenant_selector, request.now)
-            .map_err(|_| G08Error::TenantAuthorityUnavailable)?;
+            ?;
         if scope.subject() != principal.subject()
             || scope.tenant_id() != request.tenant_selector
             || scope.resolved_at() > request.now
