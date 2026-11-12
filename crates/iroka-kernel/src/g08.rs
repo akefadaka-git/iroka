@@ -241,7 +241,9 @@ impl SqliteWorkflowStore {
             .optional()
             .map_err(|_| G08Error::StoreUnavailable)?;
 
-        if let Some((id, owner_subject, prior_digest, contract, state, version, created_at)) = existing {
+        if let Some((id, owner_subject, prior_digest, contract, state, version, created_at)) =
+            existing
+        {
             // Idempotency receipts are owner-bound; another tenant member must not
             // learn or reuse a workflow created by a different subject.
             if owner_subject != scope.subject() {
