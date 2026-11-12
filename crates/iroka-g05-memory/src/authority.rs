@@ -13,8 +13,8 @@ use iroka_kernel::{
 };
 
 use crate::{
-    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, EpisodicConsentAuthority, G05Error,
-    G11MemoryAuditAuthority, GovernancePort, MemoryRecord, Purpose,
+    AuditEvent, AuthorizationRequest, DurableApprovalReceipt, G05Error, GovernancePort,
+    MemoryRecord, Purpose,
 };
 
 pub trait EpisodicConsentAuthority: Send + Sync {
