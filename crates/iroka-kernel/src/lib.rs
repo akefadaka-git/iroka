@@ -23,8 +23,8 @@ pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use g08::{
-    CreateWorkflow, G08Error, SqliteWorkflowStore, TaskReceipt, TaskSpec, TaskState, TaskTransitionRequest,
-    TenantAuthority, TenantScope, WorkflowReceipt, WorkflowState,
+    CreateWorkflow, G08Error, SqliteWorkflowStore, TaskReceipt, TaskSpec, TaskState,
+    TaskTransitionRequest, TenantAuthority, TenantScope, WorkflowReceipt, WorkflowState,
 };
 #[cfg(test)]
 pub(crate) use governance::{
