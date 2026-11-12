@@ -250,14 +250,21 @@ mod postgres_tests {
         let mut repo = repository(&url);
         repo.insert_with_audit(record, event.clone()).unwrap();
 
-        let first_worker = worker(&url);
-        let second_worker = worker(&url);
-        let first_claim = first_worker.claim_batch("worker-a", 10, 30).unwrap();
-        assert_eq!(first_claim.len(), 1);
-        assert!(second_worker
-            .claim_batch("worker-b", 10, 30)
-            .unwrap()
-            .is_empty());
+        let barrier = Arc::new(Barrier::new(2));
+        let mut handles = Vec::new();
+        for worker_id in ["worker-a", "worker-b"] {
+            let url = url.clone();
+            let barrier = barrier.clone();
+            handles.push(thread::spawn(move || {
+                let worker = worker(&url);
+                barrier.wait();
+                worker.claim_batch(worker_id, 10, 30).unwrap()
+            }));
+        }
+        let claims: Vec<_> = handles.into_iter().map(|handle| handle.join().unwrap()).collect();
+        assert_eq!(claims.iter().map(Vec::len).sum::<usize>(), 1);
+        assert_eq!(claims.iter().filter(|batch| batch.is_empty()).count(), 1);
+        let first_claim = claims.into_iter().find(|batch| !batch.is_empty()).unwrap();
 
         // Force expiry through database time to model a crashed worker without
         // sleeping; a new process/connection must reclaim the event.
