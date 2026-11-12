@@ -89,12 +89,16 @@ impl CheckpointQuorumPolicy {
         }
         let mut witness_map = HashMap::new();
         let mut all_key_ids = HashSet::from([signer.key_id.clone()]);
+        let mut all_public_keys = HashSet::from([signer.public_key]);
         for witness in witnesses {
             validate_key(&witness.public_key, &witness.key_id, witness.not_before, witness.not_after)?;
             if witness.witness_id.trim().is_empty()
+                || witness.witness_id.len() > 256
                 || witness.operator_id.trim().is_empty()
+                || witness.operator_id.len() > 256
                 || !operators.insert(witness.operator_id.clone())
                 || !all_key_ids.insert(witness.key_id.clone())
+                || !all_public_keys.insert(witness.public_key)
                 || witness_map.insert(witness.witness_id.clone(), witness).is_some()
             {
                 return Err(CheckpointQuorumError::InvalidPolicy);
@@ -104,9 +108,12 @@ impl CheckpointQuorumPolicy {
         for domain in retention_domains {
             validate_key(&domain.public_key, &domain.key_id, domain.not_before, domain.not_after)?;
             if domain.domain_id.trim().is_empty()
+                || domain.domain_id.len() > 256
                 || domain.operator_id.trim().is_empty()
+                || domain.operator_id.len() > 256
                 || !operators.insert(domain.operator_id.clone())
                 || !all_key_ids.insert(domain.key_id.clone())
+                || !all_public_keys.insert(domain.public_key)
                 || retention_map.insert(domain.domain_id.clone(), domain).is_some()
             {
                 return Err(CheckpointQuorumError::InvalidPolicy);
@@ -378,6 +385,7 @@ pub fn publish_checkpoint_package(
     now: u64,
 ) -> Result<ExternallyAnchoredCheckpoint, CheckpointQuorumError> {
     package.validate(position)?;
+    verify_checkpoint_signer(&package.checkpoint, policy, now)?;
     if witness_providers.len() != 3 || retention_providers.len() != 2 {
         return Err(CheckpointQuorumError::InvalidPolicy);
     }
@@ -554,7 +562,9 @@ fn witness_receipts_digest(receipts: &[WitnessReceipt]) -> Result<String, Checkp
     let mut sorted = receipts.to_vec();
     sorted.sort_by(|a, b| a.witness_id.cmp(&b.witness_id));
     let canonical = serde_jcs::to_vec(&sorted).map_err(|_| CheckpointQuorumError::Malformed)?;
-    Ok(sha256_hex(&canonical))
+    let mut domain_separated = b"IROKA:G11:WITNESS-RECEIPT-SET:V1\0".to_vec();
+    domain_separated.extend_from_slice(&canonical);
+    Ok(sha256_hex(&domain_separated))
 }
 
 fn valid_digest(value: &str) -> bool {
