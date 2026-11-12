@@ -14,6 +14,7 @@ mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod memory_audit;
 mod operational_self_model;
 mod organization_authority;
 mod owner_approval;
@@ -60,6 +61,10 @@ pub use igacms::{
     verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
+};
+pub use memory_audit::{
+    MemoryAuditError, MemoryLifecycleAuditSink, MemoryLifecycleEvent,
+    SqliteMemoryLifecycleAuditStore, MEMORY_EVENT_SCHEMA_ID, MEMORY_EVENT_SCHEMA_VERSION,
 };
 pub use operational_self_model::{
     OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,

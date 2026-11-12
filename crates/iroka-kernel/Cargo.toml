@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [features]
 dev-no-revocations = []
+test-support = []
 
 [dependencies]
 base64 = "=0.22.1"

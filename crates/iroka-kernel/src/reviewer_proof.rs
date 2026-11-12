@@ -69,6 +69,14 @@ impl SignedReviewerProof {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedReviewerProof {
     reviewer_id: String,
+    designation_id: String,
+    designation_version: u64,
+    key_id: String,
+    memory_id: String,
+    record_version: u64,
+    content_sha256: String,
+    purpose: String,
+    classification: String,
     subject: String,
     issuer: String,
     approval_id: String,
@@ -78,12 +86,22 @@ pub struct VerifiedReviewerProof {
     resource: String,
     policy_version: String,
     proof_id: String,
+    issued_at: u64,
+    expires_at: u64,
     verified_at: u64,
 }
 
 #[rustfmt::skip]
 impl VerifiedReviewerProof {
     pub fn reviewer_id(&self) -> &str { &self.reviewer_id }
+    pub fn designation_id(&self) -> &str { &self.designation_id }
+    pub fn designation_version(&self) -> u64 { self.designation_version }
+    pub fn key_id(&self) -> &str { &self.key_id }
+    pub fn memory_id(&self) -> &str { &self.memory_id }
+    pub fn record_version(&self) -> u64 { self.record_version }
+    pub fn content_sha256(&self) -> &str { &self.content_sha256 }
+    pub fn purpose(&self) -> &str { &self.purpose }
+    pub fn classification(&self) -> &str { &self.classification }
     pub fn subject(&self) -> &str { &self.subject }
     pub fn issuer(&self) -> &str { &self.issuer }
     pub fn approval_id(&self) -> &str { &self.approval_id }
@@ -93,7 +111,38 @@ impl VerifiedReviewerProof {
     pub fn resource(&self) -> &str { &self.resource }
     pub fn policy_version(&self) -> &str { &self.policy_version }
     pub fn proof_id(&self) -> &str { &self.proof_id }
+    pub fn issued_at(&self) -> u64 { self.issued_at }
+    pub fn expires_at(&self) -> u64 { self.expires_at }
     pub fn verified_at(&self) -> u64 { self.verified_at }
+
+    /// Test-only fixture constructor. Never enable the `test-support` feature
+    /// in production binaries; production values are emitted only by G01 verification.
+    #[cfg(feature = "test-support")]
+    pub fn for_test(payload: &ReviewerProofPayload, verified_at: u64) -> Self {
+        Self {
+            reviewer_id: payload.reviewer_id.clone(),
+            designation_id: payload.designation_id.clone(),
+            designation_version: payload.designation_version,
+            key_id: payload.key_id.clone(),
+            memory_id: payload.memory_id.clone(),
+            record_version: payload.record_version,
+            content_sha256: payload.content_sha256.clone(),
+            purpose: payload.purpose.clone(),
+            classification: payload.classification.clone(),
+            subject: payload.subject.clone(),
+            issuer: payload.issuer.clone(),
+            approval_id: payload.approval_id.clone(),
+            tenant_id: payload.tenant_id.clone(),
+            organization_id: payload.organization_id.clone(),
+            capability: payload.capability.clone(),
+            resource: payload.resource.clone(),
+            policy_version: payload.policy_version.clone(),
+            proof_id: payload.proof_id.clone(),
+            issued_at: payload.issued_at,
+            expires_at: payload.expires_at,
+            verified_at,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -160,6 +209,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         expected_organization_id: &str,
         expected_designation_id: &str,
         expected_designation_version: u64,
+        expected_key_id: &str,
         expected_memory_id: &str,
         expected_record_version: u64,
         expected_content_sha256: &str,
@@ -177,7 +227,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
             p.memory_id.as_str(), p.content_sha256.as_str(), p.purpose.as_str(), p.classification.as_str(),
             p.capability.as_str(), p.resource.as_str(), p.policy_version.as_str(),
             expected_reviewer_id, expected_approval_id, expected_tenant_id,
-            expected_organization_id, expected_designation_id, expected_memory_id,
+            expected_organization_id, expected_designation_id, expected_key_id, expected_memory_id,
             expected_content_sha256, expected_purpose, expected_classification, expected_capability, expected_resource,
             expected_policy_version] {
             if value.trim().is_empty() || value.len() > 512 { return Err(ReviewerProofError::Malformed); }
@@ -196,7 +246,7 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
         if p.reviewer_id != expected_reviewer_id || p.approval_id != expected_approval_id
             || p.tenant_id != expected_tenant_id || p.organization_id != expected_organization_id
             || p.designation_id != expected_designation_id || p.designation_version != expected_designation_version
-            || p.memory_id != expected_memory_id || p.record_version != expected_record_version
+            || p.key_id != expected_key_id || p.memory_id != expected_memory_id || p.record_version != expected_record_version
             || p.content_sha256 != expected_content_sha256 || p.purpose != expected_purpose
             || p.classification != expected_classification || p.capability != expected_capability || p.resource != expected_resource
             || p.policy_version != expected_policy_version { return Err(ReviewerProofError::ScopeMismatch); }
@@ -222,11 +272,15 @@ impl<R: ReviewerKeyBindingResolver> ReviewerProofVerifier<R> {
                 other => ReviewerProofError::from(other),
             })?;
         Ok(VerifiedReviewerProof {
-            reviewer_id: p.reviewer_id.clone(), subject: p.subject.clone(), issuer: p.issuer.clone(),
+            reviewer_id: p.reviewer_id.clone(), designation_id: p.designation_id.clone(),
+            designation_version: p.designation_version, key_id: p.key_id.clone(), memory_id: p.memory_id.clone(),
+            record_version: p.record_version, content_sha256: p.content_sha256.clone(),
+            purpose: p.purpose.clone(), classification: p.classification.clone(),
+            subject: p.subject.clone(), issuer: p.issuer.clone(),
             approval_id: p.approval_id.clone(), tenant_id: p.tenant_id.clone(),
             organization_id: p.organization_id.clone(), capability: p.capability.clone(),
             resource: p.resource.clone(), policy_version: p.policy_version.clone(),
-            proof_id: p.proof_id.clone(), verified_at: now,
+            proof_id: p.proof_id.clone(), issued_at: p.issued_at, expires_at: p.expires_at, verified_at: now,
         })
     }
 }
@@ -265,7 +319,7 @@ mod tests {
     fn verify(v:&ReviewerProofVerifier<Bindings>,p:&SignedReviewerProof,principal:&VerifiedPrincipal)
         -> Result<VerifiedReviewerProof,ReviewerProofError> {
         v.verify_and_consume(p,principal,"reviewer:maale-01","approval:17","tenant:alpha",
-            "org:alpha","designation:1",3,"memory:1",4,&"a".repeat(64),"ORGANIZATIONAL_CONTEXT",
+            "org:alpha","designation:1",3,"reviewer-key-01","memory:1",4,&"a".repeat(64),"ORGANIZATIONAL_CONTEXT",
             "CONFIDENTIAL","content.review","translation:chapter-1","policy:v1",1200)
     }
     #[test]

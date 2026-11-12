@@ -1,0 +1,21 @@
+[package]
+name = "iroka-g05-memory"
+version = "0.1.0"
+description = "Governed G05 memory domain contracts and fail-closed lifecycle primitives"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+sha2 = "=0.10.9"
+rusqlite = { version = "=0.32.1", features = ["bundled"] }
+iroka-kernel = { path = "../iroka-kernel" }
+serde_json = "1"
+
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+iroka-kernel = { path = "../iroka-kernel", features = ["test-support"] }
