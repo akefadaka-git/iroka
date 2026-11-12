@@ -16,6 +16,16 @@ pub trait TrustedClock: Send + Sync {
 /// emergency-stop state on every invocation. A stale/unavailable source denies.
 pub trait G09PolicyResolver: Send + Sync {
     fn current_policy(&self, now: u64) -> Result<(Policy, bool), G05Error>;
+
+    /// Recheck tenant/resource scope against current G09 authority state.
+    /// This is mandatory because the kernel capability policy alone does not
+    /// establish ownership of a particular tenant memory resource.
+    fn authorize_resource_scope(
+        &self,
+        principal: &VerifiedPrincipal,
+        request: &AuthorizationRequest,
+        now: u64,
+    ) -> Result<(), G05Error>;
 }
 
 pub trait G09ExecutionRevalidator: Send + Sync {
@@ -49,6 +59,8 @@ impl<P: G09PolicyResolver> G09ExecutionRevalidator for KernelG09ExecutionRevalid
         if request.principal_ref != principal.subject() {
             return Err(G05Error::AuthorizationDenied);
         }
+        self.policies
+            .authorize_resource_scope(principal, request, now)?;
         let (policy, emergency_stop) = self.policies.current_policy(now)?;
         let capability = capability_for(request.operation);
         let resource = format!(
