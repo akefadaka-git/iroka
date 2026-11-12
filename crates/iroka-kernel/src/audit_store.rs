@@ -96,7 +96,13 @@ impl SqliteAuditSink {
             payload_sha256 TEXT NOT NULL CHECK(length(payload_sha256)=64),
             accepted_at INTEGER NOT NULL,
             audit_sequence INTEGER NOT NULL UNIQUE,
-            event_hash BLOB NOT NULL CHECK(length(event_hash)=32));")
+            event_hash BLOB NOT NULL CHECK(length(event_hash)=32));
+          CREATE TRIGGER IF NOT EXISTS audit_memory_receipts_no_update
+            BEFORE UPDATE ON audit_memory_receipts
+            BEGIN SELECT RAISE(ABORT,'append-only audit receipt'); END;
+          CREATE TRIGGER IF NOT EXISTS audit_memory_receipts_no_delete
+            BEFORE DELETE ON audit_memory_receipts
+            BEGIN SELECT RAISE(ABORT,'append-only audit receipt'); END;")
             .map_err(|_| AuditStoreError::Unavailable)?;
         let sink = Self {
             connection: Mutex::new(c),
@@ -347,6 +353,23 @@ impl SqliteAuditSink {
                 return Err(AuditStoreError::IntegrityFailure);
             }
             previous = stored;
+        }
+        let receipt_count: i64 = c
+            .query_row("SELECT COUNT(*) FROM audit_memory_receipts", [], |row| row.get(0))
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let valid_receipt_count: i64 = c
+            .query_row(
+                "SELECT COUNT(*) FROM audit_memory_receipts r
+                 JOIN audit_events e ON e.event_id=r.event_id
+                   AND e.sequence=r.audit_sequence AND e.event_hash=r.event_hash
+                 WHERE length(r.payload_sha256)=64
+                   AND r.accepted_at>=e.occurred_at",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        if receipt_count != valid_receipt_count {
+            return Err(AuditStoreError::IntegrityFailure);
         }
         Ok(())
     }
