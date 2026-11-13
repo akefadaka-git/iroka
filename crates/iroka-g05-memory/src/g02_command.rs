@@ -8,6 +8,7 @@ use postgres_native_tls::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::sync::{Arc, Mutex};
 
 const REGISTRY_DOMAIN: &[u8] = b"IROKA-G02-OWNER-REGISTRY-v1\0";
 const COMMAND_DOMAIN: &[u8] = b"IROKA-G02-OWNER-COMMAND-v1\0";
@@ -229,8 +230,8 @@ impl PostgresG02Authority {
             return Err(G02AuthorityError::RegistryRollback);
         }
         tx.execute(
-            "INSERT INTO g02_owner_key_registry_versions(version,root_key_id,issued_at,expires_at,payload_sha256) VALUES($1,$2,$3,$4,$5)",
-            &[&to_i64(p.version)?, &registry.root_key_id, &to_i64(p.issued_at)?, &to_i64(p.expires_at)?, &digest])
+            "INSERT INTO g02_owner_key_registry_versions(version,root_key_id,issued_at,expires_at,payload_sha256,signed_payload,signature) VALUES($1,$2,$3,$4,$5,$6,$7)",
+            &[&to_i64(p.version)?, &registry.root_key_id, &to_i64(p.issued_at)?, &to_i64(p.expires_at)?, &digest, &bytes, &registry.signature])
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         for k in &p.keys {
             tx.execute(
@@ -453,6 +454,11 @@ mod tests {
         let mut client = Client::connect(url, NoTls).expect("test PostgreSQL connection");
         client
             .batch_execute(include_str!(
+                "../migrations/postgres/0001_shared_g05_g11.sql"
+            ))
+            .expect("shared G05/G11 migration");
+        client
+            .batch_execute(include_str!(
                 "../migrations/postgres/0002_g02_authority.sql"
             ))
             .expect("G02 base migration");
@@ -461,6 +467,11 @@ mod tests {
                 "../migrations/postgres/0003_g02_owner_key_registry.sql"
             ))
             .expect("G02 Owner registry migration");
+        client
+            .batch_execute(include_str!(
+                "../migrations/postgres/0004_g02_revocation_projections.sql"
+            ))
+            .expect("G02 revocation projections migration");
         drop(client);
         PostgresG02Authority {
             client: Client::connect(url, NoTls).expect("authority PostgreSQL connection"),
