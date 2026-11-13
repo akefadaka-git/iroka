@@ -260,10 +260,10 @@ pub fn verify_checkpoint_quorum(
     let mut retention_domains: Vec<_> = accepted_retention.into_iter().collect();
     retention_domains.sort();
     Ok(VerifiedCheckpointQuorum {
-        expectation.checkpoint_digest: expectation.checkpoint_digest.into(),
+        checkpoint_digest: expectation.checkpoint_digest.into(),
         witness_ids,
         retention_domains,
-        expectation.package_digest: expectation.package_digest.into(),
+        package_digest: expectation.package_digest.into(),
     })
 }
 
