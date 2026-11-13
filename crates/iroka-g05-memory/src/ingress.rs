@@ -374,7 +374,7 @@ mod http_ingress_tests {
 
     #[test]
     fn http_revoked_credential_is_denied() {
-        let (service, token) = service(
+        let (service, token) = make_service(
             TestRevocations { revoked:true, unavailable:false },
             TestG02 { member:true, emergency_stop:false },
             TestG09 { stale_or_unavailable:None },
@@ -384,7 +384,7 @@ mod http_ingress_tests {
 
     #[test]
     fn http_inactive_tenant_membership_is_denied() {
-        let (service, token) = service(
+        let (service, token) = make_service(
             TestRevocations { revoked:false, unavailable:false },
             TestG02 { member:false, emergency_stop:false },
             TestG09 { stale_or_unavailable:None },
@@ -394,14 +394,14 @@ mod http_ingress_tests {
 
     #[test]
     fn http_emergency_stop_and_stale_policy_are_denied() {
-        let (stopped, token) = service(
+        let (stopped, token) = make_service(
             TestRevocations { revoked:false, unavailable:false },
             TestG02 { member:true, emergency_stop:true },
             TestG09 { stale_or_unavailable:None },
         );
         assert_eq!(stopped.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthorizationDenied));
 
-        let (stale, token) = service(
+        let (stale, token) = make_service(
             TestRevocations { revoked:false, unavailable:false },
             TestG02 { member:true, emergency_stop:false },
             TestG09 { stale_or_unavailable:Some(G05Error::AuthorizationDenied) },
@@ -411,14 +411,14 @@ mod http_ingress_tests {
 
     #[test]
     fn http_database_unavailability_fails_closed() {
-        let (service, token) = service(
+        let (service, token) = make_service(
             TestRevocations { revoked:false, unavailable:true },
             TestG02 { member:true, emergency_stop:false },
             TestG09 { stale_or_unavailable:None },
         );
         assert_eq!(service.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthorityUnavailable));
 
-        let (service, token) = service(
+        let (service, token) = make_service(
             TestRevocations { revoked:false, unavailable:false },
             TestG02 { member:true, emergency_stop:false },
             TestG09 { stale_or_unavailable:Some(G05Error::AuthorityUnavailable) },
