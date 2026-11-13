@@ -138,6 +138,34 @@ impl AuthenticatedG05Request {
     }
 }
 
+/// Explicit PostgreSQL production composition: G01 credential validation and
+/// revocation, G02 tenant membership/emergency-stop authorization, and G09
+/// signed-policy/resource-scope revalidation all use the configured authority.
+pub type PostgresG05IngressService<C> = G05IngressService<
+    PostgresOwnerSignatureVerifier,
+    PostgresOwnerSignatureVerifier,
+    C,
+    KernelG09ExecutionRevalidator<
+        PostgresG09PolicyResolver<PostgresOwnerSignatureVerifier>,
+    >,
+>;
+
+pub fn compose_postgres_g05_ingress<C: TrustedClock>(
+    credentials: Ed25519CredentialVerifier<PostgresOwnerSignatureVerifier>,
+    g02_authority: PostgresOwnerSignatureVerifier,
+    clock: C,
+    g09_policy: PostgresG09PolicyResolver<PostgresOwnerSignatureVerifier>,
+    expected_audience: impl Into<String>,
+) -> Result<PostgresG05IngressService<C>, G05Error> {
+    G05IngressService::new(
+        credentials,
+        g02_authority,
+        clock,
+        KernelG09ExecutionRevalidator::new(g09_policy),
+        expected_audience,
+    )
+}
+
 pub struct G05IngressService<R, G, C, E> {
     credentials: Ed25519CredentialVerifier<R>,
     g02: G,
