@@ -189,8 +189,12 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
     let signer=SigningKey::from_bytes(&[83u8;32]);
     let policy_id=unique("policy");
     let auth=Arc::new(verifier(&url,&signer,"owner-key"));
+    let current_stop_version: Option<i64> = db.query_opt(
+        "SELECT version FROM g02_emergency_stop WHERE singleton=TRUE", &[]
+    ).unwrap().map(|row| row.get(0));
+    let baseline_version = current_stop_version.unwrap_or(0) + 1;
     let baseline=command(&signer,"owner-key",&unique("stop-baseline"),G02SecurityAction::SetEmergencyStop{
-        active:false,version:1,reason:"initial safe state".into()
+        active:false,version:baseline_version as u64,reason:"initial safe state".into()
     });
     auth.apply_security_command(&baseline,1_200).unwrap();
     let (snapshot,signature)=policy_snapshot(&signer,"owner-key",&policy_id);
@@ -275,4 +279,8 @@ fn postgres_g02_ingress_adapter_denies_inactive_membership_and_emergency_stop() 
     });
     auth.apply_security_command(&emergency, 1_202).unwrap();
     assert_eq!(auth.authorize_g05(&request), Err(G05Error::AuthorizationDenied));
+    let restore = command(&signer, "owner-key", &unique("ingress-stop-restore"), G02SecurityAction::SetEmergencyStop {
+        active: false, version: 3, reason: "restore shared integration-test state".into()
+    });
+    auth.apply_security_command(&restore, 1_203).unwrap();
 }
