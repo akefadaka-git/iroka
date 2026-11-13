@@ -450,6 +450,7 @@ mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
     use postgres::NoTls;
+    use crate::G09PolicyResolver;
 
     fn test_authority(url: &str, roots: Vec<TrustRoot>) -> PostgresG02Authority {
         let mut client = Client::connect(url, NoTls).expect("test PostgreSQL connection");
