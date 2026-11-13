@@ -138,6 +138,67 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
     }
 }
 
+
+/// General G02 ingress adapter. It resolves only active canonical tenant
+/// membership; G09 remains a separate policy and resource-scope gate.
+pub struct PostgresG02RequestAuthorizer {
+    client: Arc<Mutex<Client>>,
+}
+
+impl PostgresG02RequestAuthorizer {
+    pub fn connect(connection_string: &str) -> Result<Self, G05Error> {
+        if !connection_string.contains("sslmode=verify-full") {
+            return Err(G05Error::RepositoryUnavailable);
+        }
+        let tls = TlsConnector::builder()
+            .build()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        Ok(Self {
+            client: Arc::new(Mutex::new(client)),
+        })
+    }
+
+    pub fn verify_schema(&self) -> Result<(), G05Error> {
+        let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let row = client.query_one(
+            "SELECT to_regclass('public.g02_tenant_memberships') IS NOT NULL",
+            &[],
+        ).map_err(|_| G05Error::AuthorityUnavailable)?;
+        if row.get::<_, bool>(0) {
+            Ok(())
+        } else {
+            Err(G05Error::AuthorityUnavailable)
+        }
+    }
+}
+
+impl crate::G02RequestAuthorizer for PostgresG02RequestAuthorizer {
+    fn authorize(&self, request: &AuthorizationRequest) -> Result<(), G05Error> {
+        if request.principal_ref.trim().is_empty() || request.tenant_ref.trim().is_empty() {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut tx = client.transaction().map_err(|_| G05Error::AuthorityUnavailable)?;
+        tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let row = tx.query_opt(
+            "SELECT active,version FROM g02_tenant_memberships
+             WHERE subject_ref=$1 AND tenant_ref=$2",
+            &[&request.principal_ref, &request.tenant_ref],
+        ).map_err(|_| G05Error::AuthorityUnavailable)?
+         .ok_or(G05Error::TenantScopeMismatch)?;
+        let active: bool = row.get(0);
+        let version: i64 = row.get(1);
+        if !active || version <= 0 {
+            return Err(G05Error::TenantScopeMismatch);
+        }
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
+        Ok(())
+    }
+}
+
 fn valid_snapshot_shape(
     epoch: i64,
     issued_at: i64,

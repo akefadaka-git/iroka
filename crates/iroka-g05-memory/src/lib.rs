@@ -38,7 +38,10 @@ pub use authority::{
 };
 
 mod g02_postgres;
-pub use g02_postgres::{G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG09PolicyResolver};
+pub use g02_postgres::{
+    G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG02RequestAuthorizer,
+    PostgresG09PolicyResolver,
+};
 
 #[cfg(test)]
 mod owner_authority_postgres_tests;
@@ -50,6 +53,9 @@ pub use owner_authority_postgres::{
     PolicySnapshotPayload as PostgresPolicySnapshotPayload, PostgresOwnerSignatureVerifier,
     SignedG02SecurityCommand,
 };
+
+pub mod http_host;
+pub use http_host::{G05HttpHost, G05HttpHostError, G05OperationExecutor};
 
 mod ingress;
 pub use ingress::{
