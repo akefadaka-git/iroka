@@ -275,6 +275,7 @@ impl crate::G02AuthorizationAuthority for PostgresOwnerSignatureVerifier {
     }
 }
 
+#[cfg(test)]
 impl G02PolicySnapshotVerifier for PostgresOwnerSignatureVerifier {
     fn verify_snapshot(&self, snapshot: &G02PolicySnapshot, now: u64) -> Result<Policy, G05Error> {
         let payload: PolicySnapshotPayload = serde_json::from_slice(&snapshot.canonical_payload)
