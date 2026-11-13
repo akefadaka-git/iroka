@@ -263,3 +263,167 @@ mod tests {
         assert_eq!(risk_for(Operation::Retrieve), RiskLevel::Moderate);
     }
 }
+
+#[cfg(test)]
+mod http_ingress_tests {
+    use super::*;
+    use crate::{Classification, G02AuthorizationAuthority, Operation, Purpose};
+    use ed25519_dalek::{Signer, SigningKey};
+    use iroka_kernel::{RevocationError, SignedTrustBundle, SqliteSecurityStore, TrustBundlePayload, TrustRoot, TrustedKey};
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+    use std::sync::Arc;
+
+    #[derive(Clone, Copy)]
+    struct TestRevocations { revoked: bool, unavailable: bool }
+    impl RevocationChecker for TestRevocations {
+        fn credential_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            if self.unavailable { Err(RevocationError::Unavailable) } else { Ok(self.revoked) }
+        }
+        fn key_revoked(&self, _: &str, _: &str) -> Result<bool, RevocationError> {
+            if self.unavailable { Err(RevocationError::Unavailable) } else { Ok(false) }
+        }
+    }
+
+    struct TestClock;
+    impl TrustedClock for TestClock {
+        fn now_unix_seconds(&self) -> Result<u64, G05Error> { Ok(1_200) }
+    }
+
+    struct TestG02 { member: bool, emergency_stop: bool }
+    impl G02AuthorizationAuthority for TestG02 {
+        fn authorize_g05(&self, _: &AuthorizationRequest) -> Result<(), G05Error> {
+            if !self.member { return Err(G05Error::TenantScopeMismatch); }
+            if self.emergency_stop { return Err(G05Error::AuthorizationDenied); }
+            Ok(())
+        }
+        fn resolve_g05_activation(
+            &self, _: &iroka_kernel::VerifiedReviewerProof, _: &crate::DurableApprovalReceipt,
+            _: &crate::MemoryRecord, _: &VerifiedPrincipal, _: u64,
+        ) -> Result<iroka_kernel::G05ActivationDecision, G05Error> {
+            Err(G05Error::ReviewerNotAuthorized)
+        }
+    }
+
+    struct TestG09 { stale_or_unavailable: Option<G05Error> }
+    impl G09ExecutionRevalidator for TestG09 {
+        fn revalidate(&self, _: &VerifiedPrincipal, _: &AuthorizationRequest, _: u64) -> Result<(), G05Error> {
+            if let Some(error) = &self.stale_or_unavailable { Err(error.clone()) } else { Ok(()) }
+        }
+    }
+
+    fn signed_credential(subject: &str) -> (String, SigningKey, SignedTrustBundle, TrustRoot) {
+        let identity = SigningKey::from_bytes(&[101u8; 32]);
+        let root_signer = SigningKey::from_bytes(&[102u8; 32]);
+        let payload = TrustBundlePayload {
+            version: 1, issued_at: 1_000, expires_at: 5_000,
+            trusted_issuers: vec!["issuer:http-test".into()],
+            keys: vec![TrustedKey {
+                issuer: "issuer:http-test".into(), key_id: "http-key".into(),
+                public_key: identity.verifying_key().to_bytes(), not_before: 900, not_after: 5_000,
+            }],
+        };
+        let root = TrustRoot {
+            key_id: "root-http".into(), public_key: root_signer.verifying_key().to_bytes(),
+            not_before: 900, not_after: 5_000, provenance_ref: "test-only-http-root".into(),
+        };
+        let bytes = SignedTrustBundle::signing_bytes_for("root-http", &payload).unwrap();
+        let bundle = SignedTrustBundle::from_signature(
+            "root-http", payload, root_signer.sign(&bytes).to_bytes().to_vec(),
+        );
+        let header = URL_SAFE_NO_PAD.encode(br#"{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"http-key"}"#);
+        let claims = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&serde_json::json!({
+            "iss":"issuer:http-test", "sub":subject, "aud":"iroka-g05",
+            "exp":1_500, "nbf":1_100, "iat":1_100, "jti":"http-credential-1"
+        })).unwrap());
+        let input = format!("{header}.{claims}");
+        let token = format!("{input}.{}", URL_SAFE_NO_PAD.encode(identity.sign(input.as_bytes()).to_bytes()));
+        (token, identity, bundle, root)
+    }
+
+    fn request() -> AuthorizationRequest {
+        AuthorizationRequest {
+            operation: Operation::Retrieve, principal_ref: "subject:http-test".into(),
+            tenant_ref: "tenant:http-test".into(), subject_ref: "subject:http-test".into(),
+            purpose: Purpose::TaskContinuity, classification: Classification::Internal,
+            memory_id: None, recipient_refs: vec![], correlation_ref: "trace:http-test".into(),
+        }
+    }
+
+    fn service(revocations: TestRevocations, g02: TestG02, g09: TestG09)
+        -> (G05IngressService<TestRevocations, TestG02, TestClock, TestG09>, String) {
+        let (token, _, bundle, root) = signed_credential("subject:http-test");
+        let anti_rollback = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let credentials = Ed25519CredentialVerifier::from_signed_bundle(
+            &bundle, &root, &anti_rollback, revocations, 1_200,
+        ).unwrap();
+        let service = G05IngressService::new(credentials, g02, TestClock, g09, "iroka-g05").unwrap();
+        (service, token)
+    }
+
+    #[test]
+    fn http_missing_and_invalid_bearer_credentials_are_denied() {
+        let (service, token) = service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:true, emergency_stop:false },
+            TestG09 { stale_or_unavailable:None },
+        );
+        assert_eq!(service.authorize_http(None, request()).err(), Some(G05Error::AuthorizationDenied));
+        assert_eq!(service.authorize_http(Some("Bearer invalid.token"), request()).err(), Some(G05Error::AuthorizationDenied));
+        assert!(service.authorize_http(Some(&format!("Bearer {token}")), request()).is_ok());
+    }
+
+    #[test]
+    fn http_revoked_credential_is_denied() {
+        let (service, token) = service(
+            TestRevocations { revoked:true, unavailable:false },
+            TestG02 { member:true, emergency_stop:false },
+            TestG09 { stale_or_unavailable:None },
+        );
+        assert_eq!(service.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthorizationDenied));
+    }
+
+    #[test]
+    fn http_inactive_tenant_membership_is_denied() {
+        let (service, token) = service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:false, emergency_stop:false },
+            TestG09 { stale_or_unavailable:None },
+        );
+        assert_eq!(service.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::TenantScopeMismatch));
+    }
+
+    #[test]
+    fn http_emergency_stop_and_stale_policy_are_denied() {
+        let (stopped, token) = service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:true, emergency_stop:true },
+            TestG09 { stale_or_unavailable:None },
+        );
+        assert_eq!(stopped.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthorizationDenied));
+
+        let (stale, token) = service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:true, emergency_stop:false },
+            TestG09 { stale_or_unavailable:Some(G05Error::AuthorizationDenied) },
+        );
+        assert_eq!(stale.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthorizationDenied));
+    }
+
+    #[test]
+    fn http_database_unavailability_fails_closed() {
+        let (service, token) = service(
+            TestRevocations { revoked:false, unavailable:true },
+            TestG02 { member:true, emergency_stop:false },
+            TestG09 { stale_or_unavailable:None },
+        );
+        assert_eq!(service.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthorityUnavailable));
+
+        let (service, token) = service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:true, emergency_stop:false },
+            TestG09 { stale_or_unavailable:Some(G05Error::AuthorityUnavailable) },
+        );
+        assert_eq!(service.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthorityUnavailable));
+    }
+}
+
