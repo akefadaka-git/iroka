@@ -44,6 +44,11 @@ pub struct PostgresG09PolicyResolver<V> {
 }
 
 impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
+    #[cfg(test)]
+    pub(crate) fn from_client_for_test(client: Client, policy_id: impl Into<String>, verifier: Arc<V>) -> Self {
+        Self { client: Arc::new(Mutex::new(client)), policy_id: policy_id.into(), verifier }
+    }
+
     /// Remote connections require PostgreSQL verify-full TLS (chain + hostname).
     pub fn connect(
         connection_string: &str,
@@ -176,6 +181,10 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
                AND NOT EXISTS (
                  SELECT 1 FROM g02_policy_revocations r
                  WHERE r.policy_id=s.policy_id AND r.epoch=s.epoch
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM g02_signing_key_revocations k
+                 WHERE k.issuer=s.signer_issuer AND k.key_id=s.signer_key_id
                )",
                 &[&self.policy_id, &now_i],
             )
