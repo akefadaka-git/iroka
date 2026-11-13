@@ -772,6 +772,141 @@ mod tests {
         assert_eq!(policy.version(), "g09-registry-policy-v1");
     }
 
+
+    #[test]
+    fn postgres_g09_resolver_uses_root_registry_and_denies_registry_revocation() {
+        let Ok(url) = std::env::var("IROKA_TEST_DATABASE_URL") else { return; };
+        let root_signer = SigningKey::from_bytes(&[76u8; 32]);
+        let owner_a = SigningKey::from_bytes(&[77u8; 32]);
+        let owner_b = SigningKey::from_bytes(&[78u8; 32]);
+        let root = TrustRoot {
+            key_id: "g02-g09-test-root".into(),
+            public_key: root_signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 10_000,
+            provenance_ref: "test-only-root-provenance".into(),
+        };
+        let mut authority = test_authority(&url, vec![root.clone()]);
+        let version: i64 = authority.client.query_one(
+            "SELECT COALESCE(max(version),0)+1 FROM g02_owner_key_registry_versions", &[]
+        ).unwrap().get(0);
+        let registry_payload = OwnerKeyRegistryPayload {
+            version: version as u64,
+            issued_at: 1_000,
+            expires_at: 5_000,
+            keys: vec![
+                OwnerKeyBinding {
+                    owner_subject: "owner:g02-g09-test".into(),
+                    issuer: "iroka:owner-authority".into(),
+                    key_id: "g09-owner-a".into(),
+                    public_key: owner_a.verifying_key().to_bytes(),
+                    not_before: 1_000,
+                    not_after: 4_000,
+                },
+                OwnerKeyBinding {
+                    owner_subject: "owner:g02-g09-test".into(),
+                    issuer: "iroka:owner-authority".into(),
+                    key_id: "g09-owner-b".into(),
+                    public_key: owner_b.verifying_key().to_bytes(),
+                    not_before: 1_000,
+                    not_after: 4_000,
+                },
+            ],
+        };
+        let mut registry = SignedOwnerKeyRegistry {
+            root_key_id: root.key_id.clone(),
+            payload: registry_payload,
+            signature: Vec::new(),
+        };
+        registry.signature = root_signer.sign(&registry.signing_bytes().unwrap()).to_bytes().to_vec();
+        authority.install_registry(&registry, 1_100).unwrap();
+
+        let stop = signed_command(OwnerCommandPayload {
+            command_id: format!("g09-stop-{}", unique_test_suffix()),
+            owner_subject: "owner:g02-g09-test".into(),
+            issuer: "iroka:owner-authority".into(),
+            key_id: "g09-owner-a".into(),
+            issued_at: 1_100,
+            expires_at: 1_500,
+            action: OwnerCommandAction::SetEmergencyStop {
+                active: false, version: 1, reason_code: "test baseline".into()
+            },
+        }, &owner_a);
+        authority.execute(&stop, 1_101).unwrap();
+
+        let policy_payload = crate::PostgresPolicySnapshotPayload {
+            schema_id: "iroka.g02.policy-snapshot".into(),
+            contract_version: "1.0".into(),
+            owner_subject: "owner:g02-g09-test".into(),
+            key_id: "g09-owner-a".into(),
+            policy_epoch: 1,
+            policy_version: "root-registry-g09-v1".into(),
+            allowed_capabilities: vec!["g05.memory.retrieve".into()],
+            approval_required: vec![],
+            maximum_risk: crate::PostgresPolicyRiskLevel::High,
+            emergency_stop_active: false,
+            issued_at: 1_100,
+            expires_at: 2_000,
+        };
+        let canonical = serde_jcs::to_vec(&policy_payload).unwrap();
+        let mut policy_signing = b"IROKA:G02:POLICY-SNAPSHOT:V1\\0".to_vec();
+        policy_signing.extend_from_slice(&canonical);
+        let snapshot = crate::G02PolicySnapshot {
+            policy_id: "root-registry-g09-test".into(),
+            epoch: 1,
+            policy_version: "root-registry-g09-v1".into(),
+            owner_subject: "owner:g02-g09-test".into(),
+            signer_issuer: "iroka:owner-authority".into(),
+            signer_key_id: "g09-owner-a".into(),
+            issued_at: 1_100,
+            expires_at: 2_000,
+            payload_sha256: hex(&Sha256::digest(&canonical)),
+            canonical_payload: canonical.clone(),
+            signature: owner_a.sign(&policy_signing).to_bytes().to_vec(),
+        };
+        authority.client.execute(
+            "INSERT INTO g02_policy_snapshots(policy_id,epoch,policy_version,owner_subject,
+                signer_issuer,signer_key_id,issued_at,expires_at,canonical_payload,
+                payload_sha256,signature)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+            &[&snapshot.policy_id,&1_i64,&snapshot.policy_version,&snapshot.owner_subject,
+              &snapshot.signer_issuer,&snapshot.signer_key_id,&1_100_i64,&2_000_i64,
+              &snapshot.canonical_payload,&snapshot.payload_sha256,&snapshot.signature],
+        ).unwrap();
+        authority.client.execute(
+            "INSERT INTO g02_policy_heads(policy_id,current_epoch,current_payload_sha256)
+             VALUES($1,$2,$3)",
+            &[&snapshot.policy_id,&1_i64,&snapshot.payload_sha256],
+        ).unwrap();
+
+        let verifier = Arc::new(PostgresG02RegistrySnapshotVerifier::from_client_for_test(
+            Client::connect(&url, NoTls).unwrap(), vec![root]
+        ));
+        let resolver = crate::PostgresG09PolicyResolver::from_client_for_test(
+            Client::connect(&url, NoTls).unwrap(), snapshot.policy_id.clone(), Arc::clone(&verifier)
+        );
+        resolver.verify_schema().unwrap();
+        let (policy, stopped) = resolver.current_policy(1_200).unwrap();
+        assert_eq!(policy.version(), "root-registry-g09-v1");
+        assert!(!stopped);
+
+        let revoke = signed_command(OwnerCommandPayload {
+            command_id: format!("g09-revoke-{}", unique_test_suffix()),
+            owner_subject: "owner:g02-g09-test".into(),
+            issuer: "iroka:owner-authority".into(),
+            key_id: "g09-owner-b".into(),
+            issued_at: 1_201,
+            expires_at: 1_500,
+            action: OwnerCommandAction::RevokeOwnerKey {
+                issuer: "iroka:owner-authority".into(),
+                key_id: "g09-owner-a".into(),
+                reason_code: "test revocation".into(),
+            },
+        }, &owner_b);
+        authority.execute(&revoke, 1_202).unwrap();
+        assert_eq!(resolver.current_policy(1_203), Err(crate::G05Error::AuthorizationDenied));
+    }
+
     fn unique_test_suffix() -> u128 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
