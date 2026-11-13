@@ -24,6 +24,7 @@ pub enum QuorumError {
     InsufficientWitnessQuorum,
     InsufficientRetentionDomains,
     RetentionNotImmutable,
+    RetentionPeriodTooShort,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -157,6 +158,7 @@ pub struct CheckpointExpectation<'a> {
     pub sequence: u64,
     pub previous_checkpoint_digest: Option<&'a str>,
     pub package_digest: &'a str,
+    pub minimum_retention_secs: u64,
 }
 
 /// Verify exactly the frozen 2-of-3 witness and two-domain retention rule.
@@ -172,7 +174,8 @@ pub fn verify_checkpoint_quorum(
 ) -> Result<VerifiedCheckpointQuorum, QuorumError> {
     if !digest(expectation.checkpoint_digest) || !digest(expectation.segment_manifest_digest)
         || !digest(expectation.package_digest) || expectation.sequence == 0
-        || expectation.previous_checkpoint_digest.is_some_and(|d| !digest(d)) {
+        || expectation.previous_checkpoint_digest.is_some_and(|d| !digest(d))
+        || expectation.minimum_retention_secs == 0 {
         return Err(QuorumError::Malformed);
     }
     if witness_roster.len() != CONFIGURED_WITNESS_COUNT
@@ -245,6 +248,9 @@ pub fn verify_checkpoint_quorum(
             || p.witness_receipts_digest != receipts_digest
             || p.package_digest != expectation.package_digest || p.issued_at > now {
             return Err(QuorumError::EvidenceMismatch);
+        }
+        if p.retain_until < p.issued_at.saturating_add(expectation.minimum_retention_secs) {
+            return Err(QuorumError::RetentionPeriodTooShort);
         }
         let sig = Signature::from_slice(&receipt.signature).map_err(|_| QuorumError::InvalidSignature)?;
         trusted.key.verify(&p.signing_bytes()?, &sig).map_err(|_| QuorumError::InvalidSignature)?;
@@ -363,11 +369,24 @@ mod tests {
                 sequence: 7,
                 previous_checkpoint_digest: Some(&"c".repeat(64)),
                 package_digest: &"d".repeat(64),
+                minimum_retention_secs: 3_600,
             },
             &roster, &witness_receipts, &retention_roster, &retention_receipts, 120,
         ).unwrap();
         assert_eq!(verified.witness_ids, vec!["w1", "w3"]);
         assert_eq!(verified.retention_domains, vec!["r1", "r2"]);
+        let short_retention = verify_checkpoint_quorum(
+            &CheckpointExpectation {
+                checkpoint_digest: &"a".repeat(64),
+                segment_manifest_digest: &"b".repeat(64),
+                sequence: 7,
+                previous_checkpoint_digest: Some(&"c".repeat(64)),
+                package_digest: &"d".repeat(64),
+                minimum_retention_secs: 20_000,
+            },
+            &roster, &witness_receipts, &retention_roster, &retention_receipts, 120,
+        );
+        assert_eq!(short_retention, Err(QuorumError::RetentionPeriodTooShort));
     }
 
     #[test]
@@ -397,6 +416,7 @@ mod tests {
                 sequence: 7,
                 previous_checkpoint_digest: Some(&"c".repeat(64)),
                 package_digest: &"d".repeat(64),
+                minimum_retention_secs: 3_600,
             },
                 &roster, &receipts, &rr, &empty, 120),
             Err(QuorumError::DuplicateIdentity)
