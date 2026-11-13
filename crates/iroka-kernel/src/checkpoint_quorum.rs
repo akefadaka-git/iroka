@@ -149,24 +149,30 @@ pub struct VerifiedCheckpointQuorum {
     pub package_digest: String,
 }
 
+/// Immutable checkpoint tuple all independent receipts must bind to.
+#[derive(Debug, Clone, Copy)]
+pub struct CheckpointExpectation<'a> {
+    pub checkpoint_digest: &'a str,
+    pub segment_manifest_digest: &'a str,
+    pub sequence: u64,
+    pub previous_checkpoint_digest: Option<&'a str>,
+    pub package_digest: &'a str,
+}
+
 /// Verify exactly the frozen 2-of-3 witness and two-domain retention rule.
 /// The trust roster must be provisioned from an Owner-approved, independently
 /// governed source. Distinct labels alone are not proof of real-world independence.
 pub fn verify_checkpoint_quorum(
-    checkpoint_digest: &str,
-    segment_manifest_digest: &str,
-    sequence: u64,
-    previous_checkpoint_digest: Option<&str>,
+    expectation: &CheckpointExpectation<'_>,
     witness_roster: &[WitnessTrust],
     witness_receipts: &[SignedWitnessReceipt],
     retention_roster: &[RetentionTrust],
     retention_receipts: &[SignedRetentionReceipt],
-    package_digest: &str,
     now: u64,
 ) -> Result<VerifiedCheckpointQuorum, QuorumError> {
-    if !digest(checkpoint_digest) || !digest(segment_manifest_digest)
-        || !digest(package_digest) || sequence == 0
-        || previous_checkpoint_digest.is_some_and(|d| !digest(d)) {
+    if !digest(expectation.checkpoint_digest) || !digest(expectation.segment_manifest_digest)
+        || !digest(expectation.package_digest) || expectation.sequence == 0
+        || expectation.previous_checkpoint_digest.is_some_and(|d| !digest(d)) {
         return Err(QuorumError::Malformed);
     }
     if witness_roster.len() != CONFIGURED_WITNESS_COUNT
@@ -210,9 +216,9 @@ pub fn verify_checkpoint_quorum(
         let p = &receipt.payload;
         p.validate()?;
         let trusted = witness_by_id.get(p.witness_id.as_str()).ok_or(QuorumError::UnknownWitness)?;
-        if p.witness_key_id != trusted.key_id || p.checkpoint_digest != checkpoint_digest
-            || p.segment_manifest_digest != segment_manifest_digest || p.sequence != sequence
-            || p.previous_checkpoint_digest.as_deref() != previous_checkpoint_digest
+        if p.witness_key_id != trusted.key_id || p.expectation.checkpoint_digest != expectation.checkpoint_digest
+            || p.expectation.segment_manifest_digest != expectation.segment_manifest_digest || p.expectation.sequence != expectation.sequence
+            || p.expectation.previous_checkpoint_digest.as_deref() != expectation.previous_checkpoint_digest
             || p.issued_at > now {
             return Err(QuorumError::EvidenceMismatch);
         }
@@ -234,10 +240,10 @@ pub fn verify_checkpoint_quorum(
         let trusted = retention_by_id.get(p.retention_domain_id.as_str())
             .ok_or(QuorumError::UnknownRetentionDomain)?;
         if p.attestor_key_id != trusted.attestor_key_id
-            || p.checkpoint_digest != checkpoint_digest
-            || p.segment_manifest_digest != segment_manifest_digest
+            || p.expectation.checkpoint_digest != expectation.checkpoint_digest
+            || p.expectation.segment_manifest_digest != expectation.segment_manifest_digest
             || p.witness_receipts_digest != receipts_digest
-            || p.package_digest != package_digest || p.issued_at > now {
+            || p.expectation.package_digest != expectation.package_digest || p.issued_at > now {
             return Err(QuorumError::EvidenceMismatch);
         }
         let sig = Signature::from_slice(&receipt.signature).map_err(|_| QuorumError::InvalidSignature)?;
@@ -254,10 +260,10 @@ pub fn verify_checkpoint_quorum(
     let mut retention_domains: Vec<_> = accepted_retention.into_iter().collect();
     retention_domains.sort();
     Ok(VerifiedCheckpointQuorum {
-        checkpoint_digest: checkpoint_digest.into(),
+        expectation.checkpoint_digest: expectation.checkpoint_digest.into(),
         witness_ids,
         retention_domains,
-        package_digest: package_digest.into(),
+        expectation.package_digest: expectation.package_digest.into(),
     })
 }
 
@@ -351,9 +357,14 @@ mod tests {
             sign_retention(&rk2, "r2", "retention-key-2", &receipts_digest),
         ];
         let verified = verify_checkpoint_quorum(
-            &"a".repeat(64), &"b".repeat(64), 7, Some(&"c".repeat(64)),
-            &roster, &witness_receipts, &retention_roster, &retention_receipts,
-            &"d".repeat(64), 120,
+            &CheckpointExpectation {
+                checkpoint_digest: &"a".repeat(64),
+                segment_manifest_digest: &"b".repeat(64),
+                sequence: 7,
+                previous_checkpoint_digest: Some(&"c".repeat(64)),
+                package_digest: &"d".repeat(64),
+            },
+            &roster, &witness_receipts, &retention_roster, &retention_receipts, 120,
         ).unwrap();
         assert_eq!(verified.witness_ids, vec!["w1", "w3"]);
         assert_eq!(verified.retention_domains, vec!["r1", "r2"]);
@@ -380,8 +391,14 @@ mod tests {
         ];
         let empty = Vec::new();
         assert_eq!(
-            verify_checkpoint_quorum(&"a".repeat(64), &"b".repeat(64), 7,
-                Some(&"c".repeat(64)), &roster, &receipts, &rr, &empty, &"d".repeat(64), 120),
+            verify_checkpoint_quorum(&CheckpointExpectation {
+                checkpoint_digest: &"a".repeat(64),
+                segment_manifest_digest: &"b".repeat(64),
+                sequence: 7,
+                previous_checkpoint_digest: Some(&"c".repeat(64)),
+                package_digest: &"d".repeat(64),
+            },
+                &roster, &receipts, &rr, &empty, 120),
             Err(QuorumError::DuplicateIdentity)
         );
         let mut unlocked = sign_retention(&rk1, "r1", "rk1", &"e".repeat(64));
