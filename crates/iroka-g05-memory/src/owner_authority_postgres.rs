@@ -218,6 +218,63 @@ impl iroka_kernel::RevocationChecker for PostgresOwnerSignatureVerifier {
     }
 }
 
+impl crate::G02AuthorizationAuthority for PostgresOwnerSignatureVerifier {
+    /// Resolve G02 membership from the PostgreSQL primary on every request.
+    /// G01 credential verification/revocation is performed by the ingress
+    /// credential verifier using this same authority object; G09 policy and
+    /// emergency-stop state are revalidated independently by its resolver.
+    fn authorize_g05(&self, request: &crate::AuthorizationRequest) -> Result<(), G05Error> {
+        if request.principal_ref.trim().is_empty()
+            || request.subject_ref != request.principal_ref
+            || request.tenant_ref.trim().is_empty()
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let membership = client.query_opt(
+            "SELECT active, version FROM g02_tenant_memberships
+             WHERE subject_ref=$1 AND tenant_ref=$2",
+            &[&request.principal_ref, &request.tenant_ref],
+        ).map_err(|_| G05Error::AuthorityUnavailable)?
+         .ok_or(G05Error::TenantScopeMismatch)?;
+        let active: bool = membership.get(0);
+        let version: i64 = membership.get(1);
+        if !active || version <= 0 {
+            return Err(G05Error::TenantScopeMismatch);
+        }
+        let emergency = client.query_opt(
+            "SELECT active, version, changed_at FROM g02_emergency_stop
+             WHERE singleton=TRUE",
+            &[],
+        ).map_err(|_| G05Error::AuthorityUnavailable)?
+         .ok_or(G05Error::AuthorityUnavailable)?;
+        let stopped: bool = emergency.get(0);
+        let stop_version: i64 = emergency.get(1);
+        let changed_at: i64 = emergency.get(2);
+        if stop_version <= 0 || changed_at < 0 {
+            return Err(G05Error::AuthorityUnavailable);
+        }
+        if stopped {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        Ok(())
+    }
+
+    /// Durable activation requires the separate cryptographically verified
+    /// G01 reviewer proof and canonical G02 organization resolver. This
+    /// ingress adapter deliberately cannot manufacture that decision.
+    fn resolve_g05_activation(
+        &self,
+        _verified_proof: &iroka_kernel::VerifiedReviewerProof,
+        _receipt: &crate::DurableApprovalReceipt,
+        _record: &crate::MemoryRecord,
+        _reviewer: &iroka_kernel::VerifiedPrincipal,
+        _now: u64,
+    ) -> Result<iroka_kernel::G05ActivationDecision, G05Error> {
+        Err(G05Error::ReviewerNotAuthorized)
+    }
+}
+
 impl G02PolicySnapshotVerifier for PostgresOwnerSignatureVerifier {
     fn verify_snapshot(&self, snapshot: &G02PolicySnapshot, now: u64) -> Result<Policy, G05Error> {
         let payload: PolicySnapshotPayload = serde_json::from_slice(&snapshot.canonical_payload)
