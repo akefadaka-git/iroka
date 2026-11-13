@@ -40,6 +40,9 @@ pub use authority::{
 mod g02_postgres;
 pub use g02_postgres::{G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG09PolicyResolver};
 
+mod g02_command;
+pub use g02_command::{G02AuthorityError, OwnerCommandAction, OwnerCommandPayload, OwnerKeyBinding, OwnerKeyRegistryPayload, PostgresG02Authority, SignedOwnerCommand, SignedOwnerKeyRegistry, PostgresG02RegistrySnapshotVerifier};
+
 #[cfg(test)]
 mod owner_authority_postgres_tests;
 

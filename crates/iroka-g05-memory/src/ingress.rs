@@ -2,7 +2,7 @@
 //! G01 credentials, G02 tenant/organization authority, and G09 execution policy
 //! are revalidated at ingress and again immediately before every external effect.
 //! No caller-supplied principal, authorization boolean, or timestamp is accepted.
-use crate::{AuthorizationRequest, G02AuthorizationAuthority, G05Error, Operation, PostgresG09PolicyResolver, PostgresOwnerSignatureVerifier};
+use crate::{AuthorizationRequest, G02AuthorizationAuthority, G02PolicySnapshotVerifier, G05Error, Operation, PostgresG02RegistrySnapshotVerifier, PostgresG09PolicyResolver, PostgresOwnerSignatureVerifier};
 use iroka_kernel::{
     evaluate, CredentialError, DecisionCode, Ed25519CredentialVerifier, Policy, RevocationChecker,
     RiskLevel, VerifiedPrincipal,
@@ -141,22 +141,27 @@ impl AuthenticatedG05Request {
 /// Explicit PostgreSQL production composition: G01 credential validation and
 /// revocation, G02 tenant membership/emergency-stop authorization, and G09
 /// signed-policy/resource-scope revalidation all use the configured authority.
-pub type PostgresG05IngressService<C> = G05IngressService<
+pub type PostgresG05IngressService<
+    C,
+    V = PostgresG02RegistrySnapshotVerifier,
+> = G05IngressService<
     PostgresOwnerSignatureVerifier,
     PostgresOwnerSignatureVerifier,
     C,
-    KernelG09ExecutionRevalidator<
-        PostgresG09PolicyResolver<PostgresOwnerSignatureVerifier>,
-    >,
+    KernelG09ExecutionRevalidator<PostgresG09PolicyResolver<V>>,
 >;
 
-pub fn compose_postgres_g05_ingress<C: TrustedClock>(
+pub fn compose_postgres_g05_ingress<C, V>(
     credentials: Ed25519CredentialVerifier<PostgresOwnerSignatureVerifier>,
     g02_authority: PostgresOwnerSignatureVerifier,
     clock: C,
-    g09_policy: PostgresG09PolicyResolver<PostgresOwnerSignatureVerifier>,
+    g09_policy: PostgresG09PolicyResolver<V>,
     expected_audience: impl Into<String>,
-) -> Result<PostgresG05IngressService<C>, G05Error> {
+) -> Result<PostgresG05IngressService<C, V>, G05Error>
+where
+    C: TrustedClock,
+    V: G02PolicySnapshotVerifier,
+{
     G05IngressService::new(
         credentials,
         g02_authority,
