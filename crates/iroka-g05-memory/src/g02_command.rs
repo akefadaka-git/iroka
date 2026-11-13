@@ -698,6 +698,80 @@ mod tests {
         );
     }
 
+
+    #[test]
+    fn postgres_g09_policy_verification_uses_root_signed_owner_registry() {
+        let Ok(url) = std::env::var("IROKA_TEST_DATABASE_URL") else { return; };
+        let root_signer = SigningKey::from_bytes(&[74u8; 32]);
+        let owner_signer = SigningKey::from_bytes(&[75u8; 32]);
+        let root = TrustRoot {
+            key_id: "g02-test-root".into(),
+            public_key: root_signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 10_000,
+            provenance_ref: "test-only-root-provenance".into(),
+        };
+        let mut authority = test_authority(&url, vec![root.clone()]);
+        let registry_payload = OwnerKeyRegistryPayload {
+            version: unique_test_suffix() as u64,
+            issued_at: 1_000,
+            expires_at: 5_000,
+            keys: vec![OwnerKeyBinding {
+                owner_subject: "owner:g02-test".into(),
+                issuer: "iroka:owner-authority".into(),
+                key_id: "owner-g09-key".into(),
+                public_key: owner_signer.verifying_key().to_bytes(),
+                not_before: 1_000,
+                not_after: 4_000,
+            }],
+        };
+        let mut registry = SignedOwnerKeyRegistry {
+            root_key_id: root.key_id.clone(),
+            payload: registry_payload,
+            signature: Vec::new(),
+        };
+        registry.signature = root_signer.sign(&registry.signing_bytes().unwrap()).to_bytes().to_vec();
+        authority.install_registry(&registry, 1_100).unwrap();
+
+        let snapshot_payload = crate::PostgresPolicySnapshotPayload {
+            schema_id: "iroka.g02.policy-snapshot".into(),
+            contract_version: "1.0".into(),
+            owner_subject: "owner:g02-test".into(),
+            key_id: "owner-g09-key".into(),
+            policy_epoch: 1,
+            policy_version: "g09-registry-policy-v1".into(),
+            allowed_capabilities: vec!["g05.memory.retrieve".into()],
+            approval_required: vec![],
+            maximum_risk: crate::PostgresPolicyRiskLevel::High,
+            emergency_stop_active: false,
+            issued_at: 1_100,
+            expires_at: 2_000,
+        };
+        let canonical = serde_jcs::to_vec(&snapshot_payload).unwrap();
+        let mut signing_bytes = b"IROKA:G02:POLICY-SNAPSHOT:V1\\0".to_vec();
+        signing_bytes.extend_from_slice(&canonical);
+        let snapshot = crate::G02PolicySnapshot {
+            policy_id: "test-policy".into(),
+            epoch: 1,
+            policy_version: "g09-registry-policy-v1".into(),
+            owner_subject: "owner:g02-test".into(),
+            signer_issuer: "iroka:owner-authority".into(),
+            signer_key_id: "owner-g09-key".into(),
+            issued_at: 1_100,
+            expires_at: 2_000,
+            payload_sha256: hex(&Sha256::digest(&canonical)),
+            canonical_payload: canonical,
+            signature: owner_signer.sign(&signing_bytes).to_bytes().to_vec(),
+        };
+        let verifier = PostgresG02RegistrySnapshotVerifier::from_client_for_test(
+            Client::connect(&url, NoTls).unwrap(),
+            vec![root],
+        );
+        let policy = crate::G02PolicySnapshotVerifier::verify_snapshot(&verifier, &snapshot, 1_200)
+            .expect("G09 snapshot must validate against installed root-signed registry");
+        assert_eq!(policy.version(), "g09-registry-policy-v1");
+    }
+
     fn unique_test_suffix() -> u128 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
