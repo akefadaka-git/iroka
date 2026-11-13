@@ -32,7 +32,7 @@ mod trust_lifecycle;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, MemoryAuditReceipt, SqliteAuditSink};
 pub use checkpoint_quorum::{
-    receipt_bundle_digest, verify_checkpoint_quorum, QuorumError, RetentionReceiptPayload,
+    receipt_bundle_digest, verify_checkpoint_quorum, CheckpointExpectation, QuorumError, RetentionReceiptPayload,
     RetentionTrust, SignedRetentionReceipt, SignedWitnessReceipt, VerifiedCheckpointQuorum,
     WitnessReceiptPayload, WitnessTrust, CONFIGURED_WITNESS_COUNT, REQUIRED_RETENTION_DOMAINS,
     REQUIRED_WITNESS_QUORUM,
