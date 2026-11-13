@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS g02_owner_key_registry_versions (
     issued_at BIGINT NOT NULL CHECK (issued_at >= 0),
     expires_at BIGINT NOT NULL CHECK (expires_at > issued_at),
     payload_sha256 CHAR(64) NOT NULL CHECK (length(payload_sha256) = 64),
+    signed_payload BYTEA NOT NULL,
+    signature BYTEA NOT NULL CHECK (octet_length(signature) = 64),
     installed_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
