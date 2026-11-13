@@ -2,7 +2,7 @@
 //! G01 credentials, G02 tenant/organization authority, and G09 execution policy
 //! are revalidated at ingress and again immediately before every external effect.
 //! No caller-supplied principal, authorization boolean, or timestamp is accepted.
-use crate::{AuthorizationRequest, G02AuthorizationAuthority, G05Error, Operation};
+use crate::{AuthorizationRequest, G02AuthorizationAuthority, G05Error, Operation, PostgresG09PolicyResolver, PostgresOwnerSignatureVerifier};
 use iroka_kernel::{
     evaluate, CredentialError, DecisionCode, Ed25519CredentialVerifier, Policy, RevocationChecker,
     RiskLevel, VerifiedPrincipal,
