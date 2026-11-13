@@ -195,6 +195,23 @@ where
         })
     }
 
+    /// HTTP boundary entry point. Only a single Bearer credential is accepted;
+    /// absent, malformed, or alternate authentication schemes fail closed.
+    pub fn authorize_http(
+        &self,
+        authorization_header: Option<&str>,
+        request: AuthorizationRequest,
+    ) -> Result<AuthenticatedG05Request, G05Error> {
+        let header = authorization_header.ok_or(G05Error::AuthorizationDenied)?;
+        let token = header.strip_prefix("Bearer ")
+            .filter(|value| !value.trim().is_empty())
+            .ok_or(G05Error::AuthorizationDenied)?;
+        if token.bytes().any(|byte| byte.is_ascii_whitespace()) {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        self.authorize(token, request)
+    }
+
     /// Execute an external effect only after fresh G01 revocation, G02 authority,
     /// and G09 policy checks. The caller cannot provide or override the clock.
     pub fn execute_external<T>(
