@@ -240,8 +240,8 @@ pub fn verify_checkpoint_quorum(
         let trusted = retention_by_id.get(p.retention_domain_id.as_str())
             .ok_or(QuorumError::UnknownRetentionDomain)?;
         if p.attestor_key_id != trusted.attestor_key_id
-            || p.expectation.checkpoint_digest != expectation.checkpoint_digest
-            || p.expectation.segment_manifest_digest != expectation.segment_manifest_digest
+            || p.checkpoint_digest != expectation.checkpoint_digest
+            || p.segment_manifest_digest != expectation.segment_manifest_digest
             || p.witness_receipts_digest != receipts_digest
             || p.package_digest != expectation.package_digest || p.issued_at > now {
             return Err(QuorumError::EvidenceMismatch);
