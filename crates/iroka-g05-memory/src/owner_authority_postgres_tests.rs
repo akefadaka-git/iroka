@@ -3,7 +3,7 @@ use crate::owner_authority_postgres::{
     G02SecurityAction, G02SecurityCommandPayload, G02TrustedOwnerKey,
     PostgresOwnerSignatureVerifier, SignedG02SecurityCommand,
 };
-use crate::{AuthorizationRequest, Classification, Operation, Purpose, G09PolicyResolver};
+use crate::{AuthorizationRequest, Classification, G02AuthorizationAuthority, Operation, Purpose, G09PolicyResolver};
 use ed25519_dalek::{Signer, SigningKey};
 use postgres::{Client, NoTls};
 use std::sync::{Arc, Barrier};
@@ -238,4 +238,41 @@ fn postgres_g02_revoked_owner_key_is_rejected_for_new_policy_verification() {
         Client::connect(&url,NoTls).unwrap(),policy_id,Arc::new(auth)
     );
     assert_eq!(resolver.current_policy(1_200),Err(G05Error::AuthorizationDenied));
+}
+
+#[test]
+fn postgres_g02_ingress_adapter_denies_inactive_membership_and_emergency_stop() {
+    let Some(url) = test_url() else { return };
+    let _db = admin(&url);
+    let signer = SigningKey::from_bytes(&[86u8; 32]);
+    let auth = verifier(&url, &signer, "owner-key");
+    let subject = unique("ingress-subject");
+    let tenant = unique("ingress-tenant");
+    let stop = command(&signer, "owner-key", &unique("ingress-stop"), G02SecurityAction::SetEmergencyStop {
+        active: false, version: 1, reason: "test baseline".into()
+    });
+    auth.apply_security_command(&stop, 1_200).unwrap();
+    let inactive = command(&signer, "owner-key", &unique("ingress-inactive"), G02SecurityAction::SetTenantMembership {
+        subject: subject.clone(), tenant_id: tenant.clone(), active: false, version: 1,
+        reason: "inactive test".into()
+    });
+    auth.apply_security_command(&inactive, 1_200).unwrap();
+    let request = AuthorizationRequest {
+        operation: Operation::Retrieve, principal_ref: subject.clone(), tenant_ref: tenant.clone(),
+        subject_ref: subject.clone(), purpose: Purpose::TaskContinuity,
+        classification: Classification::Internal, memory_id: None, recipient_refs: vec![],
+        correlation_ref: unique("ingress-trace"),
+    };
+    assert_eq!(auth.authorize_g05(&request), Err(G05Error::TenantScopeMismatch));
+
+    let active = command(&signer, "owner-key", &unique("ingress-active"), G02SecurityAction::SetTenantMembership {
+        subject: subject.clone(), tenant_id: tenant, active: true, version: 2,
+        reason: "activate test".into()
+    });
+    auth.apply_security_command(&active, 1_201).unwrap();
+    let emergency = command(&signer, "owner-key", &unique("ingress-stop-active"), G02SecurityAction::SetEmergencyStop {
+        active: true, version: 2, reason: "emergency test".into()
+    });
+    auth.apply_security_command(&emergency, 1_202).unwrap();
+    assert_eq!(auth.authorize_g05(&request), Err(G05Error::AuthorizationDenied));
 }
