@@ -705,3 +705,192 @@ mod tests {
             .as_nanos()
     }
 }
+
+
+/// G09 snapshot verifier backed by the same root-signed Owner registry used by
+/// PostgresG02Authority. It never accepts a caller-supplied Owner-key list.
+pub struct PostgresG02RegistrySnapshotVerifier {
+    client: Arc<Mutex<Client>>,
+    roots: Vec<TrustRoot>,
+}
+
+impl PostgresG02RegistrySnapshotVerifier {
+    #[cfg(test)]
+    pub(crate) fn from_client_for_test(client: Client, roots: Vec<TrustRoot>) -> Self {
+        Self { client: Arc::new(Mutex::new(client)), roots }
+    }
+
+    /// Production connections require certificate-chain and hostname validation.
+    pub fn connect(connection_string: &str, roots: Vec<TrustRoot>)
+        -> Result<Self, G02AuthorityError>
+    {
+        if !connection_string.contains("sslmode=verify-full") || roots.is_empty() {
+            return Err(G02AuthorityError::InvalidRoot);
+        }
+        for root in &roots {
+            if root.key_id.trim().is_empty()
+                || root.provenance_ref.trim().is_empty()
+                || root.not_before >= root.not_after
+                || VerifyingKey::from_bytes(&root.public_key).is_err()
+            {
+                return Err(G02AuthorityError::InvalidRoot);
+            }
+        }
+        let tls = TlsConnector::builder().build()
+            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
+            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        Ok(Self { client: Arc::new(Mutex::new(client)), roots })
+    }
+}
+
+impl crate::G02PolicySnapshotVerifier for PostgresG02RegistrySnapshotVerifier {
+    fn verify_snapshot(
+        &self,
+        snapshot: &crate::G02PolicySnapshot,
+        now: u64,
+    ) -> Result<iroka_kernel::Policy, crate::G05Error> {
+        use ed25519_dalek::{Signature, Verifier};
+        use sha2::{Digest, Sha256};
+
+        const POLICY_DOMAIN: &[u8] = b"IROKA:G02:POLICY-SNAPSHOT:V1\\0";
+        const OWNER_ISSUER: &str = "iroka:owner-authority";
+
+        let payload: crate::PostgresPolicySnapshotPayload =
+            serde_json::from_slice(&snapshot.canonical_payload)
+                .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        let canonical = serde_jcs::to_vec(&payload)
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        if canonical != snapshot.canonical_payload
+            || snapshot.signer_issuer != OWNER_ISSUER
+            || payload.schema_id != "iroka.g02.policy-snapshot"
+            || payload.contract_version != "1.0"
+            || payload.owner_subject != snapshot.owner_subject
+            || payload.key_id != snapshot.signer_key_id
+            || payload.policy_epoch != snapshot.epoch
+            || payload.policy_version != snapshot.policy_version
+            || payload.policy_version.trim().is_empty()
+            || payload.policy_version.len() > 128
+            || payload.issued_at != snapshot.issued_at
+            || payload.expires_at != snapshot.expires_at
+            || payload.issued_at > now.saturating_add(30)
+            || payload.expires_at <= now
+            || payload.issued_at >= payload.expires_at
+            || payload.expires_at - payload.issued_at > 86_400
+            || payload.allowed_capabilities.len() > 512
+            || payload.approval_required.len() > 512
+            || !payload.allowed_capabilities.windows(2).all(|w| w[0] < w[1])
+            || !payload.approval_required.windows(2).all(|w| w[0] < w[1])
+            || payload.approval_required.iter().any(|x| !payload.allowed_capabilities.contains(x))
+            || payload.allowed_capabilities.iter().chain(payload.approval_required.iter())
+                .any(|x| x.trim().is_empty() || x.len() > 256)
+        {
+            return Err(crate::G05Error::AuthorityUnavailable);
+        }
+        let digest = hex(&Sha256::digest(&canonical));
+        if digest != snapshot.payload_sha256.to_ascii_lowercase() {
+            return Err(crate::G05Error::AuthorityUnavailable);
+        }
+
+        let mut client = self.client.lock()
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        // Only the latest installed registry is authoritative. Expiry or
+        // corruption of that registry fails closed; older versions are not fallback roots.
+        let row = client.query_opt(
+            "SELECT v.root_key_id,v.issued_at,v.expires_at,v.payload_sha256,
+                    v.signed_payload,v.signature,k.owner_subject,k.issuer,k.key_id,
+                    k.public_key,k.not_before,k.not_after
+             FROM g02_owner_key_registry_versions v
+             JOIN g02_owner_keys k ON k.registry_version=v.version
+             WHERE v.version=(SELECT max(version) FROM g02_owner_key_registry_versions)
+               AND k.issuer=$1 AND k.key_id=$2 AND k.owner_subject=$3",
+            &[&snapshot.signer_issuer, &snapshot.signer_key_id, &snapshot.owner_subject],
+        ).map_err(|_| crate::G05Error::AuthorityUnavailable)?
+         .ok_or(crate::G05Error::AuthorityUnavailable)?;
+
+        let root_id: String = row.get(0);
+        let registry_issued: i64 = row.get(1);
+        let registry_expires: i64 = row.get(2);
+        let registry_digest: String = row.get(3);
+        let signed_payload: Vec<u8> = row.get(4);
+        let registry_signature: Vec<u8> = row.get(5);
+        let owner_subject: String = row.get(6);
+        let issuer: String = row.get(7);
+        let key_id: String = row.get(8);
+        let public_key: Vec<u8> = row.get(9);
+        let not_before: i64 = row.get(10);
+        let not_after: i64 = row.get(11);
+
+        let root = self.roots.iter().find(|root| root.key_id == root_id)
+            .ok_or(crate::G05Error::AuthorityUnavailable)?;
+        if now < root.not_before || now >= root.not_after
+            || registry_issued < 0 || registry_expires <= now as i64
+            || registry_issued as u64 > now.saturating_add(30)
+            || signed_payload.len() <= REGISTRY_DOMAIN.len()
+            || hex(&Sha256::digest(&signed_payload)) != registry_digest.trim().to_ascii_lowercase()
+        {
+            return Err(crate::G05Error::AuthorityUnavailable);
+        }
+        let root_key = VerifyingKey::from_bytes(&root.public_key)
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        let root_signature = Signature::from_slice(&registry_signature)
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        root_key.verify(&signed_payload, &root_signature)
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+
+        let registry_json = &signed_payload[REGISTRY_DOMAIN.len()..];
+        let (signed_root_id, registry): (String, OwnerKeyRegistryPayload) =
+            serde_json::from_slice(registry_json)
+                .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        let binding = registry.keys.iter().find(|binding|
+            binding.issuer == issuer && binding.key_id == key_id
+        ).ok_or(crate::G05Error::AuthorityUnavailable)?;
+        if signed_root_id != root_id
+            || registry.version <= 0
+            || registry.issued_at != registry_issued as u64
+            || registry.expires_at != registry_expires as u64
+            || registry.expires_at <= now
+            || binding.owner_subject != owner_subject
+            || binding.public_key.as_slice() != public_key.as_slice()
+            || binding.not_before != not_before as u64
+            || binding.not_after != not_after as u64
+            || now < binding.not_before
+            || now >= binding.not_after
+            || payload.issued_at < binding.not_before
+            || payload.expires_at > binding.not_after
+        {
+            return Err(crate::G05Error::AuthorityUnavailable);
+        }
+
+        let revoked: bool = client.query_one(
+            "SELECT EXISTS(
+                SELECT 1 FROM g02_owner_key_revocations
+                 WHERE issuer=$1 AND key_id=$2
+                UNION ALL
+                SELECT 1 FROM g02_signing_key_revocations
+                 WHERE issuer=$1 AND key_id=$2
+             )",
+            &[&snapshot.signer_issuer, &snapshot.signer_key_id],
+        ).map_err(|_| crate::G05Error::AuthorityUnavailable)?.get(0);
+        if revoked {
+            return Err(crate::G05Error::AuthorityUnavailable);
+        }
+
+        let mut signing_bytes = POLICY_DOMAIN.to_vec();
+        signing_bytes.extend_from_slice(&canonical);
+        let signature = Signature::from_slice(&snapshot.signature)
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        VerifyingKey::from_bytes(&public_key.try_into()
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?)
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?
+            .verify(&signing_bytes, &signature)
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+
+        Ok(iroka_kernel::Policy::new(
+            payload.policy_version,
+            payload.allowed_capabilities,
+            payload.approval_required,
+            payload.maximum_risk.into(),
+        ))
+    }
+}
