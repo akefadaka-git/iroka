@@ -6,6 +6,7 @@
 mod assurance;
 mod audit_store;
 mod checkpoint;
+mod checkpoint_quorum;
 mod cultural_context;
 mod decision;
 mod ethical_programme;
@@ -30,6 +31,12 @@ mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, MemoryAuditReceipt, SqliteAuditSink};
+pub use checkpoint_quorum::{
+    receipt_bundle_digest, verify_checkpoint_quorum, QuorumError, RetentionReceiptPayload,
+    RetentionTrust, SignedRetentionReceipt, SignedWitnessReceipt, VerifiedCheckpointQuorum,
+    WitnessReceiptPayload, WitnessTrust, CONFIGURED_WITNESS_COUNT, REQUIRED_RETENTION_DOMAINS,
+    REQUIRED_WITNESS_QUORUM,
+};
 pub use checkpoint::{
     sign_and_publish_checkpoint, verify_published_checkpoint, CheckpointError, CheckpointPayload,
     CheckpointSigner, ExternalCheckpointPublisher, ExternalPublicationReceipt,
