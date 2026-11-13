@@ -247,7 +247,7 @@ fn postgres_g02_revoked_owner_key_is_rejected_for_new_policy_verification() {
 #[test]
 fn postgres_g02_ingress_adapter_denies_inactive_membership_and_emergency_stop() {
     let Some(url) = test_url() else { return };
-    let _db = admin(&url);
+    let mut _db = admin(&url);
     let signer = SigningKey::from_bytes(&[86u8; 32]);
     let auth = verifier(&url, &signer, "owner-key");
     let subject = unique("ingress-subject");
