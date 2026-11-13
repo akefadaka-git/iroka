@@ -86,7 +86,10 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
                 AND to_regclass('public.g02_policy_heads') IS NOT NULL
                 AND to_regclass('public.g02_policy_revocations') IS NOT NULL
                 AND to_regclass('public.g02_emergency_stop') IS NOT NULL
-                AND to_regclass('public.g02_tenant_memberships') IS NOT NULL",
+                AND to_regclass('public.g02_tenant_memberships') IS NOT NULL
+                AND to_regclass('public.g02_owner_key_registry_versions') IS NOT NULL
+                AND to_regclass('public.g02_owner_keys') IS NOT NULL
+                AND to_regclass('public.g02_owner_key_revocations') IS NOT NULL",
                 &[],
             )
             .map_err(|_| G05Error::AuthorityUnavailable)?;
