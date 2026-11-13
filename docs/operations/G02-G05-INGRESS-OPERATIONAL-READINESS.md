@@ -72,8 +72,8 @@ Do not merge, deploy, or activate production based on this document. A4 closure 
 
 ## Exact-head verification update
 
-- **Verified HEAD:** `c8feeb9c150313fe67e0ef0b78917a005e997f5e`
-- **GitHub Actions run:** [#43357174301](https://github.com/akefadaka-git/iroka/actions/runs/43357174301)
+- **Verified HEAD:** `90023eac07ba3fba4f475cca6fa149417613cb9d`
+- **GitHub Actions run:** [#43357517022](https://github.com/akefadaka-git/iroka/actions/runs/43357517022)
 - **Result:** PASS — format, compile all targets, production-feature safeguard, full workspace tests and Clippy.
 - **Test evidence:** 198 tests passed, 0 failed across the workspace test binaries. The G05 crate's ingress/authority suite ran 44 tests, all passing. PostgreSQL 16 was provided as a disposable Actions service container.
 - **Workflow hardening:** workspace tests now run with `--test-threads=1` because the G02 integration fixtures share the singleton emergency-stop projection; the test fixture also advances/restores that projection monotonically. The duplicate-command concurrency test still exercises two concurrent worker threads internally.
@@ -84,6 +84,11 @@ Do not merge, deploy, or activate production based on this document. A4 closure 
 2. The G09 resolver filters revoked signing keys in its PostgreSQL read transaction. The verifier performs an additional revocation lookup using its own client; transaction-bound verification would provide a stronger single-snapshot proof.
 3. The current `authorize_http` method validates the Authorization header but is not a socket-level HTTP server. Duplicate-header handling, request/body limits, routing, TLS, rate limiting, readiness/liveness and graceful shutdown remain host-level work.
 4. The checkpoint receipt verifier checks cryptographic signatures and roster labels but cannot prove administrative independence from labels alone. Witness-side durable high-water-mark services and retention-lock provider read-back adapters remain absent.
-5. The retention receipt verifier currently accepts any `retain_until` later than `issued_at`; a policy-defined minimum retention horizon should be bound into the expectation before production acceptance.
+5. The quorum verifier now rejects retention receipts shorter than the caller-supplied `minimum_retention_secs` in `CheckpointExpectation`. The production minimum duration still requires an Owner-approved policy value and is not provisioned in production.
 
 These are tracked implementation/security items. They are not waived by the passing CI run.
+
+
+## Checkpoint retention-policy verification update
+
+At verified HEAD `90023eac07ba3fba4f475cca6fa149417613cb9d`, `CheckpointExpectation` includes a required non-zero `minimum_retention_secs`. Both retention receipts must prove a retain-until time at least that far beyond their own issuance time. A regression test verifies that a signed receipt bundle with an insufficient retention horizon is rejected. The production policy duration remains unset until the Owner approves it.
