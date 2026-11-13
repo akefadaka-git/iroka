@@ -225,7 +225,7 @@ impl crate::G02AuthorizationAuthority for PostgresOwnerSignatureVerifier {
     /// emergency-stop state are revalidated independently by its resolver.
     fn authorize_g05(&self, request: &crate::AuthorizationRequest) -> Result<(), G05Error> {
         if request.principal_ref.trim().is_empty()
-            || request.subject_ref != request.principal_ref
+            || request.subject_ref.trim().is_empty()
             || request.tenant_ref.trim().is_empty()
         {
             return Err(G05Error::AuthorizationDenied);
