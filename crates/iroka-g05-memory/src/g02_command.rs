@@ -1020,7 +1020,7 @@ impl crate::G02PolicySnapshotVerifier for PostgresG02RegistrySnapshotVerifier {
             &[&snapshot.signer_issuer, &snapshot.signer_key_id],
         ).map_err(|_| crate::G05Error::AuthorityUnavailable)?.get(0);
         if revoked {
-            return Err(crate::G05Error::AuthorityUnavailable);
+            return Err(crate::G05Error::AuthorizationDenied);
         }
 
         let mut signing_bytes = POLICY_DOMAIN.to_vec();
