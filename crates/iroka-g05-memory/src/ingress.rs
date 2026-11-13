@@ -349,7 +349,7 @@ mod http_ingress_tests {
         }
     }
 
-    fn service(revocations: TestRevocations, g02: TestG02, g09: TestG09)
+    fn make_service(revocations: TestRevocations, g02: TestG02, g09: TestG09)
         -> (G05IngressService<TestRevocations, TestG02, TestClock, TestG09>, String) {
         let (token, _, bundle, root) = signed_credential("subject:http-test");
         let anti_rollback = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
@@ -362,7 +362,7 @@ mod http_ingress_tests {
 
     #[test]
     fn http_missing_and_invalid_bearer_credentials_are_denied() {
-        let (service, token) = service(
+        let (service, token) = make_service(
             TestRevocations { revoked:false, unavailable:false },
             TestG02 { member:true, emergency_stop:false },
             TestG09 { stale_or_unavailable:None },
