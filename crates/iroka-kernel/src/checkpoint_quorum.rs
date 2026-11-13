@@ -277,3 +277,116 @@ fn sha256(b: &[u8]) -> [u8;32] {
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
+
+    fn sign_witness(key: &SigningKey, id: &str, key_id: &str) -> SignedWitnessReceipt {
+        let payload = WitnessReceiptPayload {
+            schema: "igacms.audit-witness-receipt.v1".into(),
+            checkpoint_digest: "a".repeat(64),
+            segment_manifest_digest: "b".repeat(64),
+            sequence: 7,
+            previous_checkpoint_digest: Some("c".repeat(64)),
+            witness_id: id.into(),
+            witness_key_id: key_id.into(),
+            witness_policy_version: "witness-policy-v1".into(),
+            verifier_build_id: format!("independent-verifier-{id}"),
+            independently_verified_segment: true,
+            witness_retained_evidence: true,
+            issued_at: 100,
+        };
+        let signature = key.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        SignedWitnessReceipt { payload, signature }
+    }
+
+    fn sign_retention(
+        key: &SigningKey, domain: &str, key_id: &str, receipts_digest: &str,
+    ) -> SignedRetentionReceipt {
+        let payload = RetentionReceiptPayload {
+            schema: "igacms.audit-retention-receipt.v1".into(),
+            checkpoint_digest: "a".repeat(64),
+            segment_manifest_digest: "b".repeat(64),
+            witness_receipts_digest: receipts_digest.into(),
+            package_digest: "d".repeat(64),
+            retention_domain_id: domain.into(),
+            attestor_key_id: key_id.into(),
+            object_id: format!("object-{domain}"),
+            object_version_id: format!("version-{domain}"),
+            retain_until: 10_000,
+            immutable_lock_enabled: true,
+            readback_verified: true,
+            issued_at: 110,
+        };
+        let signature = key.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        SignedRetentionReceipt { payload, signature }
+    }
+
+    #[test]
+    fn frozen_two_of_three_and_both_retention_domains_verify() {
+        let wk: Vec<_> = (1..=3).map(|n| SigningKey::from_bytes(&[n; 32])).collect();
+        let roster: Vec<_> = wk.iter().enumerate().map(|(i,k)| WitnessTrust {
+            witness_id: format!("w{}", i+1),
+            administrative_domain: format!("operator-{}", i+1),
+            key_id: format!("witness-key-{}", i+1),
+            key: k.verifying_key(),
+        }).collect();
+        let witness_receipts = vec![
+            sign_witness(&wk[0], "w1", "witness-key-1"),
+            sign_witness(&wk[2], "w3", "witness-key-3"),
+        ];
+        let receipts_digest = receipt_bundle_digest(&witness_receipts).unwrap();
+        let rk1 = SigningKey::from_bytes(&[11; 32]);
+        let rk2 = SigningKey::from_bytes(&[12; 32]);
+        let retention_roster = vec![
+            RetentionTrust { domain_id: "r1".into(), administrative_domain: "storage-operator-1".into(),
+                attestor_key_id: "retention-key-1".into(), key: rk1.verifying_key() },
+            RetentionTrust { domain_id: "r2".into(), administrative_domain: "storage-operator-2".into(),
+                attestor_key_id: "retention-key-2".into(), key: rk2.verifying_key() },
+        ];
+        let retention_receipts = vec![
+            sign_retention(&rk1, "r1", "retention-key-1", &receipts_digest),
+            sign_retention(&rk2, "r2", "retention-key-2", &receipts_digest),
+        ];
+        let verified = verify_checkpoint_quorum(
+            &"a".repeat(64), &"b".repeat(64), 7, Some(&"c".repeat(64)),
+            &roster, &witness_receipts, &retention_roster, &retention_receipts,
+            &"d".repeat(64), 120,
+        ).unwrap();
+        assert_eq!(verified.witness_ids, vec!["w1", "w3"]);
+        assert_eq!(verified.retention_domains, vec!["r1", "r2"]);
+    }
+
+    #[test]
+    fn quorum_rejects_two_receipts_from_same_witness_and_unlocked_retention() {
+        let wk1 = SigningKey::from_bytes(&[21; 32]);
+        let wk2 = SigningKey::from_bytes(&[22; 32]);
+        let wk3 = SigningKey::from_bytes(&[23; 32]);
+        let roster = vec![
+            WitnessTrust { witness_id:"w1".into(), administrative_domain:"o1".into(), key_id:"k1".into(), key:wk1.verifying_key() },
+            WitnessTrust { witness_id:"w2".into(), administrative_domain:"o2".into(), key_id:"k2".into(), key:wk2.verifying_key() },
+            WitnessTrust { witness_id:"w3".into(), administrative_domain:"o3".into(), key_id:"k3".into(), key:wk3.verifying_key() },
+        ];
+        let duplicate = sign_witness(&wk1, "w1", "k1");
+        let duplicate2 = duplicate.clone();
+        let receipts = vec![duplicate, duplicate2];
+        let rk1 = SigningKey::from_bytes(&[31; 32]);
+        let rk2 = SigningKey::from_bytes(&[32; 32]);
+        let rr = vec![
+            RetentionTrust { domain_id:"r1".into(), administrative_domain:"s1".into(), attestor_key_id:"rk1".into(), key:rk1.verifying_key() },
+            RetentionTrust { domain_id:"r2".into(), administrative_domain:"s2".into(), attestor_key_id:"rk2".into(), key:rk2.verifying_key() },
+        ];
+        let empty = Vec::new();
+        assert_eq!(
+            verify_checkpoint_quorum(&"a".repeat(64), &"b".repeat(64), 7,
+                Some(&"c".repeat(64)), &roster, &receipts, &rr, &empty, &"d".repeat(64), 120),
+            Err(QuorumError::DuplicateIdentity)
+        );
+        let mut unlocked = sign_retention(&rk1, "r1", "rk1", &"e".repeat(64));
+        unlocked.payload.immutable_lock_enabled = false;
+        assert_eq!(unlocked.payload.signing_bytes(), Err(QuorumError::RetentionNotImmutable));
+        let _ = wk2; let _ = wk3;
+    }
+}
