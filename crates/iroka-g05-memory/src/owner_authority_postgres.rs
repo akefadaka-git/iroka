@@ -8,14 +8,18 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use iroka_kernel::{Policy, RiskLevel};
+use iroka_kernel::RiskLevel;
+#[cfg(test)]
+use iroka_kernel::Policy;
 use postgres::Client;
 use postgres_native_tls::MakeTlsConnector;
 use native_tls::TlsConnector;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{G02PolicySnapshot, G02PolicySnapshotVerifier, G05Error};
+use crate::{G02PolicySnapshot, G05Error};
+#[cfg(test)]
+use crate::G02PolicySnapshotVerifier;
 
 const OWNER_ISSUER: &str = "iroka:owner-authority";
 const POLICY_DOMAIN: &[u8] = b"IROKA:G02:POLICY-SNAPSHOT:V1\0";
