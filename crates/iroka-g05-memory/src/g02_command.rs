@@ -12,7 +12,8 @@ use std::sync::{Arc, Mutex};
 
 const REGISTRY_DOMAIN: &[u8] = b"IROKA-G02-OWNER-REGISTRY-v1\0";
 const COMMAND_DOMAIN: &[u8] = b"IROKA-G02-OWNER-COMMAND-v1\0";
-const POLICY_DOMAIN: &[u8] = b"IROKA-G02-POLICY-SNAPSHOT-v1\0";
+// Preserve the established G02 v1 policy-snapshot domain separator used by G09.
+const POLICY_DOMAIN: &[u8] = b"IROKA:G02:POLICY-SNAPSHOT:V1\0";
 const MAX_REGISTRY_TTL: u64 = 31_536_000;
 const MAX_COMMAND_TTL: u64 = 900;
 const MAX_PAYLOAD_BYTES: usize = 1_048_576;
