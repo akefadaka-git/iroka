@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0",
+  "title": "g01.compatibility output contract v1.0.0",
+  "description": "output contract for g01.compatibility: source identity version, target version, compatibility declaration, migration evidence",
+  "type": "object",
+  "properties": {
+    "compatibility": {
+      "type": "boolean"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "compatible",
+        "incompatible",
+        "migration_required"
+      ]
+    },
+    "policy_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "compatibility",
+    "decision",
+    "policy_id",
+    "evidence"
+  ],
+  "additionalProperties": false
+}
