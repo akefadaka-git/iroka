@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0",
+  "title": "Workflow graph — output",
+  "description": "Normative output contract for g08.workflow-graph v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "workflow_id": {
+      "type": "string",
+      "description": "workflow_id — approved output field for g08.workflow-graph"
+    },
+    "graph_digest": {
+      "type": "string",
+      "description": "graph_digest — approved output field for g08.workflow-graph"
+    },
+    "topological_order": {
+      "type": "array",
+      "description": "topological_order — approved output field for g08.workflow-graph"
+    },
+    "validation_status": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "cycle",
+        "invalid_reference"
+      ],
+      "description": "validation_status — approved output field for g08.workflow-graph"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "workflow_id",
+    "graph_digest",
+    "topological_order",
+    "validation_status",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
