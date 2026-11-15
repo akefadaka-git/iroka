@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0",
+  "title": "g01.identity-root output contract v1.0.0",
+  "description": "output contract for g01.identity-root: identity root identifier, issuer identity, root key fingerprint, activation epoch, trust status",
+  "type": "object",
+  "properties": {
+    "root_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verified": {
+      "type": "boolean"
+    },
+    "trust_decision": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "untrusted",
+        "revoked"
+      ]
+    },
+    "evaluated_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "root_id",
+    "verified",
+    "trust_decision",
+    "evaluated_epoch",
+    "evidence"
+  ],
+  "additionalProperties": false
+}
