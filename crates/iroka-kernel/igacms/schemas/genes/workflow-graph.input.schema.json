@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
+  "title": "Workflow graph — input",
+  "description": "Normative input contract for g08.workflow-graph v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "workflow_id": {
+      "type": "string",
+      "description": "workflow_id — approved input field for g08.workflow-graph"
+    },
+    "nodes": {
+      "type": "array",
+      "description": "nodes — approved input field for g08.workflow-graph"
+    },
+    "edges": {
+      "type": "array",
+      "description": "edges — approved input field for g08.workflow-graph"
+    },
+    "graph_version": {
+      "type": "string",
+      "description": "graph_version — approved input field for g08.workflow-graph"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "workflow_id",
+    "nodes",
+    "edges",
+    "graph_version",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
