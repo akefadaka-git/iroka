@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "effective_capabilities_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g07-delegation-boundary-output-effective_capabilities-item-v1-0-0"
     }
   },
   "properties": {
@@ -41,7 +46,14 @@
     },
     "effective_capabilities": {
       "type": "array",
-      "description": "effective_capabilities — approved output field for g07.delegation-boundary"
+      "description": "effective_capabilities — approved output field for g07.delegation-boundary",
+      "items": {
+        "$ref": "#/$defs/effective_capabilities_item"
+      },
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "rule": "intersection of delegated subset and delegator's live authority; empty if proof invalid, expired or revoked"
+      }
     },
     "expiry": {
       "type": "string",
