@@ -133,7 +133,14 @@ def main():
         for negative in case["negative"]:
             if negative.get("expected") != "REJECT":
                 raise ValueError(key + ": negative vector has incorrect expected disposition")
-            if validator.is_valid(negative["instance"]):
+            if negative.get("validation") == "semantic":
+                try:
+                    validate_semantic_collection(negative["instance"], rules, key)
+                except ValueError:
+                    pass
+                else:
+                    raise ValueError(key + ": semantic negative vector accepted: " + negative["case_id"])
+            elif validator.is_valid(negative["instance"]):
                 raise ValueError(key + ": invalid vector accepted: " + negative["case_id"])
             negative_count += 1
         if rules.get("uniqueBy"):
