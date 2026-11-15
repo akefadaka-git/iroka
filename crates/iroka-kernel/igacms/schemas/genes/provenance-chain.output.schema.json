@@ -28,6 +28,42 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "broken_links_item": {
+      "type": "object",
+      "properties": {
+        "from_event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to_event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_digest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "from_event_id",
+        "to_event_id",
+        "expected_digest",
+        "observed_digest",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g04-provenance-chain-output-broken_links-item-v1-0-0"
     }
   },
   "properties": {
@@ -45,7 +81,17 @@
     },
     "broken_links": {
       "type": "array",
-      "description": "broken_links — approved output field for g04.provenance-chain"
+      "description": "broken_links — approved output field for g04.provenance-chain",
+      "items": {
+        "$ref": "#/$defs/broken_links_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "from_event_id",
+          "to_event_id"
+        ],
+        "rule": "empty only when chain verification finds no broken links"
+      }
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
