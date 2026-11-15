@@ -241,6 +241,7 @@ def main():
         raise ValueError("Expected exactly 36 matching gene contracts, Genome genes and conformance cases")
 
     resolved = positive = negative = mutation_negatives = 0
+    underspecified_arrays = []
     schema_ids = set()
     schema_paths = set()
 
@@ -277,6 +278,16 @@ def main():
                 raise ValueError("Root object must be closed: " + str(path))
 
             check_contract_schema(gene_id, side, spec, schema)
+            for field in spec["properties"]:
+                if field["type"] == "array":
+                    array_schema = dereference(schema, schema.get("properties", {}).get(field["name"], {}))
+                    item_schema = array_schema.get("items")
+                    if not isinstance(item_schema, dict) or not item_schema:
+                        underspecified_arrays.append({
+                            "gene_id": gene_id, "side": side, "field": field["name"],
+                            "schema_path": relative_path,
+                            "issue": "approved contract declares generic array without item structure"
+                        })
             version_evidence = dereference(schema, schema.get("properties", {}).get("version_bound_evidence", {}))
             if version_evidence.get("type") != "object":
                 raise ValueError("Version-bound evidence must be an object: " + str(path))
@@ -318,6 +329,9 @@ def main():
     print("PASS: all internal $refs resolve; external refs and cycles rejected")
     print("PASS: 36 gene cases; 72 positive vectors and 72 missing-field negatives")
     print("PASS: " + str(mutation_negatives) + " generated invalid-type, enum, array-item and unknown-field mutations rejected")
+    print("UNRESOLVED: " + str(len(underspecified_arrays)) + " generic array fields lack approved item contracts")
+    for item in underspecified_arrays:
+        print("CONTRACT-GAP: " + item["gene_id"] + "/" + item["side"] + "/" + item["field"])
 
 
 if __name__ == "__main__":
