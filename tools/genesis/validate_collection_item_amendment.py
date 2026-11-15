@@ -71,6 +71,9 @@ def main():
         f'{x["gene_id"]}:{x["side"]}:{x["field"]}' for x in entries
     }:
         raise ValueError("Conformance fixture coverage mismatch")
+    declared_negative_count = sum(len(case["negative"]) for case in fixtures["cases"])
+    if fixtures.get("negative_vector_count") != declared_negative_count:
+        raise ValueError("Conformance fixture negative_vector_count metadata mismatch")
 
     positive_count = negative_count = semantic_checks = resolved_refs = 0
     for entry in entries:
