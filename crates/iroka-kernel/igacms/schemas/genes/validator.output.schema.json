@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0",
+  "title": "Validator — output",
+  "description": "Normative output contract for g11.validator v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "validation_id": {
+      "type": "string",
+      "description": "validation_id — approved output field for g11.validator"
+    },
+    "valid": {
+      "type": "boolean",
+      "description": "valid — approved output field for g11.validator"
+    },
+    "findings": {
+      "type": "array",
+      "description": "findings — approved output field for g11.validator"
+    },
+    "validated_digest": {
+      "type": "string",
+      "description": "validated_digest — approved output field for g11.validator"
+    },
+    "validator_version": {
+      "type": "string",
+      "description": "validator_version — approved output field for g11.validator"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "validation_id",
+    "valid",
+    "findings",
+    "validated_digest",
+    "validator_version",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
