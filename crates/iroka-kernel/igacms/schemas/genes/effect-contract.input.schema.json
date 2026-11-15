@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g09.effect-contract/input/1.0.0",
+  "title": "Effect contract — input",
+  "description": "Normative input contract for g09.effect-contract v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "effect_id": {
+      "type": "string",
+      "description": "effect_id — approved input field for g09.effect-contract"
+    },
+    "effect_type": {
+      "type": "string",
+      "description": "effect_type — approved input field for g09.effect-contract"
+    },
+    "target": {
+      "type": "string",
+      "description": "target — approved input field for g09.effect-contract"
+    },
+    "resource_scope": {
+      "type": "array",
+      "description": "resource_scope — approved input field for g09.effect-contract"
+    },
+    "risk_class": {
+      "type": "string",
+      "description": "risk_class — approved input field for g09.effect-contract"
+    },
+    "operation_digest": {
+      "type": "string",
+      "description": "operation_digest — approved input field for g09.effect-contract"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "effect_id",
+    "effect_type",
+    "target",
+    "resource_scope",
+    "risk_class",
+    "operation_digest",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
