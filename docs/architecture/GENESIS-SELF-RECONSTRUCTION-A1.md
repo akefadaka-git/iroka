@@ -3,7 +3,7 @@
 **Document ID:** IROKA-GENESIS-A1-ARCH-001  
 **Version:** 0.1.0  
 **Status:** A1 architecture proposal — Owner direction accepted; detailed baseline pending review/freeze  
-**Repository:** ake fadaka-git/iroka  
+**Repository:** akefadaka-git/iroka  
 **Design parent:** 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472  
 **Work branch:** architecture/genesis-self-reconstruction-a1  
 **Scope:** Complete artificial genetic blueprint, continuity, disaster recovery and independently verifiable reconstruction  
