@@ -63,6 +63,33 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "premise_id": "fixture-value",
+              "statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0,
+              "context": "fixture-value"
+            },
+            {
+              "premise_id": "fixture-value",
+              "statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0,
+              "context": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -119,6 +146,25 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "premise_id": "fixture-value",
+              "normalized_statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0
+            },
+            {
+              "premise_id": "fixture-value",
+              "normalized_statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -175,6 +221,25 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "premise_id": "fixture-value",
+              "statement": "fixture-value",
+              "source_refs": [],
+              "unresolved_reason": "fixture-value"
+            },
+            {
+              "premise_id": "fixture-value",
+              "statement": "fixture-value",
+              "source_refs": [],
+              "unresolved_reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -235,6 +300,33 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "rule_id": "fixture-value",
+              "rule_version": "fixture-value",
+              "antecedent_premise_ids": [],
+              "conclusion_template": "fixture-value",
+              "rule_expression": "fixture-value"
+            },
+            {
+              "rule_id": "fixture-value",
+              "rule_version": "fixture-value",
+              "antecedent_premise_ids": [],
+              "conclusion_template": "fixture-value",
+              "rule_expression": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -257,6 +349,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -317,6 +424,27 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "conclusion_id": "fixture-value",
+              "statement": "fixture-value",
+              "supporting_premise_ids": [],
+              "applied_rule_ids": [],
+              "confidence": 0
+            },
+            {
+              "conclusion_id": "fixture-value",
+              "statement": "fixture-value",
+              "supporting_premise_ids": [],
+              "applied_rule_ids": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -339,6 +467,15 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -395,6 +532,25 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "step_id": "fixture-value",
+              "rule_id": "fixture-value",
+              "premise_ids": [],
+              "reason": "fixture-value"
+            },
+            {
+              "step_id": "fixture-value",
+              "rule_id": "fixture-value",
+              "premise_ids": [],
+              "reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -447,6 +603,29 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "hypothesis_id": "fixture-value",
+              "statement": "fixture-value",
+              "prior_probability": 0
+            },
+            {
+              "hypothesis_id": "fixture-value",
+              "statement": "fixture-value",
+              "prior_probability": 0
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -520,6 +699,27 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "evidence_id": "fixture-value",
+              "hypothesis_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "weight": 0,
+              "polarity": "supports"
+            },
+            {
+              "evidence_id": "fixture-value",
+              "hypothesis_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "weight": 0,
+              "polarity": "supports"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -580,6 +780,27 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "hypothesis_id": "fixture-value",
+              "estimate": 0,
+              "lower_bound": 0,
+              "upper_bound": 0,
+              "method": "fixture-value"
+            },
+            {
+              "hypothesis_id": "fixture-value",
+              "estimate": 0,
+              "lower_bound": 0,
+              "upper_bound": 0,
+              "method": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -658,6 +879,35 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "field_id": "fixture-value",
+              "name": "fixture-value",
+              "value_type": "string",
+              "required": false,
+              "nullable": false,
+              "description": "fixture-value"
+            },
+            {
+              "field_id": "fixture-value",
+              "name": "fixture-value",
+              "value_type": "string",
+              "required": false,
+              "nullable": false,
+              "description": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -718,6 +968,27 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "constraint_id": "fixture-value",
+              "field_id": "fixture-value",
+              "constraint_type": "fixture-value",
+              "expression": "fixture-value",
+              "parameters_digest": "fixture-value"
+            },
+            {
+              "constraint_id": "fixture-value",
+              "field_id": "fixture-value",
+              "constraint_type": "fixture-value",
+              "expression": "fixture-value",
+              "parameters_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -790,6 +1061,39 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "event_id": "fixture-value",
+              "sequence": 1,
+              "event_type": "fixture-value",
+              "actor_id": "fixture-value",
+              "occurred_at": "2026-01-01T00:00:00Z",
+              "source_ref": "fixture-value",
+              "previous_event_digest": "fixture-value",
+              "event_digest": "fixture-value"
+            },
+            {
+              "event_id": "fixture-value",
+              "sequence": 1,
+              "event_type": "fixture-value",
+              "actor_id": "fixture-value",
+              "occurred_at": "2026-01-01T00:00:00Z",
+              "source_ref": "fixture-value",
+              "previous_event_digest": "fixture-value",
+              "event_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -812,6 +1116,15 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -872,6 +1185,27 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "from_event_id": "fixture-value",
+              "to_event_id": "fixture-value",
+              "expected_digest": "fixture-value",
+              "observed_digest": "fixture-value",
+              "reason": "fixture-value"
+            },
+            {
+              "from_event_id": "fixture-value",
+              "to_event_id": "fixture-value",
+              "expected_digest": "fixture-value",
+              "observed_digest": "fixture-value",
+              "reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -936,6 +1270,35 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "claim_id": "fixture-value",
+              "subject": "fixture-value",
+              "predicate": "fixture-value",
+              "object_value": "fixture-value",
+              "source_ids": [],
+              "confidence": 0
+            },
+            {
+              "claim_id": "fixture-value",
+              "subject": "fixture-value",
+              "predicate": "fixture-value",
+              "object_value": "fixture-value",
+              "source_ids": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -992,6 +1355,31 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "source_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "source_digest": "fixture-value",
+              "trust_ref": "fixture-value"
+            },
+            {
+              "source_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "source_digest": "fixture-value",
+              "trust_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1060,6 +1448,25 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "relation_id": "fixture-value",
+              "left_claim_id": "fixture-value",
+              "right_claim_id": "fixture-value",
+              "relation_type": "supports"
+            },
+            {
+              "relation_id": "fixture-value",
+              "left_claim_id": "fixture-value",
+              "right_claim_id": "fixture-value",
+              "relation_type": "supports"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1138,6 +1545,29 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "conflict_id": "fixture-value",
+              "claim_ids": [],
+              "source_ids": [],
+              "conflict_type": "fixture-value",
+              "description": "fixture-value",
+              "resolution_state": "unresolved"
+            },
+            {
+              "conflict_id": "fixture-value",
+              "claim_ids": [],
+              "source_ids": [],
+              "conflict_type": "fixture-value",
+              "description": "fixture-value",
+              "resolution_state": "unresolved"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1160,6 +1590,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1220,6 +1665,33 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "control_id": "fixture-value",
+              "action": "fixture-value",
+              "scope": "fixture-value",
+              "rationale": "fixture-value",
+              "mandatory": false
+            },
+            {
+              "control_id": "fixture-value",
+              "action": "fixture-value",
+              "scope": "fixture-value",
+              "rationale": "fixture-value",
+              "mandatory": false
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1284,6 +1756,29 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "annotation_id": "fixture-value",
+              "loss_type": "fixture-value",
+              "source_segment": "fixture-value",
+              "description": "fixture-value",
+              "impact": "fixture-value",
+              "severity": "fixture-value"
+            },
+            {
+              "annotation_id": "fixture-value",
+              "loss_type": "fixture-value",
+              "source_segment": "fixture-value",
+              "description": "fixture-value",
+              "impact": "fixture-value",
+              "severity": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1306,6 +1801,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1328,6 +1838,15 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1350,6 +1869,15 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1372,6 +1900,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1394,6 +1937,15 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1450,6 +2002,31 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "node_id": "fixture-value",
+              "node_type": "fixture-value",
+              "operation_ref": "fixture-value",
+              "configuration_digest": "fixture-value"
+            },
+            {
+              "node_id": "fixture-value",
+              "node_type": "fixture-value",
+              "operation_ref": "fixture-value",
+              "configuration_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1506,6 +2083,25 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "edge_id": "fixture-value",
+              "from_node_id": "fixture-value",
+              "to_node_id": "fixture-value",
+              "dependency_type": "fixture-value"
+            },
+            {
+              "edge_id": "fixture-value",
+              "from_node_id": "fixture-value",
+              "to_node_id": "fixture-value",
+              "dependency_type": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1528,6 +2124,15 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1584,6 +2189,31 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "class_id": "fixture-value",
+              "priority": 1,
+              "quota": 0,
+              "deadline_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "class_id": "fixture-value",
+              "priority": 1,
+              "quota": 0,
+              "deadline_at": "2026-01-01T00:00:00Z"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1648,6 +2278,29 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "violation_id": "fixture-value",
+              "class_id": "fixture-value",
+              "rule_id": "fixture-value",
+              "expected": "fixture-value",
+              "observed": "fixture-value",
+              "severity": "fixture-value"
+            },
+            {
+              "violation_id": "fixture-value",
+              "class_id": "fixture-value",
+              "rule_id": "fixture-value",
+              "expected": "fixture-value",
+              "observed": "fixture-value",
+              "severity": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1708,6 +2361,33 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "participant_id": "fixture-value",
+              "state": "fixture-value",
+              "lease_epoch": 0,
+              "checkpoint_ref": "fixture-value",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "participant_id": "fixture-value",
+              "state": "fixture-value",
+              "lease_epoch": 0,
+              "checkpoint_ref": "fixture-value",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1730,6 +2410,15 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1790,6 +2479,27 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "conflict_id": "fixture-value",
+              "participant_ids": [],
+              "resource_ref": "fixture-value",
+              "conflict_type": "fixture-value",
+              "description": "fixture-value"
+            },
+            {
+              "conflict_id": "fixture-value",
+              "participant_ids": [],
+              "resource_ref": "fixture-value",
+              "conflict_type": "fixture-value",
+              "description": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1812,6 +2522,15 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1834,6 +2553,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1898,6 +2632,35 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "observation_id": "fixture-value",
+              "content_digest": "fixture-value",
+              "source_ref": "fixture-value",
+              "observed_at": "2026-01-01T00:00:00Z",
+              "data_class": "fixture-value",
+              "authorization_ref": "fixture-value"
+            },
+            {
+              "observation_id": "fixture-value",
+              "content_digest": "fixture-value",
+              "source_ref": "fixture-value",
+              "observed_at": "2026-01-01T00:00:00Z",
+              "data_class": "fixture-value",
+              "authorization_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -1920,6 +2683,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -1976,6 +2754,25 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "observation_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "eligibility_basis": "fixture-value",
+              "authorization_ref": "fixture-value"
+            },
+            {
+              "observation_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "eligibility_basis": "fixture-value",
+              "authorization_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2032,6 +2829,25 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "observation_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "exclusion_reason": "fixture-value",
+              "policy_ref": "fixture-value"
+            },
+            {
+              "observation_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "exclusion_reason": "fixture-value",
+              "policy_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2096,6 +2912,29 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "effect_id": "fixture-value",
+              "effect_type": "fixture-value",
+              "target": "fixture-value",
+              "resource_scope": [],
+              "risk_class": "fixture-value",
+              "operation_digest": "fixture-value"
+            },
+            {
+              "effect_id": "fixture-value",
+              "effect_type": "fixture-value",
+              "target": "fixture-value",
+              "resource_scope": [],
+              "risk_class": "fixture-value",
+              "operation_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2118,6 +2957,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -2196,6 +3050,35 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "test_id": "fixture-value",
+              "status": "passed",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "unit": "fixture-value",
+              "evidence_ref": "fixture-value"
+            },
+            {
+              "test_id": "fixture-value",
+              "status": "passed",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "unit": "fixture-value",
+              "evidence_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2264,6 +3147,31 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "regression_id": "fixture-value",
+              "metric_id": "fixture-value",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "delta": 0.5,
+              "severity": "fixture-value",
+              "evidence_ref": "fixture-value"
+            },
+            {
+              "regression_id": "fixture-value",
+              "metric_id": "fixture-value",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "delta": 0.5,
+              "severity": "fixture-value",
+              "evidence_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2286,6 +3194,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -2354,6 +3277,31 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "finding_id": "fixture-value",
+              "contract_id": "fixture-value",
+              "severity": "fixture-value",
+              "code": "fixture-value",
+              "message": "fixture-value",
+              "instance_path": "fixture-value",
+              "disposition": "fixture-value"
+            },
+            {
+              "finding_id": "fixture-value",
+              "contract_id": "fixture-value",
+              "severity": "fixture-value",
+              "code": "fixture-value",
+              "message": "fixture-value",
+              "instance_path": "fixture-value",
+              "disposition": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2422,6 +3370,31 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "test_id": "fixture-value",
+              "status": "passed",
+              "duration_ms": 0,
+              "failure_ref": "fixture-value"
+            },
+            {
+              "test_id": "fixture-value",
+              "status": "passed",
+              "duration_ms": 0,
+              "failure_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2444,6 +3417,21 @@
             17
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-reference",
+          "instance": [
+            "fixture-value",
+            "fixture-value"
+          ],
+          "expected": "REJECT",
+          "validation": "json_schema"
         }
       ]
     },
@@ -2500,6 +3488,25 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "gate_id": "fixture-value",
+              "stage": "fixture-value",
+              "requirement": "fixture-value",
+              "blocking": false
+            },
+            {
+              "gate_id": "fixture-value",
+              "stage": "fixture-value",
+              "requirement": "fixture-value",
+              "blocking": false
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2552,6 +3559,23 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "code": "fixture-value",
+              "message": "fixture-value",
+              "invariant_ref": "fixture-value"
+            },
+            {
+              "code": "fixture-value",
+              "message": "fixture-value",
+              "invariant_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     },
@@ -2616,6 +3640,35 @@
             }
           ],
           "expected": "REJECT"
+        },
+        {
+          "case_id": "min-items",
+          "instance": [],
+          "expected": "REJECT",
+          "validation": "json_schema"
+        },
+        {
+          "case_id": "duplicate-identity",
+          "instance": [
+            {
+              "gene_id": "fixture-value",
+              "version": "fixture-value",
+              "artifact_digest": "fixture-value",
+              "parent_digest": "fixture-value",
+              "mutation_id": "fixture-value",
+              "epoch": 0
+            },
+            {
+              "gene_id": "fixture-value",
+              "version": "fixture-value",
+              "artifact_digest": "fixture-value",
+              "parent_digest": "fixture-value",
+              "mutation_id": "fixture-value",
+              "epoch": 0
+            }
+          ],
+          "expected": "REJECT",
+          "validation": "semantic"
         }
       ]
     }
