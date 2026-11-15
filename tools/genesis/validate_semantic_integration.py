@@ -310,6 +310,71 @@ def main():
             "non-monotonic lineage epoch")
     rejects(lambda: check_lineage(lineage, "other"), "candidate digest mismatch")
 
+
+    # Additional per-gene integration obligations not covered by the core graph/partition vectors.
+    actor_ids = ["actor-1", "actor-2"]
+    unique(actor_ids, "provenance actor IDs")
+    refs_resolve([event["actor_id"] for event in [
+        {"actor_id": "actor-1"}, {"actor_id": "actor-2"}]], actor_ids, "event actor IDs")
+    rejects(lambda: refs_resolve(["actor-x"], actor_ids, "event actor IDs"),
+            "event actor must be declared in actor_ids")
+
+    opaque_label = "POLICY:Retention/DoNotNormalize"
+    require(opaque_label == "POLICY:Retention/DoNotNormalize",
+            "memory labels remain opaque identifiers without normalization")
+    handling_control = {"action": "restrict", "mandatory": True, "authorizes_disclosure": False}
+    require(handling_control["authorizes_disclosure"] is False,
+            "memory handling control cannot authorize disclosure")
+
+    def require_loss_annotation(is_lossy, annotations):
+        if is_lossy and not annotations:
+            raise ValueError("lossy transform requires a loss annotation")
+    require_loss_annotation(True, ["loss-1"])
+    rejects(lambda: require_loss_annotation(True, []), "lossy transform without annotation")
+    require_loss_annotation(False, [])
+
+    task_classes = [{"class_id": "urgent", "priority": 1, "quota": 2.5, "deadline_at": "2026-11-16T10:00:00Z"}]
+    unique([x["class_id"] for x in task_classes], "scheduler class IDs")
+    require(isinstance(task_classes[0]["priority"], int) and task_classes[0]["quota"] >= 0,
+            "scheduler priority and quota bounds")
+    parse_time(task_classes[0]["deadline_at"])
+    refs_resolve(["urgent"], [x["class_id"] for x in task_classes], "scheduler violation class")
+    rejects(lambda: refs_resolve(["missing"], [x["class_id"] for x in task_classes], "scheduler violation class"),
+            "scheduler violation must reference an evaluated class")
+
+    participants = [{"participant_id": "p1"}, {"participant_id": "p2"}]
+    participant_ids = [x["participant_id"] for x in participants]
+    refs_resolve(["p1", "p2"], participant_ids, "coordination conflict participants")
+    rejects(lambda: refs_resolve(["p3"], participant_ids, "coordination conflict participants"),
+            "coordination conflict participant must resolve")
+    refs_resolve(["p1"], participant_ids, "stale participant IDs")
+    rejects(lambda: refs_resolve(["p3"], participant_ids, "stale participant IDs"),
+            "stale participant must originate in input participant set")
+
+    resource_scope = ["tenant:alpha/resource:document/42", "tenant:alpha/resource:document/43"]
+    unique(resource_scope, "effect resource scope")
+    require("execution_authorized" not in {"scope": resource_scope},
+            "resource scope description does not itself authorize execution")
+
+    required_evaluations = ["security", "compatibility", "rollback"]
+    unique(required_evaluations, "required evaluation identifiers")
+    rejects(lambda: unique(["security", "security"], "required evaluation identifiers"),
+            "duplicate required evaluation identifier")
+    def conformance_passes(results):
+        return all(item in {"passed"} for item in results)
+    require(conformance_passes(["passed", "passed"]), "all-passed conformance aggregate")
+    for nonpassing in ("failed", "error", "inconclusive", "skipped"):
+        rejects(lambda status=nonpassing: (_ for _ in ()).throw(ValueError("nonpassing"))
+                if not conformance_passes(["passed", status]) else None,
+                "non-passing conformance status " + nonpassing)
+
+    protected_invariants = ["identity-authority-separation", "fail-closed"]
+    refs_resolve(protected_invariants, ["identity-authority-separation", "fail-closed",
+                                       "no-silent-escalation"], "protected invariant references")
+    rejects(lambda: refs_resolve(["invented-invariant"], protected_invariants,
+                                 "protected invariant references"),
+            "unknown protected invariant reference")
+
     # Confirm the tested contract identifiers actually exist in the approved 53-field register.
     ids = {f'{x["gene_id"]}:{x["side"]}:{x["field"]}' for x in entries}
     coverage = {
