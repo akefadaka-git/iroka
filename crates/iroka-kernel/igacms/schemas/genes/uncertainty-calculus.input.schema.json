@@ -7,11 +7,28 @@
   "properties": {
     "hypotheses": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/hypotheses_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "hypothesis_id"
+        ]
+      }
     },
     "evidence_items": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/evidence_items_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "evidence_id"
+        ],
+        "rule": "hypothesis_id must resolve; weights use proposed normalized [0,1] scale"
+      }
     },
     "calibration_id": {
       "type": "string",
@@ -65,6 +82,70 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "hypotheses_item": {
+      "type": "object",
+      "properties": {
+        "hypothesis_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prior_probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "hypothesis_id",
+        "statement",
+        "prior_probability"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g03-uncertainty-calculus-input-hypotheses-item-v1-0-0"
+    },
+    "evidence_items_item": {
+      "type": "object",
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hypothesis_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "polarity": {
+          "type": "string",
+          "enum": [
+            "supports",
+            "refutes",
+            "neutral"
+          ]
+        }
+      },
+      "required": [
+        "evidence_id",
+        "hypothesis_id",
+        "source_ref",
+        "weight",
+        "polarity"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g03-uncertainty-calculus-input-evidence_items-item-v1-0-0"
     }
   }
 }
