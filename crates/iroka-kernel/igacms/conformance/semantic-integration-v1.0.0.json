@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "status": "OWNER_APPROVED_SEMANTIC_INTEGRATION_TESTS",
+  "source_amendment": "docs/architecture/GENESIS-GENE-COLLECTION-ITEM-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
+  "test_scope": [
+    "cross_collection_reference_closure",
+    "workflow_graph_acyclicity",
+    "provenance_chronology_and_digest_links",
+    "learning_partition_completeness_and_disjointness",
+    "capability_non_escalation",
+    "evaluation_status_integrity",
+    "mutation_gate_fail_closed",
+    "version_lineage_acyclicity_and_monotonicity"
+  ],
+  "test_runner": "tools/genesis/validate_semantic_integration.py",
+  "execution_boundary": "Synthetic contract-level tests only. No runtime activation, authorization, or execution effect."
+}
