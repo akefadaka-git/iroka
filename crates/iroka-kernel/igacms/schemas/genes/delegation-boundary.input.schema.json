@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "capability_subset_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g07-delegation-boundary-input-capability_subset-item-v1-0-0"
     }
   },
   "properties": {
@@ -41,7 +46,16 @@
     },
     "capability_subset": {
       "type": "array",
-      "description": "capability_subset — approved input field for g07.delegation-boundary"
+      "description": "capability_subset — approved input field for g07.delegation-boundary",
+      "items": {
+        "$ref": "#/$defs/capability_subset_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "must be subset of delegator's currently valid capabilities"
+      }
     },
     "expires_at": {
       "type": "string",
