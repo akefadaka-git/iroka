@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "resource_scope_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g09-effect-contract-input-resource_scope-item-v1-0-0"
     }
   },
   "properties": {
@@ -45,7 +50,16 @@
     },
     "resource_scope": {
       "type": "array",
-      "description": "resource_scope — approved input field for g09.effect-contract"
+      "description": "resource_scope — approved input field for g09.effect-contract",
+      "items": {
+        "$ref": "#/$defs/resource_scope_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "canonical resource identifiers; duplicates rejected; scope is descriptive and does not itself authorize execution"
+      }
     },
     "risk_class": {
       "type": "string",
