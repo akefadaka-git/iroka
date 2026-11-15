@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "proposal_id": "IROKA-GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1",
   "proposal_version": "1.0.0",
-  "status": "OWNER_REVIEW_PROPOSAL_NOT_APPROVED",
+  "status": "OWNER_APPROVED_NORMATIVE_BASELINE",
   "baseline": {
     "repository": "akefadaka-git/iroka",
     "commit": "df9df652e4d6e0f5b523f50b7016d06f31598e75",
@@ -13,7 +13,24 @@
     "existing_genome_unchanged": true,
     "main_unchanged": true,
     "purpose": "Derive explicit, gene-specific input/output contracts from each approved gene's responsibility, invariant anchors, dependencies, permitted effects, authority requirements, evidence requirements, failure semantics and compatibility policy.",
-    "approval_boundary": "All field-level definitions, enumerations and rejection semantics in this proposal require Owner approval before they become normative schemas."
+    "approval_boundary": "Owner approval recorded in ChatGPT conversation on 2026-11-15. Field-level definitions in this amendment are approved as the normative gene IO contract baseline for implementation. This approval does not authorize merge, deployment, runtime activation, or changes to main.",
+    "owner_approval": {
+      "status": "APPROVED",
+      "date": "2026-11-15",
+      "scope": [
+        "36 gene-specific input/output contracts",
+        "72 JSON Schema definitions",
+        "schema resolver and internal $ref integrity validation",
+        "36 executable positive/negative conformance cases",
+        "exact-commit validation and CI"
+      ],
+      "excluded": [
+        "merge",
+        "deployment",
+        "runtime activation",
+        "main branch changes"
+      ]
+    }
   },
   "schema_convention": {
     "dialect": "https://json-schema.org/draft/2020-12/schema",
@@ -144,7 +161,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g01.lineage",
@@ -256,7 +273,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g01.compatibility",
@@ -362,7 +379,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g02.authority-source",
@@ -474,7 +491,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g02.owner-governance",
@@ -598,7 +615,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g02.decision-register",
@@ -716,7 +733,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g03.premise-model",
@@ -816,7 +833,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g03.inference-rules",
@@ -922,7 +939,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g03.uncertainty-calculus",
@@ -1028,7 +1045,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g04.knowledge-schema",
@@ -1134,7 +1151,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g04.provenance-chain",
@@ -1240,7 +1257,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g04.conflict-model",
@@ -1346,7 +1363,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g05.memory-classification",
@@ -1464,7 +1481,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g05.retention-control",
@@ -1576,7 +1593,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g05.integrity-checkpoint",
@@ -1682,7 +1699,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g06.input-envelope",
@@ -1812,7 +1829,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g06.source-trust",
@@ -1924,7 +1941,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g06.perception-transform",
@@ -2048,7 +2065,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g07.agent-principal",
@@ -2154,7 +2171,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g07.capability-profile",
@@ -2266,7 +2283,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g07.delegation-boundary",
@@ -2384,7 +2401,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g08.workflow-graph",
@@ -2490,7 +2507,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g08.scheduler-policy",
@@ -2602,7 +2619,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g08.coordination-state",
@@ -2714,7 +2731,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g09.effect-contract",
@@ -2838,7 +2855,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g09.admission-gate",
@@ -2962,7 +2979,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g09.execution-receipt",
@@ -3092,7 +3109,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g10.learning-input",
@@ -3198,7 +3215,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g10.change-proposal",
@@ -3328,7 +3345,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g10.evaluation-record",
@@ -3452,7 +3469,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g11.validator",
@@ -3564,7 +3581,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g11.attestation",
@@ -3688,7 +3705,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g11.conformance-report",
@@ -3812,7 +3829,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g12.mutation-policy",
@@ -3942,7 +3959,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g12.version-lineage",
@@ -4060,7 +4077,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     },
     {
       "gene_id": "g12.rollback-guard",
@@ -4184,7 +4201,7 @@
           "expected": "REJECT_OR_FAIL_CLOSED"
         }
       },
-      "approval_status": "PROPOSED_NOT_APPROVED"
+      "approval_status": "OWNER_APPROVED_NORMATIVE"
     }
   ],
   "normative_constraints": [
