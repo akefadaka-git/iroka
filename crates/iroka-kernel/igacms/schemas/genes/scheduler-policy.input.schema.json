@@ -28,6 +28,37 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "task_classes_item": {
+      "type": "object",
+      "properties": {
+        "class_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "quota": {
+          "type": "number",
+          "minimum": 0
+        },
+        "deadline_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "class_id",
+        "priority",
+        "quota",
+        "deadline_at"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g08-scheduler-policy-input-task_classes-item-v1-0-0"
     }
   },
   "properties": {
@@ -37,7 +68,18 @@
     },
     "task_classes": {
       "type": "array",
-      "description": "task_classes — approved input field for g08.scheduler-policy"
+      "description": "task_classes — approved input field for g08.scheduler-policy",
+      "items": {
+        "$ref": "#/$defs/task_classes_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "class_id"
+        ],
+        "rule": "priority is an integer; quota is non-negative; deadline is an absolute timestamp when present"
+      }
     },
     "priorities": {
       "type": "object",
