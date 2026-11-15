@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
+  "title": "Coordination state — input",
+  "description": "Normative input contract for g08.coordination-state v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "run_id — approved input field for g08.coordination-state"
+    },
+    "participants": {
+      "type": "array",
+      "description": "participants — approved input field for g08.coordination-state"
+    },
+    "lease_epochs": {
+      "type": "object",
+      "description": "lease_epochs — approved input field for g08.coordination-state"
+    },
+    "checkpoint_refs": {
+      "type": "array",
+      "description": "checkpoint_refs — approved input field for g08.coordination-state"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "run_id",
+    "participants",
+    "lease_epochs",
+    "checkpoint_refs",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
