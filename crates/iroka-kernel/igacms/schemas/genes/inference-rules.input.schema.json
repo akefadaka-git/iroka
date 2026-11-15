@@ -7,11 +7,29 @@
   "properties": {
     "rules": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/rules_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "rule_id"
+        ],
+        "rule": "all antecedent premise IDs must exist in premise_ids"
+      }
     },
     "premise_ids": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/premise_ids_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "IDs unique and resolve against the supplied premise model"
+      }
     },
     "query": {
       "type": "string",
@@ -61,6 +79,49 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "rules_item": {
+      "type": "object",
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "antecedent_premise_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "conclusion_template": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule_expression": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "rule_id",
+        "rule_version",
+        "antecedent_premise_ids",
+        "conclusion_template",
+        "rule_expression"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g03-inference-rules-input-rules-item-v1-0-0"
+    },
+    "premise_ids_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g03-inference-rules-input-premise_ids-item-v1-0-0"
     }
   }
 }
