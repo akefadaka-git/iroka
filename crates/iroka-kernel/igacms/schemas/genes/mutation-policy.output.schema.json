@@ -28,6 +28,60 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "required_gates_item": {
+      "type": "object",
+      "properties": {
+        "gate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requirement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocking": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "gate_id",
+        "stage",
+        "requirement",
+        "blocking"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g12-mutation-policy-output-required_gates-item-v1-0-0"
+    },
+    "denial_reasons_item": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "invariant_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "invariant_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g12-mutation-policy-output-denial_reasons-item-v1-0-0"
     }
   },
   "properties": {
@@ -41,7 +95,16 @@
     },
     "required_gates": {
       "type": "array",
-      "description": "required_gates — approved output field for g12.mutation-policy"
+      "description": "required_gates — approved output field for g12.mutation-policy",
+      "items": {
+        "$ref": "#/$defs/required_gates_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "gate_id"
+        ],
+        "rule": "all mandatory gates must pass before permitted=true; this output cannot itself authorize execution"
+      }
     },
     "policy_digest": {
       "type": "string",
@@ -49,7 +112,16 @@
     },
     "denial_reasons": {
       "type": "array",
-      "description": "denial_reasons — approved output field for g12.mutation-policy"
+      "description": "denial_reasons — approved output field for g12.mutation-policy",
+      "items": {
+        "$ref": "#/$defs/denial_reasons_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "code"
+        ],
+        "rule": "permitted=false requires at least one denial reason; invariant refs resolve when non-null"
+      }
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
