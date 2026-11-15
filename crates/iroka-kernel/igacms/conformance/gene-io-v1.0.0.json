@@ -589,7 +589,15 @@
         "positive": {
           "description": "well-formed sourced premises normalized; unsupported premise flagged",
           "instance": {
-            "premises": [],
+            "premises": [
+              {
+                "premise_id": "fixture-value",
+                "statement": "fixture-value",
+                "source_refs": [],
+                "confidence": 0,
+                "context": "fixture-value"
+              }
+            ],
             "context_id": "fixture-context_id",
             "model_version": "fixture-model_version",
             "provenance": {
@@ -680,8 +688,18 @@
         "positive": {
           "description": "valid rule chain produces trace; unknown rule rejected",
           "instance": {
-            "rules": [],
-            "premise_ids": [],
+            "rules": [
+              {
+                "rule_id": "fixture-value",
+                "rule_version": "fixture-value",
+                "antecedent_premise_ids": [],
+                "conclusion_template": "fixture-value",
+                "rule_expression": "fixture-value"
+              }
+            ],
+            "premise_ids": [
+              "fixture-value"
+            ],
             "query": "fixture-query",
             "rule_version": "fixture-rule_version",
             "provenance": {
@@ -773,7 +791,13 @@
         "positive": {
           "description": "bounded weights calculated; invalid weights rejected",
           "instance": {
-            "hypotheses": [],
+            "hypotheses": [
+              {
+                "hypothesis_id": "fixture-value",
+                "statement": "fixture-value",
+                "prior_probability": 0
+              }
+            ],
             "evidence_items": [],
             "calibration_id": "fixture-calibration_id",
             "method": "bayesian",
@@ -875,7 +899,16 @@
           "description": "unique typed fields accepted; duplicate fields rejected",
           "instance": {
             "knowledge_type": "fixture-knowledge_type",
-            "fields": [],
+            "fields": [
+              {
+                "field_id": "fixture-value",
+                "name": "fixture-value",
+                "value_type": "string",
+                "required": false,
+                "nullable": false,
+                "description": "fixture-value"
+              }
+            ],
             "constraints": [],
             "schema_version": "fixture-schema_version",
             "provenance": {
@@ -976,7 +1009,18 @@
           "description": "continuous chain verifies; broken link rejected",
           "instance": {
             "artifact_digest": "fixture-artifact_digest",
-            "events": [],
+            "events": [
+              {
+                "event_id": "fixture-value",
+                "sequence": 1,
+                "event_type": "fixture-value",
+                "actor_id": "fixture-value",
+                "occurred_at": "2026-01-01T00:00:00Z",
+                "source_ref": "fixture-value",
+                "previous_event_digest": "fixture-value",
+                "event_digest": "fixture-value"
+              }
+            ],
             "actor_ids": [],
             "previous_chain_digest": "fixture-previous_chain_digest",
             "provenance": {
@@ -1068,8 +1112,24 @@
         "positive": {
           "description": "contradictions surfaced; silent overwrite rejected",
           "instance": {
-            "claims": [],
-            "sources": [],
+            "claims": [
+              {
+                "claim_id": "fixture-value",
+                "subject": "fixture-value",
+                "predicate": "fixture-value",
+                "object_value": "fixture-value",
+                "source_ids": [],
+                "confidence": 0
+              }
+            ],
+            "sources": [
+              {
+                "source_id": "fixture-value",
+                "source_ref": "fixture-value",
+                "source_digest": "fixture-value",
+                "trust_ref": "fixture-value"
+              }
+            ],
             "relations": [],
             "policy_id": "fixture-policy_id",
             "provenance": {
@@ -1163,7 +1223,9 @@
           "instance": {
             "memory_id": "fixture-memory_id",
             "content_digest": "fixture-content_digest",
-            "labels": [],
+            "labels": [
+              "fixture-value"
+            ],
             "purpose": "fixture-purpose",
             "owner_id": "fixture-owner_id",
             "data_class": "fixture-data_class",
@@ -1207,7 +1269,15 @@
           "instance": {
             "memory_id": "fixture-memory_id",
             "classification": "fixture-classification",
-            "handling_controls": [],
+            "handling_controls": [
+              {
+                "control_id": "fixture-value",
+                "action": "fixture-value",
+                "scope": "fixture-value",
+                "rationale": "fixture-value",
+                "mandatory": false
+              }
+            ],
             "classification_rationale": "fixture-classification_rationale",
             "evidence": {
               "provenance": {
@@ -1835,7 +1905,9 @@
           "description": "only policy-allowed capabilities listed; escalation denied",
           "instance": {
             "agent_id": "fixture-agent_id",
-            "requested_capabilities": [],
+            "requested_capabilities": [
+              "fixture-value"
+            ],
             "resource_limits": {
               "source_id": "synthetic-fixture",
               "gene_id": "g07.capability-profile",
@@ -1947,7 +2019,9 @@
           "instance": {
             "delegator_id": "fixture-delegator_id",
             "delegate_id": "fixture-delegate_id",
-            "capability_subset": [],
+            "capability_subset": [
+              "fixture-value"
+            ],
             "expires_at": "fixture-expires_at",
             "delegation_proof": "fixture-delegation_proof",
             "provenance": {
@@ -2043,7 +2117,14 @@
           "description": "acyclic graph ordered; cycle rejected",
           "instance": {
             "workflow_id": "fixture-workflow_id",
-            "nodes": [],
+            "nodes": [
+              {
+                "node_id": "fixture-value",
+                "node_type": "fixture-value",
+                "operation_ref": "fixture-value",
+                "configuration_digest": "fixture-value"
+              }
+            ],
             "edges": [],
             "graph_version": "fixture-graph_version",
             "provenance": {
@@ -2136,7 +2217,14 @@
           "description": "valid constraints normalized; impossible schedule reported",
           "instance": {
             "policy_id": "fixture-policy_id",
-            "task_classes": [],
+            "task_classes": [
+              {
+                "class_id": "fixture-value",
+                "priority": 1,
+                "quota": 0,
+                "deadline_at": "2026-01-01T00:00:00Z"
+              }
+            ],
             "priorities": {
               "source_id": "synthetic-fixture",
               "gene_id": "g08.scheduler-policy",
@@ -2263,7 +2351,15 @@
           "description": "newer epoch wins; stale writer rejected",
           "instance": {
             "run_id": "fixture-run_id",
-            "participants": [],
+            "participants": [
+              {
+                "participant_id": "fixture-value",
+                "state": "fixture-value",
+                "lease_epoch": 0,
+                "checkpoint_ref": "fixture-value",
+                "updated_at": "2026-01-01T00:00:00Z"
+              }
+            ],
             "lease_epochs": {
               "source_id": "synthetic-fixture",
               "gene_id": "g08.coordination-state",
@@ -2376,7 +2472,9 @@
             "effect_id": "fixture-effect_id",
             "effect_type": "fixture-effect_type",
             "target": "fixture-target",
-            "resource_scope": [],
+            "resource_scope": [
+              "fixture-value"
+            ],
             "risk_class": "fixture-risk_class",
             "operation_digest": "fixture-operation_digest",
             "provenance": {
@@ -2672,8 +2770,19 @@
         "positive": {
           "description": "eligible data isolated; prohibited input excluded",
           "instance": {
-            "observations": [],
-            "source_refs": [],
+            "observations": [
+              {
+                "observation_id": "fixture-value",
+                "content_digest": "fixture-value",
+                "source_ref": "fixture-value",
+                "observed_at": "2026-01-01T00:00:00Z",
+                "data_class": "fixture-value",
+                "authorization_ref": "fixture-value"
+              }
+            ],
+            "source_refs": [
+              "fixture-value"
+            ],
             "data_class": "fixture-data_class",
             "authorization_ref": "fixture-authorization_ref",
             "provenance": {
@@ -2814,7 +2923,9 @@
             "proposal_id": "fixture-proposal_id",
             "proposal_digest": "fixture-proposal_digest",
             "change_class": "fixture-change_class",
-            "required_evaluations": [],
+            "required_evaluations": [
+              "fixture-value"
+            ],
             "approval_required": true,
             "evidence": {
               "provenance": {
@@ -2927,7 +3038,16 @@
           "description": "complete evaluation recorded; missing evidence is inconclusive",
           "instance": {
             "evaluation_id": "fixture-evaluation_id",
-            "results": [],
+            "results": [
+              {
+                "test_id": "fixture-value",
+                "status": "passed",
+                "baseline_value": 0.5,
+                "candidate_value": 0.5,
+                "unit": "fixture-value",
+                "evidence_ref": "fixture-value"
+              }
+            ],
             "regressions": [],
             "decision": "pass",
             "evidence_digest": "fixture-evidence_digest",
@@ -2982,7 +3102,9 @@
           "description": "known contracts checked; unknown contract fails closed",
           "instance": {
             "artifact_ref": "fixture-artifact_ref",
-            "contract_ids": [],
+            "contract_ids": [
+              "fixture-value"
+            ],
             "validator_version": "fixture-validator_version",
             "policy_digest": "fixture-policy_digest",
             "provenance": {
@@ -3177,7 +3299,14 @@
           "instance": {
             "suite_id": "fixture-suite_id",
             "suite_version": "fixture-suite_version",
-            "test_results": [],
+            "test_results": [
+              {
+                "test_id": "fixture-value",
+                "status": "passed",
+                "duration_ms": 0,
+                "failure_ref": "fixture-value"
+              }
+            ],
             "tested_commit": "fixture-tested_commit",
             "environment_digest": "fixture-environment_digest",
             "provenance": {
@@ -3279,7 +3408,9 @@
             "base_version": "fixture-base_version",
             "proposed_version": "fixture-proposed_version",
             "risk_class": "fixture-risk_class",
-            "protected_invariants": [],
+            "protected_invariants": [
+              "fixture-value"
+            ],
             "approval_ref": "fixture-approval_ref",
             "provenance": {
               "source_id": "synthetic-fixture",
@@ -3422,7 +3553,16 @@
             "lineage_digest": "fixture-lineage_digest",
             "linked": true,
             "epoch_monotonic": true,
-            "ancestry": [],
+            "ancestry": [
+              {
+                "gene_id": "fixture-value",
+                "version": "fixture-value",
+                "artifact_digest": "fixture-value",
+                "parent_digest": "fixture-value",
+                "mutation_id": "fixture-value",
+                "epoch": 0
+              }
+            ],
             "evidence": {
               "provenance": {
                 "source_id": "synthetic-fixture"
