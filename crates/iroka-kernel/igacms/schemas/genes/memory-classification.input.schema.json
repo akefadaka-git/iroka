@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "labels_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g05-memory-classification-input-labels-item-v1-0-0"
     }
   },
   "properties": {
@@ -41,7 +46,16 @@
     },
     "labels": {
       "type": "array",
-      "description": "labels — approved input field for g05.memory-classification"
+      "description": "labels — approved input field for g05.memory-classification",
+      "items": {
+        "$ref": "#/$defs/labels_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "labels are opaque policy identifiers; no implicit downgrade or normalization"
+      }
     },
     "purpose": {
       "type": "string",
