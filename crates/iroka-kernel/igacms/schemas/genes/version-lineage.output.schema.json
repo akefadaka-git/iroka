@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.0.0",
+  "title": "Version lineage — output",
+  "description": "Normative output contract for g12.version-lineage v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "lineage_digest": {
+      "type": "string",
+      "description": "lineage_digest — approved output field for g12.version-lineage"
+    },
+    "linked": {
+      "type": "boolean",
+      "description": "linked — approved output field for g12.version-lineage"
+    },
+    "epoch_monotonic": {
+      "type": "boolean",
+      "description": "epoch_monotonic — approved output field for g12.version-lineage"
+    },
+    "ancestry": {
+      "type": "array",
+      "description": "ancestry — approved output field for g12.version-lineage"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "lineage_digest",
+    "linked",
+    "epoch_monotonic",
+    "ancestry",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
