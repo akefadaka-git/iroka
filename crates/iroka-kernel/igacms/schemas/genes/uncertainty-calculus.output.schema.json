@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.0.0",
+  "title": "g03.uncertainty-calculus output contract v1.0.0",
+  "description": "output contract for g03.uncertainty-calculus: hypotheses, evidence weights, calibration profile, calculation method",
+  "type": "object",
+  "properties": {
+    "assessment_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "estimates": {
+      "type": "array",
+      "items": {}
+    },
+    "uncertainty_bounds": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "calibration_status": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "insufficient",
+        "invalid"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "assessment_id",
+    "estimates",
+    "uncertainty_bounds",
+    "calibration_status",
+    "evidence"
+  ],
+  "additionalProperties": false
+}
