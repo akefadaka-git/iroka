@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "amendment_id": "IROKA-GENESIS-GENE-COLLECTION-ITEM-CONTRACT-AMENDMENT-A1",
   "version": "1.0.0",
-  "status": "DERIVED_OWNER_REVIEW_REQUIRED_NOT_NORMATIVE",
+  "status": "OWNER_APPROVED_NORMATIVE_BASELINE",
   "repository": "akefadaka-git/iroka",
   "derived_from": {
     "approved_gene_contract": "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
@@ -18,7 +18,17 @@
       "No capability grant, authorization, execution, external write, model mutation or promotion may be inferred from collection contents.",
       "Where the authoritative source does not define a scale or controlled vocabulary, this proposal marks the choice as a proposed convention requiring Owner ratification."
     ],
-    "approval_required_before": "Applying these item definitions to the normative contract and 72 JSON Schemas."
+    "approval_required_before": "Applying these item definitions to the normative contract and 72 JSON Schemas.",
+    "owner_approval": {
+      "decision": "APPROVED",
+      "approval_record": "Explicit Owner approval in ChatGPT conversation, 2026-11-15",
+      "scope": "Apply the 53 proposed collection item structures and their validation rules to the affected gene schemas and conformance tests.",
+      "limitations": [
+        "No merge or deployment approval is granted.",
+        "No runtime activation or external effects are authorized.",
+        "Genome permitted_effects and dependency declarations remain unchanged."
+      ]
+    }
   },
   "validation_conventions": {
     "dialect": "https://json-schema.org/draft/2020-12/schema",
