@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "contract_ids_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g11-validator-input-contract_ids-item-v1-0-0"
     }
   },
   "properties": {
@@ -37,7 +42,16 @@
     },
     "contract_ids": {
       "type": "array",
-      "description": "contract_ids — approved input field for g11.validator"
+      "description": "contract_ids — approved input field for g11.validator",
+      "items": {
+        "$ref": "#/$defs/contract_ids_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "unique IDs; every ID resolves to a version-pinned contract"
+      }
     },
     "validator_version": {
       "type": "string",
