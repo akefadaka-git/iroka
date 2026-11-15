@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g05.memory-classification/input/1.0.0",
+  "title": "Memory classification — input",
+  "description": "Normative input contract for g05.memory-classification v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "description": "memory_id — approved input field for g05.memory-classification"
+    },
+    "content_digest": {
+      "type": "string",
+      "description": "content_digest — approved input field for g05.memory-classification"
+    },
+    "labels": {
+      "type": "array",
+      "description": "labels — approved input field for g05.memory-classification"
+    },
+    "purpose": {
+      "type": "string",
+      "description": "purpose — approved input field for g05.memory-classification"
+    },
+    "owner_id": {
+      "type": "string",
+      "description": "owner_id — approved input field for g05.memory-classification"
+    },
+    "data_class": {
+      "type": "string",
+      "description": "data_class — approved input field for g05.memory-classification"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "memory_id",
+    "content_digest",
+    "labels",
+    "purpose",
+    "owner_id",
+    "data_class",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
