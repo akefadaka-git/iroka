@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0",
+  "title": "g02.authority-source output contract v1.0.0",
+  "description": "output contract for g02.authority-source: authority principal, source class, mandate reference, validity interval",
+  "type": "object",
+  "properties": {
+    "authority_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_valid": {
+      "type": "boolean"
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "invalid",
+        "expired"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "authority_id",
+    "source_valid",
+    "scope",
+    "decision",
+    "evidence"
+  ],
+  "additionalProperties": false
+}
