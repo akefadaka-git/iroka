@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
+  "title": "g02.owner-governance input contract v1.0.0",
+  "description": "input contract for g02.owner-governance: owner principal, decision request, scope, signed approval, expiry",
+  "type": "object",
+  "properties": {
+    "owner_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "approval_digest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issued_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expires_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "owner_id",
+    "decision_id",
+    "scope",
+    "approval_digest",
+    "signature",
+    "issued_at",
+    "expires_at",
+    "provenance"
+  ],
+  "additionalProperties": false
+}
