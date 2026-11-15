@@ -62,7 +62,11 @@ def main():
    if schema.get("$id")!=spec["schema_id"] or schema.get("$schema")!=proposal["schema_convention"]["dialect"]:raise ValueError("Stable schema ID/dialect mismatch: "+str(path))
    if schema.get("type")!="object" or schema.get("additionalProperties") is not False:raise ValueError("Root object must be closed: "+str(path))
    if not set(spec["required"]).issubset(set(schema.get("required",[]))):raise ValueError("Required fields missing from schema: "+str(path))
-   if not {"provenance","version_bound_evidence"}.issubset(set(schema.get("required",[]))):raise ValueError("Common evidence requirements missing: "+str(path))
+   required=set(schema.get("required",[]))
+   if "version_bound_evidence" not in required:raise ValueError("Version-bound evidence requirement missing: "+str(path))
+   if "provenance" not in required:
+    evidence=schema.get("$defs",{}).get("evidence",{})
+    if "evidence" not in required or not {"provenance","version_bound_evidence"}.issubset(set(evidence.get("required",[]))):raise ValueError("Provenance evidence requirement missing: "+str(path))
    Draft202012Validator.check_schema(schema);check_ref_graph(schema)
    validator=Draft202012Validator(schema);vectors=case[side]
    if vectors["schema_path"]!=spec["file_path"]:raise ValueError("Fixture path mismatch: "+gid+"/"+side)
