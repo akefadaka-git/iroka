@@ -220,6 +220,7 @@ def main():
     invalid_proof_effective = []
     require(invalid_proof_effective == [],
             "invalid/expired/revoked proof produces empty effective capabilities")
+    request_record = {"requested_capabilities": requested, "authorization_decision": None}
     require(request_record["authorization_decision"] is None,
             "request presence does not imply authorization")
 
