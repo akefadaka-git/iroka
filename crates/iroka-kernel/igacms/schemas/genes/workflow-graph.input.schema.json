@@ -28,6 +28,64 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "nodes_item": {
+      "type": "object",
+      "properties": {
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "configuration_digest": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "node_id",
+        "node_type",
+        "operation_ref",
+        "configuration_digest"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g08-workflow-graph-input-nodes-item-v1-0-0"
+    },
+    "edges_item": {
+      "type": "object",
+      "properties": {
+        "edge_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "from_node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to_node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependency_type": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "edge_id",
+        "from_node_id",
+        "to_node_id",
+        "dependency_type"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g08-workflow-graph-input-edges-item-v1-0-0"
     }
   },
   "properties": {
@@ -37,11 +95,33 @@
     },
     "nodes": {
       "type": "array",
-      "description": "nodes — approved input field for g08.workflow-graph"
+      "description": "nodes — approved input field for g08.workflow-graph",
+      "items": {
+        "$ref": "#/$defs/nodes_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "node_id"
+        ],
+        "rule": "node IDs unique"
+      }
     },
     "edges": {
       "type": "array",
-      "description": "edges — approved input field for g08.workflow-graph"
+      "description": "edges — approved input field for g08.workflow-graph",
+      "items": {
+        "$ref": "#/$defs/edges_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "edge_id",
+          "from_node_id",
+          "to_node_id"
+        ],
+        "rule": "endpoints must exist; self-edge rejected; graph cycle detection is mandatory"
+      }
     },
     "graph_version": {
       "type": "string",
