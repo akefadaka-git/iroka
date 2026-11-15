@@ -134,7 +134,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G01-GENE-root",
+        "case_id": "G01-GENE-001",
         "positive_vector": {
           "description": "valid active root accepted; revoked root rejected",
           "expected": "ACCEPT"
@@ -246,7 +246,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G01-GENE-g01.lineage",
+        "case_id": "G01-GENE-002",
         "positive_vector": {
           "description": "valid acyclic chain accepted; cycle rejected",
           "expected": "ACCEPT"
@@ -352,7 +352,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G01-GENE-g01.compatibility",
+        "case_id": "G01-GENE-003",
         "positive_vector": {
           "description": "explicit compatible pair accepted; undeclared pair rejected",
           "expected": "ACCEPT"
@@ -464,7 +464,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G02-GENE-source",
+        "case_id": "G02-GENE-001",
         "positive_vector": {
           "description": "valid mandate accepted; expired mandate rejected",
           "expected": "ACCEPT"
@@ -588,7 +588,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G02-GENE-governance",
+        "case_id": "G02-GENE-002",
         "positive_vector": {
           "description": "valid signed approval accepted; forged signature rejected",
           "expected": "ACCEPT"
@@ -706,7 +706,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G02-GENE-register",
+        "case_id": "G02-GENE-003",
         "positive_vector": {
           "description": "unique immutable decision recorded; conflicting duplicate rejected",
           "expected": "ACCEPT"
@@ -806,7 +806,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G03-GENE-model",
+        "case_id": "G03-GENE-001",
         "positive_vector": {
           "description": "well-formed sourced premises normalized; unsupported premise flagged",
           "expected": "ACCEPT"
@@ -912,7 +912,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G03-GENE-rules",
+        "case_id": "G03-GENE-002",
         "positive_vector": {
           "description": "valid rule chain produces trace; unknown rule rejected",
           "expected": "ACCEPT"
@@ -1018,7 +1018,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G03-GENE-calculus",
+        "case_id": "G03-GENE-003",
         "positive_vector": {
           "description": "bounded weights calculated; invalid weights rejected",
           "expected": "ACCEPT"
@@ -1124,7 +1124,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G04-GENE-schema",
+        "case_id": "G04-GENE-001",
         "positive_vector": {
           "description": "unique typed fields accepted; duplicate fields rejected",
           "expected": "ACCEPT"
@@ -1230,7 +1230,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G04-GENE-chain",
+        "case_id": "G04-GENE-002",
         "positive_vector": {
           "description": "continuous chain verifies; broken link rejected",
           "expected": "ACCEPT"
@@ -1336,7 +1336,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G04-GENE-model",
+        "case_id": "G04-GENE-003",
         "positive_vector": {
           "description": "contradictions surfaced; silent overwrite rejected",
           "expected": "ACCEPT"
@@ -1454,7 +1454,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G05-GENE-classification",
+        "case_id": "G05-GENE-001",
         "positive_vector": {
           "description": "recognized class maps to controls; unknown class quarantined",
           "expected": "ACCEPT"
@@ -1566,7 +1566,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G05-GENE-control",
+        "case_id": "G05-GENE-002",
         "positive_vector": {
           "description": "valid policy computes deadline; active hold prevents expiry",
           "expected": "ACCEPT"
@@ -1672,7 +1672,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G05-GENE-checkpoint",
+        "case_id": "G05-GENE-003",
         "positive_vector": {
           "description": "monotonic checkpoint accepted; rollback rejected",
           "expected": "ACCEPT"
@@ -1802,7 +1802,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G06-GENE-envelope",
+        "case_id": "G06-GENE-001",
         "positive_vector": {
           "description": "matching envelope accepted as untrusted input; tampered envelope rejected",
           "expected": "ACCEPT"
@@ -1914,7 +1914,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G06-GENE-trust",
+        "case_id": "G06-GENE-002",
         "positive_vector": {
           "description": "valid credential assessed; revoked source never trusted",
           "expected": "ACCEPT"
@@ -2038,7 +2038,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G06-GENE-transform",
+        "case_id": "G06-GENE-003",
         "positive_vector": {
           "description": "declared transform yields traceable output; mismatched version rejected",
           "expected": "ACCEPT"
@@ -2144,7 +2144,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G07-GENE-principal",
+        "case_id": "G07-GENE-001",
         "positive_vector": {
           "description": "bound principal accepted; revoked identity rejected",
           "expected": "ACCEPT"
@@ -2256,7 +2256,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G07-GENE-profile",
+        "case_id": "G07-GENE-002",
         "positive_vector": {
           "description": "only policy-allowed capabilities listed; escalation denied",
           "expected": "ACCEPT"
@@ -2374,7 +2374,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G07-GENE-boundary",
+        "case_id": "G07-GENE-003",
         "positive_vector": {
           "description": "strict subset accepted; scope escalation rejected",
           "expected": "ACCEPT"
@@ -2480,7 +2480,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G08-GENE-graph",
+        "case_id": "G08-GENE-001",
         "positive_vector": {
           "description": "acyclic graph ordered; cycle rejected",
           "expected": "ACCEPT"
@@ -2592,7 +2592,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G08-GENE-policy",
+        "case_id": "G08-GENE-002",
         "positive_vector": {
           "description": "valid constraints normalized; impossible schedule reported",
           "expected": "ACCEPT"
@@ -2704,7 +2704,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G08-GENE-state",
+        "case_id": "G08-GENE-003",
         "positive_vector": {
           "description": "newer epoch wins; stale writer rejected",
           "expected": "ACCEPT"
@@ -2828,7 +2828,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G09-GENE-contract",
+        "case_id": "G09-GENE-001",
         "positive_vector": {
           "description": "declared effect contract evaluated; undeclared effect rejected",
           "expected": "ACCEPT"
@@ -2952,7 +2952,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G09-GENE-gate",
+        "case_id": "G09-GENE-002",
         "positive_vector": {
           "description": "valid scoped authorization admits; invalid/replayed authorization denied",
           "expected": "ACCEPT"
@@ -3082,7 +3082,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G09-GENE-receipt",
+        "case_id": "G09-GENE-003",
         "positive_vector": {
           "description": "receipt binds to admission; orphan receipt rejected",
           "expected": "ACCEPT"
@@ -3188,7 +3188,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G10-GENE-input",
+        "case_id": "G10-GENE-001",
         "positive_vector": {
           "description": "eligible data isolated; prohibited input excluded",
           "expected": "ACCEPT"
@@ -3318,7 +3318,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G10-GENE-proposal",
+        "case_id": "G10-GENE-002",
         "positive_vector": {
           "description": "proposal recorded for evaluation; invariant breach blocked",
           "expected": "ACCEPT"
@@ -3442,7 +3442,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G10-GENE-record",
+        "case_id": "G10-GENE-003",
         "positive_vector": {
           "description": "complete evaluation recorded; missing evidence is inconclusive",
           "expected": "ACCEPT"
@@ -3554,7 +3554,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G11-GENE-g11.validator",
+        "case_id": "G11-GENE-001",
         "positive_vector": {
           "description": "known contracts checked; unknown contract fails closed",
           "expected": "ACCEPT"
@@ -3678,7 +3678,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G11-GENE-g11.attestation",
+        "case_id": "G11-GENE-002",
         "positive_vector": {
           "description": "fresh valid signature accepted; replay/revocation rejected",
           "expected": "ACCEPT"
@@ -3802,7 +3802,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G11-GENE-report",
+        "case_id": "G11-GENE-003",
         "positive_vector": {
           "description": "complete exact-head report accepted; missing result blocks pass",
           "expected": "ACCEPT"
@@ -3932,7 +3932,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G12-GENE-policy",
+        "case_id": "G12-GENE-001",
         "positive_vector": {
           "description": "policy classifies and gates change; unauthorized mutation denied",
           "expected": "ACCEPT"
@@ -4050,7 +4050,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G12-GENE-lineage",
+        "case_id": "G12-GENE-002",
         "positive_vector": {
           "description": "linked monotonic lineage accepted; broken ancestry rejected",
           "expected": "ACCEPT"
@@ -4174,7 +4174,7 @@
         ]
       },
       "conformance": {
-        "case_id": "G12-GENE-guard",
+        "case_id": "G12-GENE-003",
         "positive_vector": {
           "description": "permitted forward transition accepted; rollback below floor denied",
           "expected": "ACCEPT"
@@ -4210,5 +4210,48 @@
     "Confirm digest algorithms and canonical serialization rules.",
     "Confirm whether enumerations such as trust_level, outcome and decision are closed sets or extensible versioned vocabularies.",
     "Confirm stable public schema URI ownership and whether iroka.dev is the intended permanent namespace."
-  ]
+  ],
+  "conformance_catalog": {
+    "case_count": 36,
+    "case_ids": [
+      "G01-GENE-001",
+      "G01-GENE-002",
+      "G01-GENE-003",
+      "G02-GENE-001",
+      "G02-GENE-002",
+      "G02-GENE-003",
+      "G03-GENE-001",
+      "G03-GENE-002",
+      "G03-GENE-003",
+      "G04-GENE-001",
+      "G04-GENE-002",
+      "G04-GENE-003",
+      "G05-GENE-001",
+      "G05-GENE-002",
+      "G05-GENE-003",
+      "G06-GENE-001",
+      "G06-GENE-002",
+      "G06-GENE-003",
+      "G07-GENE-001",
+      "G07-GENE-002",
+      "G07-GENE-003",
+      "G08-GENE-001",
+      "G08-GENE-002",
+      "G08-GENE-003",
+      "G09-GENE-001",
+      "G09-GENE-002",
+      "G09-GENE-003",
+      "G10-GENE-001",
+      "G10-GENE-002",
+      "G10-GENE-003",
+      "G11-GENE-001",
+      "G11-GENE-002",
+      "G11-GENE-003",
+      "G12-GENE-001",
+      "G12-GENE-002",
+      "G12-GENE-003"
+    ],
+    "source": "Genome v1.0.0 gene.conformance_cases",
+    "note": "Each source case ID is preserved exactly; positive and negative vectors in this amendment are proposed expectations requiring Owner approval."
+  }
 }
