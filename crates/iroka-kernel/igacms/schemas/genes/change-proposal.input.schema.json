@@ -28,6 +28,49 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "expected_effects_item": {
+      "type": "object",
+      "properties": {
+        "effect_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effect_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource_scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "risk_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_digest": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "effect_id",
+        "effect_type",
+        "target",
+        "resource_scope",
+        "risk_class",
+        "operation_digest"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g10-change-proposal-input-expected_effects-item-v1-0-0"
     }
   },
   "properties": {
@@ -53,7 +96,16 @@
     },
     "expected_effects": {
       "type": "array",
-      "description": "expected_effects — approved input field for g10.change-proposal"
+      "description": "expected_effects — approved input field for g10.change-proposal",
+      "items": {
+        "$ref": "#/$defs/expected_effects_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "effect_id"
+        ],
+        "rule": "declarative expected effects only; no effect executes from proposal content"
+      }
     },
     "proposer_id": {
       "type": "string",
