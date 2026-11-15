@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
+  "title": "g02.authority-source input contract v1.0.0",
+  "description": "input contract for g02.authority-source: authority principal, source class, mandate reference, validity interval",
+  "type": "object",
+  "properties": {
+    "authority_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "delegated",
+        "statutory",
+        "system"
+      ]
+    },
+    "mandate_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "valid_from": {
+      "type": "string",
+      "minLength": 1
+    },
+    "valid_until": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "authority_id",
+    "source_type",
+    "mandate_ref",
+    "valid_from",
+    "valid_until",
+    "provenance"
+  ],
+  "additionalProperties": false
+}
