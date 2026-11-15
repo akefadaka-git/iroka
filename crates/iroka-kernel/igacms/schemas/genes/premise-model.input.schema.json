@@ -7,7 +7,17 @@
   "properties": {
     "premises": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/premises_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "premise_id"
+        ],
+        "order": "input order preserved; no implicit reordering"
+      }
     },
     "context_id": {
       "type": "string",
@@ -56,6 +66,45 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "premises_item": {
+      "type": "object",
+      "properties": {
+        "premise_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "context": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "premise_id",
+        "statement",
+        "source_refs",
+        "confidence",
+        "context"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g03-premise-model-input-premises-item-v1-0-0"
     }
   }
 }
