@@ -28,6 +28,57 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "conflicts_item": {
+      "type": "object",
+      "properties": {
+        "conflict_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "conflict_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolution_state": {
+          "type": "string",
+          "enum": [
+            "unresolved",
+            "resolved",
+            "insufficient_evidence"
+          ]
+        }
+      },
+      "required": [
+        "conflict_id",
+        "claim_ids",
+        "source_ids",
+        "conflict_type",
+        "description",
+        "resolution_state"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g04-conflict-model-output-conflicts-item-v1-0-0"
     }
   },
   "properties": {
@@ -37,7 +88,16 @@
     },
     "conflicts": {
       "type": "array",
-      "description": "conflicts — approved output field for g04.conflict-model"
+      "description": "conflicts — approved output field for g04.conflict-model",
+      "items": {
+        "$ref": "#/$defs/conflicts_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "conflict_id"
+        ],
+        "rule": "claim/source references resolve; do not resolve by silently discarding a claim"
+      }
     },
     "resolution_state": {
       "type": "string",
