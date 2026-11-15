@@ -28,6 +28,43 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "test_results_item": {
+      "type": "object",
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "skipped",
+            "error",
+            "inconclusive"
+          ]
+        },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "failure_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "test_id",
+        "status",
+        "duration_ms",
+        "failure_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g11-conformance-report-input-test_results-item-v1-0-0"
     }
   },
   "properties": {
@@ -41,7 +78,18 @@
     },
     "test_results": {
       "type": "array",
-      "description": "test_results — approved input field for g11.conformance-report"
+      "description": "test_results — approved input field for g11.conformance-report",
+      "items": {
+        "$ref": "#/$defs/test_results_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "test_id"
+        ],
+        "rule": "failed/error/inconclusive statuses cannot be reported as passing conformance"
+      }
     },
     "tested_commit": {
       "type": "string",
