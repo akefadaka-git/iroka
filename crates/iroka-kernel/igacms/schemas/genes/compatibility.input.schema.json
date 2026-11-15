@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
+  "title": "g01.compatibility input contract v1.0.0",
+  "description": "input contract for g01.compatibility: source identity version, target version, compatibility declaration, migration evidence",
+  "type": "object",
+  "properties": {
+    "source_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "policy_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "declared_compatible": {
+      "type": "boolean"
+    },
+    "migration_digest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "source_version",
+    "target_version",
+    "policy_id",
+    "declared_compatible",
+    "migration_digest",
+    "provenance"
+  ],
+  "additionalProperties": false
+}
