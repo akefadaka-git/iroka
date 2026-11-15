@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "requested_capabilities_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g07-capability-profile-input-requested_capabilities-item-v1-0-0"
     }
   },
   "properties": {
@@ -37,7 +42,16 @@
     },
     "requested_capabilities": {
       "type": "array",
-      "description": "requested_capabilities — approved input field for g07.capability-profile"
+      "description": "requested_capabilities — approved input field for g07.capability-profile",
+      "items": {
+        "$ref": "#/$defs/requested_capabilities_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "capability identifiers are requests only, not grants"
+      }
     },
     "resource_limits": {
       "type": "object",
