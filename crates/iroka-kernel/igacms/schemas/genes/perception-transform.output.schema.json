@@ -28,6 +28,45 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "loss_annotations_item": {
+      "type": "object",
+      "properties": {
+        "annotation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "loss_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_segment": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "impact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "annotation_id",
+        "loss_type",
+        "source_segment",
+        "description",
+        "impact",
+        "severity"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g06-perception-transform-output-loss_annotations-item-v1-0-0"
     }
   },
   "properties": {
@@ -49,7 +88,16 @@
     },
     "loss_annotations": {
       "type": "array",
-      "description": "loss_annotations — approved output field for g06.perception-transform"
+      "description": "loss_annotations — approved output field for g06.perception-transform",
+      "items": {
+        "$ref": "#/$defs/loss_annotations_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "annotation_id"
+        ],
+        "rule": "every lossy/degraded transformation is disclosed; no annotation may claim information was preserved when it was discarded"
+      }
     },
     "transform_status": {
       "type": "string",
