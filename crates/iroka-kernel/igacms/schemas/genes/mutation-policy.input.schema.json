@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "protected_invariants_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g12-mutation-policy-input-protected_invariants-item-v1-0-0"
     }
   },
   "properties": {
@@ -53,7 +58,16 @@
     },
     "protected_invariants": {
       "type": "array",
-      "description": "protected_invariants — approved input field for g12.mutation-policy"
+      "description": "protected_invariants — approved input field for g12.mutation-policy",
+      "items": {
+        "$ref": "#/$defs/protected_invariants_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "unique invariant IDs; each resolves to a versioned protected invariant; omission cannot waive an invariant"
+      }
     },
     "approval_ref": {
       "type": [
