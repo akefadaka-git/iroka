@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "topological_order_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g08-workflow-graph-output-topological_order-item-v1-0-0"
     }
   },
   "properties": {
@@ -41,7 +46,14 @@
     },
     "topological_order": {
       "type": "array",
-      "description": "topological_order — approved output field for g08.workflow-graph"
+      "description": "topological_order — approved output field for g08.workflow-graph",
+      "items": {
+        "$ref": "#/$defs/topological_order_item"
+      },
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "rule": "contains every node exactly once; each source precedes its target; emitted only for acyclic valid graph"
+      }
     },
     "validation_status": {
       "type": "string",
