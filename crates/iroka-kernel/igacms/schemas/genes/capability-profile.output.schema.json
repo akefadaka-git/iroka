@@ -28,6 +28,16 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "granted_capabilities_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g07-capability-profile-output-granted_capabilities-item-v1-0-0"
+    },
+    "denied_capabilities_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g07-capability-profile-output-denied_capabilities-item-v1-0-0"
     }
   },
   "properties": {
@@ -37,11 +47,25 @@
     },
     "granted_capabilities": {
       "type": "array",
-      "description": "granted_capabilities — approved output field for g07.capability-profile"
+      "description": "granted_capabilities — approved output field for g07.capability-profile",
+      "items": {
+        "$ref": "#/$defs/granted_capabilities_item"
+      },
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "rule": "must be subset of requested capabilities and independently authorized"
+      }
     },
     "denied_capabilities": {
       "type": "array",
-      "description": "denied_capabilities — approved output field for g07.capability-profile"
+      "description": "denied_capabilities — approved output field for g07.capability-profile",
+      "items": {
+        "$ref": "#/$defs/denied_capabilities_item"
+      },
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "rule": "must be subset of requested capabilities; disjoint from granted_capabilities"
+      }
     },
     "limits": {
       "type": "object",
