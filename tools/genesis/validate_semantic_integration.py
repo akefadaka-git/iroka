@@ -197,8 +197,14 @@ def main():
             "self-relation must be rejected")
     rejects(lambda: check_relation("c1", "c2", "unknown"),
             "unsupported conflict relation type")
-    require(set(["c1", "c2"]).issubset({"c1", "c2"}),
-            "conflict preserves both sides of contradiction")
+    def check_conflict(claim_ids, relation, source_ids, known_claims, known_sources):
+        refs_resolve(claim_ids, known_claims, "conflict claim IDs")
+        refs_resolve(source_ids, known_sources, "conflict source IDs")
+        if relation == "contradicts" and len(set(claim_ids)) < 2:
+            raise ValueError("contradiction must preserve both claims")
+    check_conflict(["c1", "c2"], "contradicts", ["s1"], ["c1", "c2"], ["s1"])
+    rejects(lambda: check_conflict(["c1"], "contradicts", ["s1"], ["c1"], ["s1"]),
+            "contradiction cannot silently discard one claim")
 
     # G07: capability requests are not grants; delegation is bounded by live authority.
     requested, granted, denied = ["read", "write"], ["read"], ["write"]
@@ -214,7 +220,7 @@ def main():
     invalid_proof_effective = []
     require(invalid_proof_effective == [],
             "invalid/expired/revoked proof produces empty effective capabilities")
-    require(not bool({"requested": requested}.get("authorized", False)),
+    require(request_record["authorization_decision"] is None,
             "request presence does not imply authorization")
 
     # G08: workflow graph, topological output, participant/checkpoint references.
@@ -233,9 +239,11 @@ def main():
     refs_resolve(["cp-1"], ["cp-1"], "participant checkpoint reference")
     rejects(lambda: refs_resolve(["cp-x"], ["cp-1"], "participant checkpoint reference"),
             "unknown checkpoint reference")
-    require(2 > 1, "lease epoch strictly increases")
-    rejects(lambda: (_ for _ in ()).throw(ValueError("epoch")) if not (1 > 2) else None,
-            "lease epoch rollback")
+    def check_lease_epochs(epochs):
+        if any(next_epoch <= current for current, next_epoch in zip(epochs, epochs[1:])):
+            raise ValueError("lease epoch must strictly increase")
+    check_lease_epochs([1, 2, 3])
+    rejects(lambda: check_lease_epochs([2, 1]), "lease epoch rollback")
 
     # G10: source closure, complete/disjoint learning disposition, evaluation and regressions.
     observation_ids = ["o1", "o2", "o3"]
@@ -249,12 +257,16 @@ def main():
             "incomplete learning partition")
     rejects(lambda: exact_partition(observation_ids, ["o1", "o2"], ["o2", "o3"]),
             "overlapping learning partition")
-    require(not bool({"eligible": eligible}.get("training_mutation", False)),
+    learning_decision = {"eligible_observations": eligible, "permitted_effects": [], "model_mutation_authorized": False}
+    require(learning_decision["model_mutation_authorized"] is False
+            and "model-mutation" not in learning_decision["permitted_effects"],
             "eligibility does not imply training/model mutation")
-    require(not bool({"expected_effects": ["effect-x"]}.get("executed", False)),
+    proposed_effect = {"effect_id": "effect-x", "state": "declared", "executed": False}
+    require(proposed_effect["state"] == "declared" and proposed_effect["executed"] is False,
             "declared expected effects do not execute")
     statuses = ["passed", "skipped"]
-    require("skipped" in statuses and "passed" not in [] , "skipped result remains distinguishable")
+    require("skipped" in statuses and statuses != ["passed"],
+            "skipped result remains distinguishable from passing")
     def assert_aggregate_pass(items):
         if any(status in {"failed", "error", "inconclusive", "skipped"} for status in items):
             raise ValueError("non-passing result in passing aggregate")
