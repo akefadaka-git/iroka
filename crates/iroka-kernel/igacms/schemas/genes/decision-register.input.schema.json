@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
+  "title": "g02.decision-register input contract v1.0.0",
+  "description": "input contract for g02.decision-register: decision identifier, authority, decision text digest, status, supersession link",
+  "type": "object",
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "authority_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision_digest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "approved",
+        "rejected",
+        "superseded"
+      ]
+    },
+    "effective_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "supersedes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "decision_id",
+    "authority_id",
+    "decision_digest",
+    "status",
+    "effective_at",
+    "supersedes",
+    "provenance"
+  ],
+  "additionalProperties": false
+}
