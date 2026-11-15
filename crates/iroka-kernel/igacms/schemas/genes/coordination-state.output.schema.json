@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0",
+  "title": "Coordination state — output",
+  "description": "Normative output contract for g08.coordination-state v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "run_id — approved output field for g08.coordination-state"
+    },
+    "canonical_state": {
+      "type": "object",
+      "description": "canonical_state — approved output field for g08.coordination-state"
+    },
+    "state_digest": {
+      "type": "string",
+      "description": "state_digest — approved output field for g08.coordination-state"
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "conflicts — approved output field for g08.coordination-state"
+    },
+    "stale_participants": {
+      "type": "array",
+      "description": "stale_participants — approved output field for g08.coordination-state"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "run_id",
+    "canonical_state",
+    "state_digest",
+    "conflicts",
+    "stale_participants",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
