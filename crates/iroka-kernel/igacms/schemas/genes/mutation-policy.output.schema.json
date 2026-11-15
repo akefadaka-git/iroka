@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0",
+  "title": "Mutation policy — output",
+  "description": "Normative output contract for g12.mutation-policy v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "mutation_id": {
+      "type": "string",
+      "description": "mutation_id — approved output field for g12.mutation-policy"
+    },
+    "permitted": {
+      "type": "boolean",
+      "description": "permitted — approved output field for g12.mutation-policy"
+    },
+    "required_gates": {
+      "type": "array",
+      "description": "required_gates — approved output field for g12.mutation-policy"
+    },
+    "policy_digest": {
+      "type": "string",
+      "description": "policy_digest — approved output field for g12.mutation-policy"
+    },
+    "denial_reasons": {
+      "type": "array",
+      "description": "denial_reasons — approved output field for g12.mutation-policy"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "mutation_id",
+    "permitted",
+    "required_gates",
+    "policy_digest",
+    "denial_reasons",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
