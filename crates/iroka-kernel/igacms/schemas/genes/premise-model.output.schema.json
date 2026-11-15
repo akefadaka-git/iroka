@@ -15,11 +15,27 @@
     },
     "normalized_premises": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/normalized_premises_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "premise_id"
+        ],
+        "order": "deterministic normalized output order"
+      }
     },
     "unresolved_premises": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/unresolved_premises_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "premise_id"
+        ],
+        "order": "deterministic"
+      }
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
@@ -61,6 +77,73 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "normalized_premises_item": {
+      "type": "object",
+      "properties": {
+        "premise_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "normalized_statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "premise_id",
+        "normalized_statement",
+        "source_refs",
+        "confidence"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g03-premise-model-output-normalized_premises-item-v1-0-0"
+    },
+    "unresolved_premises_item": {
+      "type": "object",
+      "properties": {
+        "premise_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "unresolved_reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "premise_id",
+        "statement",
+        "source_refs",
+        "unresolved_reason"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g03-premise-model-output-unresolved_premises-item-v1-0-0"
     }
   }
 }
