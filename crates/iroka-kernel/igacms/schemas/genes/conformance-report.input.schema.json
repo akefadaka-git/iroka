@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
+  "title": "Conformance report — input",
+  "description": "Normative input contract for g11.conformance-report v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "suite_id": {
+      "type": "string",
+      "description": "suite_id — approved input field for g11.conformance-report"
+    },
+    "suite_version": {
+      "type": "string",
+      "description": "suite_version — approved input field for g11.conformance-report"
+    },
+    "test_results": {
+      "type": "array",
+      "description": "test_results — approved input field for g11.conformance-report"
+    },
+    "tested_commit": {
+      "type": "string",
+      "description": "tested_commit — approved input field for g11.conformance-report"
+    },
+    "environment_digest": {
+      "type": "string",
+      "description": "environment_digest — approved input field for g11.conformance-report"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "suite_id",
+    "suite_version",
+    "test_results",
+    "tested_commit",
+    "environment_digest",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
