@@ -28,6 +28,47 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "participants_item": {
+      "type": "object",
+      "properties": {
+        "participant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lease_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checkpoint_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "participant_id",
+        "state",
+        "lease_epoch",
+        "checkpoint_ref",
+        "updated_at"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g08-coordination-state-input-participants-item-v1-0-0"
+    },
+    "checkpoint_refs_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g08-coordination-state-input-checkpoint_refs-item-v1-0-0"
     }
   },
   "properties": {
@@ -37,7 +78,18 @@
     },
     "participants": {
       "type": "array",
-      "description": "participants — approved input field for g08.coordination-state"
+      "description": "participants — approved input field for g08.coordination-state",
+      "items": {
+        "$ref": "#/$defs/participants_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "participant_id"
+        ],
+        "rule": "lease epochs non-negative and monotonic per participant"
+      }
     },
     "lease_epochs": {
       "type": "object",
@@ -45,7 +97,14 @@
     },
     "checkpoint_refs": {
       "type": "array",
-      "description": "checkpoint_refs — approved input field for g08.coordination-state"
+      "description": "checkpoint_refs — approved input field for g08.coordination-state",
+      "items": {
+        "$ref": "#/$defs/checkpoint_refs_item"
+      },
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "rule": "unique immutable checkpoint references; every participant checkpoint_ref must be present when non-null"
+      }
     },
     "provenance": {
       "$ref": "#/$defs/provenance"
