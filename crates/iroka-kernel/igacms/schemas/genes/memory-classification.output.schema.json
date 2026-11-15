@@ -28,6 +28,39 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "handling_controls_item": {
+      "type": "object",
+      "properties": {
+        "control_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mandatory": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "control_id",
+        "action",
+        "scope",
+        "rationale",
+        "mandatory"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g05-memory-classification-output-handling_controls-item-v1-0-0"
     }
   },
   "properties": {
@@ -41,7 +74,18 @@
     },
     "handling_controls": {
       "type": "array",
-      "description": "handling_controls — approved output field for g05.memory-classification"
+      "description": "handling_controls — approved output field for g05.memory-classification",
+      "items": {
+        "$ref": "#/$defs/handling_controls_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "control_id"
+        ],
+        "rule": "controls may restrict handling; they do not authorize disclosure"
+      }
     },
     "classification_rationale": {
       "type": "string",
