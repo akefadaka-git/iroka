@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
+  "title": "Scheduler policy — input",
+  "description": "Normative input contract for g08.scheduler-policy v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "policy_id": {
+      "type": "string",
+      "description": "policy_id — approved input field for g08.scheduler-policy"
+    },
+    "task_classes": {
+      "type": "array",
+      "description": "task_classes — approved input field for g08.scheduler-policy"
+    },
+    "priorities": {
+      "type": "object",
+      "description": "priorities — approved input field for g08.scheduler-policy"
+    },
+    "quotas": {
+      "type": "object",
+      "description": "quotas — approved input field for g08.scheduler-policy"
+    },
+    "deadlines": {
+      "type": "object",
+      "description": "deadlines — approved input field for g08.scheduler-policy"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "policy_id",
+    "task_classes",
+    "priorities",
+    "quotas",
+    "deadlines",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
