@@ -28,6 +28,50 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "findings_item": {
+      "type": "object",
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contract_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instance_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "disposition": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "finding_id",
+        "contract_id",
+        "severity",
+        "code",
+        "message",
+        "instance_path",
+        "disposition"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g11-validator-output-findings-item-v1-0-0"
     }
   },
   "properties": {
@@ -41,7 +85,16 @@
     },
     "findings": {
       "type": "array",
-      "description": "findings — approved output field for g11.validator"
+      "description": "findings — approved output field for g11.validator",
+      "items": {
+        "$ref": "#/$defs/findings_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "finding_id"
+        ],
+        "rule": "contract references resolve; valid=true requires no blocking findings"
+      }
     },
     "validated_digest": {
       "type": "string",
