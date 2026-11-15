@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g05.memory-classification/output/1.0.0",
+  "title": "Memory classification — output",
+  "description": "Normative output contract for g05.memory-classification v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "description": "memory_id — approved output field for g05.memory-classification"
+    },
+    "classification": {
+      "type": "string",
+      "description": "classification — approved output field for g05.memory-classification"
+    },
+    "handling_controls": {
+      "type": "array",
+      "description": "handling_controls — approved output field for g05.memory-classification"
+    },
+    "classification_rationale": {
+      "type": "string",
+      "description": "classification_rationale — approved output field for g05.memory-classification"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "memory_id",
+    "classification",
+    "handling_controls",
+    "classification_rationale",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
