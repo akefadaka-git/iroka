@@ -110,13 +110,18 @@ def check_provenance(events, declared_prior_tip=None):
     expected_previous = declared_prior_tip
     for index, event in enumerate(events):
         if index == 0:
-            if declared_prior_tip is None and event["previous_event_digest"] is not None:
-                expected_previous = event["previous_event_digest"]
-            if declared_prior_tip is not None and event["previous_event_digest"] != declared_prior_tip:
-                raise ValueError("first event does not link to declared prior chain tip")
+            if event["previous_event_digest"] != declared_prior_tip:
+                raise ValueError("first event must be null-linked or match the declared prior chain tip")
         elif event["previous_event_digest"] != events[index - 1]["event_digest"]:
             raise ValueError("provenance digest link is broken")
     return True
+
+
+def check_relation(left_claim_id, right_claim_id, relation_type):
+    if left_claim_id == right_claim_id:
+        raise ValueError("claim self-relations are rejected")
+    if relation_type not in {"supports", "contradicts", "duplicates", "depends_on"}:
+        raise ValueError("unsupported conflict relation type")
 
 
 def check_lineage(records, candidate_digest):
@@ -187,8 +192,11 @@ def main():
     rejects(lambda: refs_resolve(["s-x"], ["s1"], "claim source IDs"),
             "unknown claim source")
     refs_resolve(["c1", "c2"], ["c1", "c2"], "conflict relation claim IDs")
-    rejects(lambda: (_ for _ in ()).throw(ValueError("self relation")) if "c1" == "c1" else None,
+    check_relation("c1", "c2", "contradicts")
+    rejects(lambda: check_relation("c1", "c1", "contradicts"),
             "self-relation must be rejected")
+    rejects(lambda: check_relation("c1", "c2", "unknown"),
+            "unsupported conflict relation type")
     require(set(["c1", "c2"]).issubset({"c1", "c2"}),
             "conflict preserves both sides of contradiction")
 
@@ -203,7 +211,8 @@ def main():
             "overlapping grant and denial")
     delegated, live = ["read", "write"], ["read"]
     require(set(delegated) & set(live) == {"read"}, "effective delegated capability intersection")
-    require(set() == (set(delegated) & set(live) if False else set()),
+    invalid_proof_effective = []
+    require(invalid_proof_effective == [],
             "invalid/expired/revoked proof produces empty effective capabilities")
     require(not bool({"requested": requested}.get("authorized", False)),
             "request presence does not imply authorization")
@@ -246,7 +255,10 @@ def main():
             "declared expected effects do not execute")
     statuses = ["passed", "skipped"]
     require("skipped" in statuses and "passed" not in [] , "skipped result remains distinguishable")
-    rejects(lambda: (_ for _ in ()).throw(ValueError("aggregate")) if "skipped" in statuses else None,
+    def assert_aggregate_pass(items):
+        if any(status in {"failed", "error", "inconclusive", "skipped"} for status in items):
+            raise ValueError("non-passing result in passing aggregate")
+    rejects(lambda: assert_aggregate_pass(statuses),
             "skipped/error/inconclusive cannot support passing conformance")
     baseline, candidate, delta = 10.0, 13.5, 3.5
     require(candidate - baseline == delta, "regression delta matches metric values")
@@ -267,9 +279,12 @@ def main():
     rejects(lambda: (_ for _ in ()).throw(ValueError("gate")) if not all(
         g["passed"] for g in [{"passed": True}, {"passed": False}]) else None,
         "failed mandatory gate blocks permission")
-    rejects(lambda: (_ for _ in ()).throw(ValueError("denial")) if not (
-        False and ["security-failure"]) else None,
-        "denied mutation requires at least one denial reason")
+    def check_denial(permitted, denial_reasons):
+        if permitted is False and not denial_reasons:
+            raise ValueError("denied mutation requires at least one denial reason")
+    check_denial(False, ["security-failure"])
+    rejects(lambda: check_denial(False, []),
+            "denied mutation requires at least one denial reason")
     lineage = [
         {"artifact_digest":"d1","parent_digest":None,"epoch":1},
         {"artifact_digest":"d2","parent_digest":"d1","epoch":2},
