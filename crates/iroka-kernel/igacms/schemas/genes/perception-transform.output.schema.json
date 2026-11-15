@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0",
+  "title": "Perception transform — output",
+  "description": "Normative output contract for g06.perception-transform v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "transform_id": {
+      "type": "string",
+      "description": "transform_id — approved output field for g06.perception-transform"
+    },
+    "output_digest": {
+      "type": "string",
+      "description": "output_digest — approved output field for g06.perception-transform"
+    },
+    "output_type": {
+      "type": "string",
+      "description": "output_type — approved output field for g06.perception-transform"
+    },
+    "source_envelope_digest": {
+      "type": "string",
+      "description": "source_envelope_digest — approved output field for g06.perception-transform"
+    },
+    "loss_annotations": {
+      "type": "array",
+      "description": "loss_annotations — approved output field for g06.perception-transform"
+    },
+    "transform_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "rejected",
+        "degraded"
+      ],
+      "description": "transform_status — approved output field for g06.perception-transform"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "transform_id",
+    "output_digest",
+    "output_type",
+    "source_envelope_digest",
+    "loss_annotations",
+    "transform_status",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
