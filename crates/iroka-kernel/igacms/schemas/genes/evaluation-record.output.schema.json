@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0",
+  "title": "Evaluation record — output",
+  "description": "Normative output contract for g10.evaluation-record v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "evaluation_id": {
+      "type": "string",
+      "description": "evaluation_id — approved output field for g10.evaluation-record"
+    },
+    "results": {
+      "type": "array",
+      "description": "results — approved output field for g10.evaluation-record"
+    },
+    "regressions": {
+      "type": "array",
+      "description": "regressions — approved output field for g10.evaluation-record"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive"
+      ],
+      "description": "decision — approved output field for g10.evaluation-record"
+    },
+    "evidence_digest": {
+      "type": "string",
+      "description": "evidence_digest — approved output field for g10.evaluation-record"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "evaluation_id",
+    "results",
+    "regressions",
+    "decision",
+    "evidence_digest",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
