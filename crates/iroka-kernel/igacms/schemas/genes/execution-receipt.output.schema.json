@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0",
+  "title": "Execution receipt — output",
+  "description": "Normative output contract for g09.execution-receipt v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "description": "receipt_id — approved output field for g09.execution-receipt"
+    },
+    "receipt_digest": {
+      "type": "string",
+      "description": "receipt_digest — approved output field for g09.execution-receipt"
+    },
+    "admission_ref": {
+      "type": "string",
+      "description": "admission_ref — approved output field for g09.execution-receipt"
+    },
+    "executor_id": {
+      "type": "string",
+      "description": "executor_id — approved output field for g09.execution-receipt"
+    },
+    "recorded_at": {
+      "type": "string",
+      "description": "recorded_at — approved output field for g09.execution-receipt"
+    },
+    "integrity_verified": {
+      "type": "boolean",
+      "description": "integrity_verified — approved output field for g09.execution-receipt"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "receipt_id",
+    "receipt_digest",
+    "admission_ref",
+    "executor_id",
+    "recorded_at",
+    "integrity_verified",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
