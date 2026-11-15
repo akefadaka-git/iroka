@@ -12,13 +12,13 @@
   },
   "governance": {
     "purpose": "Provide explicit item schemas and collection-level validation rules for all 53 generic array fields.",
-    "normative_boundary": "This document is a proposed amendment. It does not alter the Owner-approved gene IO baseline, the 72 schema files, Genome, runtime behavior, main, or production authority.",
+    "normative_boundary": "Owner-approved normative nested-item contract amendment for the 53 generic array fields. The approved definitions are enforced by the 72 gene schema files and the collection conformance suite. This amendment does not change Genome, runtime behavior, production authority, or main.",
     "source_limits": [
       "Genome gene records currently declare permitted_effects=[none], dependencies=[], failure_semantics=fail-closed.",
       "No capability grant, authorization, execution, external write, model mutation or promotion may be inferred from collection contents.",
       "Where the authoritative source does not define a scale or controlled vocabulary, this proposal marks the choice as a proposed convention requiring Owner ratification."
     ],
-    "approval_required_before": "Applying these item definitions to the normative contract and 72 JSON Schemas.",
+    "approval_required_before": "No further approval is required to implement the 53 collection item definitions within the approved scope. Separate Owner approval remains required for merge, deployment, runtime activation, or changes to main.",
     "owner_approval": {
       "decision": "APPROVED",
       "approval_record": "Explicit Owner approval in ChatGPT conversation, 2026-11-15",
@@ -28,6 +28,12 @@
         "No runtime activation or external effects are authorized.",
         "Genome permitted_effects and dependency declarations remain unchanged."
       ]
+    },
+    "implementation_state": {
+      "schema_application": "The 53 item definitions are represented by stable local $ref targets in the affected gene schemas; the exact-head validator is the acceptance authority for complete coverage.",
+      "conformance": "The collection conformance fixture contains 53 collection cases and 208 negative vectors; exact-head execution remains required.",
+      "semantic_boundary": "Only executable rules represented in collection_rules and implemented by the validator are claimed as enforced. Cross-collection closure, graph acyclicity, chronology and partition rules remain separate integration obligations unless explicitly tested.",
+      "genome_effects": "All Genome gene permitted_effects remain none; collection data grants no capability, authority, authorization, or execution permission."
     }
   },
   "validation_conventions": {
