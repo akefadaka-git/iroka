@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
+  "title": "g01.identity-root input contract v1.0.0",
+  "description": "input contract for g01.identity-root: identity root identifier, issuer identity, root key fingerprint, activation epoch, trust status",
+  "type": "object",
+  "properties": {
+    "root_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issuer_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "key_fingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "algorithm": {
+      "type": "string",
+      "minLength": 1
+    },
+    "activation_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suspended",
+        "revoked"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "root_id",
+    "issuer_id",
+    "key_fingerprint",
+    "algorithm",
+    "activation_epoch",
+    "status",
+    "provenance"
+  ],
+  "additionalProperties": false
+}
