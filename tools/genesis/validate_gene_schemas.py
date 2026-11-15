@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fail-closed resolver and executable conformance runner for GENESIS gene IO."""
+import copy
 import json
 import sys
 from pathlib import Path
@@ -170,6 +171,58 @@ def check_contract_schema(gene_id, side, spec, schema):
                 raise ValueError("Array item type mismatch: " + gene_id + "/" + side + "/" + name)
 
 
+
+def invalid_value(declaration):
+    """Return a value that must violate the approved field's declared JSON type."""
+    if declaration.startswith("enum("):
+        return "__GENESIS_INVALID_ENUM_VALUE__"
+    if declaration.endswith("|null"):
+        base = declaration[:-5]
+        return {"string": True, "integer": "not-an-integer", "boolean": "not-a-boolean", "object": "not-an-object"}[base]
+    if declaration.endswith("[]") or declaration == "array":
+        return "not-an-array"
+    return {
+        "string": 17,
+        "integer": "not-an-integer",
+        "boolean": "not-a-boolean",
+        "object": "not-an-object",
+    }[declaration]
+
+
+def check_negative_mutations(validator, instance, spec, gene_id, side):
+    """Exercise type, enum, array-item and closed-object rejection beyond missing-field tests."""
+    rejected = 0
+    for field in spec["properties"]:
+        name = field["name"]
+        if name not in instance:
+            continue
+        candidate = copy.deepcopy(instance)
+        candidate[name] = invalid_value(field["type"])
+        if validator.is_valid(candidate):
+            raise ValueError("Invalid field value accepted: " + gene_id + "/" + side + "/" + name)
+        rejected += 1
+
+        if field["type"] == "string[]":
+            candidate = copy.deepcopy(instance)
+            candidate[name] = [17]
+            if validator.is_valid(candidate):
+                raise ValueError("Invalid array item accepted: " + gene_id + "/" + side + "/" + name)
+            rejected += 1
+
+    candidate = copy.deepcopy(instance)
+    candidate["__unexpected_contract_field__"] = True
+    if validator.is_valid(candidate):
+        raise ValueError("Undeclared top-level property accepted: " + gene_id + "/" + side)
+    rejected += 1
+
+    candidate = copy.deepcopy(instance)
+    candidate["version_bound_evidence"] = "not-an-object"
+    if validator.is_valid(candidate):
+        raise ValueError("Non-object version-bound evidence accepted: " + gene_id + "/" + side)
+    rejected += 1
+    return rejected
+
+
 def main():
     proposal = load(CONTRACTS)
     genome = load(GENOME)
@@ -187,7 +240,7 @@ def main():
     ):
         raise ValueError("Expected exactly 36 matching gene contracts, Genome genes and conformance cases")
 
-    resolved = positive = negative = 0
+    resolved = positive = negative = mutation_negatives = 0
     schema_ids = set()
     schema_paths = set()
 
@@ -224,6 +277,9 @@ def main():
                 raise ValueError("Root object must be closed: " + str(path))
 
             check_contract_schema(gene_id, side, spec, schema)
+            version_evidence = dereference(schema, schema.get("properties", {}).get("version_bound_evidence", {}))
+            if version_evidence.get("type") != "object":
+                raise ValueError("Version-bound evidence must be an object: " + str(path))
             if "version_bound_evidence" not in schema.get("required", []):
                 raise ValueError("Version-bound evidence requirement missing: " + str(path))
 
@@ -249,6 +305,9 @@ def main():
             if not list(validator.iter_errors(vectors["negative"]["instance"])):
                 raise ValueError("Negative vector accepted: " + gene_id + "/" + side)
             negative += 1
+            mutation_negatives += check_negative_mutations(
+                validator, vectors["positive"]["instance"], spec, gene_id, side
+            )
             resolved += 1
 
     if (resolved, positive, negative) != (72, 72, 72):
@@ -257,7 +316,8 @@ def main():
     print("PASS: all 72 schemas match approved field sets, requiredness, types and enum values")
     print("PASS: all schemas are valid Draft 2020-12 with unique stable IDs and closed object contracts")
     print("PASS: all internal $refs resolve; external refs and cycles rejected")
-    print("PASS: 36 gene cases; 72 positive vectors accepted; 72 negative vectors rejected")
+    print("PASS: 36 gene cases; 72 positive vectors and 72 missing-field negatives")
+    print("PASS: " + str(mutation_negatives) + " generated invalid-type, enum, array-item and unknown-field mutations rejected")
 
 
 if __name__ == "__main__":
