@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g05.retention-control/input/1.0.0",
+  "title": "Retention control — input",
+  "description": "Normative input contract for g05.retention-control v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "description": "memory_id — approved input field for g05.retention-control"
+    },
+    "retention_policy_id": {
+      "type": "string",
+      "description": "retention_policy_id — approved input field for g05.retention-control"
+    },
+    "created_at": {
+      "type": "string",
+      "description": "created_at — approved input field for g05.retention-control"
+    },
+    "legal_hold": {
+      "type": "boolean",
+      "description": "legal_hold — approved input field for g05.retention-control"
+    },
+    "hold_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "hold_ref — approved input field for g05.retention-control"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "memory_id",
+    "retention_policy_id",
+    "created_at",
+    "legal_hold",
+    "hold_ref",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
