@@ -38,5 +38,7 @@ jobs:
         run: python3 -m pip install --disable-pip-version-check jsonschema==4.23.0
       - name: Resolve all 72 references and execute conformance vectors
         run: python3 tools/genesis/validate_gene_schemas.py
-      - name: Validate proposed 53 collection item contracts
+      - name: Validate approved 53 collection item contracts
         run: python3 tools/genesis/validate_collection_item_amendment.py
+      - name: Execute cross-collection semantic integration conformance
+        run: python3 tools/genesis/validate_semantic_integration.py
