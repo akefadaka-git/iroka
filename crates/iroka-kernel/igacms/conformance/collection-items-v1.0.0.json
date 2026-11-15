@@ -4,7 +4,7 @@
   "source_amendment": "docs/architecture/GENESIS-GENE-COLLECTION-ITEM-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
   "status": "OWNER_APPROVED_CONFORMANCE_VECTORS",
   "case_count": 53,
-  "negative_vector_count": 131,
+  "negative_vector_count": 208,
   "cases": [
     {
       "collection_id": "g03.premise-model:input:premises",
