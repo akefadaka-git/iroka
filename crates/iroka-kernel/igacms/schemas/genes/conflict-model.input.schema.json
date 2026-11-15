@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g04.conflict-model/input/1.0.0",
+  "title": "Conflict model — input",
+  "description": "Normative input contract for g04.conflict-model v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "claims": {
+      "type": "array",
+      "description": "claims — approved input field for g04.conflict-model"
+    },
+    "sources": {
+      "type": "array",
+      "description": "sources — approved input field for g04.conflict-model"
+    },
+    "relations": {
+      "type": "array",
+      "description": "relations — approved input field for g04.conflict-model"
+    },
+    "policy_id": {
+      "type": "string",
+      "description": "policy_id — approved input field for g04.conflict-model"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "claims",
+    "sources",
+    "relations",
+    "policy_id",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
