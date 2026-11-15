@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g04.provenance-chain/input/1.0.0",
+  "title": "Provenance chain — input",
+  "description": "Normative input contract for g04.provenance-chain v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "artifact_digest": {
+      "type": "string",
+      "description": "artifact_digest — approved input field for g04.provenance-chain"
+    },
+    "events": {
+      "type": "array",
+      "description": "events — approved input field for g04.provenance-chain"
+    },
+    "actor_ids": {
+      "type": "array",
+      "description": "actor_ids — approved input field for g04.provenance-chain"
+    },
+    "previous_chain_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "previous_chain_digest — approved input field for g04.provenance-chain"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "artifact_digest",
+    "events",
+    "actor_ids",
+    "previous_chain_digest",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
