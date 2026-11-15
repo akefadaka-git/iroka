@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0",
+  "title": "Capability profile — output",
+  "description": "Normative output contract for g07.capability-profile v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "profile_id": {
+      "type": "string",
+      "description": "profile_id — approved output field for g07.capability-profile"
+    },
+    "granted_capabilities": {
+      "type": "array",
+      "description": "granted_capabilities — approved output field for g07.capability-profile"
+    },
+    "denied_capabilities": {
+      "type": "array",
+      "description": "denied_capabilities — approved output field for g07.capability-profile"
+    },
+    "limits": {
+      "type": "object",
+      "description": "limits — approved output field for g07.capability-profile"
+    },
+    "authority_granted": {
+      "type": "boolean",
+      "description": "authority_granted — approved output field for g07.capability-profile"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "profile_id",
+    "granted_capabilities",
+    "denied_capabilities",
+    "limits",
+    "authority_granted",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
