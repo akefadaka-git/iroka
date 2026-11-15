@@ -11,15 +11,37 @@
     },
     "conclusion_set": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/conclusion_set_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "conclusion_id"
+        ],
+        "rule": "all premise/rule references must resolve to supplied inputs"
+      }
     },
     "applied_rule_ids": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/applied_rule_ids_item"
+      },
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "rule": "unique IDs; every ID must identify a rule in the input set"
+      }
     },
     "unsupported_steps": {
       "type": "array",
-      "items": {}
+      "items": {
+        "$ref": "#/$defs/unsupported_steps_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "step_id"
+        ],
+        "rule": "unsupported steps are reported, never silently promoted to conclusions"
+      }
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
@@ -61,6 +83,89 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "conclusion_set_item": {
+      "type": "object",
+      "properties": {
+        "conclusion_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supporting_premise_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "applied_rule_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "conclusion_id",
+        "statement",
+        "supporting_premise_ids",
+        "applied_rule_ids",
+        "confidence"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g03-inference-rules-output-conclusion_set-item-v1-0-0"
+    },
+    "applied_rule_ids_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g03-inference-rules-output-applied_rule_ids-item-v1-0-0"
+    },
+    "unsupported_steps_item": {
+      "type": "object",
+      "properties": {
+        "step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "premise_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "step_id",
+        "rule_id",
+        "premise_ids",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g03-inference-rules-output-unsupported_steps-item-v1-0-0"
     }
   }
 }
