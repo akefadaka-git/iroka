@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
+  "title": "Change proposal — input",
+  "description": "Normative input contract for g10.change-proposal v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "target_id": {
+      "type": "string",
+      "description": "target_id — approved input field for g10.change-proposal"
+    },
+    "base_version": {
+      "type": "string",
+      "description": "base_version — approved input field for g10.change-proposal"
+    },
+    "proposed_version": {
+      "type": "string",
+      "description": "proposed_version — approved input field for g10.change-proposal"
+    },
+    "diff_digest": {
+      "type": "string",
+      "description": "diff_digest — approved input field for g10.change-proposal"
+    },
+    "rationale": {
+      "type": "string",
+      "description": "rationale — approved input field for g10.change-proposal"
+    },
+    "expected_effects": {
+      "type": "array",
+      "description": "expected_effects — approved input field for g10.change-proposal"
+    },
+    "proposer_id": {
+      "type": "string",
+      "description": "proposer_id — approved input field for g10.change-proposal"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "target_id",
+    "base_version",
+    "proposed_version",
+    "diff_digest",
+    "rationale",
+    "expected_effects",
+    "proposer_id",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
