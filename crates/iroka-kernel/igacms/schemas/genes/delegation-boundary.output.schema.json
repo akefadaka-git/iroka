@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g07.delegation-boundary/output/1.0.0",
+  "title": "Delegation boundary — output",
+  "description": "Normative output contract for g07.delegation-boundary v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "delegation_id": {
+      "type": "string",
+      "description": "delegation_id — approved output field for g07.delegation-boundary"
+    },
+    "accepted": {
+      "type": "boolean",
+      "description": "accepted — approved output field for g07.delegation-boundary"
+    },
+    "effective_capabilities": {
+      "type": "array",
+      "description": "effective_capabilities — approved output field for g07.delegation-boundary"
+    },
+    "expiry": {
+      "type": "string",
+      "description": "expiry — approved output field for g07.delegation-boundary"
+    },
+    "chain_digest": {
+      "type": "string",
+      "description": "chain_digest — approved output field for g07.delegation-boundary"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "delegation_id",
+    "accepted",
+    "effective_capabilities",
+    "expiry",
+    "chain_digest",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
