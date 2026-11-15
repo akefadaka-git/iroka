@@ -1,0 +1,2623 @@
+{
+  "schema_version": "1.0.0",
+  "dialect": "https://json-schema.org/draft/2020-12/schema",
+  "source_amendment": "docs/architecture/GENESIS-GENE-COLLECTION-ITEM-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
+  "status": "OWNER_APPROVED_CONFORMANCE_VECTORS",
+  "case_count": 53,
+  "negative_vector_count": 131,
+  "cases": [
+    {
+      "collection_id": "g03.premise-model:input:premises",
+      "gene_id": "g03.premise-model",
+      "side": "input",
+      "field": "premises",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "premise_id": "fixture-value",
+            "statement": "fixture-value",
+            "source_refs": [],
+            "confidence": 0,
+            "context": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0,
+              "context": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "premise_id": "fixture-value",
+              "statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0,
+              "context": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "premise_id": 17,
+              "statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0,
+              "context": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.premise-model:output:normalized_premises",
+      "gene_id": "g03.premise-model",
+      "side": "output",
+      "field": "normalized_premises",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "premise_id": "fixture-value",
+            "normalized_statement": "fixture-value",
+            "source_refs": [],
+            "confidence": 0
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "normalized_statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "premise_id": "fixture-value",
+              "normalized_statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0,
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "premise_id": 17,
+              "normalized_statement": "fixture-value",
+              "source_refs": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.premise-model:output:unresolved_premises",
+      "gene_id": "g03.premise-model",
+      "side": "output",
+      "field": "unresolved_premises",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "premise_id": "fixture-value",
+            "statement": "fixture-value",
+            "source_refs": [],
+            "unresolved_reason": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "statement": "fixture-value",
+              "source_refs": [],
+              "unresolved_reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "premise_id": "fixture-value",
+              "statement": "fixture-value",
+              "source_refs": [],
+              "unresolved_reason": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "premise_id": 17,
+              "statement": "fixture-value",
+              "source_refs": [],
+              "unresolved_reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.inference-rules:input:rules",
+      "gene_id": "g03.inference-rules",
+      "side": "input",
+      "field": "rules",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "rule_id": "fixture-value",
+            "rule_version": "fixture-value",
+            "antecedent_premise_ids": [],
+            "conclusion_template": "fixture-value",
+            "rule_expression": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "rule_version": "fixture-value",
+              "antecedent_premise_ids": [],
+              "conclusion_template": "fixture-value",
+              "rule_expression": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "rule_id": "fixture-value",
+              "rule_version": "fixture-value",
+              "antecedent_premise_ids": [],
+              "conclusion_template": "fixture-value",
+              "rule_expression": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "rule_id": 17,
+              "rule_version": "fixture-value",
+              "antecedent_premise_ids": [],
+              "conclusion_template": "fixture-value",
+              "rule_expression": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.inference-rules:input:premise_ids",
+      "gene_id": "g03.inference-rules",
+      "side": "input",
+      "field": "premise_ids",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.inference-rules:output:conclusion_set",
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "conclusion_set",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "conclusion_id": "fixture-value",
+            "statement": "fixture-value",
+            "supporting_premise_ids": [],
+            "applied_rule_ids": [],
+            "confidence": 0
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "statement": "fixture-value",
+              "supporting_premise_ids": [],
+              "applied_rule_ids": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "conclusion_id": "fixture-value",
+              "statement": "fixture-value",
+              "supporting_premise_ids": [],
+              "applied_rule_ids": [],
+              "confidence": 0,
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "conclusion_id": 17,
+              "statement": "fixture-value",
+              "supporting_premise_ids": [],
+              "applied_rule_ids": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.inference-rules:output:applied_rule_ids",
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "applied_rule_ids",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.inference-rules:output:unsupported_steps",
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "unsupported_steps",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "step_id": "fixture-value",
+            "rule_id": "fixture-value",
+            "premise_ids": [],
+            "reason": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "rule_id": "fixture-value",
+              "premise_ids": [],
+              "reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "step_id": "fixture-value",
+              "rule_id": "fixture-value",
+              "premise_ids": [],
+              "reason": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "step_id": 17,
+              "rule_id": "fixture-value",
+              "premise_ids": [],
+              "reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.uncertainty-calculus:input:hypotheses",
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "input",
+      "field": "hypotheses",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "hypothesis_id": "fixture-value",
+            "statement": "fixture-value",
+            "prior_probability": 0
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "statement": "fixture-value",
+              "prior_probability": 0
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "hypothesis_id": "fixture-value",
+              "statement": "fixture-value",
+              "prior_probability": 0,
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "hypothesis_id": 17,
+              "statement": "fixture-value",
+              "prior_probability": 0
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.uncertainty-calculus:input:evidence_items",
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "input",
+      "field": "evidence_items",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "evidence_id": "fixture-value",
+            "hypothesis_id": "fixture-value",
+            "source_ref": "fixture-value",
+            "weight": 0,
+            "polarity": "supports"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "hypothesis_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "weight": 0,
+              "polarity": "supports"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "evidence_id": "fixture-value",
+              "hypothesis_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "weight": 0,
+              "polarity": "supports",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "evidence_id": 17,
+              "hypothesis_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "weight": 0,
+              "polarity": "supports"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "invalid-enum",
+          "instance": [
+            {
+              "evidence_id": "fixture-value",
+              "hypothesis_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "weight": 0,
+              "polarity": "__INVALID_ENUM__"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g03.uncertainty-calculus:output:estimates",
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "output",
+      "field": "estimates",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "hypothesis_id": "fixture-value",
+            "estimate": 0,
+            "lower_bound": 0,
+            "upper_bound": 0,
+            "method": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "estimate": 0,
+              "lower_bound": 0,
+              "upper_bound": 0,
+              "method": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "hypothesis_id": "fixture-value",
+              "estimate": 0,
+              "lower_bound": 0,
+              "upper_bound": 0,
+              "method": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "hypothesis_id": 17,
+              "estimate": 0,
+              "lower_bound": 0,
+              "upper_bound": 0,
+              "method": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.knowledge-schema:input:fields",
+      "gene_id": "g04.knowledge-schema",
+      "side": "input",
+      "field": "fields",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "field_id": "fixture-value",
+            "name": "fixture-value",
+            "value_type": "string",
+            "required": false,
+            "nullable": false,
+            "description": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "name": "fixture-value",
+              "value_type": "string",
+              "required": false,
+              "nullable": false,
+              "description": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "field_id": "fixture-value",
+              "name": "fixture-value",
+              "value_type": "string",
+              "required": false,
+              "nullable": false,
+              "description": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "field_id": 17,
+              "name": "fixture-value",
+              "value_type": "string",
+              "required": false,
+              "nullable": false,
+              "description": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "invalid-enum",
+          "instance": [
+            {
+              "field_id": "fixture-value",
+              "name": "fixture-value",
+              "value_type": "__INVALID_ENUM__",
+              "required": false,
+              "nullable": false,
+              "description": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.knowledge-schema:input:constraints",
+      "gene_id": "g04.knowledge-schema",
+      "side": "input",
+      "field": "constraints",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "constraint_id": "fixture-value",
+            "field_id": "fixture-value",
+            "constraint_type": "fixture-value",
+            "expression": "fixture-value",
+            "parameters_digest": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "field_id": "fixture-value",
+              "constraint_type": "fixture-value",
+              "expression": "fixture-value",
+              "parameters_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "constraint_id": "fixture-value",
+              "field_id": "fixture-value",
+              "constraint_type": "fixture-value",
+              "expression": "fixture-value",
+              "parameters_digest": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "constraint_id": 17,
+              "field_id": "fixture-value",
+              "constraint_type": "fixture-value",
+              "expression": "fixture-value",
+              "parameters_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.provenance-chain:input:events",
+      "gene_id": "g04.provenance-chain",
+      "side": "input",
+      "field": "events",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "event_id": "fixture-value",
+            "sequence": 1,
+            "event_type": "fixture-value",
+            "actor_id": "fixture-value",
+            "occurred_at": "2026-01-01T00:00:00Z",
+            "source_ref": "fixture-value",
+            "previous_event_digest": "fixture-value",
+            "event_digest": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "sequence": 1,
+              "event_type": "fixture-value",
+              "actor_id": "fixture-value",
+              "occurred_at": "2026-01-01T00:00:00Z",
+              "source_ref": "fixture-value",
+              "previous_event_digest": "fixture-value",
+              "event_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "event_id": "fixture-value",
+              "sequence": 1,
+              "event_type": "fixture-value",
+              "actor_id": "fixture-value",
+              "occurred_at": "2026-01-01T00:00:00Z",
+              "source_ref": "fixture-value",
+              "previous_event_digest": "fixture-value",
+              "event_digest": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "event_id": 17,
+              "sequence": 1,
+              "event_type": "fixture-value",
+              "actor_id": "fixture-value",
+              "occurred_at": "2026-01-01T00:00:00Z",
+              "source_ref": "fixture-value",
+              "previous_event_digest": "fixture-value",
+              "event_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.provenance-chain:input:actor_ids",
+      "gene_id": "g04.provenance-chain",
+      "side": "input",
+      "field": "actor_ids",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.provenance-chain:output:broken_links",
+      "gene_id": "g04.provenance-chain",
+      "side": "output",
+      "field": "broken_links",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "from_event_id": "fixture-value",
+            "to_event_id": "fixture-value",
+            "expected_digest": "fixture-value",
+            "observed_digest": "fixture-value",
+            "reason": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "to_event_id": "fixture-value",
+              "expected_digest": "fixture-value",
+              "observed_digest": "fixture-value",
+              "reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "from_event_id": "fixture-value",
+              "to_event_id": "fixture-value",
+              "expected_digest": "fixture-value",
+              "observed_digest": "fixture-value",
+              "reason": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "from_event_id": 17,
+              "to_event_id": "fixture-value",
+              "expected_digest": "fixture-value",
+              "observed_digest": "fixture-value",
+              "reason": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.conflict-model:input:claims",
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "claims",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "claim_id": "fixture-value",
+            "subject": "fixture-value",
+            "predicate": "fixture-value",
+            "object_value": "fixture-value",
+            "source_ids": [],
+            "confidence": 0
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "subject": "fixture-value",
+              "predicate": "fixture-value",
+              "object_value": "fixture-value",
+              "source_ids": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "claim_id": "fixture-value",
+              "subject": "fixture-value",
+              "predicate": "fixture-value",
+              "object_value": "fixture-value",
+              "source_ids": [],
+              "confidence": 0,
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "claim_id": 17,
+              "subject": "fixture-value",
+              "predicate": "fixture-value",
+              "object_value": "fixture-value",
+              "source_ids": [],
+              "confidence": 0
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.conflict-model:input:sources",
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "sources",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "source_id": "fixture-value",
+            "source_ref": "fixture-value",
+            "source_digest": "fixture-value",
+            "trust_ref": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "source_ref": "fixture-value",
+              "source_digest": "fixture-value",
+              "trust_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "source_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "source_digest": "fixture-value",
+              "trust_ref": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "source_id": 17,
+              "source_ref": "fixture-value",
+              "source_digest": "fixture-value",
+              "trust_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.conflict-model:input:relations",
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "relations",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "relation_id": "fixture-value",
+            "left_claim_id": "fixture-value",
+            "right_claim_id": "fixture-value",
+            "relation_type": "supports"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "left_claim_id": "fixture-value",
+              "right_claim_id": "fixture-value",
+              "relation_type": "supports"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "relation_id": "fixture-value",
+              "left_claim_id": "fixture-value",
+              "right_claim_id": "fixture-value",
+              "relation_type": "supports",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "relation_id": 17,
+              "left_claim_id": "fixture-value",
+              "right_claim_id": "fixture-value",
+              "relation_type": "supports"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "invalid-enum",
+          "instance": [
+            {
+              "relation_id": "fixture-value",
+              "left_claim_id": "fixture-value",
+              "right_claim_id": "fixture-value",
+              "relation_type": "__INVALID_ENUM__"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g04.conflict-model:output:conflicts",
+      "gene_id": "g04.conflict-model",
+      "side": "output",
+      "field": "conflicts",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "conflict_id": "fixture-value",
+            "claim_ids": [],
+            "source_ids": [],
+            "conflict_type": "fixture-value",
+            "description": "fixture-value",
+            "resolution_state": "unresolved"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "claim_ids": [],
+              "source_ids": [],
+              "conflict_type": "fixture-value",
+              "description": "fixture-value",
+              "resolution_state": "unresolved"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "conflict_id": "fixture-value",
+              "claim_ids": [],
+              "source_ids": [],
+              "conflict_type": "fixture-value",
+              "description": "fixture-value",
+              "resolution_state": "unresolved",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "conflict_id": 17,
+              "claim_ids": [],
+              "source_ids": [],
+              "conflict_type": "fixture-value",
+              "description": "fixture-value",
+              "resolution_state": "unresolved"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "invalid-enum",
+          "instance": [
+            {
+              "conflict_id": "fixture-value",
+              "claim_ids": [],
+              "source_ids": [],
+              "conflict_type": "fixture-value",
+              "description": "fixture-value",
+              "resolution_state": "__INVALID_ENUM__"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g05.memory-classification:input:labels",
+      "gene_id": "g05.memory-classification",
+      "side": "input",
+      "field": "labels",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g05.memory-classification:output:handling_controls",
+      "gene_id": "g05.memory-classification",
+      "side": "output",
+      "field": "handling_controls",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "control_id": "fixture-value",
+            "action": "fixture-value",
+            "scope": "fixture-value",
+            "rationale": "fixture-value",
+            "mandatory": false
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "action": "fixture-value",
+              "scope": "fixture-value",
+              "rationale": "fixture-value",
+              "mandatory": false
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "control_id": "fixture-value",
+              "action": "fixture-value",
+              "scope": "fixture-value",
+              "rationale": "fixture-value",
+              "mandatory": false,
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "control_id": 17,
+              "action": "fixture-value",
+              "scope": "fixture-value",
+              "rationale": "fixture-value",
+              "mandatory": false
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g06.perception-transform:output:loss_annotations",
+      "gene_id": "g06.perception-transform",
+      "side": "output",
+      "field": "loss_annotations",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/perception-transform.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "annotation_id": "fixture-value",
+            "loss_type": "fixture-value",
+            "source_segment": "fixture-value",
+            "description": "fixture-value",
+            "impact": "fixture-value",
+            "severity": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "loss_type": "fixture-value",
+              "source_segment": "fixture-value",
+              "description": "fixture-value",
+              "impact": "fixture-value",
+              "severity": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "annotation_id": "fixture-value",
+              "loss_type": "fixture-value",
+              "source_segment": "fixture-value",
+              "description": "fixture-value",
+              "impact": "fixture-value",
+              "severity": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "annotation_id": 17,
+              "loss_type": "fixture-value",
+              "source_segment": "fixture-value",
+              "description": "fixture-value",
+              "impact": "fixture-value",
+              "severity": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g07.capability-profile:input:requested_capabilities",
+      "gene_id": "g07.capability-profile",
+      "side": "input",
+      "field": "requested_capabilities",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g07.capability-profile:output:granted_capabilities",
+      "gene_id": "g07.capability-profile",
+      "side": "output",
+      "field": "granted_capabilities",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.output.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g07.capability-profile:output:denied_capabilities",
+      "gene_id": "g07.capability-profile",
+      "side": "output",
+      "field": "denied_capabilities",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.output.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g07.delegation-boundary:input:capability_subset",
+      "gene_id": "g07.delegation-boundary",
+      "side": "input",
+      "field": "capability_subset",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g07.delegation-boundary:output:effective_capabilities",
+      "gene_id": "g07.delegation-boundary",
+      "side": "output",
+      "field": "effective_capabilities",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.output.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.workflow-graph:input:nodes",
+      "gene_id": "g08.workflow-graph",
+      "side": "input",
+      "field": "nodes",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "node_id": "fixture-value",
+            "node_type": "fixture-value",
+            "operation_ref": "fixture-value",
+            "configuration_digest": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "node_type": "fixture-value",
+              "operation_ref": "fixture-value",
+              "configuration_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "node_id": "fixture-value",
+              "node_type": "fixture-value",
+              "operation_ref": "fixture-value",
+              "configuration_digest": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "node_id": 17,
+              "node_type": "fixture-value",
+              "operation_ref": "fixture-value",
+              "configuration_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.workflow-graph:input:edges",
+      "gene_id": "g08.workflow-graph",
+      "side": "input",
+      "field": "edges",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "edge_id": "fixture-value",
+            "from_node_id": "fixture-value",
+            "to_node_id": "fixture-value",
+            "dependency_type": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "from_node_id": "fixture-value",
+              "to_node_id": "fixture-value",
+              "dependency_type": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "edge_id": "fixture-value",
+              "from_node_id": "fixture-value",
+              "to_node_id": "fixture-value",
+              "dependency_type": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "edge_id": 17,
+              "from_node_id": "fixture-value",
+              "to_node_id": "fixture-value",
+              "dependency_type": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.workflow-graph:output:topological_order",
+      "gene_id": "g08.workflow-graph",
+      "side": "output",
+      "field": "topological_order",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.output.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.scheduler-policy:input:task_classes",
+      "gene_id": "g08.scheduler-policy",
+      "side": "input",
+      "field": "task_classes",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "class_id": "fixture-value",
+            "priority": 1,
+            "quota": 0,
+            "deadline_at": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "priority": 1,
+              "quota": 0,
+              "deadline_at": "2026-01-01T00:00:00Z"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "class_id": "fixture-value",
+              "priority": 1,
+              "quota": 0,
+              "deadline_at": "2026-01-01T00:00:00Z",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "class_id": 17,
+              "priority": 1,
+              "quota": 0,
+              "deadline_at": "2026-01-01T00:00:00Z"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.scheduler-policy:output:violations",
+      "gene_id": "g08.scheduler-policy",
+      "side": "output",
+      "field": "violations",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "violation_id": "fixture-value",
+            "class_id": "fixture-value",
+            "rule_id": "fixture-value",
+            "expected": "fixture-value",
+            "observed": "fixture-value",
+            "severity": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "class_id": "fixture-value",
+              "rule_id": "fixture-value",
+              "expected": "fixture-value",
+              "observed": "fixture-value",
+              "severity": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "violation_id": "fixture-value",
+              "class_id": "fixture-value",
+              "rule_id": "fixture-value",
+              "expected": "fixture-value",
+              "observed": "fixture-value",
+              "severity": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "violation_id": 17,
+              "class_id": "fixture-value",
+              "rule_id": "fixture-value",
+              "expected": "fixture-value",
+              "observed": "fixture-value",
+              "severity": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.coordination-state:input:participants",
+      "gene_id": "g08.coordination-state",
+      "side": "input",
+      "field": "participants",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "participant_id": "fixture-value",
+            "state": "fixture-value",
+            "lease_epoch": 0,
+            "checkpoint_ref": "fixture-value",
+            "updated_at": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "state": "fixture-value",
+              "lease_epoch": 0,
+              "checkpoint_ref": "fixture-value",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "participant_id": "fixture-value",
+              "state": "fixture-value",
+              "lease_epoch": 0,
+              "checkpoint_ref": "fixture-value",
+              "updated_at": "2026-01-01T00:00:00Z",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "participant_id": 17,
+              "state": "fixture-value",
+              "lease_epoch": 0,
+              "checkpoint_ref": "fixture-value",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.coordination-state:input:checkpoint_refs",
+      "gene_id": "g08.coordination-state",
+      "side": "input",
+      "field": "checkpoint_refs",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.coordination-state:output:conflicts",
+      "gene_id": "g08.coordination-state",
+      "side": "output",
+      "field": "conflicts",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "conflict_id": "fixture-value",
+            "participant_ids": [],
+            "resource_ref": "fixture-value",
+            "conflict_type": "fixture-value",
+            "description": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "participant_ids": [],
+              "resource_ref": "fixture-value",
+              "conflict_type": "fixture-value",
+              "description": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "conflict_id": "fixture-value",
+              "participant_ids": [],
+              "resource_ref": "fixture-value",
+              "conflict_type": "fixture-value",
+              "description": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "conflict_id": 17,
+              "participant_ids": [],
+              "resource_ref": "fixture-value",
+              "conflict_type": "fixture-value",
+              "description": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g08.coordination-state:output:stale_participants",
+      "gene_id": "g08.coordination-state",
+      "side": "output",
+      "field": "stale_participants",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.output.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g09.effect-contract:input:resource_scope",
+      "gene_id": "g09.effect-contract",
+      "side": "input",
+      "field": "resource_scope",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/effect-contract.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g10.learning-input:input:observations",
+      "gene_id": "g10.learning-input",
+      "side": "input",
+      "field": "observations",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "observation_id": "fixture-value",
+            "content_digest": "fixture-value",
+            "source_ref": "fixture-value",
+            "observed_at": "2026-01-01T00:00:00Z",
+            "data_class": "fixture-value",
+            "authorization_ref": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "content_digest": "fixture-value",
+              "source_ref": "fixture-value",
+              "observed_at": "2026-01-01T00:00:00Z",
+              "data_class": "fixture-value",
+              "authorization_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "observation_id": "fixture-value",
+              "content_digest": "fixture-value",
+              "source_ref": "fixture-value",
+              "observed_at": "2026-01-01T00:00:00Z",
+              "data_class": "fixture-value",
+              "authorization_ref": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "observation_id": 17,
+              "content_digest": "fixture-value",
+              "source_ref": "fixture-value",
+              "observed_at": "2026-01-01T00:00:00Z",
+              "data_class": "fixture-value",
+              "authorization_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g10.learning-input:input:source_refs",
+      "gene_id": "g10.learning-input",
+      "side": "input",
+      "field": "source_refs",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g10.learning-input:output:eligible_observations",
+      "gene_id": "g10.learning-input",
+      "side": "output",
+      "field": "eligible_observations",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "observation_id": "fixture-value",
+            "source_ref": "fixture-value",
+            "eligibility_basis": "fixture-value",
+            "authorization_ref": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "source_ref": "fixture-value",
+              "eligibility_basis": "fixture-value",
+              "authorization_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "observation_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "eligibility_basis": "fixture-value",
+              "authorization_ref": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "observation_id": 17,
+              "source_ref": "fixture-value",
+              "eligibility_basis": "fixture-value",
+              "authorization_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g10.learning-input:output:excluded_observations",
+      "gene_id": "g10.learning-input",
+      "side": "output",
+      "field": "excluded_observations",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "observation_id": "fixture-value",
+            "source_ref": "fixture-value",
+            "exclusion_reason": "fixture-value",
+            "policy_ref": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "source_ref": "fixture-value",
+              "exclusion_reason": "fixture-value",
+              "policy_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "observation_id": "fixture-value",
+              "source_ref": "fixture-value",
+              "exclusion_reason": "fixture-value",
+              "policy_ref": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "observation_id": 17,
+              "source_ref": "fixture-value",
+              "exclusion_reason": "fixture-value",
+              "policy_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g10.change-proposal:input:expected_effects",
+      "gene_id": "g10.change-proposal",
+      "side": "input",
+      "field": "expected_effects",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "effect_id": "fixture-value",
+            "effect_type": "fixture-value",
+            "target": "fixture-value",
+            "resource_scope": [],
+            "risk_class": "fixture-value",
+            "operation_digest": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "effect_type": "fixture-value",
+              "target": "fixture-value",
+              "resource_scope": [],
+              "risk_class": "fixture-value",
+              "operation_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "effect_id": "fixture-value",
+              "effect_type": "fixture-value",
+              "target": "fixture-value",
+              "resource_scope": [],
+              "risk_class": "fixture-value",
+              "operation_digest": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "effect_id": 17,
+              "effect_type": "fixture-value",
+              "target": "fixture-value",
+              "resource_scope": [],
+              "risk_class": "fixture-value",
+              "operation_digest": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g10.change-proposal:output:required_evaluations",
+      "gene_id": "g10.change-proposal",
+      "side": "output",
+      "field": "required_evaluations",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.output.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g10.evaluation-record:output:results",
+      "gene_id": "g10.evaluation-record",
+      "side": "output",
+      "field": "results",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "test_id": "fixture-value",
+            "status": "passed",
+            "baseline_value": 0.5,
+            "candidate_value": 0.5,
+            "unit": "fixture-value",
+            "evidence_ref": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "status": "passed",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "unit": "fixture-value",
+              "evidence_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "test_id": "fixture-value",
+              "status": "passed",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "unit": "fixture-value",
+              "evidence_ref": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "test_id": 17,
+              "status": "passed",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "unit": "fixture-value",
+              "evidence_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "invalid-enum",
+          "instance": [
+            {
+              "test_id": "fixture-value",
+              "status": "__INVALID_ENUM__",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "unit": "fixture-value",
+              "evidence_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g10.evaluation-record:output:regressions",
+      "gene_id": "g10.evaluation-record",
+      "side": "output",
+      "field": "regressions",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "regression_id": "fixture-value",
+            "metric_id": "fixture-value",
+            "baseline_value": 0.5,
+            "candidate_value": 0.5,
+            "delta": 0.5,
+            "severity": "fixture-value",
+            "evidence_ref": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "metric_id": "fixture-value",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "delta": 0.5,
+              "severity": "fixture-value",
+              "evidence_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "regression_id": "fixture-value",
+              "metric_id": "fixture-value",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "delta": 0.5,
+              "severity": "fixture-value",
+              "evidence_ref": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "regression_id": 17,
+              "metric_id": "fixture-value",
+              "baseline_value": 0.5,
+              "candidate_value": 0.5,
+              "delta": 0.5,
+              "severity": "fixture-value",
+              "evidence_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g11.validator:input:contract_ids",
+      "gene_id": "g11.validator",
+      "side": "input",
+      "field": "contract_ids",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/validator.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g11.validator:output:findings",
+      "gene_id": "g11.validator",
+      "side": "output",
+      "field": "findings",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/validator.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "finding_id": "fixture-value",
+            "contract_id": "fixture-value",
+            "severity": "fixture-value",
+            "code": "fixture-value",
+            "message": "fixture-value",
+            "instance_path": "fixture-value",
+            "disposition": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "contract_id": "fixture-value",
+              "severity": "fixture-value",
+              "code": "fixture-value",
+              "message": "fixture-value",
+              "instance_path": "fixture-value",
+              "disposition": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "finding_id": "fixture-value",
+              "contract_id": "fixture-value",
+              "severity": "fixture-value",
+              "code": "fixture-value",
+              "message": "fixture-value",
+              "instance_path": "fixture-value",
+              "disposition": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "finding_id": 17,
+              "contract_id": "fixture-value",
+              "severity": "fixture-value",
+              "code": "fixture-value",
+              "message": "fixture-value",
+              "instance_path": "fixture-value",
+              "disposition": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g11.conformance-report:input:test_results",
+      "gene_id": "g11.conformance-report",
+      "side": "input",
+      "field": "test_results",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conformance-report.input.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "test_id": "fixture-value",
+            "status": "passed",
+            "duration_ms": 0,
+            "failure_ref": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "status": "passed",
+              "duration_ms": 0,
+              "failure_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "test_id": "fixture-value",
+              "status": "passed",
+              "duration_ms": 0,
+              "failure_ref": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "test_id": 17,
+              "status": "passed",
+              "duration_ms": 0,
+              "failure_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "invalid-enum",
+          "instance": [
+            {
+              "test_id": "fixture-value",
+              "status": "__INVALID_ENUM__",
+              "duration_ms": 0,
+              "failure_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g12.mutation-policy:input:protected_invariants",
+      "gene_id": "g12.mutation-policy",
+      "side": "input",
+      "field": "protected_invariants",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.input.schema.json",
+      "positive": {
+        "instance": [
+          "fixture-value"
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "wrong-item-type",
+          "instance": [
+            17
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g12.mutation-policy:output:required_gates",
+      "gene_id": "g12.mutation-policy",
+      "side": "output",
+      "field": "required_gates",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "gate_id": "fixture-value",
+            "stage": "fixture-value",
+            "requirement": "fixture-value",
+            "blocking": false
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "stage": "fixture-value",
+              "requirement": "fixture-value",
+              "blocking": false
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "gate_id": "fixture-value",
+              "stage": "fixture-value",
+              "requirement": "fixture-value",
+              "blocking": false,
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "gate_id": 17,
+              "stage": "fixture-value",
+              "requirement": "fixture-value",
+              "blocking": false
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g12.mutation-policy:output:denial_reasons",
+      "gene_id": "g12.mutation-policy",
+      "side": "output",
+      "field": "denial_reasons",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "code": "fixture-value",
+            "message": "fixture-value",
+            "invariant_ref": "fixture-value"
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "message": "fixture-value",
+              "invariant_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "code": "fixture-value",
+              "message": "fixture-value",
+              "invariant_ref": "fixture-value",
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "code": 17,
+              "message": "fixture-value",
+              "invariant_ref": "fixture-value"
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    },
+    {
+      "collection_id": "g12.version-lineage:output:ancestry",
+      "gene_id": "g12.version-lineage",
+      "side": "output",
+      "field": "ancestry",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/version-lineage.output.schema.json",
+      "positive": {
+        "instance": [
+          {
+            "gene_id": "fixture-value",
+            "version": "fixture-value",
+            "artifact_digest": "fixture-value",
+            "parent_digest": "fixture-value",
+            "mutation_id": "fixture-value",
+            "epoch": 0
+          }
+        ],
+        "expected": "ACCEPT"
+      },
+      "negative": [
+        {
+          "case_id": "missing-required",
+          "instance": [
+            {
+              "version": "fixture-value",
+              "artifact_digest": "fixture-value",
+              "parent_digest": "fixture-value",
+              "mutation_id": "fixture-value",
+              "epoch": 0
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "unknown-property",
+          "instance": [
+            {
+              "gene_id": "fixture-value",
+              "version": "fixture-value",
+              "artifact_digest": "fixture-value",
+              "parent_digest": "fixture-value",
+              "mutation_id": "fixture-value",
+              "epoch": 0,
+              "__unexpected__": true
+            }
+          ],
+          "expected": "REJECT"
+        },
+        {
+          "case_id": "wrong-member-type",
+          "instance": [
+            {
+              "gene_id": 17,
+              "version": "fixture-value",
+              "artifact_digest": "fixture-value",
+              "parent_digest": "fixture-value",
+              "mutation_id": "fixture-value",
+              "epoch": 0
+            }
+          ],
+          "expected": "REJECT"
+        }
+      ]
+    }
+  ]
+}
