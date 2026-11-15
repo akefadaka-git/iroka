@@ -1,0 +1,4214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "proposal_id": "IROKA-GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1",
+  "proposal_version": "1.0.0",
+  "status": "OWNER_REVIEW_PROPOSAL_NOT_APPROVED",
+  "baseline": {
+    "repository": "akefadaka-git/iroka",
+    "commit": "df9df652e4d6e0f5b523f50b7016d06f31598e75",
+    "genome_path": "crates/iroka-kernel/igacms/genome-v1.0.0.json",
+    "genome_blob": "1a37cb6432528371b372afc80df623790f16bae5"
+  },
+  "governance": {
+    "existing_genome_unchanged": true,
+    "main_unchanged": true,
+    "purpose": "Derive explicit, gene-specific input/output contracts from each approved gene's responsibility, invariant anchors, dependencies, permitted effects, authority requirements, evidence requirements, failure semantics and compatibility policy.",
+    "approval_boundary": "All field-level definitions, enumerations and rejection semantics in this proposal require Owner approval before they become normative schemas."
+  },
+  "schema_convention": {
+    "dialect": "https://json-schema.org/draft/2020-12/schema",
+    "schema_id_template": "https://iroka.dev/schemas/genes/{gene-id}/{input|output}/{gene-version}",
+    "file_path_template": "crates/iroka-kernel/igacms/schemas/genes/{gene-slug}.{input|output}.schema.json",
+    "additionalProperties": false,
+    "common_required_evidence": [
+      "provenance",
+      "version-bound-evidence"
+    ],
+    "external_refs": "forbidden",
+    "internal_refs": "only local fragment references within the same schema; resolver must detect missing targets and cycles"
+  },
+  "contracts": [
+    {
+      "gene_id": "g01.identity-root",
+      "gene_version": "1.0.0",
+      "title": "Identity root",
+      "purpose": "identity root identifier, issuer identity, root key fingerprint, activation epoch, trust status",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/identity-root.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "root_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "issuer_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "key_fingerprint",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "algorithm",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "activation_epoch",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "status",
+            "type": "enum(active|suspended|revoked)",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "root_id",
+          "issuer_id",
+          "key_fingerprint",
+          "algorithm",
+          "activation_epoch",
+          "status",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/identity-root.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "root_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "verified",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "trust_decision",
+            "type": "enum(trusted|untrusted|revoked)",
+            "required": true
+          },
+          {
+            "name": "evaluated_epoch",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "root_id",
+          "verified",
+          "trust_decision",
+          "evaluated_epoch",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G01-GENE-root",
+        "positive_vector": {
+          "description": "valid active root accepted; revoked root rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "unknown issuer or revoked root",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g01.lineage",
+      "gene_version": "1.0.0",
+      "title": "Identity lineage",
+      "purpose": "subject identity, predecessor identity, succession proof, lineage epoch",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.lineage/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/lineage.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "subject_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "predecessor_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "relationship",
+            "type": "enum(derived|successor|merged)",
+            "required": true
+          },
+          {
+            "name": "proof_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "epoch",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "subject_id",
+          "predecessor_id",
+          "relationship",
+          "proof_digest",
+          "epoch",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.lineage/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/lineage.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "subject_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "lineage_valid",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "chain_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "verified_depth",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "subject_id",
+          "lineage_valid",
+          "chain_digest",
+          "verified_depth",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G01-GENE-g01.lineage",
+        "positive_vector": {
+          "description": "valid acyclic chain accepted; cycle rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "cycle or missing succession proof",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g01.compatibility",
+      "gene_version": "1.0.0",
+      "title": "Identity compatibility",
+      "purpose": "source identity version, target version, compatibility declaration, migration evidence",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/compatibility.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "source_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "target_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "policy_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "declared_compatible",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "migration_digest",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "source_version",
+          "target_version",
+          "policy_id",
+          "declared_compatible",
+          "migration_digest",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/compatibility.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "compatibility",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "decision",
+            "type": "enum(compatible|incompatible|migration_required)",
+            "required": true
+          },
+          {
+            "name": "policy_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "compatibility",
+          "decision",
+          "policy_id",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G01-GENE-g01.compatibility",
+        "positive_vector": {
+          "description": "explicit compatible pair accepted; undeclared pair rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "implicit major-version compatibility",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g02.authority-source",
+      "gene_version": "1.0.0",
+      "title": "Authority source",
+      "purpose": "authority principal, source class, mandate reference, validity interval",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/authority-source.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "authority_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "source_type",
+            "type": "enum(owner|delegated|statutory|system)",
+            "required": true
+          },
+          {
+            "name": "mandate_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "valid_from",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "valid_until",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "authority_id",
+          "source_type",
+          "mandate_ref",
+          "valid_from",
+          "valid_until",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/authority-source.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "authority_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "source_valid",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "scope",
+            "type": "string[]",
+            "required": true
+          },
+          {
+            "name": "decision",
+            "type": "enum(valid|invalid|expired)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "authority_id",
+          "source_valid",
+          "scope",
+          "decision",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G02-GENE-source",
+        "positive_vector": {
+          "description": "valid mandate accepted; expired mandate rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "expired or unrecognized authority source",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g02.owner-governance",
+      "gene_version": "1.0.0",
+      "title": "Owner governance",
+      "purpose": "owner principal, decision request, scope, signed approval, expiry",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/owner-governance.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "owner_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "decision_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "scope",
+            "type": "string[]",
+            "required": true
+          },
+          {
+            "name": "approval_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "signature",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "issued_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "expires_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "owner_id",
+          "decision_id",
+          "scope",
+          "approval_digest",
+          "signature",
+          "issued_at",
+          "expires_at",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/owner-governance.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "decision_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "approval_valid",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "authorized_scope",
+            "type": "string[]",
+            "required": true
+          },
+          {
+            "name": "decision",
+            "type": "enum(approved|rejected|expired)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "decision_id",
+          "approval_valid",
+          "authorized_scope",
+          "decision",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G02-GENE-governance",
+        "positive_vector": {
+          "description": "valid signed approval accepted; forged signature rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "unsigned or scope-mismatched Owner approval",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g02.decision-register",
+      "gene_version": "1.0.0",
+      "title": "Decision register",
+      "purpose": "decision identifier, authority, decision text digest, status, supersession link",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/decision-register.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "decision_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authority_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "decision_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "status",
+            "type": "enum(proposed|approved|rejected|superseded)",
+            "required": true
+          },
+          {
+            "name": "effective_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "supersedes",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "decision_id",
+          "authority_id",
+          "decision_digest",
+          "status",
+          "effective_at",
+          "supersedes",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.decision-register/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/decision-register.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "decision_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "recorded",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "canonical_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "register_sequence",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "decision_id",
+          "recorded",
+          "canonical_digest",
+          "register_sequence",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G02-GENE-register",
+        "positive_vector": {
+          "description": "unique immutable decision recorded; conflicting duplicate rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "duplicate ID with conflicting digest",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g03.premise-model",
+      "gene_version": "1.0.0",
+      "title": "Premise model",
+      "purpose": "premise statements, source references, confidence values, context",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.premise-model/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "premises",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "context_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "model_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "premises",
+          "context_id",
+          "model_version",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.premise-model/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "model_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "premise_set_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "normalized_premises",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "unresolved_premises",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "model_id",
+          "premise_set_digest",
+          "normalized_premises",
+          "unresolved_premises",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G03-GENE-model",
+        "positive_vector": {
+          "description": "well-formed sourced premises normalized; unsupported premise flagged",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "premise lacks source or invalid confidence",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "gene_version": "1.0.0",
+      "title": "Inference rules",
+      "purpose": "rule set, premise references, inference request, rule version",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.inference-rules/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "rules",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "premise_ids",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "query",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "rule_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "rules",
+          "premise_ids",
+          "query",
+          "rule_version",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "inference_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "conclusion_set",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "applied_rule_ids",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "unsupported_steps",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "inference_id",
+          "conclusion_set",
+          "applied_rule_ids",
+          "unsupported_steps",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G03-GENE-rules",
+        "positive_vector": {
+          "description": "valid rule chain produces trace; unknown rule rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "rule references missing premise or unknown rule version",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "gene_version": "1.0.0",
+      "title": "Uncertainty calculus",
+      "purpose": "hypotheses, evidence weights, calibration profile, calculation method",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "hypotheses",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "evidence_items",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "calibration_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "method",
+            "type": "enum(bayesian|interval|qualitative)",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "hypotheses",
+          "evidence_items",
+          "calibration_id",
+          "method",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "assessment_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "estimates",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "uncertainty_bounds",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "calibration_status",
+            "type": "enum(valid|insufficient|invalid)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "assessment_id",
+          "estimates",
+          "uncertainty_bounds",
+          "calibration_status",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G03-GENE-calculus",
+        "positive_vector": {
+          "description": "bounded weights calculated; invalid weights rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "non-finite or out-of-range weights",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g04.knowledge-schema",
+      "gene_version": "1.0.0",
+      "title": "Knowledge schema",
+      "purpose": "knowledge type, field definitions, constraints, schema version",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.knowledge-schema/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "knowledge_type",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "fields",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "constraints",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "schema_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "knowledge_type",
+          "fields",
+          "constraints",
+          "schema_version",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.knowledge-schema/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "schema_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "normalized_schema",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "schema_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "validation_status",
+            "type": "enum(valid|invalid)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "schema_id",
+          "normalized_schema",
+          "schema_digest",
+          "validation_status",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G04-GENE-schema",
+        "positive_vector": {
+          "description": "unique typed fields accepted; duplicate fields rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "duplicate field names or unsupported type",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "gene_version": "1.0.0",
+      "title": "Provenance chain",
+      "purpose": "artifact digest, ordered source events, actor references, prior chain digest",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.provenance-chain/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "artifact_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "events",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "actor_ids",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "previous_chain_digest",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "artifact_digest",
+          "events",
+          "actor_ids",
+          "previous_chain_digest",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.provenance-chain/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "chain_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "verified",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "event_count",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "broken_links",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "chain_digest",
+          "verified",
+          "event_count",
+          "broken_links",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G04-GENE-chain",
+        "positive_vector": {
+          "description": "continuous chain verifies; broken link rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "broken digest link or missing event actor",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "gene_version": "1.0.0",
+      "title": "Conflict model",
+      "purpose": "claims, source identifiers, claim relations, conflict policy",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.conflict-model/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "claims",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "sources",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "relations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "policy_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "claims",
+          "sources",
+          "relations",
+          "policy_id",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.conflict-model/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "conflict_set_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "conflicts",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "resolution_state",
+            "type": "enum(unresolved|resolved|insufficient_evidence)",
+            "required": true
+          },
+          {
+            "name": "policy_applied",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "conflict_set_id",
+          "conflicts",
+          "resolution_state",
+          "policy_applied",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G04-GENE-model",
+        "positive_vector": {
+          "description": "contradictions surfaced; silent overwrite rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "conflicting claims silently overwritten",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g05.memory-classification",
+      "gene_version": "1.0.0",
+      "title": "Memory classification",
+      "purpose": "memory item, sensitivity labels, purpose, owner, data class",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.memory-classification/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "memory_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "content_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "labels",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "purpose",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "owner_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "data_class",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "memory_id",
+          "content_digest",
+          "labels",
+          "purpose",
+          "owner_id",
+          "data_class",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.memory-classification/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "memory_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "classification",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "handling_controls",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "classification_rationale",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "memory_id",
+          "classification",
+          "handling_controls",
+          "classification_rationale",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G05-GENE-classification",
+        "positive_vector": {
+          "description": "recognized class maps to controls; unknown class quarantined",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "unknown classification label",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g05.retention-control",
+      "gene_version": "1.0.0",
+      "title": "Retention control",
+      "purpose": "memory reference, retention rule, legal hold, expiry event",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.retention-control/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/retention-control.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "memory_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "retention_policy_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "created_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "legal_hold",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "hold_ref",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "memory_id",
+          "retention_policy_id",
+          "created_at",
+          "legal_hold",
+          "hold_ref",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.retention-control/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/retention-control.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "memory_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "retention_deadline",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "disposition",
+            "type": "enum(retain|eligible_for_deletion|hold)",
+            "required": true
+          },
+          {
+            "name": "policy_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "memory_id",
+          "retention_deadline",
+          "disposition",
+          "policy_digest",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G05-GENE-control",
+        "positive_vector": {
+          "description": "valid policy computes deadline; active hold prevents expiry",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "deletion despite active legal hold",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g05.integrity-checkpoint",
+      "gene_version": "1.0.0",
+      "title": "Memory integrity checkpoint",
+      "purpose": "memory snapshot digest, sequence, prior checkpoint, checkpoint authority",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/integrity-checkpoint.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "snapshot_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "sequence",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "previous_checkpoint",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "authority_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "snapshot_digest",
+          "sequence",
+          "previous_checkpoint",
+          "authority_ref",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/integrity-checkpoint.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "checkpoint_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "accepted",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "sequence",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "continuity_verified",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "checkpoint_digest",
+          "accepted",
+          "sequence",
+          "continuity_verified",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G05-GENE-checkpoint",
+        "positive_vector": {
+          "description": "monotonic checkpoint accepted; rollback rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "sequence rollback or digest mismatch",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g06.input-envelope",
+      "gene_version": "1.0.0",
+      "title": "Input envelope",
+      "purpose": "source, media type, payload digest, payload length, capture time, untrusted payload reference",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.input-envelope/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/input-envelope.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "envelope_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "source_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "media_type",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "payload_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "payload_length",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "captured_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "payload_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "envelope_id",
+          "source_id",
+          "media_type",
+          "payload_digest",
+          "payload_length",
+          "captured_at",
+          "payload_ref",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.input-envelope/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/input-envelope.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "envelope_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "accepted",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "normalized_media_type",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "integrity_verified",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "rejection_reason",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "envelope_id",
+          "accepted",
+          "normalized_media_type",
+          "integrity_verified",
+          "rejection_reason",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G06-GENE-envelope",
+        "positive_vector": {
+          "description": "matching envelope accepted as untrusted input; tampered envelope rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "digest/length mismatch or unsupported media type",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g06.source-trust",
+      "gene_version": "1.0.0",
+      "title": "Source trust",
+      "purpose": "source identity, credential reference, trust policy, observed signature, revocation snapshot",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/source-trust.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "source_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "credential_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "policy_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "signature",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "revocation_epoch",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "source_id",
+          "credential_ref",
+          "policy_id",
+          "signature",
+          "revocation_epoch",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.source-trust/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/source-trust.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "source_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "trust_level",
+            "type": "enum(trusted|untrusted|revoked|unknown)",
+            "required": true
+          },
+          {
+            "name": "signature_valid",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "policy_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "source_id",
+          "trust_level",
+          "signature_valid",
+          "policy_digest",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G06-GENE-trust",
+        "positive_vector": {
+          "description": "valid credential assessed; revoked source never trusted",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "revoked credential or stale revocation state",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g06.perception-transform",
+      "gene_version": "1.0.0",
+      "title": "Perception transform",
+      "purpose": "input envelope, transform identifier/version, modality, declared output type",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/perception-transform.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "envelope_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "transform_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "transform_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "modality",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "output_type",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "envelope_id",
+          "transform_id",
+          "transform_version",
+          "modality",
+          "output_type",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/perception-transform.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "transform_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "output_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "output_type",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "source_envelope_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "loss_annotations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "transform_status",
+            "type": "enum(success|rejected|degraded)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "transform_id",
+          "output_digest",
+          "output_type",
+          "source_envelope_digest",
+          "loss_annotations",
+          "transform_status",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G06-GENE-transform",
+        "positive_vector": {
+          "description": "declared transform yields traceable output; mismatched version rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "transform version mismatch or undeclared output type",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g07.agent-principal",
+      "gene_version": "1.0.0",
+      "title": "Agent principal",
+      "purpose": "agent identifier, identity credential, runtime instance, principal class",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/agent-principal.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "agent_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "credential_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "runtime_instance_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "principal_class",
+            "type": "enum(system|service|task|subagent)",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "agent_id",
+          "credential_ref",
+          "runtime_instance_id",
+          "principal_class",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.agent-principal/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/agent-principal.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "agent_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "principal_valid",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "principal_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "identity_status",
+            "type": "enum(valid|invalid|revoked)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "agent_id",
+          "principal_valid",
+          "principal_digest",
+          "identity_status",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G07-GENE-principal",
+        "positive_vector": {
+          "description": "bound principal accepted; revoked identity rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "revoked or unbound agent identity",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "gene_version": "1.0.0",
+      "title": "Capability profile",
+      "purpose": "agent principal, requested capabilities, resource limits, policy version",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "agent_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "requested_capabilities",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "resource_limits",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "policy_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "agent_id",
+          "requested_capabilities",
+          "resource_limits",
+          "policy_id",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "profile_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "granted_capabilities",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "denied_capabilities",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "limits",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "authority_granted",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "profile_id",
+          "granted_capabilities",
+          "denied_capabilities",
+          "limits",
+          "authority_granted",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G07-GENE-profile",
+        "positive_vector": {
+          "description": "only policy-allowed capabilities listed; escalation denied",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "capability exceeds policy or attempts privilege escalation",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g07.delegation-boundary",
+      "gene_version": "1.0.0",
+      "title": "Delegation boundary",
+      "purpose": "delegator, delegate, capability subset, expiry, delegation proof",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.delegation-boundary/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "delegator_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "delegate_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "capability_subset",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "expires_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "delegation_proof",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "delegator_id",
+          "delegate_id",
+          "capability_subset",
+          "expires_at",
+          "delegation_proof",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.delegation-boundary/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "delegation_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "accepted",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "effective_capabilities",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "expiry",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "chain_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "delegation_id",
+          "accepted",
+          "effective_capabilities",
+          "expiry",
+          "chain_digest",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G07-GENE-boundary",
+        "positive_vector": {
+          "description": "strict subset accepted; scope escalation rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "delegate scope exceeds delegator or expired delegation",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "gene_version": "1.0.0",
+      "title": "Workflow graph",
+      "purpose": "workflow identifier, nodes, edges, dependency constraints, graph version",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "workflow_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "nodes",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "edges",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "graph_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "workflow_id",
+          "nodes",
+          "edges",
+          "graph_version",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "workflow_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "graph_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "topological_order",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "validation_status",
+            "type": "enum(valid|cycle|invalid_reference)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "workflow_id",
+          "graph_digest",
+          "topological_order",
+          "validation_status",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G08-GENE-graph",
+        "positive_vector": {
+          "description": "acyclic graph ordered; cycle rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "cycle or dangling edge",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g08.scheduler-policy",
+      "gene_version": "1.0.0",
+      "title": "Scheduler policy",
+      "purpose": "task classes, priorities, quotas, deadlines, scheduling policy",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "policy_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "task_classes",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "priorities",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "quotas",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "deadlines",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "policy_id",
+          "task_classes",
+          "priorities",
+          "quotas",
+          "deadlines",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.scheduler-policy/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "policy_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "normalized_policy",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "feasibility",
+            "type": "enum(feasible|infeasible|indeterminate)",
+            "required": true
+          },
+          {
+            "name": "violations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "policy_id",
+          "normalized_policy",
+          "feasibility",
+          "violations",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G08-GENE-policy",
+        "positive_vector": {
+          "description": "valid constraints normalized; impossible schedule reported",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "negative quota or impossible deadline silently accepted",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "gene_version": "1.0.0",
+      "title": "Coordination state",
+      "purpose": "workflow run, participant states, lease epochs, checkpoint references",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "run_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "participants",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "lease_epochs",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "checkpoint_refs",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "run_id",
+          "participants",
+          "lease_epochs",
+          "checkpoint_refs",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "run_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "canonical_state",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "state_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "conflicts",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "stale_participants",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "run_id",
+          "canonical_state",
+          "state_digest",
+          "conflicts",
+          "stale_participants",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G08-GENE-state",
+        "positive_vector": {
+          "description": "newer epoch wins; stale writer rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "stale lease epoch overwrites newer state",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g09.effect-contract",
+      "gene_version": "1.0.0",
+      "title": "Effect contract",
+      "purpose": "requested effect, target, resource scope, risk class, operation digest",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.effect-contract/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/effect-contract.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "effect_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "effect_type",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "target",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "resource_scope",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "risk_class",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "operation_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "effect_id",
+          "effect_type",
+          "target",
+          "resource_scope",
+          "risk_class",
+          "operation_digest",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.effect-contract/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/effect-contract.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "effect_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "contract_valid",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "required_authorization",
+            "type": "string[]",
+            "required": true
+          },
+          {
+            "name": "effect_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "decision",
+            "type": "enum(admissible|inadmissible)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "effect_id",
+          "contract_valid",
+          "required_authorization",
+          "effect_digest",
+          "decision",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G09-GENE-contract",
+        "positive_vector": {
+          "description": "declared effect contract evaluated; undeclared effect rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "undeclared or prohibited effect",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g09.admission-gate",
+      "gene_version": "1.0.0",
+      "title": "Admission gate",
+      "purpose": "effect contract, signed authorization, policy snapshot, expiry and replay nonce",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.admission-gate/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/admission-gate.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "effect_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization_signature",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "policy_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "expires_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "nonce",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "effect_id",
+          "authorization_ref",
+          "authorization_signature",
+          "policy_digest",
+          "expires_at",
+          "nonce",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.admission-gate/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/admission-gate.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "admission_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "admitted",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "denial_code",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "authorization_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "consumed_nonce",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "admission_id",
+          "admitted",
+          "denial_code",
+          "authorization_digest",
+          "consumed_nonce",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G09-GENE-gate",
+        "positive_vector": {
+          "description": "valid scoped authorization admits; invalid/replayed authorization denied",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "missing, invalid, expired or replayed authorization",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g09.execution-receipt",
+      "gene_version": "1.0.0",
+      "title": "Execution receipt",
+      "purpose": "admission record, executor identity, operation result digest, start/end timestamps",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/execution-receipt.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "admission_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "executor_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "result_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "started_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "completed_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "outcome",
+            "type": "enum(success|failure|partial)",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "admission_id",
+          "executor_id",
+          "result_digest",
+          "started_at",
+          "completed_at",
+          "outcome",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/execution-receipt.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "receipt_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "receipt_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "admission_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "executor_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "recorded_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "integrity_verified",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "receipt_id",
+          "receipt_digest",
+          "admission_ref",
+          "executor_id",
+          "recorded_at",
+          "integrity_verified",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G09-GENE-receipt",
+        "positive_vector": {
+          "description": "receipt binds to admission; orphan receipt rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "receipt without admission or mismatched executor",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "gene_version": "1.0.0",
+      "title": "Learning input",
+      "purpose": "observations, source trust references, data class, consent/authorization context",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "observations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "source_refs",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "data_class",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "authorization_ref",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "observations",
+          "source_refs",
+          "data_class",
+          "authorization_ref",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "learning_batch_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "eligible_observations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "excluded_observations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "eligibility_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "learning_batch_id",
+          "eligible_observations",
+          "excluded_observations",
+          "eligibility_digest",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G10-GENE-input",
+        "positive_vector": {
+          "description": "eligible data isolated; prohibited input excluded",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "untrusted, unauthorized or prohibited data class",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g10.change-proposal",
+      "gene_version": "1.0.0",
+      "title": "Change proposal",
+      "purpose": "target component/version, proposed diff digest, rationale, expected effects, proposer",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "target_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "base_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "proposed_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "diff_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "rationale",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "expected_effects",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "proposer_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "target_id",
+          "base_version",
+          "proposed_version",
+          "diff_digest",
+          "rationale",
+          "expected_effects",
+          "proposer_id",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "proposal_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "proposal_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "change_class",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "required_evaluations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "approval_required",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "proposal_id",
+          "proposal_digest",
+          "change_class",
+          "required_evaluations",
+          "approval_required",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G10-GENE-proposal",
+        "positive_vector": {
+          "description": "proposal recorded for evaluation; invariant breach blocked",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "proposal changes invariant or bypasses approval",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g10.evaluation-record",
+      "gene_version": "1.0.0",
+      "title": "Evaluation record",
+      "purpose": "proposal, test suite digest, baseline metrics, candidate metrics, evaluator identity",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "proposal_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "suite_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "baseline_metrics",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "candidate_metrics",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "evaluator_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "environment_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "proposal_id",
+          "suite_digest",
+          "baseline_metrics",
+          "candidate_metrics",
+          "evaluator_id",
+          "environment_digest",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "evaluation_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "results",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "regressions",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "decision",
+            "type": "enum(pass|fail|inconclusive)",
+            "required": true
+          },
+          {
+            "name": "evidence_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "evaluation_id",
+          "results",
+          "regressions",
+          "decision",
+          "evidence_digest",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G10-GENE-record",
+        "positive_vector": {
+          "description": "complete evaluation recorded; missing evidence is inconclusive",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "missing baseline or evaluator provenance",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g11.validator",
+      "gene_version": "1.0.0",
+      "title": "Validator",
+      "purpose": "artifact reference, applicable contracts, validator version, policy snapshot",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.validator/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/validator.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "artifact_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "contract_ids",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "validator_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "policy_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "artifact_ref",
+          "contract_ids",
+          "validator_version",
+          "policy_digest",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/validator.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "validation_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "valid",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "findings",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "validated_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "validator_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "validation_id",
+          "valid",
+          "findings",
+          "validated_digest",
+          "validator_version",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G11-GENE-g11.validator",
+        "positive_vector": {
+          "description": "known contracts checked; unknown contract fails closed",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "unknown contract or validator version",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g11.attestation",
+      "gene_version": "1.0.0",
+      "title": "Attestation",
+      "purpose": "subject digest, validation record, attester identity, signing key reference, challenge nonce",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/attestation.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "subject_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "validation_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "attester_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "key_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "challenge_nonce",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "subject_digest",
+          "validation_ref",
+          "attester_id",
+          "key_ref",
+          "challenge_nonce",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.attestation/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/attestation.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "attestation_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "subject_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "attester_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "signature",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "issued_at",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "verification_status",
+            "type": "enum(valid|invalid)",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "attestation_id",
+          "subject_digest",
+          "attester_id",
+          "signature",
+          "issued_at",
+          "verification_status",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G11-GENE-g11.attestation",
+        "positive_vector": {
+          "description": "fresh valid signature accepted; replay/revocation rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "signature mismatch, replayed challenge or revoked key",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g11.conformance-report",
+      "gene_version": "1.0.0",
+      "title": "Conformance report",
+      "purpose": "suite identifier/version, test results, tested commit, environment digest",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/conformance-report.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "suite_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "suite_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "test_results",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "tested_commit",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "environment_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "suite_id",
+          "suite_version",
+          "test_results",
+          "tested_commit",
+          "environment_digest",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.conformance-report/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/conformance-report.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "report_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "passed_count",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "failed_count",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "blocked_count",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "overall_status",
+            "type": "enum(pass|fail|blocked)",
+            "required": true
+          },
+          {
+            "name": "report_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "report_id",
+          "passed_count",
+          "failed_count",
+          "blocked_count",
+          "overall_status",
+          "report_digest",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G11-GENE-report",
+        "positive_vector": {
+          "description": "complete exact-head report accepted; missing result blocks pass",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "missing test result or SHA mismatch",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "gene_version": "1.0.0",
+      "title": "Mutation policy",
+      "purpose": "proposed mutation, target gene/version, risk class, protected invariant set, approval reference",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "mutation_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "target_gene",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "base_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "proposed_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "risk_class",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "protected_invariants",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "approval_ref",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "mutation_id",
+          "target_gene",
+          "base_version",
+          "proposed_version",
+          "risk_class",
+          "protected_invariants",
+          "approval_ref",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "mutation_id",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "permitted",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "required_gates",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "policy_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "denial_reasons",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "mutation_id",
+          "permitted",
+          "required_gates",
+          "policy_digest",
+          "denial_reasons",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G12-GENE-policy",
+        "positive_vector": {
+          "description": "policy classifies and gates change; unauthorized mutation denied",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "unapproved protected mutation or invariant weakening",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g12.version-lineage",
+      "gene_version": "1.0.0",
+      "title": "Version lineage",
+      "purpose": "candidate artifact digest, parent version/digest, mutation record, epoch",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/version-lineage.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "artifact_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "parent_version",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "parent_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "mutation_ref",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "epoch",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "artifact_digest",
+          "version",
+          "parent_version",
+          "parent_digest",
+          "mutation_ref",
+          "epoch",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/version-lineage.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "lineage_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "linked",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "epoch_monotonic",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "ancestry",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "lineage_digest",
+          "linked",
+          "epoch_monotonic",
+          "ancestry",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G12-GENE-lineage",
+        "positive_vector": {
+          "description": "linked monotonic lineage accepted; broken ancestry rejected",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "missing parent digest or non-monotonic epoch",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    },
+    {
+      "gene_id": "g12.rollback-guard",
+      "gene_version": "1.0.0",
+      "title": "Rollback guard",
+      "purpose": "current epoch/digest, candidate epoch/digest, revocation floor, rollback authorization",
+      "input_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/rollback-guard.input.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "current_epoch",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "current_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "candidate_epoch",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "candidate_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "revocation_floor",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "rollback_authorization",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "provenance",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "current_epoch",
+          "current_digest",
+          "candidate_epoch",
+          "candidate_digest",
+          "revocation_floor",
+          "rollback_authorization",
+          "provenance"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "output_contract": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0",
+        "file_path": "crates/iroka-kernel/igacms/schemas/genes/rollback-guard.output.schema.json",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": [
+          {
+            "name": "decision",
+            "type": "enum(allow|deny)",
+            "required": true
+          },
+          {
+            "name": "effective_epoch",
+            "type": "integer",
+            "required": true
+          },
+          {
+            "name": "effective_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "denial_reason",
+            "type": "string|null",
+            "required": true
+          },
+          {
+            "name": "guard_digest",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "evidence",
+            "type": "object",
+            "required": true
+          }
+        ],
+        "required": [
+          "decision",
+          "effective_epoch",
+          "effective_digest",
+          "denial_reason",
+          "guard_digest",
+          "evidence"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ]
+      },
+      "conformance": {
+        "case_id": "G12-GENE-guard",
+        "positive_vector": {
+          "description": "permitted forward transition accepted; rollback below floor denied",
+          "expected": "ACCEPT"
+        },
+        "negative_vector": {
+          "description": "candidate below revocation floor or stale epoch",
+          "expected": "REJECT_OR_FAIL_CLOSED"
+        }
+      },
+      "approval_status": "PROPOSED_NOT_APPROVED"
+    }
+  ],
+  "normative_constraints": [
+    "These proposed field lists are not claims about fields already approved in Genome v1.0.0.",
+    "The schema must not grant authority: data declaring a capability or approval is not itself a runtime authorization.",
+    "G09 effect admission requires separate operation-specific authorization; no schema validation alone authorizes execution.",
+    "G10 learning and G12 evolution proposals do not self-approve or self-deploy.",
+    "All security-sensitive validation failures are fail-closed as required by the gene contracts.",
+    "No additionalProperties are accepted unless a future explicitly versioned extension contract allows them."
+  ],
+  "acceptance_gates": [
+    "Owner approves or amends every gene's input and output field definitions.",
+    "All 72 schemas use exact stable IDs, versions and Draft 2020-12 dialect.",
+    "All 72 Genome references resolve to exactly one schema and no schema is orphaned or duplicated.",
+    "Every schema parses and passes meta-schema validation.",
+    "Every internal $ref resolves; external references and reference cycles are rejected unless explicitly approved.",
+    "All 36 conformance cases contain positive and negative fixtures and assert both input and output behavior.",
+    "All fixtures run against the exact candidate commit SHA; results and environment digest are recorded."
+  ],
+  "known_open_questions": [
+    "Confirm whether provenance and version-bound evidence are represented as embedded objects or references in each data model.",
+    "Confirm canonical timestamp format (recommend RFC 3339 UTC).",
+    "Confirm digest algorithms and canonical serialization rules.",
+    "Confirm whether enumerations such as trust_level, outcome and decision are closed sets or extensible versioned vocabularies.",
+    "Confirm stable public schema URI ownership and whether iroka.dev is the intended permanent namespace."
+  ]
+}
