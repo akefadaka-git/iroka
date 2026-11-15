@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.0.0",
+  "title": "g03.inference-rules output contract v1.0.0",
+  "description": "output contract for g03.inference-rules: rule set, premise references, inference request, rule version",
+  "type": "object",
+  "properties": {
+    "inference_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conclusion_set": {
+      "type": "array",
+      "items": {}
+    },
+    "applied_rule_ids": {
+      "type": "array",
+      "items": {}
+    },
+    "unsupported_steps": {
+      "type": "array",
+      "items": {}
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "inference_id",
+    "conclusion_set",
+    "applied_rule_ids",
+    "unsupported_steps",
+    "evidence"
+  ],
+  "additionalProperties": false
+}
