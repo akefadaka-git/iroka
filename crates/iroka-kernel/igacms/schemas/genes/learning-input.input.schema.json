@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
+  "title": "Learning input — input",
+  "description": "Normative input contract for g10.learning-input v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "observations": {
+      "type": "array",
+      "description": "observations — approved input field for g10.learning-input"
+    },
+    "source_refs": {
+      "type": "array",
+      "description": "source_refs — approved input field for g10.learning-input"
+    },
+    "data_class": {
+      "type": "string",
+      "description": "data_class — approved input field for g10.learning-input"
+    },
+    "authorization_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "authorization_ref — approved input field for g10.learning-input"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "observations",
+    "source_refs",
+    "data_class",
+    "authorization_ref",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
