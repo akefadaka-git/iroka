@@ -28,6 +28,61 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "events_item": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sequence": {
+          "type": "integer"
+        },
+        "event_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "previous_event_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "event_digest": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "event_id",
+        "sequence",
+        "event_type",
+        "actor_id",
+        "occurred_at",
+        "source_ref",
+        "previous_event_digest",
+        "event_digest"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g04-provenance-chain-input-events-item-v1-0-0"
+    },
+    "actor_ids_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g04-provenance-chain-input-actor_ids-item-v1-0-0"
     }
   },
   "properties": {
@@ -37,11 +92,31 @@
     },
     "events": {
       "type": "array",
-      "description": "events — approved input field for g04.provenance-chain"
+      "description": "events — approved input field for g04.provenance-chain",
+      "items": {
+        "$ref": "#/$defs/events_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "event_id",
+          "sequence"
+        ],
+        "order": "strictly increasing sequence; preserve source chronology",
+        "rule": "first event previous_event_digest is null or equals declared prior chain tip; subsequent links must match preceding event digest"
+      }
     },
     "actor_ids": {
       "type": "array",
-      "description": "actor_ids — approved input field for g04.provenance-chain"
+      "description": "actor_ids — approved input field for g04.provenance-chain",
+      "items": {
+        "$ref": "#/$defs/actor_ids_item"
+      },
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "rule": "unique actor identifiers; every event.actor_id must be included"
+      }
     },
     "previous_chain_digest": {
       "type": [
