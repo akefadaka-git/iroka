@@ -18,15 +18,44 @@
       "minLength": 1
     },
     "provenance": {
-      "type": "object",
-      "additionalProperties": true
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
     }
   },
   "required": [
     "premises",
     "context_id",
     "model_version",
-    "provenance"
+    "provenance",
+    "version_bound_evidence"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  }
 }
