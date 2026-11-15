@@ -28,6 +28,11 @@
         "provenance",
         "version_bound_evidence"
       ]
+    },
+    "required_evaluations_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g10-change-proposal-output-required_evaluations-item-v1-0-0"
     }
   },
   "properties": {
@@ -45,7 +50,16 @@
     },
     "required_evaluations": {
       "type": "array",
-      "description": "required_evaluations — approved output field for g10.change-proposal"
+      "description": "required_evaluations — approved output field for g10.change-proposal",
+      "items": {
+        "$ref": "#/$defs/required_evaluations_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "unique evaluation requirement identifiers; approval and independent verification remain separate gates"
+      }
     },
     "approval_required": {
       "type": "boolean",
