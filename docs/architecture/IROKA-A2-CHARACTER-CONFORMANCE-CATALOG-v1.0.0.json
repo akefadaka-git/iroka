@@ -1896,13 +1896,17 @@
       "case_id": "CHAR-G12.ROLLBACK-GUARD-P",
       "gene_id": "g12.rollback-guard",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (current_epoch, current_digest, candidate_epoch, candidate_digest, revocation_floor, rollback_authorization, provenance), valid provenance/version evidence and the baseline positive condition (permitted forward transition accepted; rollback below floor denied), the gene must satisfy: Detect rollback and preserve protected floors, evidence and recovery integrity.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given exact baseline input fields including version_bound_evidence, a trusted current state and revocation floor, and an integrity-verified candidate whose epoch is not below current_epoch or revocation_floor, with no prohibited rollback, the gene must verify canonical digests, trusted provenance and fresh version-bound evidence before returning allow.",
+      "expected": "Return allow only when all current/candidate digests, authoritative epoch/floor, provenance, authorization state and version-bound evidence validate; identify the candidate as effective and provide a reproducible guard_digest bound to the complete decision envelope.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all eight baseline input fields are present and schema-valid, including version_bound_evidence",
+        "current and candidate epochs are non-negative and compared against the authoritative revocation floor",
+        "current_digest and candidate_digest are recomputed or independently verified against exact canonical artifacts",
+        "provenance and version_bound_evidence are trusted, fresh, replay-resistant and bound to exact input and policy versions",
+        "candidate is not below revocation_floor and no protected invariant is weakened",
+        "decision=allow, denial_reason=null, and effective_epoch/effective_digest identify the verified candidate",
+        "guard_digest is reproducible from the canonical versioned decision envelope",
+        "no authority or execution capability is created"
       ],
       "existing_gene_io_case_id": "G12-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1910,19 +1914,24 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
         "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G12.ROLLBACK-GUARD-N",
       "gene_id": "g12.rollback-guard",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never roll back to an untrusted or constitutionally weaker state.), and the baseline negative condition (candidate below revocation floor or stale epoch), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given exact baseline input fields including version_bound_evidence, deny when candidate_epoch is below revocation_floor or current_epoch, digest integrity fails, authorization is absent/invalid/replayed/expired, or provenance/version-bound evidence is stale, conflicting or unverifiable. A rollback authorization must never override the revocation floor or protected invariants.",
+      "expected": "Return deny or an explicit unresolved fail-closed result under the existing output contract; retain the verified current state or explicitly report unresolved state, never present the rejected candidate as effective; provide a non-empty denial_reason and evidence without fabrication.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "candidate below revocation_floor is denied regardless of rollback_authorization",
+        "stale or rollback candidate epoch is denied under deterministic precedence",
+        "digest mismatch, unsupported digest policy or candidate substitution fails closed",
+        "null, unauthenticated, out-of-scope, expired, revoked or replayed rollback authorization is not accepted",
+        "stale, replayed, incomplete or conflicting provenance/version_bound_evidence fails closed",
+        "deny output has a non-empty denial_reason and does not identify the rejected candidate as effective",
+        "guard_digest binds the complete decision envelope and cannot be accepted as an opaque caller value",
+        "no fabricated evidence, silent downgrade, authority expansion or protected effect occurs"
       ],
       "existing_gene_io_case_id": "G12-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1930,7 +1939,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
         "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     }
   ],
   "execution_policy": {
@@ -2700,6 +2710,29 @@
         "G12-VL-SEM-08",
         "G12-VL-SEM-09",
         "G12-VL-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G12-ROLLBACK-GUARD-SEMANTIC-REVIEW-001",
+      "gene_id": "g12.rollback-guard",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G12.ROLLBACK-GUARD-P",
+        "CHAR-G12.ROLLBACK-GUARD-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G12-RG-SEM-01",
+        "G12-RG-SEM-02",
+        "G12-RG-SEM-03",
+        "G12-RG-SEM-04",
+        "G12-RG-SEM-05",
+        "G12-RG-SEM-06",
+        "G12-RG-SEM-07",
+        "G12-RG-SEM-08",
+        "G12-RG-SEM-09",
+        "G12-RG-SEM-10"
       ]
     }
   ]
