@@ -503,9 +503,10 @@ impl SqliteSecurityStore {
     /// Exact retries are idempotent; a conflicting receipt for the same nonce is rejected.
     pub fn record_execution_receipt(
         &self,
-        receipt: &crate::ExecutionReceipt,
+        verified_receipt: &crate::VerifiedExecutionReceipt,
         persisted_at: u64,
     ) -> Result<(), SecurityStoreError> {
+        let receipt = verified_receipt.receipt();
         receipt
             .verify_integrity()
             .map_err(|_| SecurityStoreError::InvalidVersion)?;
