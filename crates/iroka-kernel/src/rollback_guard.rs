@@ -521,7 +521,7 @@ mod tests {
                 key_id: "evidence-key-1".into(),
                 issued_at: 1_000,
                 expires_at: 2_000,
-                nonce: format!("nonce-unique-{suffix}-0001"),
+                nonce: format!("nonce-unique-{suffix}-{subject}-0001"),
                 signature: vec![7u8; 64],
             }
         };
@@ -659,7 +659,8 @@ mod tests {
             evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(conflict.denial_code, RollbackDenialCode::EpochConflict);
         let mut substituted = fixture(20, 21, 10, &current, &candidate, None, &p, &v);
-        substituted.candidate_digest = "0".repeat(64);
+        let substituted_artifact = json!({"version":"2.1.0","state":"substituted"});
+        substituted.candidate_artifact = &substituted_artifact;
         let mismatch =
             evaluate_rollback_guard(&substituted, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(mismatch.denial_code, RollbackDenialCode::DigestMismatch);
