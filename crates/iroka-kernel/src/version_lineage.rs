@@ -343,7 +343,7 @@ pub fn evaluate_version_lineage(
             let parent = &record.ancestry[index - 1];
             if entry.parent_version.as_deref() != Some(parent.version.as_str())
                 || entry.parent_digest.as_deref() != Some(parent.artifact_digest.as_str())
-                || entry.mutation_id.as_deref().is_none_or(str::is_empty)
+                || entry.mutation_id.as_deref().map_or(true, str::is_empty)
             {
                 return Ok(deny(
                     input,
