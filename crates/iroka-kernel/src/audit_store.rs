@@ -154,12 +154,12 @@ impl SqliteAuditSink {
             .connection
             .lock()
             .map_err(|_| AuditStoreError::Unavailable)?;
-        verify_chain_and_head(&connection).map(|_| ())
+        verify_chain_and_prefix(&connection, None).map(|_| ())
     }
 
     /// Verify the complete local chain and read its terminal sequence/digest
-    /// under one SQLite read snapshot. Checkpoint creation and reconciliation
-    /// must use this method rather than separate verify_integrity()/head() calls.
+    /// under one SQLite read snapshot. Checkpoint creation must use this method
+    /// rather than separate verify_integrity()/head() calls.
     pub fn verified_head(&self) -> Result<(u64, [u8; 32]), AuditStoreError> {
         let mut connection = self
             .connection
@@ -168,11 +168,32 @@ impl SqliteAuditSink {
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Deferred)
             .map_err(|_| AuditStoreError::Unavailable)?;
-        let head = verify_chain_and_head(&transaction)?;
+        let (sequence, digest, _) = verify_chain_and_prefix(&transaction, None)?;
         transaction
             .commit()
             .map_err(|_| AuditStoreError::Unavailable)?;
-        Ok(head)
+        Ok((sequence, digest))
+    }
+
+    /// Verify the chain and return its terminal head plus the digest at an
+    /// earlier sequence, all from the same SQLite read snapshot. The prefix
+    /// digest lets reconciliation detect a fork before the latest local event.
+    pub fn verified_head_and_prefix(
+        &self,
+        prefix_sequence: u64,
+    ) -> Result<(u64, [u8; 32], Option<[u8; 32]>), AuditStoreError> {
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Deferred)
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        let result = verify_chain_and_prefix(&transaction, Some(prefix_sequence))?;
+        transaction
+            .commit()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        Ok(result)
     }
 
     pub fn head(&self) -> Result<(u64, [u8; 32]), AuditStoreError> {
@@ -199,7 +220,10 @@ impl SqliteAuditSink {
     }
 }
 
-fn verify_chain_and_head(connection: &Connection) -> Result<(u64, [u8; 32]), AuditStoreError> {
+fn verify_chain_and_prefix(
+    connection: &Connection,
+    target_sequence: Option<u64>,
+) -> Result<(u64, [u8; 32], Option<[u8; 32]>), AuditStoreError> {
     let mut statement = connection
         .prepare(
             "SELECT sequence,event_id,correlation_id,subject,capability,resource,
@@ -212,6 +236,7 @@ fn verify_chain_and_head(connection: &Connection) -> Result<(u64, [u8; 32]), Aud
         .map_err(|_| AuditStoreError::Unavailable)?;
     let mut previous = ZERO.to_vec();
     let mut last_sequence = 0_u64;
+    let mut prefix_hash = (target_sequence == Some(0)).then_some(ZERO);
     while let Some(row) = rows.next().map_err(|_| AuditStoreError::Unavailable)? {
         let sequence: i64 = row.get(0).map_err(|_| AuditStoreError::IntegrityFailure)?;
         let sequence =
@@ -248,13 +273,20 @@ fn verify_chain_and_head(connection: &Connection) -> Result<(u64, [u8; 32]), Aud
         if stored_hash.as_slice() != expected.as_slice() {
             return Err(AuditStoreError::IntegrityFailure);
         }
+        let digest: [u8; 32] = stored_hash
+            .as_slice()
+            .try_into()
+            .map_err(|_| AuditStoreError::IntegrityFailure)?;
+        if target_sequence == Some(sequence) {
+            prefix_hash = Some(digest);
+        }
         previous = stored_hash;
         last_sequence = sequence;
     }
     let digest = previous
         .try_into()
         .map_err(|_| AuditStoreError::IntegrityFailure)?;
-    Ok((last_sequence, digest))
+    Ok((last_sequence, digest, prefix_hash))
 }
 
 impl AuditSink for SqliteAuditSink {
