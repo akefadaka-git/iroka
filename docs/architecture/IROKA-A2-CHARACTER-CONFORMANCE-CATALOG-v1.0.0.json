@@ -625,13 +625,21 @@
       "case_id": "CHAR-G04.PROVENANCE-CHAIN-P",
       "gene_id": "g04.provenance-chain",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (artifact_digest, events, actor_ids, previous_chain_digest, provenance), valid provenance/version evidence and the baseline positive condition (continuous chain verifies; broken link rejected), the gene must satisfy: Preserve immutable links between source, transformation and derived assertion.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a registered artifact digest, authorized genesis or verified prior chain tip, ordered unique events with canonical timestamps, authenticated actors, resolvable source references, canonical event digests and complete version-bound provenance, the baseline positive condition (continuous chain verifies; broken link rejected) must preserve immutable source-to-event-to-artifact lineage.",
+      "expected": "Return a reproducible chain digest, exact input event count, verified=true and empty broken_links only after independently validating artifact bytes, all event digests, actor identities, chronology, source references and every predecessor link; evidence must bind the exact verification inputs.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "artifact digest algorithm and canonical bytes verified",
+        "event IDs unique and sequence strictly ordered/contiguous",
+        "timestamps canonical and chronology consistent",
+        "every actor resolves to authenticated identity and event-time key status",
+        "event type and source reference resolve",
+        "event digest recomputes from canonical event content and prior digest",
+        "genesis or prior chain tip validated and fork/rollback checks pass",
+        "event_count equals exact input event count",
+        "verified true only when broken_links is empty",
+        "chain digest reproducible and version-bound",
+        "source-to-event-to-artifact provenance preserved",
+        "no event rewriting or authority expansion"
       ],
       "existing_gene_io_case_id": "G04-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -645,12 +653,20 @@
       "case_id": "CHAR-G04.PROVENANCE-CHAIN-N",
       "gene_id": "g04.provenance-chain",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never fabricate, sever or silently rewrite provenance.), and the baseline negative condition (broken digest link or missing event actor), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given the exact approved input schema with a character invariant violation (Never fabricate, sever or silently rewrite provenance.), including altered artifact/event digest, broken predecessor link, duplicate or reordered sequence, unauthenticated actor, invalid timestamp, unresolved source, unauthorized genesis, fork/rollback or incomplete version evidence, the gene must fail closed.",
+      "expected": "Return verified=false with accurately enumerated broken_links and evidence, or reject/fail closed when verification inputs are untrustworthy; never repair or rewrite the chain, invent actor identity or suppress a broken link.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
+        "artifact or event digest mismatch rejected",
+        "broken predecessor link reported with expected and observed digest",
+        "duplicate/reordered/non-contiguous event sequence rejected",
+        "unauthenticated or revoked actor rejected",
+        "invalid chronology or timestamp rejected",
+        "unresolved or integrity-failing source rejected",
+        "unauthorized null genesis rejected",
+        "fork/rollback/substitution detected",
+        "event_count reconciled without omissions",
+        "verified cannot be true with broken links",
+        "no provenance rewrite or fabricated evidence",
         "reason and evidence recorded"
       ],
       "existing_gene_io_case_id": "G04-GENE-002",
@@ -1880,6 +1896,27 @@
         "G04-KS-SEM-06",
         "G04-KS-SEM-07",
         "G04-KS-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G04-PROVENANCE-CHAIN-SEMANTIC-REVIEW-001",
+      "gene_id": "g04.provenance-chain",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G04.PROVENANCE-CHAIN-P",
+        "CHAR-G04.PROVENANCE-CHAIN-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G04-PC-SEM-01",
+        "G04-PC-SEM-02",
+        "G04-PC-SEM-03",
+        "G04-PC-SEM-04",
+        "G04-PC-SEM-05",
+        "G04-PC-SEM-06",
+        "G04-PC-SEM-07",
+        "G04-PC-SEM-08"
       ]
     }
   ]
