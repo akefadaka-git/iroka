@@ -11,13 +11,17 @@
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
       "gene_id": "g01.identity-root",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (root_id, issuer_id, key_fingerprint, algorithm, activation_epoch, status, provenance), valid provenance/version evidence and the baseline positive condition (valid active root accepted; revoked root rejected), the gene must satisfy: Preserve canonical identity and distinguish system identity from authority, trust, capability and claims.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "After the proposed g01.identity-root amendment is applied: a canonical active root has an authenticated issuer, a fingerprint matching the referenced public key, an algorithm permitted by the versioned algorithm policy, valid activation state and complete provenance/version-bound evidence.",
+      "expected": "Accept only when every identity, issuer, key, algorithm, activation, status and provenance check passes; return verified=true with trust_decision=trusted and reproducible decision evidence.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "root_id resolves to the canonical configured root without aliasing or substitution",
+        "issuer identity and trust chain are verified",
+        "key fingerprint is recomputed or matched against authenticated key material",
+        "algorithm is allowed by the identified policy version",
+        "activation and root status are valid at evaluated_epoch",
+        "verified=true is consistent with trust_decision=trusted",
+        "evidence is sufficient to reproduce the decision",
+        "no authority expansion"
       ],
       "existing_gene_io_case_id": "G01-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -25,19 +29,29 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
         "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-SEM-01",
+        "G01-SEM-02",
+        "G01-SEM-03",
+        "G01-SEM-04"
       ]
     },
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-N",
       "gene_id": "g01.identity-root",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Reject identity substitution, impersonation and unsupported claims of authority.), and the baseline negative condition (unknown issuer or revoked root), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "After the proposed g01.identity-root amendment is applied: the issuer is unknown or revoked, the fingerprint does not match the referenced key, the algorithm is unsupported, the root is suspended/revoked, provenance is missing/conflicting, or the output attempts verified=true with trust_decision=untrusted/revoked.",
+      "expected": "Reject or fail closed; do not return a trusted result, do not accept contradictory verified/trust_decision combinations, and expose the precise failure and available evidence without fabricating proof.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown, substituted or revoked issuer fails closed",
+        "fingerprint mismatch fails closed",
+        "unsupported algorithm fails closed",
+        "suspended/revoked root cannot be trusted",
+        "missing/conflicting provenance fails closed",
+        "contradictory verified/trust_decision output is rejected",
+        "no fabricated evidence or silent downgrade",
+        "failure reason and evidence are recorded"
       ],
       "existing_gene_io_case_id": "G01-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -45,6 +59,12 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
         "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-SEM-01",
+        "G01-SEM-02",
+        "G01-SEM-03",
+        "G01-SEM-04"
       ]
     },
     {
@@ -1465,5 +1485,24 @@
     "existing_input_output_schemas": 72
   },
   "schema_reconciliation_ref": "IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-001",
-  "schema_reconciliation_path": "docs/architecture/IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-v1.0.0.json"
+  "schema_reconciliation_path": "docs/architecture/IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-v1.0.0.json",
+  "gene_review_records": [
+    {
+      "review_id": "A2-G01-IDENTITY-ROOT-SEMANTIC-REVIEW-001",
+      "gene_id": "g01.identity-root",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G01.IDENTITY-ROOT-P",
+        "CHAR-G01.IDENTITY-ROOT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G01-SEM-01",
+        "G01-SEM-02",
+        "G01-SEM-03",
+        "G01-SEM-04"
+      ]
+    }
+  ]
 }
