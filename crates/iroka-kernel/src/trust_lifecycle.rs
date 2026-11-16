@@ -1,6 +1,6 @@
 //! Root-signed trust-bundle lifecycle: verification, expiry and rollback protection.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -119,11 +119,14 @@ impl TrustRootSet {
             return Err(TrustBundleError::InvalidRoot);
         }
         let mut indexed = HashMap::new();
+        let mut public_keys = HashSet::new();
         for root in roots {
+            let public_key = root.public_key;
             if root.key_id.trim().is_empty()
                 || root.not_before >= root.not_after
                 || root.provenance_ref.trim().is_empty()
-                || VerifyingKey::from_bytes(&root.public_key).is_err()
+                || VerifyingKey::from_bytes(&public_key).is_err()
+                || !public_keys.insert(public_key)
                 || indexed.insert(root.key_id.clone(), root).is_some()
             {
                 return Err(TrustBundleError::InvalidRoot);
@@ -595,6 +598,29 @@ mod tests {
             ),
             Err(crate::CredentialError::UnknownKey)
         );
+    }
+
+    #[test]
+    fn rejects_duplicate_trust_root_public_keys_under_different_ids() {
+        let signer = SigningKey::from_bytes(&[31u8; 32]);
+        let public_key = signer.verifying_key().to_bytes();
+        let roots = TrustRootSet::new(vec![
+            TrustRoot {
+                key_id: "root:one".into(),
+                public_key,
+                not_before: 900,
+                not_after: 10_000,
+                provenance_ref: "root-one".into(),
+            },
+            TrustRoot {
+                key_id: "root:two".into(),
+                public_key,
+                not_before: 900,
+                not_after: 10_000,
+                provenance_ref: "root-two".into(),
+            },
+        ]);
+        assert!(matches!(roots, Err(TrustBundleError::InvalidRoot)));
     }
 
     #[test]
