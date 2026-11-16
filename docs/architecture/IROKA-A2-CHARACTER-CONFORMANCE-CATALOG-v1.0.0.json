@@ -785,13 +785,17 @@
       "case_id": "CHAR-G05.RETENTION-CONTROL-P",
       "gene_id": "g05.retention-control",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (memory_id, retention_policy_id, created_at, legal_hold, hold_ref, provenance), valid provenance/version evidence and the baseline positive condition (valid policy computes deadline; active hold prevents expiry), the gene must satisfy: Enforce retention, expiry, deletion and access policy.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an exact canonical memory record, an authenticated signed/versioned retention policy, a trusted creation/trigger timestamp, and independently verified authoritative hold status, the gene must calculate the deterministic deadline and return retain, hold or eligibility in accordance with all policy duties.",
+      "expected": "Return the exact memory identity, policy-bound deadline and digest, correct disposition under verified hold/exception/deadline state, and reproducible evidence; eligibility must not authorize or execute deletion.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "memory identity resolves canonically",
+        "policy signature/version/scope/effectivity verified",
+        "creation time is canonical and trusted",
+        "authoritative legal-hold status independently checked",
+        "deadline calculation is deterministic",
+        "disposition/deadline/hold invariants hold",
+        "evidence reproduces policy and calculation",
+        "no deletion authorization or execution"
       ],
       "existing_gene_io_case_id": "G05-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -805,13 +809,17 @@
       "case_id": "CHAR-G05.RETENTION-CONTROL-N",
       "gene_id": "g05.retention-control",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never retain data merely because it may be useful later.), and the baseline negative condition (deletion despite active legal hold), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unknown/revoked policy, untrusted or malformed creation time, active or unresolved legal hold, missing hold registry, conflicting exception, or a deadline/disposition contradiction, the gene must fail closed and preserve data under the most protective applicable state.",
+      "expected": "Return hold or a fail-closed unresolved result under the existing output contract, never mark data eligible for deletion while a hold or uncertainty remains, and never authorize or execute deletion.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown or revoked policy fails closed",
+        "untrusted timestamp rejected",
+        "active/unresolved hold prevents deletion eligibility",
+        "missing or conflicting hold evidence is not treated as no hold",
+        "deadline/disposition contradictions rejected",
+        "no inferred deletion permission",
+        "reason and evidence recorded",
+        "no destructive action executed"
       ],
       "existing_gene_io_case_id": "G05-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1983,6 +1991,27 @@
         "G05-MC-SEM-06",
         "G05-MC-SEM-07",
         "G05-MC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G05-RETENTION-CONTROL-SEMANTIC-REVIEW-001",
+      "gene_id": "g05.retention-control",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G05.RETENTION-CONTROL-P",
+        "CHAR-G05.RETENTION-CONTROL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G05-RC-SEM-01",
+        "G05-RC-SEM-02",
+        "G05-RC-SEM-03",
+        "G05-RC-SEM-04",
+        "G05-RC-SEM-05",
+        "G05-RC-SEM-06",
+        "G05-RC-SEM-07",
+        "G05-RC-SEM-08"
       ]
     }
   ]
