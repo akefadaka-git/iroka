@@ -42,6 +42,13 @@ impl RollbackDenialCode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RollbackGuardError {
+    MalformedInput,
+    Canonicalization,
+    EvidenceCommitment,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EffectiveState {
     Candidate,
     Current,
@@ -135,13 +142,15 @@ fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn digest_value(value: &Value) -> Result<String, ()> {
+fn digest_value(value: &Value) -> Result<String, RollbackGuardError> {
     canonical_json(value)
         .map(|bytes| sha256(&bytes))
-        .map_err(|_| ())
+        .map_err(|_| RollbackGuardError::Canonicalization)
 }
 
-fn expected_bindings(input: &RollbackGuardInput<'_>) -> Result<Vec<EvidenceBinding>, ()> {
+fn expected_bindings(
+    input: &RollbackGuardInput<'_>,
+) -> Result<Vec<EvidenceBinding>, RollbackGuardError> {
     let floor = json!({
         "revocation_floor": input.revocation_floor,
         "revision": input.revocation_floor_revision
@@ -215,7 +224,9 @@ fn verify_evidence_set(
     Ok(())
 }
 
-fn transition_resource(input: &RollbackGuardInput<'_>) -> Result<String, ()> {
+fn transition_resource(
+    input: &RollbackGuardInput<'_>,
+) -> Result<String, RollbackGuardError> {
     let payload = json!({
         "current_epoch": input.current_epoch,
         "current_digest": input.current_digest,
@@ -229,7 +240,9 @@ fn transition_resource(input: &RollbackGuardInput<'_>) -> Result<String, ()> {
     Ok(format!("rollback-transition:{}", digest_value(&payload)?))
 }
 
-fn input_commitment(input: &RollbackGuardInput<'_>) -> Result<String, ()> {
+fn input_commitment(
+    input: &RollbackGuardInput<'_>,
+) -> Result<String, RollbackGuardError> {
     let approval = input.rollback_authorization.map(|signed| {
         json!({
             "approval_id": signed.payload.approval_id,
@@ -256,9 +269,11 @@ fn input_commitment(input: &RollbackGuardInput<'_>) -> Result<String, ()> {
 fn evidence_commitment(
     provenance: &[RollbackEvidenceReceipt],
     version_bound: &[RollbackEvidenceReceipt],
-) -> Result<String, ()> {
-    let p = serde_json::to_value(provenance).map_err(|_| ())?;
-    let v = serde_json::to_value(version_bound).map_err(|_| ())?;
+) -> Result<String, RollbackGuardError> {
+    let p = serde_json::to_value(provenance)
+        .map_err(|_| RollbackGuardError::EvidenceCommitment)?;
+    let v = serde_json::to_value(version_bound)
+        .map_err(|_| RollbackGuardError::EvidenceCommitment)?;
     digest_value(&json!({ "provenance": p, "version_bound_evidence": v }))
 }
 
@@ -270,7 +285,7 @@ fn finish(
     reason: Option<&str>,
     input_digest: &str,
     evidence_digest: &str,
-) -> Result<RollbackGuardDecision, ()> {
+) -> Result<RollbackGuardDecision, RollbackGuardError> {
     let (effective_state, effective_epoch, effective_digest) = if allowed {
         (
             EffectiveState::Candidate,
@@ -320,7 +335,7 @@ pub fn evaluate_rollback_guard(
     evidence_verifier: &dyn RollbackEvidenceVerifier,
     owner_verifier: &OwnerApprovalVerifier,
     now: u64,
-) -> Result<RollbackGuardDecision, ()> {
+) -> Result<RollbackGuardDecision, RollbackGuardError> {
     if input.policy_version.trim().is_empty()
         || input.rollback_reason.trim().is_empty()
         || input.current_digest.len() != 64
@@ -334,7 +349,7 @@ pub fn evaluate_rollback_guard(
             .bytes()
             .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
     {
-        return Err(());
+        return Err(RollbackGuardError::MalformedInput);
     }
     let input_digest = input_commitment(input)?;
     let evidence_digest = evidence_commitment(input.provenance, input.version_bound_evidence)?;
@@ -537,6 +552,7 @@ mod tests {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn fixture<'a>(
         current_epoch: u64,
         candidate_epoch: u64,
