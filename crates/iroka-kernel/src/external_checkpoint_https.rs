@@ -378,6 +378,26 @@ mod tests {
         }
     }
 
+    struct CorruptWitness(StaticWitness);
+
+    impl CheckpointWitness for CorruptWitness {
+        fn publish(
+            &self,
+            checkpoint: &SignedCheckpoint,
+        ) -> Result<WitnessReceipt, CheckpointError> {
+            let mut receipt = self.0.publish(checkpoint)?;
+            receipt.signature[0] ^= 0x01;
+            Ok(receipt)
+        }
+
+        fn latest(
+            &self,
+            stream_id: &str,
+        ) -> Result<Option<(SignedCheckpoint, WitnessReceipt)>, CheckpointError> {
+            self.0.latest(stream_id)
+        }
+    }
+
     #[test]
     fn quorum_publisher_requires_two_distinct_verified_remote_identities() {
         let checkpoint_signer = TestCheckpointSigner(SigningKey::from_bytes(&[41; 32]));
@@ -428,6 +448,50 @@ mod tests {
             ),
             Err(CheckpointError::Malformed),
         );
+    }
+
+    #[test]
+    fn quorum_publisher_ignores_invalid_receipt_when_valid_quorum_remains() {
+        let checkpoint_signer = TestCheckpointSigner(SigningKey::from_bytes(&[61; 32]));
+        let checkpoint = create_checkpoint(
+            &checkpoint_signer,
+            "audit-stream:partial-witness",
+            1,
+            1,
+            [6; 32],
+            None,
+            2_100,
+        )
+        .unwrap();
+        let valid = StaticWitness {
+            id: "operator:valid".into(),
+            key_id: "witness-key:valid".into(),
+            key: SigningKey::from_bytes(&[62; 32]),
+        };
+        let invalid = CorruptWitness(StaticWitness {
+            id: "operator:invalid".into(),
+            key_id: "witness-key:invalid".into(),
+            key: SigningKey::from_bytes(&[63; 32]),
+        });
+        let checkpoint_roots = BTreeMap::from([(
+            checkpoint_signer.key_id().to_string(),
+            checkpoint_signer.0.verifying_key(),
+        )]);
+        let witness_roots = BTreeMap::from([
+            (valid.key_id.clone(), valid.key.verifying_key()),
+            (invalid.0.key_id.clone(), invalid.0.key.verifying_key()),
+        ]);
+
+        let receipts = publish_witness_quorum(
+            &checkpoint,
+            &[&valid, &invalid],
+            &checkpoint_roots,
+            &witness_roots,
+            1,
+        )
+        .unwrap();
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(receipts[0].payload.witness_id, "operator:valid");
     }
 
     #[test]
