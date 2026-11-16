@@ -7,7 +7,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{RollbackEvidenceTrustPolicy, SecurityStoreError, SqliteSecurityStore, TrustConfigError, TrustStore, TrustedKey};
+use crate::{canonical_json, RegisteredLineageArtifact, RegisteredMutationRecord, RollbackEvidenceTrustPolicy, SecurityStoreError, SignedVersionLineageRegistrySnapshot, SqliteSecurityStore, TrustConfigError, TrustStore, TrustedKey, VersionLineageError};
 
 const MAX_BUNDLE_LIFETIME_SECS: u64 = 31_536_000;
 const MAX_CLOCK_SKEW_SECS: u64 = 30;
@@ -293,6 +293,133 @@ pub fn restore_rollback_evidence_policy_with_roots(
     let signed: SignedRollbackEvidencePolicy =
         serde_json::from_str(&document).map_err(|_| TrustBundleError::Malformed)?;
     verify_and_install_rollback_evidence_policy(&signed, roots, store, now)
+}
+
+fn validate_lineage_snapshot(
+    payload: &crate::VersionLineageRegistrySnapshotPayload,
+) -> Result<(), TrustBundleError> {
+    use std::collections::{BTreeMap, BTreeSet};
+    if payload.revision == 0 || payload.artifacts.is_empty() || payload.artifacts.len() > 10_000
+        || payload.mutations.len() > 10_000
+    {
+        return Err(TrustBundleError::Malformed);
+    }
+    let mut by_version = BTreeMap::<String, &RegisteredLineageArtifact>::new();
+    let mut roots = 0usize;
+    let mut referenced_mutations = BTreeSet::new();
+    for artifact in &payload.artifacts {
+        if artifact.gene_id != "g12.version-lineage" || artifact.version.trim().is_empty()
+            || artifact.artifact_digest.len() != 64
+        {
+            return Err(TrustBundleError::Malformed);
+        }
+        let canonical = canonical_json(&artifact.artifact).map_err(|_| TrustBundleError::Malformed)?;
+        let digest = Sha256::digest(canonical);
+        if format!("{digest:x}") != artifact.artifact_digest {
+            return Err(TrustBundleError::Malformed);
+        }
+        if by_version.insert(artifact.version.clone(), artifact).is_some() {
+            return Err(TrustBundleError::Malformed);
+        }
+        match (&artifact.parent_version, &artifact.parent_digest, &artifact.mutation_id) {
+            (None, None, None) if artifact.epoch == 0 => roots += 1,
+            (Some(parent_version), Some(parent_digest), Some(mutation_id))
+                if !parent_version.is_empty() && parent_digest.len() == 64 && !mutation_id.is_empty() =>
+            {
+                referenced_mutations.insert(mutation_id.clone());
+            }
+            _ => return Err(TrustBundleError::Malformed),
+        }
+    }
+    if roots != 1 { return Err(TrustBundleError::Malformed); }
+    let mut mutation_by_id = BTreeMap::<String, &RegisteredMutationRecord>::new();
+    for mutation in &payload.mutations {
+        if !mutation.approved || !mutation.gates_passed
+            || mutation.source_version.as_deref().unwrap_or("").is_empty()
+            || mutation.source_digest.as_deref().unwrap_or("").len() != 64
+            || mutation.target_version.is_empty() || mutation.target_digest.len() != 64
+            || mutation.approval_commitment.len() != 64
+            || !mutation.approval_commitment.bytes().all(|b| b.is_ascii_hexdigit())
+            || mutation_by_id.insert(mutation.mutation_id.clone(), mutation).is_some()
+        {
+            return Err(TrustBundleError::Malformed);
+        }
+    }
+    if referenced_mutations.len() != mutation_by_id.len()
+        || referenced_mutations.iter().any(|id| !mutation_by_id.contains_key(id))
+    {
+        return Err(TrustBundleError::Malformed);
+    }
+    for artifact in &payload.artifacts {
+        if let (Some(parent_version), Some(parent_digest), Some(mutation_id)) =
+            (&artifact.parent_version, &artifact.parent_digest, &artifact.mutation_id)
+        {
+            let parent = by_version.get(parent_version).ok_or(TrustBundleError::Malformed)?;
+            if parent.artifact_digest != *parent_digest || artifact.epoch <= parent.epoch {
+                return Err(TrustBundleError::Malformed);
+            }
+            let mutation = mutation_by_id.get(mutation_id).ok_or(TrustBundleError::Malformed)?;
+            if mutation.source_version.as_deref() != Some(parent.version.as_str())
+                || mutation.source_digest.as_deref() != Some(parent.artifact_digest.as_str())
+                || mutation.target_version != artifact.version
+                || mutation.target_digest != artifact.artifact_digest
+            {
+                return Err(TrustBundleError::Malformed);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Verify, validate and atomically provision a root-signed immutable G12 lineage
+/// registry snapshot. No direct unsigned write path is exposed to callers.
+pub fn verify_and_install_version_lineage_snapshot(
+    signed: &SignedVersionLineageRegistrySnapshot,
+    roots: &TrustRootSet,
+    store: &SqliteSecurityStore,
+    now: u64,
+) -> Result<u64, TrustBundleError> {
+    let root = roots.get(&signed.root_key_id)?;
+    if now < root.not_before || now >= root.not_after {
+        return Err(TrustBundleError::RootOutsideValidity);
+    }
+    let payload = &signed.payload;
+    if payload.issued_at >= payload.expires_at
+        || payload.issued_at > now.saturating_add(MAX_CLOCK_SKEW_SECS)
+        || payload.expires_at <= now.saturating_sub(MAX_CLOCK_SKEW_SECS)
+        || payload.expires_at - payload.issued_at > MAX_BUNDLE_LIFETIME_SECS
+    {
+        return Err(TrustBundleError::Malformed);
+    }
+    validate_lineage_snapshot(payload)?;
+    let root_key = VerifyingKey::from_bytes(&root.public_key).map_err(|_| TrustBundleError::InvalidRoot)?;
+    let signature = Signature::from_slice(&signed.signature).map_err(|_| TrustBundleError::Malformed)?;
+    let signing_bytes = signed.signing_bytes().map_err(|_| TrustBundleError::Malformed)?;
+    root_key.verify(&signing_bytes, &signature).map_err(|_| TrustBundleError::InvalidSignature)?;
+    let digest = Sha256::digest(&signing_bytes);
+    let document = serde_json::to_string(signed).map_err(|_| TrustBundleError::Malformed)?;
+    store.install_version_lineage_snapshot(
+        payload.revision,
+        digest.as_slice(),
+        &document,
+        &payload.artifacts,
+        &payload.mutations,
+    )?;
+    Ok(payload.revision)
+}
+
+/// Restore the authoritative registry only from the persisted signed snapshot,
+/// rechecking root signature, validity, revision and all lineage invariants.
+pub fn restore_version_lineage_snapshot_with_roots(
+    roots: &TrustRootSet,
+    store: &SqliteSecurityStore,
+    now: u64,
+) -> Result<u64, TrustBundleError> {
+    let document = store.latest_version_lineage_snapshot_document()?
+        .ok_or(TrustBundleError::StoreUnavailable)?;
+    let signed: SignedVersionLineageRegistrySnapshot =
+        serde_json::from_str(&document).map_err(|_| TrustBundleError::Malformed)?;
+    verify_and_install_version_lineage_snapshot(&signed, roots, store, now)
 }
 
 /// Select the signing root by key ID from an explicitly provisioned overlapping
