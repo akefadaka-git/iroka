@@ -1569,13 +1569,18 @@
       "case_id": "CHAR-G10.EVALUATION-RECORD-P",
       "gene_id": "g10.evaluation-record",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (proposal_id, suite_digest, baseline_metrics, candidate_metrics, evaluator_id, environment_digest, provenance), valid provenance/version evidence and the baseline positive condition (complete evaluation recorded; missing evidence is inconclusive), the gene must satisfy: Report reproducible results, limitations, subgroup impacts and regressions.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an authenticated evaluator independent of the proposal author, a canonical active proposal, a recomputable suite and environment digest, registry-defined comparable baseline/candidate metrics, verifiable provenance and version_bound_evidence on the complete input, record a reproducible evaluation with unique test results, policy-derived decision, complete regressions and recomputable output evidence digest.",
+      "expected": "Return the existing output contract with unique complete results and regressions, policy-derived pass/fail/inconclusive decision, evidence and version_bound_evidence; no approval, authorization or execution authority is created.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all eight required input fields including version_bound_evidence validated",
+        "proposal, suite and environment references resolve to exact immutable versions",
+        "suite and environment digests recompute over canonical artifacts",
+        "baseline and candidate metrics resolve to comparable registry definitions, units, cohorts and windows",
+        "evaluator identity, qualification and independence verified",
+        "test IDs and regression IDs unique; regression deltas recompute correctly",
+        "decision follows versioned policy and all result statuses",
+        "evidence digest binds complete canonical output and source evidence",
+        "evaluation has no approval, authorization, merge, deployment or execution effect"
       ],
       "existing_gene_io_case_id": "G10-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1583,19 +1588,26 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
         "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G10.EVALUATION-RECORD-N",
       "gene_id": "g10.evaluation-record",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never cherry-pick metrics or suppress failed evaluations.), and the baseline negative condition (missing baseline or evaluator provenance), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given a stale or unresolved proposal, forged suite/environment/evidence digest, missing version_bound_evidence, unknown or incomparable metrics, unauthenticated or conflicted evaluator, duplicate test/regression IDs, inconsistent regression delta, hidden failed/skipped/error result, or incomplete/conflicting evidence, the evaluation must fail closed or return inconclusive.",
+      "expected": "Reject or return explicit inconclusive/fail with traceable evidence; never fabricate a pass, suppress failures, waive required evidence or grant approval/execution authority.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "missing input or output version_bound_evidence rejected",
+        "stale proposal or unresolved source reference rejected",
+        "suite, environment or evidence digest mismatch rejected",
+        "unknown metric or incomparable units/cohorts/windows cannot pass",
+        "unauthenticated, unqualified or conflicted evaluator rejected",
+        "duplicate test or regression IDs rejected",
+        "incorrect regression delta rejected",
+        "skipped, error, failed or inconclusive outcomes cannot be silently aggregated as pass",
+        "missing/conflicting evidence yields fail-closed or inconclusive",
+        "evaluation cannot approve, authorize, merge, deploy or execute"
       ],
       "existing_gene_io_case_id": "G10-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1603,7 +1615,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
         "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G11.VALIDATOR-P",
@@ -2475,6 +2488,29 @@
         "G10-CP-SEM-08",
         "G10-CP-SEM-09",
         "G10-CP-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G10-EVALUATION-RECORD-SEMANTIC-REVIEW-001",
+      "gene_id": "g10.evaluation-record",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G10.EVALUATION-RECORD-P",
+        "CHAR-G10.EVALUATION-RECORD-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G10-ERD-SEM-01",
+        "G10-ERD-SEM-02",
+        "G10-ERD-SEM-03",
+        "G10-ERD-SEM-04",
+        "G10-ERD-SEM-05",
+        "G10-ERD-SEM-06",
+        "G10-ERD-SEM-07",
+        "G10-ERD-SEM-08",
+        "G10-ERD-SEM-09",
+        "G10-ERD-SEM-10"
       ]
     }
   ]
