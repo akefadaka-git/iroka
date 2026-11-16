@@ -542,54 +542,34 @@ mod tests {
         let audit = audit_with_events(&["event:one"]);
         let cp = create_audit_checkpoint(&s, &audit, "audit-stream:alpha", 1, None, 2_000).unwrap();
         let receipt = w.publish(&cp).unwrap();
+        let evidence = verify_checkpoint_evidence(
+            cp.clone(),
+            vec![receipt],
+            &trust(&s.id, &s.key),
+            &trust(&w.key_id, &w.key),
+            1,
+        )
+        .unwrap();
         assert_eq!(
-            verify_and_reconcile_head(
-                &audit,
-                &cp,
-                &trust(&s.id, &s.key),
-                std::slice::from_ref(&receipt),
-                &trust(&w.key_id, &w.key),
-                1,
-            ),
+            verify_and_reconcile_head(&audit, &evidence),
             Ok(Reconciliation::Exact)
         );
 
         let local_ahead = audit_with_events(&["event:one", "event:two"]);
         assert_eq!(
-            verify_and_reconcile_head(
-                &local_ahead,
-                &cp,
-                &trust(&s.id, &s.key),
-                std::slice::from_ref(&receipt),
-                &trust(&w.key_id, &w.key),
-                1,
-            ),
+            verify_and_reconcile_head(&local_ahead, &evidence),
             Ok(Reconciliation::LocalAheadUnanchored)
         );
 
         let local_behind = audit_with_events(&[]);
         assert_eq!(
-            verify_and_reconcile_head(
-                &local_behind,
-                &cp,
-                &trust(&s.id, &s.key),
-                std::slice::from_ref(&receipt),
-                &trust(&w.key_id, &w.key),
-                1,
-            ),
+            verify_and_reconcile_head(&local_behind, &evidence),
             Err(CheckpointError::LocalBehindAnchor)
         );
 
         let forked = audit_with_events(&["event:forked", "event:forked-tail"]);
         assert_eq!(
-            verify_and_reconcile_head(
-                &forked,
-                &cp,
-                &trust(&s.id, &s.key),
-                std::slice::from_ref(&receipt),
-                &trust(&w.key_id, &w.key),
-                1,
-            ),
+            verify_and_reconcile_head(&forked, &evidence),
             Err(CheckpointError::ForkDetected)
         );
     }
