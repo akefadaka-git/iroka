@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "document_id": "IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-001",
   "version": "1.0.0",
-  "status": "A2_CHARACTER_TEST_DESIGNS_RECONCILED_TO_APPROVED_GENE_IO_FIELDS_NOT_EXECUTED",
+  "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
   "genes_covered": 36,
@@ -1450,7 +1450,9 @@
   ],
   "execution_policy": {
     "positive_and_negative_per_gene": true,
-    "exact_artifact_and_policy_version_required": true,
+    "case_count": 72,
+    "schemas_bound": 72,
+    "executed": false,
     "runtime_tests_not_authorized_in_A2": true,
     "a3_required_for_implementation": true
   },
@@ -1461,5 +1463,7 @@
     "proposal_blob_sha": "0dea137514313a2f59bec7be4df53bec05330b45",
     "existing_gene_contracts": 36,
     "existing_input_output_schemas": 72
-  }
+  },
+  "schema_reconciliation_ref": "IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-001",
+  "schema_reconciliation_path": "docs/architecture/IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-v1.0.0.json"
 }
