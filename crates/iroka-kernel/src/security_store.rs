@@ -546,10 +546,10 @@ impl SqliteSecurityStore {
                 .optional()
                 .map_err(|_| SecurityStoreError::Unavailable)?;
             let Some((stored_digest, stored_json)) = existing else {
-                return Err(SecurityStoreError::Rejected);
+                return Err(SecurityStoreError::ConflictingVersion);
             };
             if stored_digest.as_slice() != digest.as_slice() || stored_json != receipt_json {
-                return Err(SecurityStoreError::Rejected);
+                return Err(SecurityStoreError::ConflictingVersion);
             }
         }
         transaction
