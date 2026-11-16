@@ -6345,49 +6345,168 @@
         {
           "field": "policy_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve policy_id to an authenticated immutable policy revision; verify issuer, validity interval, revocation status and compatibility."
         },
         {
           "field": "task_classes",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require unique canonical class IDs and resolve each against a versioned task-class registry including protected-work status and applicable guarantees."
         },
         {
           "field": "priorities",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate every priority key against an existing class; enforce the registered scale, direction, deterministic tie-breaks and prohibition on silent reprioritization."
         },
         {
           "field": "quotas",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate class references, numeric units, measurement windows, non-negative bounds and global resource ceilings; reject unknown or contradictory entries."
         },
         {
           "field": "deadlines",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate class references and timezone-qualified absolute timestamps using trusted clock evidence; define expiry, conflict and infeasibility handling."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require structured provenance for policy issuer/revision, task-class registry, priority/quota/deadline sources, resource snapshot and scheduler evaluation inputs."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind policy and registry versions, scheduler algorithm/version, clock source, resource model and normalization/fairness rule set."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Schedule fairly under priority, deadline, resource and safety constraints.",
+          "assertion": "Normalized policy is deterministic and semantics-preserving; it cannot silently alter priority, quota, deadline or protected-work status.",
           "observable_fields": [
+            "normalized_policy",
+            "policy_id",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Feasibility is consistent with all hard constraints and reported violations; indeterminate is used when evidence is insufficient.",
           "observable_fields": [
+            "feasibility",
+            "violations",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Every violation has a unique identifier and references a task class in the evaluated policy.",
+          "observable_fields": [
+            "violations",
+            "normalized_policy"
+          ]
+        },
+        {
+          "assertion": "Fairness and protected-work guarantees are preserved with auditable treatment of starvation, aging, tie-breaking and preemption.",
+          "observable_fields": [
+            "normalized_policy",
+            "violations",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Scheduling-policy evaluation does not itself authorize task execution or expand authority.",
+          "observable_fields": [
+            "feasibility",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never sacrifice protected work or fairness through hidden priority changes. fail-closed"
+      "character_failure_rule": "Never sacrifice protected work or fairness through hidden priority changes. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G08-SCHEDULER-POLICY-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "3cce0d3b6ff7020f06a96878e9f57ab4a4a732e7",
+          "a2_contract_blob_before_review": "bdbd346c88e21bb4e92f4659c69c2cb09cecd0d6",
+          "a2_catalog_blob_before_review": "3280685939a3a84a30e2fe39e7f86dfa6973e794",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "06a7ccd50f141022dd4ae3a76faf078cce741bdf",
+          "output_schema_blob": "853d195a1145b838d896296b090e514ca13debb4"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires policy_id, task_classes, priorities, quotas, deadlines, provenance and version_bound_evidence; undeclared top-level properties are rejected.",
+          "Each task class requires class_id, integer priority, non-negative numeric quota and nullable date-time deadline; task_classes has minItems 1.",
+          "Task class uniqueness is described only in non-standard x-genesis metadata; no standard uniqueItems or cross-field registry validation is present.",
+          "priorities, quotas and deadlines are unconstrained objects; their key/value schemas and correspondence to task_classes are not defined.",
+          "Output feasibility is limited to feasible, infeasible or indeterminate; normalized_policy is an opaque object.",
+          "Violation objects require violation_id, class_id, rule_id, expected, observed and severity; class reference validity and violation ID uniqueness are only non-standard metadata.",
+          "Provenance and version_bound_evidence are non-empty opaque objects; output does not structurally constrain normalization consistency or fairness guarantees."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G08-SP-SEM-01",
+            "severity": "HIGH",
+            "finding": "policy_id is an unrestricted string; no authenticated policy registry, immutable revision, issuer or policy validity window is defined.",
+            "required_disposition": "Resolve policy_id to an authenticated immutable policy revision with issuer, effective interval, revocation state and compatibility binding."
+          },
+          {
+            "gap_id": "G08-SP-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "task_classes.class_id uniqueness is only non-standard x-genesis metadata; class identity, class taxonomy and protection status are not registry-bound.",
+            "required_disposition": "Enforce unique canonical class IDs and resolve each class through a versioned registry that defines protected status, eligibility and applicable scheduling guarantees."
+          },
+          {
+            "gap_id": "G08-SP-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "priorities, quotas and deadlines are unconstrained objects; their key domains, types, units, bounds, conflict precedence and correspondence to task_classes are undefined.",
+            "required_disposition": "Define strict schemas and units for every priority/quota/deadline entry; require exact class references, bounded values, explicit precedence and rejection of unknown or conflicting keys."
+          },
+          {
+            "gap_id": "G08-SP-SEM-04",
+            "severity": "HIGH",
+            "finding": "Priority is an unrestricted integer and quota a non-negative number; priority ordering/direction, tie-breaking, quota unit/window, fractional semantics and resource ceilings are unspecified.",
+            "required_disposition": "Define priority scale and deterministic tie-break rules; specify quota units, measurement windows, integer/fractional semantics and enforce resource ceilings."
+          },
+          {
+            "gap_id": "G08-SP-SEM-05",
+            "severity": "HIGH",
+            "finding": "deadline_at accepts string or null with format=date-time but no explicit timezone requirement, trusted clock, deadline policy or conflict behavior; format assertion may not be enabled by default.",
+            "required_disposition": "Require timezone-qualified absolute timestamps, trusted clock evidence, explicit deadline interpretation and deterministic behavior for expired, conflicting or impossible deadlines."
+          },
+          {
+            "gap_id": "G08-SP-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "Output feasibility enum has no cross-field rules; normalized_policy is opaque and can contradict feasibility or silently rewrite priority/protected work; violations can reference unknown classes and uniqueness is metadata-only.",
+            "required_disposition": "Define normalization as semantics-preserving and deterministic; bind it to input policy; require feasible/infeasible/indeterminate consistency with violations and enforce unique violation IDs and valid class references."
+          },
+          {
+            "gap_id": "G08-SP-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "No contract specifies fairness guarantees, starvation prevention, protected-work reservation, aging, preemption or anti-manipulation audit; hidden priority changes are not structurally detectable.",
+            "required_disposition": "Define measurable fairness/protected-work invariants, starvation bounds, aging/preemption rules and an auditable record of every policy transformation; prohibit silent reprioritization."
+          },
+          {
+            "gap_id": "G08-SP-SEM-08",
+            "severity": "HIGH",
+            "finding": "Provenance and version_bound_evidence are merely non-empty objects; policy issuer, scheduler algorithm/version, clock, resource snapshot, input revision and normalization decisions are not reproducibly bound.",
+            "required_disposition": "Require structured signed/version-bound evidence identifying policy revision, scheduler implementation, clock source, resource snapshot, normalization and fairness evaluation."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g08.scheduler-policy schemas and its conformance vectors to close G08-SP-SEM-01 through G08-SP-SEM-08.",
+          "Define authenticated immutable policy and task-class registries; strict typed priority, quota and deadline maps with units, bounds and class-reference integrity.",
+          "Specify deterministic normalization, feasibility/violation consistency, fairness guarantees, protected-work handling and auditable anti-starvation behavior.",
+          "Bind provenance and version-bound evidence to the policy revision, scheduler algorithm, trusted clock, resource snapshot and normalization decisions.",
+          "Preserve the no-authority-expansion boundary and the 12-chromosome/36-gene architecture; execute schema/runtime tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g08.coordination-state",
