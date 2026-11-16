@@ -2902,48 +2902,169 @@
         {
           "field": "artifact_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate digest algorithm and canonical encoding against a versioned allowlist; bind the digest to the exact artifact bytes and declared artifact identity."
         },
         {
           "field": "events",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require unique immutable event IDs and strictly increasing contiguous sequence semantics; validate event chronology, canonical timestamps, actor identity, source reference and event digest. Bind each event digest to canonical event content, prior digest and declared algorithm; verify the first event against previous_chain_digest and every subsequent link against the immediately preceding event."
         },
         {
           "field": "actor_ids",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve each actor ID against an authoritative identity registry and bind the event actor to the verified principal identity at event time; array membership alone does not authenticate an actor."
         },
         {
           "field": "previous_chain_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate null only for an explicitly authorized chain genesis; otherwise require a valid digest resolving to the immutable prior chain tip and prevent forks, rollback or substitution."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require structured provenance for artifact origin, chain creation, event source, capture method, source integrity, rights/context and derivation; do not accept arbitrary non-empty objects as proof."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind verification to exact artifact bytes, ordered event set, prior chain tip, actor registry/key status, digest algorithm, schema and verifier versions."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Preserve immutable links between source, transformation and derived assertion.",
+          "assertion": "The output chain digest is canonical, reproducible and bound to the exact artifact and ordered event chain.",
           "observable_fields": [
             "chain_digest",
-            "verified",
+            "event_count",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "verified is true only when every event identity, actor, timestamp, source and digest link is independently validated and broken_links is empty.",
           "observable_fields": [
-            "chain_digest",
             "verified",
+            "broken_links",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "event_count exactly equals the number of input events successfully evaluated; no event may be omitted, duplicated or reordered silently.",
+          "observable_fields": [
+            "event_count",
+            "broken_links",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Every broken link is reported with accurate adjacent event IDs, expected and observed digest values and a specific reason; verification failure cannot be hidden.",
+          "observable_fields": [
+            "verified",
+            "broken_links",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "The output evidence preserves source-to-event-to-artifact lineage, actor verification and exact version-bound verification inputs.",
+          "observable_fields": [
+            "evidence",
+            "chain_digest"
+          ]
+        },
+        {
+          "assertion": "No chain repair, event rewriting, timestamp substitution or provenance alteration is performed during verification.",
+          "observable_fields": [
+            "verified",
+            "broken_links",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never fabricate, sever or silently rewrite provenance. fail-closed"
+      "character_failure_rule": "Never fabricate, sever or silently rewrite provenance. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G04-PROVENANCE-CHAIN-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "b8e673821a8662e9e46fc35962477a5b1513dc6c",
+          "a2_contract_blob_before_review": "af56ec0fea58a6d54e1783794d015c8221fefab8",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "25904d8533e71478389bd68da7f525f8463ae048",
+          "output_schema_blob": "9cdbb2f08cc7b6ae89f63ebfabdaf247dd8e2ddd"
+        },
+        "confirmed_sufficient": [
+          "Input requires at least one event, unique event IDs and sequences by collection annotation, and strictly increasing sequence order by declared collection rule.",
+          "Event records require event ID, integer sequence, event type, actor ID, date-time, source reference, previous event digest and event digest.",
+          "Actor IDs are unique and every event actor is required by the collection rule to be included.",
+          "Previous chain digest explicitly permits null for a potential genesis chain.",
+          "Output requires chain digest, verified flag, event count, broken links and evidence; broken-link records identify adjacent events, expected/observed digest and reason."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G04-PC-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "artifact_digest and event digests are untyped strings without digest algorithm, encoding, canonicalization or cryptographic verification requirements.",
+            "required_disposition": "Define versioned digest algorithms and canonical byte representations; verify artifact and event digests against exact content."
+          },
+          {
+            "gap_id": "G04-PC-SEM-02",
+            "severity": "HIGH",
+            "finding": "Event sequence is any integer and chronology/strict ordering is expressed only as a collection annotation; continuity, duplicate handling and timestamp ordering are not enforceable by the schema.",
+            "required_disposition": "Define positive contiguous sequence semantics, canonical UTC timestamp handling and deterministic chronology/ordering conformance."
+          },
+          {
+            "gap_id": "G04-PC-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "actor_ids membership does not authenticate actor identity, key ownership, authorization-at-event-time or revocation status.",
+            "required_disposition": "Resolve actors through trusted identity/key registries and verify signatures or authenticated event attestations with historical key status."
+          },
+          {
+            "gap_id": "G04-PC-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "Event digests are not cryptographically bound by schema semantics to canonical event content, previous digest, artifact digest or a declared digest algorithm.",
+            "required_disposition": "Specify canonical event serialization and hash-chain computation, including genesis and continuation rules."
+          },
+          {
+            "gap_id": "G04-PC-SEM-05",
+            "severity": "HIGH",
+            "finding": "previous_chain_digest permits null without explicit genesis authorization and does not define prior-tip lookup, fork detection or rollback protection.",
+            "required_disposition": "Permit null only for registered genesis; otherwise resolve the immutable prior tip and detect forks, rollback and substitution."
+          },
+          {
+            "gap_id": "G04-PC-SEM-06",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are arbitrary non-empty objects and do not structurally bind source origin, artifact bytes, actor registry, algorithms or verifier versions.",
+            "required_disposition": "Require structured, verifiable provenance and complete version-bound verification inputs."
+          },
+          {
+            "gap_id": "G04-PC-SEM-07",
+            "severity": "HIGH",
+            "finding": "Output chain_digest has no canonical format/meaning, event_count has no nonnegative bound or equality assertion to input events, and verified can contradict non-empty broken_links.",
+            "required_disposition": "Define canonical output digest, exact event-count reconciliation and invariant verified=true iff all required checks pass and broken_links is empty."
+          },
+          {
+            "gap_id": "G04-PC-SEM-08",
+            "severity": "MEDIUM",
+            "finding": "event_type and source_ref are only non-empty strings; event type registry, source resolvability, source integrity and event-time validity are not defined.",
+            "required_disposition": "Bind event types to a versioned registry and require resolvable, integrity-checked source references with temporal provenance."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g04.provenance-chain input/output schemas and its positive/negative conformance vectors to close G04-PC-SEM-01 through G04-PC-SEM-08.",
+          "Define canonical hash-chain serialization, algorithm allowlists, actor identity/signature verification, genesis/continuation rules and anti-fork/rollback semantics.",
+          "Require structured source and version-bound provenance, strict event chronology and source resolution.",
+          "Enforce output invariants for chain_digest, event_count, broken_links and verified; never rewrite provenance while verifying.",
+          "Run schema meta-validation and exact-head chain conformance tests only after separately authorized A3 implementation."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g04.conflict-model",
