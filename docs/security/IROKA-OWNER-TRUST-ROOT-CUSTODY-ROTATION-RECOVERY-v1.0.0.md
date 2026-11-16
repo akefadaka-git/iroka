@@ -65,6 +65,8 @@ A trust-bundle release must:
 
 The trust-bundle signing bytes are protocol-versioned. A future serialization/domain change requires a new protocol version and migration plan; do not silently reinterpret existing signed bundles.
 
+Owner approval and Owner security-command signatures also use RFC 8785/JCS canonical JSON with separate domains: `IROKA:G02:OWNER-APPROVAL:V1\0` and `IROKA:G02:OWNER-SECURITY-COMMAND:V1\0`. This prevents a signature for one Owner protocol from being replayed as another. These domain-separated signing bytes replace the earlier raw-JSON signing representation in this implementation branch. No production keys or production approvals have been used here; if any deployment has pre-existing signed artifacts, it must perform an explicit compatibility inventory and versioned migration before upgrading.
+
 ## 6. Rotation and overlap
 
 For routine rotation:
