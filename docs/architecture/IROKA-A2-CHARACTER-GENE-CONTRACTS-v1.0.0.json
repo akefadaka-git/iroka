@@ -10031,14 +10031,16 @@
           "parent_digest",
           "mutation_ref",
           "epoch",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "lineage_digest",
           "linked",
           "epoch_monotonic",
           "ancestry",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -10075,6 +10077,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -10102,6 +10109,11 @@
             "name": "evidence",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ]
       },
@@ -10116,54 +10128,188 @@
         {
           "field": "artifact_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate the digest using the approved canonical encoding and algorithm, and bind it to the exact immutable artifact; do not infer trust or authority from data presence."
         },
         {
           "field": "version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to a canonical registered version bound to this exact artifact digest; reject unknown, ambiguous or downgrade-inconsistent versions."
         },
         {
           "field": "parent_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve together to the same registered immutable parent; enforce the defined root representation and reject missing, ambiguous or mismatched parent links."
         },
         {
           "field": "parent_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve together to the same registered immutable parent; enforce the defined root representation and reject missing, ambiguous or mismatched parent links."
         },
         {
           "field": "mutation_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to exactly one immutable mutation record and verify its target, version transition, approval/gates and resulting artifact digest; never infer execution permission."
         },
         {
           "field": "epoch",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve against the authoritative monotonic epoch source; require non-negative values and strict ancestry progression."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify issuer authenticity, source integrity and immutable provenance; reject missing, stale, forged or conflicting records."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require authenticated, fresh evidence bound to the exact candidate version and digest; evidence presence alone is not proof of validity."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Preserve immutable version ancestry and compatibility facts.",
+          "assertion": "Ancestry is one complete, acyclic, oldest-to-candidate chain with unique entries, exact digest links, and strictly increasing authoritative epochs.",
           "observable_fields": [
+            "ancestry",
+            "linked",
+            "epoch_monotonic",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "The candidate version, artifact digest, parent pair, mutation record and lineage digest resolve to the same immutable lineage; no history is rewritten or a breaking change hidden.",
+          "observable_fields": [
+            "lineage_digest",
+            "ancestry",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "linked and epoch_monotonic are derived from verified ancestry and cannot contradict ancestry contents.",
+          "observable_fields": [
+            "linked",
+            "epoch_monotonic",
+            "ancestry",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Every candidate and ancestor has authentic version-bound evidence; unresolved, stale, mismatched or incomplete evidence is exposed and fails closed.",
+          "observable_fields": [
+            "evidence",
+            "version_bound_evidence",
+            "ancestry"
+          ]
+        },
+        {
+          "assertion": "Lineage evaluation has no mutation side effects and creates no approval, authorization, merge or deployment permission.",
           "observable_fields": [
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never rewrite version history or hide a breaking change. fail-closed"
+      "character_failure_rule": "Never rewrite version history or hide a breaking change. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G12-VERSION-LINEAGE-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "adefb9de67d790767b2dab7b70ec778ed2f7571f",
+          "a2_contract_blob_before_review": "0dbf550cb8965d78a72d57f2d84d6efb0428ca37",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "3917f6bdcbfedb1e31d702c18c8d54e04f6d6ec4",
+          "output_schema_blob": "bb3fa57c88bad891410c49a0e75e267cb2076549"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires artifact_digest, version, parent_version, parent_digest, mutation_ref, epoch, provenance and version_bound_evidence; top-level additional properties are rejected.",
+          "Output schema requires lineage_digest, linked, epoch_monotonic, ancestry, evidence and version_bound_evidence; ancestry items require gene_id, version, artifact_digest, parent_digest, mutation_id and epoch.",
+          "Evidence envelopes require both provenance and version_bound_evidence; ancestry entries reject additional properties.",
+          "The schema declares oldest-ancestor-to-candidate ordering, uniqueness, acyclic digest links, strictly increasing epochs and candidate matching as extension metadata; these requirements are identified for normative enforcement."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G12-VL-SEM-01",
+            "severity": "HIGH",
+            "finding": "artifact_digest, parent_digest and lineage_digest are unconstrained strings; digest algorithm, canonical encoding and artifact identity are not fixed.",
+            "required_disposition": "Define approved digest algorithms and canonical artifact serialization; verify each digest against the exact immutable artifact and reject malformed, mismatched or algorithm-ambiguous values."
+          },
+          {
+            "gap_id": "G12-VL-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "version and parent_version are arbitrary strings; canonical version grammar, ordering, compatibility and downgrade semantics are undefined.",
+            "required_disposition": "Resolve both versions through the authoritative version registry; enforce canonical identifiers, immutable artifact binding and explicit compatibility/downgrade rules."
+          },
+          {
+            "gap_id": "G12-VL-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "parent_version and parent_digest are mandatory strings, but root-artifact representation and the exact parent-version/digest pairing rule are not defined.",
+            "required_disposition": "Specify a single unambiguous root representation and require parent_version and parent_digest to resolve to the same registered parent artifact; reject partial, conflicting or unknown ancestry."
+          },
+          {
+            "gap_id": "G12-VL-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "mutation_ref is an unconstrained string with no required resolution to an approved mutation record or proof that the mutation produced this candidate artifact.",
+            "required_disposition": "Resolve mutation_ref to one immutable mutation record; verify its target, source/target versions, approval/gate evidence and resulting artifact digest match the candidate. This gene must not treat the reference as authorization."
+          },
+          {
+            "gap_id": "G12-VL-SEM-05",
+            "severity": "HIGH",
+            "finding": "epoch is an integer without a non-negative bound or an authoritative monotonic epoch source; ancestry epochs are also only structurally typed.",
+            "required_disposition": "Require non-negative epochs from the authoritative monotonic epoch source; enforce strict increase along the complete ancestry and reject replay, rollback or incomparable epoch domains."
+          },
+          {
+            "gap_id": "G12-VL-SEM-06",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects; issuer authenticity, evidence type, freshness, subject binding and completeness are not enforced.",
+            "required_disposition": "Define typed evidence envelopes with authenticated issuers, timestamps/validity, immutable subject/version/digest binding and complete proof references; reject stale, forged or unrelated evidence."
+          },
+          {
+            "gap_id": "G12-VL-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "Output ancestry ordering, uniqueness, acyclicity, digest-link continuity, strict epoch increase and candidate matching are described in x-genesis metadata, not enforced by the JSON Schema validation contract.",
+            "required_disposition": "Promote collection semantics into normative validation rules or executable conformance requirements; verify oldest-to-candidate order, unique identities, one acyclic chain, exact parent links, strict epoch increase and candidate/output consistency."
+          },
+          {
+            "gap_id": "G12-VL-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "linked and epoch_monotonic are independent booleans with no defined derivation from ancestry; contradictory values can be emitted alongside the ancestry array.",
+            "required_disposition": "Derive both flags from verified ancestry rather than caller assertion; linked=true and epoch_monotonic=true only when every link and epoch passes, otherwise return false with explicit evidence."
+          },
+          {
+            "gap_id": "G12-VL-SEM-09",
+            "severity": "HIGH",
+            "finding": "lineage_digest is an unconstrained string and its canonical preimage, algorithm, coverage and recomputation rules are unspecified.",
+            "required_disposition": "Define a versioned canonical lineage serialization covering candidate, all ancestry entries, mutation references, epochs and evidence commitments; recompute and verify the digest."
+          },
+          {
+            "gap_id": "G12-VL-SEM-10",
+            "severity": "CRITICAL",
+            "finding": "The A2 gene inventory omits schema-required version_bound_evidence on both input and output; ancestry_item also does not itself bind evidence to each ancestor's immutable artifact/version.",
+            "required_disposition": "Align inventory and character controls with all schema-required fields; require version-bound proof for candidate and every ancestor, and explicitly keep lineage evaluation side-effect-free with no mutation, approval or execution authority."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g12.version-lineage input/output schemas and its positive/negative conformance vectors for G12-VL-SEM-01 through G12-VL-SEM-10.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not change unrelated gene contracts or add a new gene.",
+          "Define canonical digest algorithms/serialization, version registry resolution, root representation, parent pairing and mutation-record linkage.",
+          "Require authenticated provenance and version-bound evidence for candidate and every ancestor.",
+          "Enforce a complete acyclic oldest-to-candidate ancestry chain, unique entries, exact digest links, strict authoritative epoch monotonicity and candidate consistency.",
+          "Derive linked and epoch_monotonic from verified ancestry; prohibit contradictory output flags and recompute the lineage digest.",
+          "Keep the gene side-effect-free and assessment-only; it cannot mutate artifacts or confer approval, authorization, merge or deployment permission.",
+          "After separate A3 authorization, test malformed/mismatched digests, unknown versions/parents/mutations, root ambiguity, replayed or non-monotonic epochs, cycles, duplicate ancestry entries, broken links, stale/forged evidence and contradictory output flags."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g12.rollback-guard",
