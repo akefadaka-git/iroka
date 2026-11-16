@@ -1734,13 +1734,20 @@
       "case_id": "CHAR-G11.CONFORMANCE-REPORT-P",
       "gene_id": "g11.conformance-report",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (suite_id, suite_version, test_results, tested_commit, environment_digest, provenance), valid provenance/version evidence and the baseline positive condition (complete exact-head report accepted; missing result blocks pass), the gene must satisfy: Report pass, fail, partial, unknown and not-run states with actionable findings.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a trusted immutable suite identity/version, a complete non-empty set of unique test IDs all marked passed, a verified full immutable tested commit, recomputable canonical environment digest, authentic provenance and version_bound_evidence, produce a report whose counts reconcile exactly and whose canonical report digest verifies.",
+      "expected": "Return overall_status=pass only when every required test is present, uniquely identified, executed and passed, all evidence verifies, and counts reconcile; report remains evidence only.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all seven required input fields including version_bound_evidence validated",
+        "suite identity and exact immutable version resolve to trusted registry",
+        "test IDs unique and each result counted once",
+        "all required tests executed and passed",
+        "passed_count equals result population; failed_count and blocked_count are zero",
+        "tested_commit is full immutable commit with verified provenance",
+        "environment digest recomputes from canonical environment manifest",
+        "report digest recomputes over canonical report payload",
+        "provenance and version-bound evidence bind suite, commit, environment and results",
+        "overall_status pass only for complete all-passed evidence",
+        "report grants no approval, authorization, merge, deployment or execution authority"
       ],
       "existing_gene_io_case_id": "G11-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1748,19 +1755,28 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
         "https://iroka.dev/schemas/genes/g11.conformance-report/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G11.CONFORMANCE-REPORT-N",
       "gene_id": "g11.conformance-report",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never mislabel partial evidence as closure.), and the baseline negative condition (missing test result or SHA mismatch), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given duplicate test IDs, empty or incomplete result set, failed/skipped/error/inconclusive status, count mismatch, mutable or unverified tested commit, environment digest tampering, report digest mismatch, untrusted provenance or missing version_bound_evidence, the report must not be classified as passing.",
+      "expected": "Return fail for demonstrated test failures or blocked for incomplete/unverifiable evidence under deterministic precedence; counts must reconcile and evidence-backed findings must expose each discrepancy.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "duplicate test IDs rejected before aggregation",
+        "missing required test result prevents pass",
+        "failed test produces fail and is never counted as passed",
+        "skipped, error and inconclusive results contribute to blocked state",
+        "counts reconcile exactly with unique result set; mismatch rejected",
+        "tested commit must be full immutable and verified",
+        "environment digest mismatch rejected",
+        "report digest mismatch rejected",
+        "missing, stale or unverifiable provenance rejected",
+        "missing or mismatched version_bound_evidence rejected",
+        "designed/not-run results never presented as executed pass",
+        "report cannot authorize, merge, deploy or execute"
       ],
       "existing_gene_io_case_id": "G11-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1768,7 +1784,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
         "https://iroka.dev/schemas/genes/g11.conformance-report/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G12.MUTATION-POLICY-P",
@@ -2589,6 +2606,29 @@
         "G11-A-SEM-08",
         "G11-A-SEM-09",
         "G11-A-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G11-CONFORMANCE-REPORT-SEMANTIC-REVIEW-001",
+      "gene_id": "g11.conformance-report",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G11.CONFORMANCE-REPORT-P",
+        "CHAR-G11.CONFORMANCE-REPORT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G11-CR-SEM-01",
+        "G11-CR-SEM-02",
+        "G11-CR-SEM-03",
+        "G11-CR-SEM-04",
+        "G11-CR-SEM-05",
+        "G11-CR-SEM-06",
+        "G11-CR-SEM-07",
+        "G11-CR-SEM-08",
+        "G11-CR-SEM-09",
+        "G11-CR-SEM-10"
       ]
     }
   ]
