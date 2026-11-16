@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 
 use crate::security_store::{
     ApprovalConsumptionError, ApprovalReceipt, RevocationTarget, SecurityCommandError,
+    SignedSecurityCommand,
 };
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
@@ -411,15 +412,15 @@ impl OwnerApprovalVerifier {
         };
         let applied = self
             .store
-            .apply_signed_revocation(
-                &p.command_id,
-                &p.owner_subject,
-                OWNER_ISSUER,
-                &p.key_id,
-                digest.as_slice(),
-                now,
+            .apply_signed_revocation(SignedSecurityCommand {
+                command_id: &p.command_id,
+                owner_subject: &p.owner_subject,
+                signer_issuer: OWNER_ISSUER,
+                signer_key_id: &p.key_id,
+                digest: digest.as_slice(),
+                at: now,
                 target,
-            )
+            })
             .map_err(|error| match error {
                 SecurityCommandError::SigningKeyRevoked => OwnerApprovalError::Revoked,
                 SecurityCommandError::Store(store_error) => store_error.into(),
