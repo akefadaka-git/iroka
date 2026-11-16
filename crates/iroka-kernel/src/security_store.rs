@@ -123,6 +123,22 @@ impl SqliteSecurityStore {
         Self::from_connection(connection)
     }
 
+    /// Run SQLite's full integrity checker before security state is trusted on recovery.
+    pub fn integrity_check(&self) -> Result<(), SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let mut statement = connection.prepare("PRAGMA integrity_check")
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let rows = statement.query_map([], |row| row.get::<_, String>(0))
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let results = rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if results.len() == 1 && results[0] == "ok" {
+            Ok(())
+        } else {
+            Err(SecurityStoreError::Unavailable)
+        }
+    }
+
     pub fn open_in_memory() -> Result<Self, SecurityStoreError> {
         let connection =
             Connection::open_in_memory().map_err(|_| SecurityStoreError::Unavailable)?;
