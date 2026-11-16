@@ -1374,6 +1374,62 @@ mod tests {
     }
 
     #[test]
+    fn rollback_evidence_nonce_is_atomically_single_use_under_concurrency() {
+        let store = std::sync::Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let workers = (0..8)
+            .map(|_| {
+                let store = std::sync::Arc::clone(&store);
+                std::thread::spawn(move || {
+                    store.consume_rollback_evidence_nonce(
+                        "issuer:concurrent",
+                        "key:concurrent",
+                        "nonce-concurrent-evidence-proof-0001",
+                        500,
+                        100,
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        let results = workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(results.iter().filter(|result| **result == Ok(())).count(), 1);
+        assert_eq!(
+            results
+                .iter()
+                .filter(|result| **result == Err(SecurityStoreError::EvidenceReplay))
+                .count(),
+            7
+        );
+    }
+
+    #[test]
+    fn expired_rollback_evidence_nonce_can_be_reissued_after_expiry() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:expiry",
+                "key:expiry",
+                "nonce-expiring-evidence-proof-0001",
+                200,
+                100,
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:expiry",
+                "key:expiry",
+                "nonce-expiring-evidence-proof-0001",
+                300,
+                200,
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
     fn rollback_revocation_floor_is_monotonic_and_revision_bound() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         assert_eq!(store.advance_rollback_revocation_floor(10, 5), Ok(()));
