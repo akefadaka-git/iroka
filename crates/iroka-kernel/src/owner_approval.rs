@@ -473,7 +473,8 @@ impl OwnerApprovalVerifier {
             .map_err(Into::into)
     }
 
-    pub(crate) fn latest_execution_receipt_bytes(
+    #[cfg(test)]
+    pub fn latest_execution_receipt_bytes(
         &self,
         nonce: &str,
     ) -> Result<Option<Vec<u8>>, OwnerApprovalError> {
