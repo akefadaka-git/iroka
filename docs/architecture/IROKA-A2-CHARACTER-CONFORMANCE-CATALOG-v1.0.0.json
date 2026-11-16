@@ -1519,13 +1519,17 @@
       "case_id": "CHAR-G10.CHANGE-PROPOSAL-P",
       "gene_id": "g10.change-proposal",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (target_id, base_version, proposed_version, diff_digest, rationale, expected_effects, proposer_id, provenance), valid provenance/version evidence and the baseline positive condition (proposal recorded for evaluation; invariant breach blocked), the gene must satisfy: Describe intended benefit, risks, affected invariants, rollback and required approvals.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an authenticated eligible proposer, an active canonical target, exact immutable base and proposed revisions, a recomputable canonical diff digest, unique registry-resolved expected effects, structured risk/benefit/rollback rationale and verifiable provenance, record a declarative proposal for independent evaluation.",
+      "expected": "Return a uniquely identified immutable proposal whose digest binds all proposal content; derive change class, required evaluations and approval requirement from versioned policy without granting approval or execution.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "target resolves and proposer is eligible for submission only",
+        "base and proposed versions satisfy canonical succession policy",
+        "diff digest recomputes over exact immutable diff artifact",
+        "expected effect IDs are unique and effect descriptors resolve",
+        "rationale covers benefit, risks, affected invariants, alternatives and rollback",
+        "change class and evaluation requirements derive from policy",
+        "approval_required is policy-derived and cannot be suppressed by proposer",
+        "proposal digest binds canonical proposal and has no approval or execution effect"
       ],
       "existing_gene_io_case_id": "G10-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1533,19 +1537,24 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
         "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G10.CHANGE-PROPOSAL-N",
       "gene_id": "g10.change-proposal",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never self-approve or directly execute a proposal.), and the baseline negative condition (proposal changes invariant or bypasses approval), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unknown or unauthorized target/proposer, stale or invalid version transition, forged diff digest, duplicate or unresolved effects, unknown risk class, incomplete provenance, policy conflict or an attempt to self-approve/execute, the proposal must fail closed or remain explicitly unapproved and non-executable.",
+      "expected": "Reject or record an explicit unresolved proposal with evidence; never infer approval, waive mandatory evaluations, merge, deploy or execute.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown target or ineligible proposer rejected",
+        "stale base or invalid proposed version rejected",
+        "diff digest mismatch rejected",
+        "duplicate or unresolved expected effects rejected",
+        "unknown risk/change class fails closed",
+        "mandatory evaluation set cannot be omitted or proposer-controlled",
+        "approval cannot be self-issued or inferred from proposal acceptance",
+        "proposal recording cannot execute, merge or deploy"
       ],
       "existing_gene_io_case_id": "G10-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1553,7 +1562,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
         "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G10.EVALUATION-RECORD-P",
@@ -2442,6 +2452,29 @@
         "G10-LI-SEM-10",
         "G10-LI-SEM-11",
         "G10-LI-SEM-12"
+      ]
+    },
+    {
+      "review_id": "A2-G10-CHANGE-PROPOSAL-SEMANTIC-REVIEW-001",
+      "gene_id": "g10.change-proposal",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G10.CHANGE-PROPOSAL-P",
+        "CHAR-G10.CHANGE-PROPOSAL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G10-CP-SEM-01",
+        "G10-CP-SEM-02",
+        "G10-CP-SEM-03",
+        "G10-CP-SEM-04",
+        "G10-CP-SEM-05",
+        "G10-CP-SEM-06",
+        "G10-CP-SEM-07",
+        "G10-CP-SEM-08",
+        "G10-CP-SEM-09",
+        "G10-CP-SEM-10"
       ]
     }
   ]
