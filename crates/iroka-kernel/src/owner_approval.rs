@@ -610,9 +610,10 @@ mod tests {
         );
         assert_eq!(verifier.store.security_command_count(), Ok(0));
         assert_eq!(
-            verifier.store.credential_revoked("issuer:service", "credential:must-not-revoke"),
+            verifier
+                .store
+                .credential_revoked("issuer:service", "credential:must-not-revoke"),
             Ok(false)
         );
     }
-
 }
