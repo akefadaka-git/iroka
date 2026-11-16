@@ -699,8 +699,6 @@ mod tests {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
-
     fn signed_evidence_receipt(
         signer: &SigningKey,
         binding: &EvidenceBinding,
@@ -757,6 +755,7 @@ mod tests {
         (signer, store, verifier)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn fixture<'a>(
         current_epoch: u64,
         candidate_epoch: u64,
