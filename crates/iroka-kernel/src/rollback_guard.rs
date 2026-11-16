@@ -1052,7 +1052,8 @@ mod tests {
         input.provenance = &provenance;
         input.version_bound_evidence = &version_bound;
         let (_, owner_verifier) = owner();
-        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let result =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert!(!result.allowed);
         assert_eq!(result.denial_code, RollbackDenialCode::EvidenceInvalid);
     }
@@ -1069,7 +1070,8 @@ mod tests {
         let (signer, owner_verifier) = owner();
         let approval = signed_approval(&signer, &input, 1_100);
         input.rollback_authorization = Some(&approval);
-        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let result =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert!(result.allowed);
         assert_eq!(result.effective_epoch, Some(10));
     }
@@ -1084,7 +1086,8 @@ mod tests {
         input.provenance = &provenance;
         input.version_bound_evidence = &version_bound;
         let (_, owner_verifier) = owner();
-        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let result =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert!(result.allowed);
         assert_eq!(result.effective_epoch, Some(u64::MAX));
     }
