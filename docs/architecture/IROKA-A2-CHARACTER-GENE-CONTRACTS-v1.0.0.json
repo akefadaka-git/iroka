@@ -3479,56 +3479,174 @@
         {
           "field": "memory_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to a canonical, non-colliding memory record; bind the decision and all evidence to this exact record and reject aliases or identity substitution."
         },
         {
           "field": "content_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require an approved digest algorithm/encoding and independently recompute the digest over the exact immutable content being classified; mismatch or unavailable content is UNKNOWN and fail-closed."
         },
         {
           "field": "labels",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve every unique label against the versioned sensitivity-label registry; reject unknown/retired labels, preserve all applicable labels, and never normalize or downgrade implicitly."
         },
         {
           "field": "purpose",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve the stated purpose to an approved purpose registry and require purpose-compatibility plus applicable lawful-basis/consent evidence; free text alone is not authorization to process."
         },
         {
           "field": "owner_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve owner_id to an authenticated canonical identity and verify the relevant owner/subject/controller role and any delegated authority; do not infer identity or consent from the identifier."
         },
         {
           "field": "data_class",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve data_class against the versioned data-class taxonomy and conservatively reconcile it with all labels, content-derived sensitivity indicators and applicable policy obligations."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify trusted provenance and bind it to exact content, source/collection context, owner/subject roles, purpose/basis, labels, taxonomy and evaluated policy versions; missing, stale or conflicting provenance fails closed."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require evidence to identify the exact gene, taxonomy, policy, purpose/basis and control-registry versions used; reject unresolvable or stale version references."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Classify sensitivity, purpose, consent, owner and access boundaries.",
+          "assertion": "Classify sensitivity, purpose, consent, owner and access boundaries using verified identity, source, context and policy evidence; never infer a lawful basis or consent from missing data.",
           "observable_fields": [
             "classification",
+            "classification_rationale",
+            "handling_controls",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Classification is a registered value and is at least as restrictive as every applicable input label, data class, content-derived sensitivity and policy obligation; unknown or conflicting inputs cannot produce a less restrictive result.",
+          "observable_fields": [
+            "classification",
+            "handling_controls",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Emit the complete, version-bound set of mandatory handling controls; controls must be enforceable, scoped, non-contradictory and may restrict handling but never authorize disclosure.",
+          "observable_fields": [
+            "handling_controls",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Bind the result to the exact memory_id and recomputed content digest, and provide reproducible evidence for the purpose/basis, owner/subject role, taxonomy, policy evaluation and control coverage.",
+          "observable_fields": [
+            "memory_id",
             "classification_rationale",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Report unknown, absent, withdrawn or conflicting consent/basis, ownership, context, taxonomy or policy evidence as unresolved/rejected and apply the most protective handling; never infer or retain sensitive data without lawful, justified basis.",
           "observable_fields": [
+            "classification",
+            "handling_controls",
+            "classification_rationale",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never infer or retain sensitive data without lawful, justified basis. fail-closed"
+      "character_failure_rule": "Never infer or retain sensitive data without lawful, justified basis. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G05-MEMORY-CLASSIFICATION-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "533eb43e1406756473e43036992fc8916543d921",
+          "a2_contract_blob_before_review": "e256b0a25423424be0202902ccfccae7c9ffb487",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "e2583eed557a0ac83da62ac49829a3c223ee1ca5",
+          "output_schema_blob": "db0fd6f127aa44f509271968d2305020a6894c00"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires memory_id, content_digest, labels, purpose, owner_id, data_class, provenance and version_bound_evidence; undeclared top-level properties are rejected.",
+          "labels is a non-empty array of unique non-empty strings; collection metadata explicitly prohibits implicit downgrade or normalization.",
+          "Output schema requires memory_id, classification, handling_controls, classification_rationale, evidence and version_bound_evidence; undeclared top-level properties are rejected.",
+          "Each handling control requires control_id, action, scope, rationale and mandatory, with non-empty strings and a boolean mandatory flag.",
+          "Evidence requires both provenance and version_bound_evidence objects."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G05-MC-SEM-01",
+            "severity": "HIGH",
+            "finding": "labels are unique non-empty strings but are opaque and not resolved against an authenticated, versioned sensitivity-label registry; data_class and output classification are unrestricted strings.",
+            "required_disposition": "Bind every label, data_class and classification value to a versioned authoritative taxonomy; reject unknown, retired, ambiguous or conflicting labels and define conservative precedence."
+          },
+          {
+            "gap_id": "G05-MC-SEM-02",
+            "severity": "HIGH",
+            "finding": "content_digest is only a string; the schema does not constrain its algorithm/encoding or bind it to retrievable immutable content, so classification cannot prove which memory bytes were assessed.",
+            "required_disposition": "Define digest algorithm and canonical content representation; resolve the immutable content reference and recompute the digest before classification."
+          },
+          {
+            "gap_id": "G05-MC-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "purpose is an unrestricted string and no explicit lawful basis, consent state, consent scope, collection context or purpose-compatibility evidence is required.",
+            "required_disposition": "Require structured purpose and lawful-basis/consent evidence where applicable; bind scope, source, subject, collection context and permitted processing, and fail closed when absent or withdrawn."
+          },
+          {
+            "gap_id": "G05-MC-SEM-04",
+            "severity": "HIGH",
+            "finding": "owner_id is only a string and is not linked to an authenticated owner/subject registry or verified delegation; the contract cannot distinguish data owner, data subject and controller roles.",
+            "required_disposition": "Resolve owner and relevant subject/controller roles against trusted identity records; verify ownership/delegation and prohibit owner identity from being inferred from supplied text."
+          },
+          {
+            "gap_id": "G05-MC-SEM-05",
+            "severity": "HIGH",
+            "finding": "The input has no explicit jurisdiction, data-subject category, source/collection channel, retention constraint or processing context fields, although these can materially change sensitivity and handling obligations.",
+            "required_disposition": "Add the minimum context references required by policy, including jurisdiction, subject category, collection/source context and applicable retention/processing constraints; represent unknown context explicitly."
+          },
+          {
+            "gap_id": "G05-MC-SEM-06",
+            "severity": "HIGH",
+            "finding": "classification output is any string and is not constrained to a registered class or shown to be at least as restrictive as all applicable input labels, data_class and policy obligations.",
+            "required_disposition": "Constrain classification to the versioned taxonomy and enforce conservative aggregation/precedence so no input label or applicable obligation is downgraded or omitted."
+          },
+          {
+            "gap_id": "G05-MC-SEM-07",
+            "severity": "HIGH",
+            "finding": "handling_controls items require non-empty control_id/action/scope/rationale and mandatory boolean, but do not bind controls to an approved control registry or define action semantics, precedence, completeness, deny behavior, retention, deletion or access restrictions.",
+            "required_disposition": "Bind controls to a versioned control registry; define machine-verifiable action semantics and require the complete applicable control set, including explicit deny/quarantine and retention/deletion constraints."
+          },
+          {
+            "gap_id": "G05-MC-SEM-08",
+            "severity": "HIGH",
+            "finding": "classification_rationale is free text and evidence only requires generic provenance and version_bound_evidence objects; neither proves the exact content, taxonomy, purpose/basis, owner, policy version, rule evaluation or control-set completeness.",
+            "required_disposition": "Provide structured reproducible evidence binding content digest, input labels/context, verified owner and basis, taxonomy/policy/rule versions, decision trace, exclusions and emitted controls."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g05.memory-classification input/output schemas, its gene-specific contract and its positive/negative conformance vectors to close G05-MC-SEM-01 through G05-MC-SEM-08.",
+          "Preserve the 12 chromosomes, 36 genes, existing authority boundaries and all unrelated contracts.",
+          "Add versioned taxonomies and registries for labels, data classes, purposes and handling controls; define conservative aggregation and explicit unknown handling.",
+          "Bind classification to verifiable immutable content, authenticated owner/subject roles, applicable lawful-basis/consent evidence and minimum jurisdiction/source/retention context.",
+          "Make output classification and handling controls machine-verifiable and provide reproducible evidence of the exact decision and complete control set.",
+          "Run Draft 2020-12 schema meta-validation and exact-head positive/negative conformance tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g05.retention-control",
