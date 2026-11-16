@@ -173,28 +173,34 @@ impl SignedOwnerEffectGrant {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedEffectGrant {
     nonce: String,
+    owner_subject: String,
     request_subject: String,
     executor_subject: String,
     capability: String,
     resource: String,
     effect_type: String,
+    risk_class: String,
     policy_version: String,
     genome_digest: [u8; 32],
     operation_digest: [u8; 32],
+    expires_at: u64,
 }
 
 impl VerifiedEffectGrant {
     pub(crate) fn from_payload(payload: &OwnerEffectGrantPayload) -> Self {
         Self {
             nonce: payload.nonce.clone(),
+            owner_subject: payload.owner_subject.clone(),
             request_subject: payload.request_subject.clone(),
             executor_subject: payload.executor_subject.clone(),
             capability: payload.capability.clone(),
             resource: payload.resource.clone(),
             effect_type: payload.effect_type.clone(),
+            risk_class: payload.risk_class.clone(),
             policy_version: payload.policy_version.clone(),
             genome_digest: payload.genome_digest,
             operation_digest: payload.operation_digest,
+            expires_at: payload.expires_at,
         }
     }
 
@@ -305,13 +311,16 @@ pub enum ExecutionStatus {
 pub struct ExecutionReceipt {
     nonce: String,
     operation_digest: [u8; 32],
+    owner_subject: String,
     subject: String,
     executor_subject: String,
     capability: String,
     resource: String,
     effect_type: String,
+    risk_class: String,
     policy_version: String,
     genome_digest: [u8; 32],
+    grant_expires_at: u64,
     status: ExecutionStatus,
     result_digest: Option<[u8; 32]>,
     executor_key_id: Option<String>,
@@ -334,13 +343,16 @@ impl ExecutionReceipt {
         let mut receipt = Self {
             nonce: grant.nonce.clone(),
             operation_digest: grant.operation_digest,
+            owner_subject: grant.owner_subject.clone(),
             subject: grant.request_subject.clone(),
             executor_subject: grant.executor_subject.clone(),
             capability: grant.capability.clone(),
             resource: grant.resource.clone(),
             effect_type: grant.effect_type.clone(),
+            risk_class: grant.risk_class.clone(),
             policy_version: grant.policy_version.clone(),
             genome_digest: grant.genome_digest,
+            grant_expires_at: grant.expires_at,
             status,
             result_digest: result.and_then(|value| value.payload.result_digest),
             executor_key_id: result.map(|value| value.payload.executor_key_id.clone()),
@@ -368,6 +380,7 @@ impl ExecutionReceipt {
 
     pub fn verify_integrity(&self) -> Result<(), ProtectedEffectError> {
         if self.nonce.trim().is_empty()
+            || self.owner_subject.trim().is_empty()
             || self.subject.trim().is_empty()
             || self.executor_subject.trim().is_empty()
             || self.capability.trim().is_empty()
@@ -375,6 +388,8 @@ impl ExecutionReceipt {
             || self.effect_type.trim().is_empty()
             || self.policy_version.trim().is_empty()
             || self.admitted_at > self.completed_at
+            || self.admitted_at >= self.grant_expires_at
+            || self.risk_class.trim().is_empty()
             || self.calculate_digest()? != self.receipt_digest
         {
             return Err(ProtectedEffectError::ReceiptIntegrityFailure);
