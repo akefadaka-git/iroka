@@ -681,13 +681,21 @@
       "case_id": "CHAR-G04.CONFLICT-MODEL-P",
       "gene_id": "g04.conflict-model",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (claims, sources, relations, policy_id, provenance), valid provenance/version evidence and the baseline positive condition (contradictions surfaced; silent overwrite rejected), the gene must satisfy: Retain material contradictions and represent competing accounts fairly.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given uniquely identified claims with calibrated confidence and complete source references, digest-verified sources with explicit trust states, a validated relation graph, an authorized versioned conflict policy and structured version-bound provenance, the baseline positive condition (contradictions surfaced; silent overwrite rejected) must retain every material competing account.",
+      "expected": "Return complete conflict records with resolvable claim/source references and evidence; mark a conflict resolved only under an authorized policy rule with sufficient evidence; otherwise preserve unresolved or insufficient_evidence status and expose the exact policy trace.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "claim IDs unique and claim scope/time preserved",
+        "confidence semantics and calibration evidence available",
+        "source references resolve and source digests verify",
+        "unknown trust explicitly represented",
+        "relation endpoints resolve and graph semantics validated",
+        "contradictory and material relations retained",
+        "policy ID resolves to authorized immutable version",
+        "all material conflicts represented without silent claim loss",
+        "resolved status requires sufficient evidence and policy rule",
+        "per-conflict and top-level states are consistent",
+        "exclusions and groupings disclosed",
+        "no false consensus or authority expansion"
       ],
       "existing_gene_io_case_id": "G04-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -701,12 +709,20 @@
       "case_id": "CHAR-G04.CONFLICT-MODEL-N",
       "gene_id": "g04.conflict-model",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never conceal conflicts or force false consensus.), and the baseline negative condition (conflicting claims silently overwritten), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given the exact approved input schema with a character invariant violation (Never conceal conflicts or force false consensus.), including corrupted/untrusted source, missing source reference, contradictory relation graph, unknown/out-of-scope policy, unsupported confidence, or an attempt to silently overwrite a conflicting claim, the gene must fail closed or preserve the conflict as unresolved/insufficient_evidence.",
+      "expected": "Return explicit unresolved/insufficient_evidence or invalid status with all material competing claims and sources retained; reject unauthorized policy application, expose inconsistent relations and evidence failures, and never manufacture consensus by dropping claims.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
+        "missing or corrupted source evidence rejected",
+        "unknown trust never treated as trusted",
+        "unresolved relation endpoint rejected",
+        "contradictory or unsupported relation semantics surfaced",
+        "unknown or unauthorized policy rejected",
+        "confidence cannot be treated as authority",
+        "silent claim overwrite detected and rejected",
+        "all material conflicts remain visible",
+        "resolved state without sufficient evidence rejected",
+        "top-level and per-conflict state contradictions rejected",
+        "exclusions and grouping disclosed",
         "reason and evidence recorded"
       ],
       "existing_gene_io_case_id": "G04-GENE-003",
@@ -1917,6 +1933,27 @@
         "G04-PC-SEM-06",
         "G04-PC-SEM-07",
         "G04-PC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G04-CONFLICT-MODEL-SEMANTIC-REVIEW-001",
+      "gene_id": "g04.conflict-model",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G04.CONFLICT-MODEL-P",
+        "CHAR-G04.CONFLICT-MODEL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G04-CM-SEM-01",
+        "G04-CM-SEM-02",
+        "G04-CM-SEM-03",
+        "G04-CM-SEM-04",
+        "G04-CM-SEM-05",
+        "G04-CM-SEM-06",
+        "G04-CM-SEM-07",
+        "G04-CM-SEM-08"
       ]
     }
   ]
