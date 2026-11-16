@@ -1442,13 +1442,15 @@ mod tests {
         let _ = fs::remove_file(&path);
         {
             let store = SqliteSecurityStore::open(&path).unwrap();
-            store.consume_rollback_evidence_nonce(
-                "issuer:persist",
-                "key:persist",
-                "nonce-persisted-evidence-proof-0001",
-                500,
-                100,
-            ).unwrap();
+            store
+                .consume_rollback_evidence_nonce(
+                    "issuer:persist",
+                    "key:persist",
+                    "nonce-persisted-evidence-proof-0001",
+                    500,
+                    100,
+                )
+                .unwrap();
             store.advance_rollback_revocation_floor(20, 7).unwrap();
         }
         {
