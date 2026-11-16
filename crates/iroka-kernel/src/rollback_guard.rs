@@ -113,6 +113,7 @@ pub struct RollbackGuardInput<'a> {
     pub revocation_floor: u64,
     pub revocation_floor_revision: u64,
     pub policy_version: &'a str,
+    pub rollback_reason: &'a str,
     pub rollback_authorization: Option<&'a SignedOwnerApproval>,
     pub provenance: &'a [RollbackEvidenceReceipt],
     pub version_bound_evidence: &'a [RollbackEvidenceReceipt],
@@ -222,7 +223,8 @@ fn transition_resource(input: &RollbackGuardInput<'_>) -> Result<String, ()> {
         "candidate_digest": input.candidate_digest,
         "revocation_floor": input.revocation_floor,
         "revocation_floor_revision": input.revocation_floor_revision,
-        "policy_version": input.policy_version
+        "policy_version": input.policy_version,
+        "rollback_reason": input.rollback_reason
     });
     Ok(format!("rollback-transition:{}", digest_value(&payload)?))
 }
@@ -246,6 +248,7 @@ fn input_commitment(input: &RollbackGuardInput<'_>) -> Result<String, ()> {
         "revocation_floor": input.revocation_floor,
         "revocation_floor_revision": input.revocation_floor_revision,
         "policy_version": input.policy_version,
+        "rollback_reason": input.rollback_reason,
         "rollback_authorization": approval
     }))
 }
@@ -319,6 +322,7 @@ pub fn evaluate_rollback_guard(
     now: u64,
 ) -> Result<RollbackGuardDecision, ()> {
     if input.policy_version.trim().is_empty()
+        || input.rollback_reason.trim().is_empty()
         || input.current_digest.len() != 64
         || input.candidate_digest.len() != 64
         || !input
@@ -553,6 +557,7 @@ mod tests {
             revocation_floor: floor,
             revocation_floor_revision: 5,
             policy_version: "policy-v1",
+            rollback_reason: "Owner-approved recovery test",
             rollback_authorization: auth,
             provenance,
             version_bound_evidence: version_bound,
@@ -574,7 +579,7 @@ mod tests {
             resource,
             "policy-v1",
             now - 10,
-            now + 100
+            now + 100,
         );
         let signature = signer
             .sign(&payload.signing_bytes().unwrap())
@@ -613,7 +618,8 @@ mod tests {
         let (signer, owner_verifier) = owner();
         let approval = signed_approval(&signer, &input, 1_100);
         input.rollback_authorization = Some(&approval);
-        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let result =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert!(!result.allowed);
         assert_eq!(result.denial_code, RollbackDenialCode::RevocationFloor);
         assert_eq!(result.effective_state, EffectiveState::Current);
