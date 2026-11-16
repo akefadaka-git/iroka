@@ -36,7 +36,9 @@
         "candidate_digest_matches",
         "provenance_and_version_evidence_verified",
         "lineage_digest_recomputed"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-P02",
@@ -50,7 +52,9 @@
         "strictly_increasing_epochs",
         "mutation_record_approved_and_gate_bound",
         "all_ancestor_evidence_verified"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N01",
@@ -60,7 +64,9 @@
       "asserts": [
         "recompute_sha256_jcs",
         "candidate_never_linked"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N02",
@@ -70,7 +76,9 @@
       "asserts": [
         "canonical_semver_required",
         "registry_lookup_must_be_unique"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N03",
@@ -80,7 +88,9 @@
       "asserts": [
         "parent_version_and_digest_both_null_or_both_present",
         "only_genesis_marker_for_root"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N04",
@@ -92,7 +102,9 @@
         "exact_source_target_pair",
         "approval_and_gates_verified",
         "no_execution_authority_created"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N05",
@@ -103,7 +115,9 @@
         "candidate_and_every_ancestor_have_both_evidence_types",
         "subject_version_digest_epoch_binding",
         "issuer_signature_freshness_and_replay_checks"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N06",
@@ -114,7 +128,9 @@
         "unique_identity",
         "cycle_detection",
         "complete_chain_only"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N07",
@@ -124,7 +140,9 @@
       "asserts": [
         "parent_pair_matches_previous_node",
         "last_node_matches_candidate"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N08",
@@ -135,7 +153,9 @@
         "authoritative_nonnegative_epochs",
         "strict_increase",
         "no_epoch_replay"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N09",
@@ -145,7 +165,9 @@
       "asserts": [
         "flags_are_derived_not_trusted_input",
         "deny_output_flags_false"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     },
     {
       "case_id": "VL-A3-N10",
@@ -156,9 +178,35 @@
         "canonical_envelope_versioned",
         "all_ancestry_and_evidence_commitments_covered",
         "recompute_and_compare"
-      ]
+      ],
+      "execution_status": "PASS_TEST_DOUBLE",
+      "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994"
     }
   ],
-  "execution_status": "DESIGNED_NOT_EXECUTED",
-  "authority_boundary": "Read-only lineage assessment only; no mutation, approval, authorization, execution, merge or deployment permission."
+  "execution_status": "EXECUTED_WITH_TEST_DOUBLES",
+  "authority_boundary": "Read-only lineage assessment only; no mutation, approval, authorization, execution, merge or deployment permission.",
+  "executed_case_ids": [
+    "VL-A3-P01",
+    "VL-A3-P02",
+    "VL-A3-N01",
+    "VL-A3-N02",
+    "VL-A3-N03",
+    "VL-A3-N04",
+    "VL-A3-N05",
+    "VL-A3-N06",
+    "VL-A3-N07",
+    "VL-A3-N08",
+    "VL-A3-N09",
+    "VL-A3-N10"
+  ],
+  "not_run_case_ids": [],
+  "execution_evidence": {
+    "workflow_run": "https://github.com/akefadaka-git/iroka/actions/runs/43860553147",
+    "tested_sha": "59dd1ee0f15c4b34620d62cdc08699786c8d9994",
+    "unit_tests": "98 passed, 0 failed",
+    "integration_tests": "2 passed, 0 failed",
+    "registry_adapter": "TEST_DOUBLE_ONLY",
+    "evidence_verifier": "TEST_DOUBLE_FOR_LINEAGE_EVALUATOR; PRODUCTION_ED25519_ADAPTER_TESTED_SEPARATELY",
+    "lineage_digest": "DETERMINISTIC_RECOMPUTATION_TESTED"
+  }
 }
