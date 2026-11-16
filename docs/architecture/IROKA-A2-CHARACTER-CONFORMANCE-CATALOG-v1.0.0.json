@@ -1678,13 +1678,20 @@
       "case_id": "CHAR-G11.ATTESTATION-P",
       "gene_id": "g11.attestation",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (subject_digest, validation_ref, attester_id, key_ref, challenge_nonce, provenance), valid provenance/version evidence and the baseline positive condition (fresh valid signature accepted; replay/revocation rejected), the gene must satisfy: Bind attestations to exact artifact, evaluator, policy and evidence version.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a canonical immutable subject whose digest recomputes, a matching valid immutable validation record, authenticated qualified attester, trusted unrevoked key owned by that attester, fresh purpose/audience-bound one-time challenge, valid signature over the canonical versioned payload, provenance and version_bound_evidence, issue and verify a bounded attestation.",
+      "expected": "Return the existing output contract with verification_status=valid only after every cryptographic, identity, key, challenge, validation and evidence check succeeds; attestation grants no approval or execution authority.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all seven required input fields including version_bound_evidence validated",
+        "subject digest recomputes over exact immutable subject bytes",
+        "validation reference resolves and binds same subject revision",
+        "attester authenticated, qualified and permitted for the claim",
+        "key is trusted, owned by attester, allowed, current and not revoked",
+        "challenge is unpredictable, audience/purpose bound, unexpired and consumed once",
+        "signature verifies over canonical domain-separated payload",
+        "issued_at is trusted normalized time within bounded skew",
+        "provenance and version-bound evidence bind all signed fields and key state",
+        "verification_status valid only when every check succeeds",
+        "attestation grants no approval, authorization or execution authority"
       ],
       "existing_gene_io_case_id": "G11-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1692,19 +1699,27 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
         "https://iroka.dev/schemas/genes/g11.attestation/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G11.ATTESTATION-N",
       "gene_id": "g11.attestation",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never attest to unobserved or self-unverified claims.), and the baseline negative condition (signature mismatch, replayed challenge or revoked key), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given a malformed or mismatched subject digest, stale/invalid validation, unauthenticated attester, key ownership mismatch, unsupported algorithm, unknown/rotated/revoked key, expired/replayed/cross-context challenge, altered signature, untrusted timestamp, missing provenance or version_bound_evidence, verification must fail closed.",
+      "expected": "Return verification_status=invalid with evidence-backed failure reasons; never attest to unobserved claims or treat missing/unknown evidence as valid.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "digest mismatch or unsupported algorithm rejected",
+        "validation reference missing, stale, invalid or subject-mismatched rejected",
+        "unauthenticated, unqualified or unauthorized attester rejected",
+        "unknown, wrong-owner, weak, expired or revoked key rejected",
+        "expired, replayed or wrong-audience/purpose challenge rejected",
+        "signature tampering or canonicalization mismatch rejected",
+        "untrusted or out-of-skew timestamp rejected",
+        "missing, stale, conflicting or unverifiable provenance rejected",
+        "missing or mismatched version_bound_evidence rejected",
+        "unknown or incomplete verification state cannot yield valid",
+        "attestation cannot approve, authorize, merge, deploy or execute"
       ],
       "existing_gene_io_case_id": "G11-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1712,7 +1727,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
         "https://iroka.dev/schemas/genes/g11.attestation/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G11.CONFORMANCE-REPORT-P",
@@ -2550,6 +2566,29 @@
         "G11-V-SEM-08",
         "G11-V-SEM-09",
         "G11-V-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G11-ATTESTATION-SEMANTIC-REVIEW-001",
+      "gene_id": "g11.attestation",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G11.ATTESTATION-P",
+        "CHAR-G11.ATTESTATION-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G11-A-SEM-01",
+        "G11-A-SEM-02",
+        "G11-A-SEM-03",
+        "G11-A-SEM-04",
+        "G11-A-SEM-05",
+        "G11-A-SEM-06",
+        "G11-A-SEM-07",
+        "G11-A-SEM-08",
+        "G11-A-SEM-09",
+        "G11-A-SEM-10"
       ]
     }
   ]
