@@ -135,13 +135,17 @@
       "case_id": "CHAR-G01.COMPATIBILITY-P",
       "gene_id": "g01.compatibility",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (source_version, target_version, policy_id, declared_compatible, migration_digest, provenance), valid provenance/version evidence and the baseline positive condition (explicit compatible pair accepted; undeclared pair rejected), the gene must satisfy: Declare supported versions and incompatible semantics explicitly.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "A source and target contract resolve to exact canonical versions under an authenticated immutable policy; the policy independently evaluates their semantics and determines whether they are compatible without migration, incompatible, or require a verified migration artifact.",
+      "expected": "Return compatible=true only with decision=compatible. For incompatible or migration_required, return compatibility=false, with policy, comparison and migration evidence sufficient to reproduce the decision.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "source and target versions resolve under the policy-declared version grammar and canonical registry",
+        "policy_id resolves to authenticated immutable policy with valid scope and version",
+        "declared_compatible is treated as an untrusted assertion and independently checked",
+        "migration_digest, when present, resolves to an authenticated artifact bound to exact source and target versions",
+        "null migration_digest is accepted only when policy evidence establishes no migration is required",
+        "compatibility boolean is consistent with decision enum",
+        "evidence reproduces policy resolution and semantic comparison",
+        "no implicit coercion or authority expansion"
       ],
       "existing_gene_io_case_id": "G01-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -149,19 +153,31 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
         "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-COMP-SEM-01",
+        "G01-COMP-SEM-02",
+        "G01-COMP-SEM-03",
+        "G01-COMP-SEM-04",
+        "G01-COMP-SEM-05",
+        "G01-COMP-SEM-06"
       ]
     },
     {
       "case_id": "CHAR-G01.COMPATIBILITY-N",
       "gene_id": "g01.compatibility",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never silently coerce incompatible or unknown contracts.), and the baseline negative condition (implicit major-version compatibility), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "The source or target version is unknown/ambiguous, the policy is unauthenticated or out of scope, declared_compatible conflicts with independent evaluation, a migration digest is missing/invalid/mismatched, null is used without proof that migration is unnecessary, or output compatibility contradicts decision.",
+      "expected": "Reject or fail closed; never silently coerce versions or trust caller declarations. Return no positive compatibility result without reproducible policy, comparison and migration evidence.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown or ambiguous version fails closed",
+        "unknown, unauthenticated, expired or out-of-scope policy fails closed",
+        "caller declaration cannot override independent policy evaluation",
+        "missing, invalid or mismatched migration artifact fails closed",
+        "null migration digest requires evidence that migration is unnecessary",
+        "compatibility=true with incompatible/migration_required is rejected",
+        "no implicit compatibility coercion or fabricated evidence",
+        "failure reason and evidence are recorded"
       ],
       "existing_gene_io_case_id": "G01-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -169,6 +185,14 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
         "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-COMP-SEM-01",
+        "G01-COMP-SEM-02",
+        "G01-COMP-SEM-03",
+        "G01-COMP-SEM-04",
+        "G01-COMP-SEM-05",
+        "G01-COMP-SEM-06"
       ]
     },
     {
@@ -1545,6 +1569,25 @@
         "G01-LIN-SEM-04",
         "G01-LIN-SEM-05",
         "G01-LIN-SEM-06"
+      ]
+    },
+    {
+      "review_id": "A2-G01-COMPATIBILITY-SEMANTIC-REVIEW-001",
+      "gene_id": "g01.compatibility",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G01.COMPATIBILITY-P",
+        "CHAR-G01.COMPATIBILITY-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G01-COMP-SEM-01",
+        "G01-COMP-SEM-02",
+        "G01-COMP-SEM-03",
+        "G01-COMP-SEM-04",
+        "G01-COMP-SEM-05",
+        "G01-COMP-SEM-06"
       ]
     }
   ]
