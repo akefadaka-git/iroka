@@ -523,3 +523,377 @@ pub fn evaluate_version_lineage(
         denial_reason: None,
     })
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{EvidenceVerificationError, RollbackEvidenceReceipt};
+
+    struct TestEvidence;
+    impl RollbackEvidenceVerifier for TestEvidence {
+        fn verify(
+            &self,
+            receipt: &RollbackEvidenceReceipt,
+            expected: &EvidenceBinding,
+            now: u64,
+        ) -> Result<(), EvidenceVerificationError> {
+            if receipt.subject != expected.subject
+                || receipt.subject_digest != expected.digest
+                || receipt.subject_epoch != expected.epoch
+                || receipt.revision != expected.revision
+                || receipt.issued_at > now
+                || receipt.expires_at <= now
+                || receipt.signature.len() != 64
+            {
+                return Err(EvidenceVerificationError::ScopeMismatch);
+            }
+            Ok(())
+        }
+    }
+
+    struct StaticRegistry(Result<VersionLineageRecord, LineageRegistryError>);
+    impl VersionLineageRegistry for StaticRegistry {
+        fn resolve_lineage(
+            &self,
+            _candidate_version: &str,
+            _candidate_digest: &str,
+        ) -> Result<VersionLineageRecord, LineageRegistryError> {
+            self.0.clone()
+        }
+    }
+
+    fn artifact(version: u64) -> Value {
+        json!({"gene":"g12.version-lineage","payload_version":version})
+    }
+
+    fn entry(
+        version: &str,
+        value: Value,
+        parent: Option<&RegisteredLineageArtifact>,
+        mutation_id: Option<&str>,
+        epoch: u64,
+    ) -> RegisteredLineageArtifact {
+        RegisteredLineageArtifact {
+            gene_id: "g12.version-lineage".into(),
+            version: version.into(),
+            artifact_digest: digest_value(&value).unwrap(),
+            artifact: value,
+            parent_version: parent.map(|entry| entry.version.clone()),
+            parent_digest: parent.map(|entry| entry.artifact_digest.clone()),
+            mutation_id: mutation_id.map(str::to_owned),
+            epoch,
+        }
+    }
+
+    fn root_record() -> VersionLineageRecord {
+        let root = entry("1.0.0", artifact(1), None, None, 0);
+        VersionLineageRecord {
+            ancestry: vec![root],
+            mutation: None,
+            registry_revision: 1,
+        }
+    }
+
+    fn linear_record() -> VersionLineageRecord {
+        let root = entry("1.0.0", artifact(1), None, None, 0);
+        let middle = entry("1.1.0", artifact(2), Some(&root), Some("mutation-1"), 1);
+        let candidate = entry("1.2.0", artifact(3), Some(&middle), Some("mutation-2"), 2);
+        let mutation = RegisteredMutationRecord {
+            mutation_ref: "mutation-ref-2".into(),
+            mutation_id: "mutation-2".into(),
+            source_version: Some(middle.version.clone()),
+            source_digest: Some(middle.artifact_digest.clone()),
+            target_version: candidate.version.clone(),
+            target_digest: candidate.artifact_digest.clone(),
+            approved: true,
+            gates_passed: true,
+            approval_commitment: "a".repeat(64),
+        };
+        VersionLineageRecord {
+            ancestry: vec![root, middle, candidate],
+            mutation: Some(mutation),
+            registry_revision: 42,
+        }
+    }
+
+    fn expected(record: &VersionLineageRecord) -> Vec<EvidenceBinding> {
+        let mut bindings = Vec::new();
+        for entry in &record.ancestry {
+            bindings.push(EvidenceBinding {
+                subject: format!("lineage:artifact:{}", entry.artifact_digest),
+                digest: entry.artifact_digest.clone(),
+                epoch: entry.epoch,
+                revision: record.registry_revision,
+            });
+        }
+        let candidate = record.ancestry.last().unwrap();
+        if let Some(mutation) = &record.mutation {
+            bindings.push(EvidenceBinding {
+                subject: format!("lineage:mutation:{}", mutation.mutation_ref),
+                digest: digest_value(&serde_json::to_value(mutation).unwrap()).unwrap(),
+                epoch: candidate.epoch,
+                revision: record.registry_revision,
+            });
+        }
+        bindings.push(EvidenceBinding {
+            subject: "lineage:registry".into(),
+            digest: digest_value(&serde_json::to_value(record).unwrap()).unwrap(),
+            epoch: candidate.epoch,
+            revision: record.registry_revision,
+        });
+        bindings
+    }
+
+    fn evidence(record: &VersionLineageRecord, suffix: &str) -> Vec<RollbackEvidenceReceipt> {
+        expected(record)
+            .iter()
+            .enumerate()
+            .map(|(index, binding)| RollbackEvidenceReceipt {
+                subject: binding.subject.clone(),
+                subject_digest: binding.digest.clone(),
+                subject_epoch: binding.epoch,
+                revision: binding.revision,
+                issuer: "issuer:lineage-test".into(),
+                key_id: "lineage-test-key".into(),
+                issued_at: 1_000,
+                expires_at: 2_000,
+                nonce: format!("lineage-nonce-{suffix}-{index:03}-unique"),
+                signature: vec![9; 64],
+            })
+            .collect()
+    }
+
+    fn evaluate_record(
+        record: &VersionLineageRecord,
+        artifact: &Value,
+        mutation_ref: &str,
+        provenance: &[RollbackEvidenceReceipt],
+        version_bound: &[RollbackEvidenceReceipt],
+    ) -> VersionLineageResult {
+        let candidate = record.ancestry.last().unwrap();
+        let input = VersionLineageInput {
+            artifact,
+            artifact_digest: candidate.artifact_digest.clone(),
+            version: candidate.version.clone(),
+            parent_version: candidate.parent_version.clone(),
+            parent_digest: candidate.parent_digest.clone(),
+            mutation_ref: mutation_ref.into(),
+            epoch: candidate.epoch,
+            provenance,
+            version_bound_evidence: version_bound,
+        };
+        evaluate_version_lineage(
+            &input,
+            &StaticRegistry(Ok(record.clone())),
+            &TestEvidence,
+            1_100,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn registered_genesis_root_is_accepted() {
+        let record = root_record();
+        let root_artifact = record.ancestry[0].artifact.clone();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let result = evaluate_record(&record, &root_artifact, "GENESIS", &provenance, &version_bound);
+        assert_eq!(result.decision, "allow");
+        assert_eq!(result.ancestry.len(), 1);
+        assert!(result.linked && result.epoch_monotonic);
+        assert!(result.lineage_digest.is_some());
+    }
+
+    #[test]
+    fn complete_three_node_ancestry_is_accepted() {
+        let record = linear_record();
+        let candidate = record.ancestry.last().unwrap().artifact.clone();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let result = evaluate_record(
+            &record,
+            &candidate,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        assert_eq!(result.decision, "allow");
+        assert_eq!(result.ancestry.len(), 3);
+        assert_eq!(result.ancestry[2].parent_digest, Some(record.ancestry[1].artifact_digest.clone()));
+        assert!(result.linked && result.epoch_monotonic);
+    }
+
+    #[test]
+    fn candidate_artifact_digest_substitution_is_denied() {
+        let record = linear_record();
+        let substituted = json!({"gene":"g12.version-lineage","payload_version":999});
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let result = evaluate_record(
+            &record,
+            &substituted,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        assert_eq!(result.denial_code, LineageDenialCode::DigestMismatch);
+        assert!(!result.linked && !result.epoch_monotonic);
+    }
+
+    #[test]
+    fn unknown_version_registry_entry_fails_closed() {
+        let record = linear_record();
+        let candidate = record.ancestry.last().unwrap();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let input = VersionLineageInput {
+            artifact: &candidate.artifact,
+            artifact_digest: candidate.artifact_digest.clone(),
+            version: candidate.version.clone(),
+            parent_version: candidate.parent_version.clone(),
+            parent_digest: candidate.parent_digest.clone(),
+            mutation_ref: "mutation-ref-2".into(),
+            epoch: candidate.epoch,
+            provenance: &provenance,
+            version_bound_evidence: &version_bound,
+        };
+        let result = evaluate_version_lineage(
+            &input,
+            &StaticRegistry(Err(LineageRegistryError::UnknownVersion)),
+            &TestEvidence,
+            1_100,
+        )
+        .unwrap();
+        assert_eq!(result.denial_code, LineageDenialCode::UnknownVersion);
+    }
+
+    #[test]
+    fn ambiguous_genesis_parent_pair_is_denied() {
+        let record = root_record();
+        let candidate = &record.ancestry[0];
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let input = VersionLineageInput {
+            artifact: &candidate.artifact,
+            artifact_digest: candidate.artifact_digest.clone(),
+            version: candidate.version.clone(),
+            parent_version: Some("1.0.0".into()),
+            parent_digest: None,
+            mutation_ref: "GENESIS".into(),
+            epoch: 0,
+            provenance: &provenance,
+            version_bound_evidence: &version_bound,
+        };
+        let result = evaluate_version_lineage(
+            &input,
+            &StaticRegistry(Ok(record)),
+            &TestEvidence,
+            1_100,
+        )
+        .unwrap();
+        assert_eq!(result.denial_code, LineageDenialCode::ParentMismatch);
+    }
+
+    #[test]
+    fn unapproved_or_ungated_mutation_is_denied() {
+        let mut record = linear_record();
+        record.mutation.as_mut().unwrap().approved = false;
+        let candidate = record.ancestry.last().unwrap().artifact.clone();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let result = evaluate_record(
+            &record,
+            &candidate,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        assert_eq!(result.denial_code, LineageDenialCode::MutationInvalid);
+    }
+
+    #[test]
+    fn missing_ancestor_evidence_is_denied() {
+        let record = linear_record();
+        let candidate = record.ancestry.last().unwrap().artifact.clone();
+        let version_bound = evidence(&record, "v");
+        let result = evaluate_record(&record, &candidate, "mutation-ref-2", &[], &version_bound);
+        assert_eq!(result.denial_code, LineageDenialCode::EvidenceInvalid);
+    }
+
+    #[test]
+    fn duplicate_or_cyclic_ancestry_is_denied() {
+        let mut record = linear_record();
+        record.ancestry[1].artifact_digest = record.ancestry[0].artifact_digest.clone();
+        let candidate = record.ancestry.last().unwrap().artifact.clone();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let result = evaluate_record(
+            &record,
+            &candidate,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        assert_eq!(result.denial_code, LineageDenialCode::AncestryInvalid);
+    }
+
+    #[test]
+    fn broken_parent_digest_link_is_denied() {
+        let mut record = linear_record();
+        record.ancestry[2].parent_digest = Some("f".repeat(64));
+        let candidate = record.ancestry.last().unwrap().artifact.clone();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let result = evaluate_record(
+            &record,
+            &candidate,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        assert_eq!(result.denial_code, LineageDenialCode::ParentMismatch);
+    }
+
+    #[test]
+    fn non_monotonic_epoch_is_denied() {
+        let mut record = linear_record();
+        record.ancestry[1].epoch = 0;
+        let candidate = record.ancestry.last().unwrap().artifact.clone();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let result = evaluate_record(
+            &record,
+            &candidate,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        assert_eq!(result.denial_code, LineageDenialCode::EpochNonMonotonic);
+    }
+
+    #[test]
+    fn lineage_flags_are_derived_and_digest_is_reproducible() {
+        let record = linear_record();
+        let candidate = record.ancestry.last().unwrap().artifact.clone();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let first = evaluate_record(
+            &record,
+            &candidate,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        let second = evaluate_record(
+            &record,
+            &candidate,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        assert!(first.linked && first.epoch_monotonic);
+        assert_eq!(first.lineage_digest, second.lineage_digest);
+        assert_eq!(first.decision, "allow");
+    }
+}
