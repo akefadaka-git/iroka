@@ -469,32 +469,101 @@ mod tests {
         BTreeMap::from([(id.into(), key.verifying_key())])
     }
 
+    fn audit_with_events(ids: &[&str]) -> crate::SqliteAuditSink {
+        let audit = crate::SqliteAuditSink::open_in_memory().unwrap();
+        for (index, id) in ids.iter().enumerate() {
+            audit
+                .append_event(&crate::AuditEvent::new(
+                    id,
+                    "trace:checkpoint-test",
+                    "principal:checkpoint-test",
+                    "audit.checkpoint",
+                    "audit-stream:alpha",
+                    "policy:test",
+                    crate::DecisionCode::Allow,
+                    1_900 + index as u64,
+                ))
+                .unwrap();
+        }
+        audit
+    }
+
     #[test]
-    fn signed_checkpoint_and_witness_receipt_verify_and_reconcile() {
+    fn signed_checkpoint_and_witness_quorum_reconcile_verified_audit_head() {
         let s = signer();
         let w = TestWitness::new(&s);
-        let cp = create_checkpoint(&s, "audit-stream:alpha", 1, 7, [8; 32], None, 1_900).unwrap();
-        cp.verify(&trust(&s.id, &s.key)).unwrap();
+        let audit = audit_with_events(&["event:one"]);
+        let cp = create_audit_checkpoint(&s, &audit, "audit-stream:alpha", 1, None, 2_000)
+            .unwrap();
         let receipt = w.publish(&cp).unwrap();
-        receipt
-            .verify(
+        assert_eq!(
+            verify_and_reconcile_head(
+                &audit,
                 &cp,
                 &trust(&s.id, &s.key),
+                std::slice::from_ref(&receipt),
                 &trust(&w.key_id, &w.key),
-            )
-            .unwrap();
-        assert_eq!(reconcile_head(7, [8; 32], &cp), Ok(Reconciliation::Exact));
+                1,
+            ),
+            Ok(Reconciliation::Exact)
+        );
+
+        let local_ahead = audit_with_events(&["event:one", "event:two"]);
         assert_eq!(
-            reconcile_head(8, [9; 32], &cp),
+            verify_and_reconcile_head(
+                &local_ahead,
+                &cp,
+                &trust(&s.id, &s.key),
+                std::slice::from_ref(&receipt),
+                &trust(&w.key_id, &w.key),
+                1,
+            ),
             Ok(Reconciliation::LocalAheadUnanchored)
         );
+
+        let local_behind = audit_with_events(&[]);
         assert_eq!(
-            reconcile_head(6, [8; 32], &cp),
+            verify_and_reconcile_head(
+                &local_behind,
+                &cp,
+                &trust(&s.id, &s.key),
+                std::slice::from_ref(&receipt),
+                &trust(&w.key_id, &w.key),
+                1,
+            ),
             Err(CheckpointError::LocalBehindAnchor)
         );
+
+        let forked = audit_with_events(&["event:forked"]);
         assert_eq!(
-            reconcile_head(7, [9; 32], &cp),
+            verify_and_reconcile_head(
+                &forked,
+                &cp,
+                &trust(&s.id, &s.key),
+                std::slice::from_ref(&receipt),
+                &trust(&w.key_id, &w.key),
+                1,
+            ),
             Err(CheckpointError::ForkDetected)
+        );
+    }
+
+    #[test]
+    fn checkpoint_creation_rejects_corrupted_local_audit_chain() {
+        let s = signer();
+        let audit = audit_with_events(&["event:tamper"]);
+        {
+            let connection = audit.connection.lock().unwrap();
+            connection
+                .execute_batch(
+                    "DROP TRIGGER audit_no_update;
+                     UPDATE audit_events SET subject='tampered' WHERE sequence=1;",
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            create_audit_checkpoint(&s, &audit, "audit-stream:alpha", 1, None, 2_000),
+            Err(CheckpointError::LocalIntegrityFailure)
         );
     }
 
@@ -547,6 +616,18 @@ mod tests {
         )
         .unwrap();
         assert_eq!(w.publish(&wrong), Err(CheckpointError::PredecessorMismatch));
+
+        let regressed = create_checkpoint(
+            &s,
+            "audit-stream:alpha",
+            2,
+            7,
+            [9; 32],
+            Some(hex(&one.digest().unwrap())),
+            1_901,
+        )
+        .unwrap();
+        assert_eq!(w.publish(&regressed), Err(CheckpointError::SequenceRegression));
     }
 
     #[test]
@@ -597,7 +678,11 @@ mod tests {
         let ra = w.publish(&a).unwrap();
         w.publish(&b).unwrap();
         assert_eq!(
-            ra.verify(&b, &trust(&w.key_id, &w.key)),
+            ra.verify(
+                &b,
+                &trust(&s.id, &s.key),
+                &trust(&w.key_id, &w.key),
+            ),
             Err(CheckpointError::ReceiptMismatch)
         );
         assert_eq!(w.latest("audit-stream:a").unwrap().unwrap().0, a);
