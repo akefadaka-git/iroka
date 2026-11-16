@@ -144,6 +144,43 @@ if "RG-A3-N01" not in a3_case_ids:
 if a3_vectors.get("chromosome_count") != 12 or a3_vectors.get("gene_count") != 36:
     errors.append("G12 A3 amendment changes the fixed 12-chromosome/36-gene genome")
 
+
+# A3 G12 version-lineage v1.1.0 additive contract audit.
+VL_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g12.version-lineage.input.schema.json"
+VL_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g12.version-lineage.output.schema.json"
+VL_VECTORS = ROOT / "docs/architecture/a3/g12-version-lineage-conformance-v1.1.0.json"
+vl_input = load(VL_INPUT)
+vl_output = load(VL_OUTPUT)
+vl_vectors = load(VL_VECTORS)
+for schema_path_obj, document in ((VL_INPUT, vl_input), (VL_OUTPUT, vl_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if vl_input.get("$id") != "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.1.0":
+    errors.append("G12 version-lineage A3 input schema ID/version mismatch")
+if vl_output.get("$id") != "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.1.0":
+    errors.append("G12 version-lineage A3 output schema ID/version mismatch")
+vl_required = set(vl_input.get("required", []))
+for field in ("artifact", "artifact_digest", "version", "parent_version", "parent_digest",
+              "mutation_ref", "epoch", "provenance", "version_bound_evidence"):
+    if field not in vl_required:
+        errors.append(f"G12 version-lineage A3 input missing required field: {field}")
+if len(vl_input.get("allOf", [])) < 2:
+    errors.append("G12 version-lineage A3 root/non-root parent invariants missing")
+if len(vl_output.get("allOf", [])) < 2:
+    errors.append("G12 version-lineage A3 allow/deny output invariants missing")
+vl_cases = vl_vectors.get("cases", [])
+vl_case_ids = {case.get("case_id") for case in vl_cases}
+if vl_vectors.get("gene_id") != "g12.version-lineage" or vl_vectors.get("version") != "1.1.0":
+    errors.append("G12 version-lineage A3 conformance catalog identity/version mismatch")
+if len(vl_cases) != 12 or len(vl_case_ids) != 12:
+    errors.append(f"G12 version-lineage A3 expected 12 unique conformance vectors, found {len(vl_cases)}")
+if vl_vectors.get("chromosome_count") != 12 or vl_vectors.get("gene_count") != 36:
+    errors.append("G12 version-lineage A3 amendment changes the fixed genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -160,3 +197,5 @@ print("local_refs=RESOLVED")
 print("case_mapping=PASS")
 print("g12_rollback_guard_v1_1_0=PASS")
 print(f"g12_a3_conformance_cases={len(a3_cases)}")
+print("g12_version_lineage_v1_1_0=PASS")
+print(f"g12_version_lineage_a3_conformance_cases={len(vl_cases)}")
