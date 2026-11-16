@@ -7,7 +7,9 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::security_store::{ApprovalConsumptionError, ApprovalReceipt, RevocationTarget};
+use crate::security_store::{
+    ApprovalConsumptionError, ApprovalReceipt, RevocationTarget, SecurityCommandError,
+};
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 
@@ -407,14 +409,21 @@ impl OwnerApprovalVerifier {
                 }
             }
         };
-        let applied = self.store.apply_signed_revocation(
-            &p.command_id,
-            &p.owner_subject,
-            &p.key_id,
-            digest.as_slice(),
-            now,
-            target,
-        )?;
+        let applied = self
+            .store
+            .apply_signed_revocation(
+                &p.command_id,
+                &p.owner_subject,
+                OWNER_ISSUER,
+                &p.key_id,
+                digest.as_slice(),
+                now,
+                target,
+            )
+            .map_err(|error| match error {
+                SecurityCommandError::SigningKeyRevoked => OwnerApprovalError::Revoked,
+                SecurityCommandError::Store(store_error) => store_error.into(),
+            })?;
         if applied {
             Ok(())
         } else {
@@ -569,4 +578,41 @@ mod tests {
         );
         assert_eq!(verifier.store.security_command_count(), Ok(1));
     }
+    #[test]
+    fn security_command_rejects_owner_key_revoked_before_application() {
+        let (signer, verifier, _request) = fixture();
+        verifier
+            .store
+            .revoke_key(OWNER_ISSUER, "owner-key-01", 1_150, "key compromise")
+            .unwrap();
+
+        let payload = OwnerSecurityCommandPayload {
+            command_id: "command:revoked-owner-key".into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-01".into(),
+            issued_at: 1_100,
+            expires_at: 1_500,
+            action: OwnerSecurityAction::RevokeCredential {
+                issuer: "issuer:service".into(),
+                credential_id: "credential:must-not-revoke".into(),
+                reason: "test".into(),
+            },
+        };
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        let command = SignedOwnerSecurityCommand::from_signature(payload, signature);
+
+        assert_eq!(
+            verifier.apply_security_command(&command, 1_200),
+            Err(OwnerApprovalError::Revoked)
+        );
+        assert_eq!(verifier.store.security_command_count(), Ok(0));
+        assert_eq!(
+            verifier.store.credential_revoked("issuer:service", "credential:must-not-revoke"),
+            Ok(false)
+        );
+    }
+
 }
