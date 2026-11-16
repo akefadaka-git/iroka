@@ -327,7 +327,12 @@ fn finish(
         RollbackDenialCode::EvidenceInvalid | RollbackDenialCode::VersionEvidenceInvalid
     );
     let evidence = RollbackEvidenceSummary {
-        status: if evidence_valid { "verified" } else { "invalid" }.into(),
+        status: if evidence_valid {
+            "verified"
+        } else {
+            "invalid"
+        }
+        .into(),
         verified_subjects: if evidence_valid {
             vec![
                 "current_state".into(),
@@ -650,7 +655,10 @@ mod tests {
         let output = serde_json::to_value(&result).unwrap();
         assert_eq!(output["decision"], "allow");
         assert_eq!(output["evidence"]["status"], "verified");
-        assert_eq!(output["version_bound_evidence"].as_array().unwrap().len(), 4);
+        assert_eq!(
+            output["version_bound_evidence"].as_array().unwrap().len(),
+            4
+        );
     }
 
     #[test]
