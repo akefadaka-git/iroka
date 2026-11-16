@@ -2054,46 +2054,172 @@
         {
           "field": "rules",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-empty set with unique rule_id values; resolve each rule and its rule_version against the approved, versioned rule registry. Verify every antecedent_premise_id exists in the supplied premise set and has an admissible epistemic status for the rule. Require a non-empty antecedent list unless the rule is explicitly registered as a permitted axiom. Parse and validate rule_expression against a defined, deterministic, non-executable rule language; never evaluate arbitrary code. Reject ambiguous, conflicting or unsupported rule semantics."
         },
         {
           "field": "premise_ids",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve every unique premise ID against the exact premise-model output and version; reject missing, duplicated, substituted or unresolved references. Preserve each premise's source, epistemic status, temporal context and confidence semantics when determining whether it can support a conclusion."
         },
         {
           "field": "query",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Bind the inference request to the exact query text and context; do not broaden, narrow or reinterpret the request to favor a party. Preserve a canonical query digest in the inference trace."
         },
         {
           "field": "rule_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an immutable, approved rule-set version and require each supplied rule's rule_version to be compatible with that exact set. Reject unknown, mixed, stale or ambiguous rule versions."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require independently resolvable provenance for the rule set, premise model, query and evaluation context. A non-empty arbitrary object is insufficient; record source identities and integrity/version references."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind the inference to exact premise-model, premise-set, rule-set, schema, query and evaluator versions so the same inference can be independently reproduced."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Apply explicit, valid inference rules and expose unsupported steps.",
+          "assertion": "Every conclusion is supported by premise IDs and rule IDs that resolve to the exact supplied inputs and approved versions; no unsupported step is silently promoted to a conclusion.",
           "observable_fields": [
+            "conclusion_set",
+            "applied_rule_ids",
             "unsupported_steps",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Each conclusion carries a complete, ordered, reproducible derivation trace linking its supporting premises, exact rule versions, intermediate steps and conclusion; no premise or rule is omitted from the trace.",
+          "observable_fields": [
+            "conclusion_set",
+            "applied_rule_ids",
+            "unsupported_steps",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "applied_rule_ids contains exactly the rules actually used in successful derivations, with no unused, unknown or version-incompatible rule IDs.",
+          "observable_fields": [
+            "applied_rule_ids",
+            "conclusion_set",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "All unsupported, ambiguous, conflicting or blocked inference steps are explicitly represented with their exact premise/rule references and reason; unsupported results remain distinct from conclusions.",
           "observable_fields": [
             "unsupported_steps",
+            "conclusion_set",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Inference results are neutral and rule-consistent: equivalent inputs under the same approved versions produce equivalent derivations; no selective rule application, fabricated deduction or hidden exception is permitted.",
+          "observable_fields": [
+            "conclusion_set",
+            "applied_rule_ids",
+            "unsupported_steps",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Conclusion confidence is derived under a declared, versioned confidence-combination policy and cannot exceed or misrepresent the evidential support of its premises and rules.",
+          "observable_fields": [
+            "conclusion_set",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never fabricate deductions or selectively apply rules to favor a party. fail-closed"
+      "character_failure_rule": "Never fabricate deductions or selectively apply rules to favor a party. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G03-INFERENCE-RULES-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "98886e78ed1cc7933887e1b16d649a2bc0ab9c67",
+          "a2_contract_blob_before_review": "939d56c97d6e61c555a9c8069a01650e58f572af",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "9168927fd1a139d73edff80b55baaf2103beb49b",
+          "output_schema_blob": "8a3ca087cf4c1262691adb826304869cdd492a14"
+        },
+        "confirmed_sufficient": [
+          "Input requires non-empty rules and premise_ids arrays, unique rule IDs and unique premise IDs, a non-empty query and rule_version, provenance and version-bound evidence.",
+          "Each rule requires rule_id, rule_version, antecedent_premise_ids, conclusion_template and rule_expression; undeclared rule properties are rejected.",
+          "Output requires inference_id, conclusion_set, applied_rule_ids, unsupported_steps, evidence and version-bound evidence.",
+          "Conclusion items require conclusion ID, statement, supporting premise IDs, applied rule IDs and confidence bounded from 0 to 1.",
+          "Unsupported steps require step ID, nullable rule ID, premise IDs and a reason; collection annotations prohibit silent promotion to conclusions."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G03-INF-SEM-01",
+            "severity": "HIGH",
+            "finding": "antecedent_premise_ids is unique but has no minItems constraint; an empty antecedent list can pass without being an explicitly registered axiom.",
+            "required_disposition": "Require at least one antecedent unless an explicit, versioned axiom classification authorizes zero-premise rules."
+          },
+          {
+            "gap_id": "G03-INF-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "rule_expression is an unrestricted non-empty string with no grammar, parser, deterministic semantics or prohibition of executable code.",
+            "required_disposition": "Define a constrained, non-executable, versioned rule-expression language and reject unparseable or ambiguous expressions."
+          },
+          {
+            "gap_id": "G03-INF-SEM-03",
+            "severity": "HIGH",
+            "finding": "Top-level rule_version and each rule's rule_version are only non-empty strings; no schema-level or semantic requirement binds each rule to the exact approved rule-set version.",
+            "required_disposition": "Resolve rule versions against an immutable registry and reject mixed, stale, unknown or incompatible rule versions."
+          },
+          {
+            "gap_id": "G03-INF-SEM-04",
+            "severity": "HIGH",
+            "finding": "The output identifies supporting premise IDs and applied rule IDs but contains no explicit ordered derivation-step trace linking each conclusion to exact rule versions and intermediate results.",
+            "required_disposition": "Add a reproducible derivation trace per conclusion with ordered step IDs, premise/rule references, rule versions and intermediate support."
+          },
+          {
+            "gap_id": "G03-INF-SEM-05",
+            "severity": "HIGH",
+            "finding": "applied_rule_ids is constrained to unique strings and is annotated to resolve against the input rules, but it is not required to equal the set of rules actually used by conclusion derivations.",
+            "required_disposition": "Enforce exact correspondence between applied_rule_ids and rules used in successful derivations; prohibit unused or omitted rules."
+          },
+          {
+            "gap_id": "G03-INF-SEM-06",
+            "severity": "HIGH",
+            "finding": "The schema does not define how rule conflicts, ambiguous rule matches, unsupported inference forms or selective rule application are resolved and reported.",
+            "required_disposition": "Define deterministic conflict/ambiguity handling and require unsupported or blocked steps to remain explicit rather than becoming conclusions."
+          },
+          {
+            "gap_id": "G03-INF-SEM-07",
+            "severity": "MEDIUM",
+            "finding": "Conclusion confidence is merely bounded between 0 and 1; no calibration or aggregation semantics bind it to premise confidence, source quality or the applied rules.",
+            "required_disposition": "Define a versioned confidence-combination policy and preserve the supporting evidence and uncertainty in the inference trace."
+          },
+          {
+            "gap_id": "G03-INF-SEM-08",
+            "severity": "HIGH",
+            "finding": "Provenance and version-bound evidence are non-empty objects without required fields that bind the inference to the exact premise model, premise set, rule set, query and evaluator.",
+            "required_disposition": "Define structured reproducibility evidence for every input and evaluator version participating in the inference."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g03.inference-rules input/output schemas and positive/negative conformance vectors to close G03-INF-SEM-01 through G03-INF-SEM-08.",
+          "Preserve 12 chromosomes, 36 genes, all unrelated contracts and the existing authority boundary.",
+          "Introduce a deterministic non-executable rule language, immutable rule-version binding, derivation traces, exact applied-rule accounting, explicit conflict handling and reproducible evidence.",
+          "Define confidence semantics without treating inferred conclusions as authorization or established facts beyond their evidence.",
+          "Run Draft 2020-12 meta-validation and exact-head conformance tests only after separately authorized A3 implementation."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g03.uncertainty-calculus",
