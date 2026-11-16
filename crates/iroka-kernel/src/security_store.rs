@@ -790,7 +790,8 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             })
         }
 
-        let mut current = load_artifact(&transaction, GENE_ID, candidate_version, candidate_digest)?;
+        let mut current =
+            load_artifact(&transaction, GENE_ID, candidate_version, candidate_digest)?;
         let mut ancestry = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
         loop {
