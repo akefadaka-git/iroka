@@ -6060,46 +6060,166 @@
         {
           "field": "workflow_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to a canonical authenticated workflow identity and immutable revision; reject unknown, ambiguous or mutable workflow references."
         },
         {
           "field": "nodes",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require unique canonical node IDs; resolve node_type and operation_ref through authenticated versioned registries; bind exact operation implementation and configuration digest."
         },
         {
           "field": "edges",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require unique edge IDs and valid endpoint references; reject self-edges, duplicate/conflicting edges and cycles using deterministic graph validation."
         },
         {
           "field": "graph_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve graph_version against the immutable workflow revision registry and bind the exact schema, graph semantics and evaluator compatibility."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require structured provenance for graph source/revision, every node operation/configuration, every dependency edge and all validation inputs."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind exact graph revision, node/operation registries, dependency-kind registry, configuration digest algorithm and graph validator version."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Represent dependencies, checkpoints, safe stops and recovery paths.",
+          "assertion": "A valid topological order contains every input node exactly once and places every dependency source before its target.",
           "observable_fields": [
+            "topological_order",
             "validation_status",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Cycle or invalid-reference status is consistent with findings and cannot be accompanied by a purported valid executable ordering.",
+          "observable_fields": [
+            "validation_status",
+            "topological_order",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Graph digest is reproducible from canonical immutable graph content, including nodes, edges, operation/configuration references and graph revision.",
+          "observable_fields": [
+            "graph_digest",
+            "workflow_id",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Required dependencies, checkpoints, safe stops and recovery paths are preserved; optimization cannot skip a prerequisite.",
+          "observable_fields": [
+            "validation_status",
+            "topological_order",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Structural graph validity never grants authority, approval or permission to execute operations.",
           "observable_fields": [
             "validation_status",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never skip required dependencies to optimize speed. fail-closed"
+      "character_failure_rule": "Never skip required dependencies to optimize speed. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G08-WORKFLOW-GRAPH-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "4840922810fcd999c49bbba8292f6b465a3dac7d",
+          "a2_contract_blob_before_review": "03e7f714ec74546e7222ceefebdc16edf1cd90bd",
+          "a2_catalog_blob_before_review": "1d828bb8aea97b809e25fb3d892deeaae761b091",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "4c24099ce2f8075ce4783894e9b19642168e2ef4",
+          "output_schema_blob": "d5ede1ac1220f05eee8e3fb449ea7902355dee5b"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires workflow_id, nodes, edges, graph_version, provenance and version_bound_evidence; undeclared top-level fields are rejected.",
+          "Node objects require node_id, node_type, operation_ref and configuration_digest; node IDs are non-empty strings, but uniqueness is only described in non-standard x-genesis metadata.",
+          "Edge objects require edge_id, from_node_id, to_node_id and dependency_type; endpoint existence, self-edge rejection, edge uniqueness and cycle detection are only described in non-standard x-genesis metadata.",
+          "nodes has minItems 1; edges may be empty and dependency_type, workflow_id and graph_version are otherwise unrestricted strings.",
+          "Output validation_status is constrained to valid, cycle or invalid_reference; topological_order items are unique non-empty strings.",
+          "Completeness and dependency ordering of topological_order are described only in non-standard x-genesis metadata; no standard cross-field invariant ties it to validation_status.",
+          "graph_digest is an unrestricted string; provenance and version_bound_evidence are opaque non-empty objects without defined graph-content bindings."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G08-WG-SEM-01",
+            "severity": "HIGH",
+            "finding": "workflow_id and graph_version are unrestricted strings; no canonical workflow registry, immutable graph revision, uniqueness, lineage or version compatibility is defined.",
+            "required_disposition": "Resolve workflow_id and graph_version against an authenticated versioned workflow registry; bind evaluation to one immutable revision and reject unknown, ambiguous, mutable or incompatible references."
+          },
+          {
+            "gap_id": "G08-WG-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "Node identifiers are only non-empty strings; uniqueness is described in non-standard x-genesis metadata, and node_type and operation_ref are arbitrary strings without authoritative registries or operation identity binding.",
+            "required_disposition": "Enforce unique canonical node IDs and resolve node_type and operation_ref through authenticated versioned registries; bind operation identity, implementation version, configuration and permitted effect class."
+          },
+          {
+            "gap_id": "G08-WG-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "Edge identifiers and endpoint tuple uniqueness are only described in non-standard x-genesis metadata; endpoint existence, self-edge rejection and cycle detection are not standard schema assertions.",
+            "required_disposition": "Enforce unique edge IDs and defined edge tuple semantics; require all endpoints to resolve to graph nodes, reject self-edges and detect cycles using a deterministic graph algorithm."
+          },
+          {
+            "gap_id": "G08-WG-SEM-04",
+            "severity": "HIGH",
+            "finding": "dependency_type is an arbitrary non-empty string; prerequisite, ordering, conditional, optional and failure-propagation semantics are not defined or registry-bound.",
+            "required_disposition": "Resolve dependency_type against a versioned dependency-kind registry defining ordering, satisfaction, conditionality, failure propagation and whether the dependency is mandatory."
+          },
+          {
+            "gap_id": "G08-WG-SEM-05",
+            "severity": "HIGH",
+            "finding": "Node records require configuration_digest but do not define algorithm, canonical configuration bytes, recomputation, referenced configuration immutability or binding to operation version.",
+            "required_disposition": "Define canonical configuration serialization and digest algorithm; recompute and verify digest against immutable configuration and bind it to exact operation implementation and graph revision."
+          },
+          {
+            "gap_id": "G08-WG-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "Output topological_order uniqueness is schema-enforced, but completeness, exact node coverage, dependency ordering and omission on invalid graphs rely only on non-standard x-genesis metadata; validation_status can contradict the order.",
+            "required_disposition": "Enforce that valid output contains every graph node exactly once with every source preceding its target; invalid/cyclic graphs must not emit an executable order, and status must agree with graph findings."
+          },
+          {
+            "gap_id": "G08-WG-SEM-07",
+            "severity": "HIGH",
+            "finding": "graph_digest is an unrestricted string with no algorithm, canonical node/edge ordering, content binding or reproducibility rules; provenance/evidence objects are opaque.",
+            "required_disposition": "Define canonical graph serialization and digest algorithm covering graph revision, nodes, edges, operation/configuration references and dependency semantics; require structured evidence to reproduce validation."
+          },
+          {
+            "gap_id": "G08-WG-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "The schema does not model checkpoints, safe stops, recovery paths, required-dependency bypass protection, or the distinction between graph validation and permission to execute workflow operations.",
+            "required_disposition": "Specify checkpoint/safe-stop/recovery metadata and mandatory dependency preservation; fail closed on missing prerequisites and explicitly state that a valid graph is structural validation only, not execution authorization."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g08.workflow-graph schemas and its conformance vectors to close G08-WG-SEM-01 through G08-WG-SEM-08.",
+          "Define canonical workflow revisions, node/operation registries, edge/dependency semantics and deterministic cycle/reference validation.",
+          "Enforce exact topological-order completeness and dependency ordering, with status/order consistency and no order for invalid graphs.",
+          "Define canonical graph/configuration digests and structured reproducible evidence.",
+          "Represent checkpoints, safe stops and recovery paths while preserving all mandatory dependencies; graph validation must not authorize execution.",
+          "Preserve 12 chromosomes, 36 genes and unrelated contracts; run schema and runtime conformance validation only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g08.scheduler-policy",
