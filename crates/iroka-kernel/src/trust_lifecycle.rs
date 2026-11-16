@@ -7,7 +7,11 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{canonical_json, RegisteredLineageArtifact, RegisteredMutationRecord, RollbackEvidenceTrustPolicy, SecurityStoreError, SignedVersionLineageRegistrySnapshot, SqliteSecurityStore, TrustConfigError, TrustStore, TrustedKey};
+use crate::{
+    canonical_json, RegisteredLineageArtifact, RegisteredMutationRecord,
+    RollbackEvidenceTrustPolicy, SecurityStoreError, SignedVersionLineageRegistrySnapshot,
+    SqliteSecurityStore, TrustConfigError, TrustStore, TrustedKey,
+};
 
 const MAX_BUNDLE_LIFETIME_SECS: u64 = 31_536_000;
 const MAX_CLOCK_SKEW_SECS: u64 = 30;
