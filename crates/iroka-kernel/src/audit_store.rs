@@ -75,7 +75,25 @@ impl SqliteAuditSink {
           CREATE TRIGGER IF NOT EXISTS audit_no_update BEFORE UPDATE ON audit_events
             BEGIN SELECT RAISE(ABORT,'append-only audit'); END;
           CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit_events
-            BEGIN SELECT RAISE(ABORT,'append-only audit'); END;")
+            BEGIN SELECT RAISE(ABORT,'append-only audit'); END;
+          CREATE TABLE IF NOT EXISTS external_checkpoint_evidence(
+            stream_id TEXT NOT NULL,
+            checkpoint_sequence INTEGER NOT NULL CHECK(checkpoint_sequence > 0),
+            event_sequence INTEGER NOT NULL CHECK(event_sequence > 0),
+            checkpoint_digest BLOB NOT NULL CHECK(length(checkpoint_digest)=32),
+            checkpoint_json BLOB NOT NULL,
+            receipts_json BLOB NOT NULL,
+            receipt_count INTEGER NOT NULL CHECK(receipt_count > 0),
+            required_quorum INTEGER NOT NULL CHECK(required_quorum > 0),
+            persisted_at INTEGER NOT NULL,
+            PRIMARY KEY(stream_id, checkpoint_sequence),
+            UNIQUE(stream_id, event_sequence));
+          CREATE TRIGGER IF NOT EXISTS checkpoint_evidence_no_update
+            BEFORE UPDATE ON external_checkpoint_evidence
+            BEGIN SELECT RAISE(ABORT,'append-only checkpoint evidence'); END;
+          CREATE TRIGGER IF NOT EXISTS checkpoint_evidence_no_delete
+            BEFORE DELETE ON external_checkpoint_evidence
+            BEGIN SELECT RAISE(ABORT,'append-only checkpoint evidence'); END;")
             .map_err(|_| AuditStoreError::Unavailable)?;
         let sink = Self {
             connection: Mutex::new(c),
@@ -203,6 +221,142 @@ impl SqliteAuditSink {
         Ok(result)
     }
 
+    /// Persist already signature- and quorum-verified checkpoint evidence only
+    /// when its event-head digest matches the verified local audit prefix.
+    pub fn persist_checkpoint_evidence(
+        &self,
+        evidence: &crate::VerifiedCheckpointEvidence,
+        persisted_at: u64,
+    ) -> Result<(), AuditStoreError> {
+        let checkpoint = evidence.checkpoint();
+        let payload = &checkpoint.payload;
+        let required_quorum = evidence.required_quorum();
+        let receipt_count = evidence.receipts().len();
+        if payload.stream_id.trim().is_empty()
+            || payload.checkpoint_sequence == 0
+            || payload.event_sequence == 0
+            || required_quorum == 0
+            || receipt_count < required_quorum
+        {
+            return Err(AuditStoreError::Rejected);
+        }
+        let checkpoint_sequence =
+            i64::try_from(payload.checkpoint_sequence).map_err(|_| AuditStoreError::Rejected)?;
+        let event_sequence =
+            i64::try_from(payload.event_sequence).map_err(|_| AuditStoreError::Rejected)?;
+        let receipt_count = i64::try_from(receipt_count).map_err(|_| AuditStoreError::Rejected)?;
+        let required_quorum =
+            i64::try_from(required_quorum).map_err(|_| AuditStoreError::Rejected)?;
+        let persisted_at = i64::try_from(persisted_at).map_err(|_| AuditStoreError::Rejected)?;
+        let expected_event_head = parse_sha256_hex(&payload.event_head_sha256)?;
+        let checkpoint_digest = checkpoint
+            .digest()
+            .map_err(|_| AuditStoreError::Rejected)?;
+        let checkpoint_value =
+            serde_json::to_value(checkpoint).map_err(|_| AuditStoreError::Rejected)?;
+        let checkpoint_json =
+            crate::canonical_json(&checkpoint_value).map_err(|_| AuditStoreError::Rejected)?;
+        let receipts_value =
+            serde_json::to_value(evidence.receipts()).map_err(|_| AuditStoreError::Rejected)?;
+        let receipts_json =
+            crate::canonical_json(&receipts_value).map_err(|_| AuditStoreError::Rejected)?;
+
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        let local = verify_chain_and_prefix(&transaction, Some(payload.event_sequence))?;
+        if local.sequence < payload.event_sequence
+            || local.prefix_digest != Some(expected_event_head)
+        {
+            return Err(AuditStoreError::IntegrityFailure);
+        }
+
+        let changed = transaction
+            .execute(
+                "INSERT OR IGNORE INTO external_checkpoint_evidence(
+                    stream_id, checkpoint_sequence, event_sequence, checkpoint_digest,
+                    checkpoint_json, receipts_json, receipt_count, required_quorum, persisted_at
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    payload.stream_id,
+                    checkpoint_sequence,
+                    event_sequence,
+                    checkpoint_digest.as_slice(),
+                    checkpoint_json,
+                    receipts_json,
+                    receipt_count,
+                    required_quorum,
+                    persisted_at
+                ],
+            )
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        if changed == 0 {
+            let existing: Option<(Vec<u8>, Vec<u8>, Vec<u8>, i64, i64)> = transaction
+                .query_row(
+                    "SELECT checkpoint_digest, checkpoint_json, receipts_json, receipt_count, required_quorum
+                     FROM external_checkpoint_evidence
+                     WHERE stream_id=?1 AND checkpoint_sequence=?2",
+                    params![payload.stream_id, checkpoint_sequence],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|_| AuditStoreError::Unavailable)?;
+            let Some((digest, checkpoint_bytes, receipt_bytes, stored_count, stored_quorum)) =
+                existing
+            else {
+                return Err(AuditStoreError::Rejected);
+            };
+            if digest.as_slice() != checkpoint_digest
+                || checkpoint_bytes != checkpoint_json
+                || receipt_bytes != receipts_json
+                || stored_count != receipt_count
+                || stored_quorum != required_quorum
+            {
+                return Err(AuditStoreError::Rejected);
+            }
+        }
+        transaction
+            .commit()
+            .map_err(|_| AuditStoreError::Unavailable)
+    }
+
+    /// Return canonical serialized checkpoint and receipt evidence for recovery.
+    /// Callers must re-parse and re-verify signatures/quorum before trusting it.
+    pub fn latest_checkpoint_evidence_bytes(
+        &self,
+        stream_id: &str,
+    ) -> Result<Option<(Vec<u8>, Vec<u8>)>, AuditStoreError> {
+        if stream_id.trim().is_empty() {
+            return Err(AuditStoreError::Rejected);
+        }
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        connection
+            .query_row(
+                "SELECT checkpoint_json, receipts_json
+                 FROM external_checkpoint_evidence
+                 WHERE stream_id=?1 ORDER BY checkpoint_sequence DESC LIMIT 1",
+                [stream_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| AuditStoreError::Unavailable)
+    }
+
     pub fn head(&self) -> Result<(u64, [u8; 32]), AuditStoreError> {
         let c = self
             .connection
@@ -225,6 +379,18 @@ impl SqliteAuditSink {
             )),
         }
     }
+}
+
+fn parse_sha256_hex(value: &str) -> Result<[u8; 32], AuditStoreError> {
+    if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(AuditStoreError::Rejected);
+    }
+    let mut digest = [0_u8; 32];
+    for (index, chunk) in value.as_bytes().chunks_exact(2).enumerate() {
+        let text = std::str::from_utf8(chunk).map_err(|_| AuditStoreError::Rejected)?;
+        digest[index] = u8::from_str_radix(text, 16).map_err(|_| AuditStoreError::Rejected)?;
+    }
+    Ok(digest)
 }
 
 fn verify_chain_and_prefix(
