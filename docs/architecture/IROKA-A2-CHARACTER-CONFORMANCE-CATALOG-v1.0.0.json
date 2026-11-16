@@ -5,7 +5,7 @@
   "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
-  "genes_covered": 21,
+  "genes_covered": 22,
   "cases": [
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
@@ -1165,13 +1165,18 @@
       "case_id": "CHAR-G08.WORKFLOW-GRAPH-P",
       "gene_id": "g08.workflow-graph",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (workflow_id, nodes, edges, graph_version, provenance), valid provenance/version evidence and the baseline positive condition (acyclic graph ordered; cycle rejected), the gene must satisfy: Represent dependencies, checkpoints, safe stops and recovery paths.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an immutable registered workflow revision with uniquely identified nodes and authenticated operation/configuration references, valid dependency edges, and complete provenance, validate the directed graph deterministically, preserve mandatory prerequisites and produce a complete topological order.",
+      "expected": "Return validation_status=valid only for an acyclic graph with all endpoints resolved; topological_order contains every node exactly once and every source precedes its target. Record checkpoints, safe stops and recovery paths; do not grant execution authority.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "workflow identity and graph revision resolve canonically",
+        "node IDs unique and operations/configurations authenticated",
+        "edge IDs unique and endpoints resolve to nodes",
+        "self-edges and cycles rejected",
+        "dependency types resolve to defined semantics",
+        "topological order covers every node exactly once",
+        "each dependency source precedes its target",
+        "graph digest binds canonical immutable graph content",
+        "graph validity does not authorize execution"
       ],
       "existing_gene_io_case_id": "G08-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1179,19 +1184,25 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
         "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G08.WORKFLOW-GRAPH-N",
       "gene_id": "g08.workflow-graph",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never skip required dependencies to optimize speed.), and the baseline negative condition (cycle or dangling edge), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given a cyclic graph, dangling or self-referencing edge, duplicate node/edge identity, unknown operation or dependency type, invalid configuration digest, missing prerequisite, or inconsistent validation evidence, graph validation must fail closed.",
+      "expected": "Return cycle or invalid_reference as supported by the evidence; do not emit a purported valid execution order, skip required dependencies or imply execution permission. Preserve diagnostic evidence and unresolved findings.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "cycle causes non-valid status",
+        "dangling and self edges rejected",
+        "duplicate identifiers rejected",
+        "unknown operations and dependency kinds rejected",
+        "configuration digest mismatch rejected",
+        "invalid graph has no valid topological order",
+        "mandatory dependencies cannot be skipped",
+        "evidence identifies exact graph revision and validator",
+        "no execution authority inferred"
       ],
       "existing_gene_io_case_id": "G08-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1199,7 +1210,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
         "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G08.SCHEDULER-POLICY-P",
@@ -2211,6 +2223,27 @@
         "G07-DB-SEM-06",
         "G07-DB-SEM-07",
         "G07-DB-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G08-WORKFLOW-GRAPH-SEMANTIC-REVIEW-001",
+      "gene_id": "g08.workflow-graph",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G08.WORKFLOW-GRAPH-P",
+        "CHAR-G08.WORKFLOW-GRAPH-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G08-WG-SEM-01",
+        "G08-WG-SEM-02",
+        "G08-WG-SEM-03",
+        "G08-WG-SEM-04",
+        "G08-WG-SEM-05",
+        "G08-WG-SEM-06",
+        "G08-WG-SEM-07",
+        "G08-WG-SEM-08"
       ]
     }
   ]
