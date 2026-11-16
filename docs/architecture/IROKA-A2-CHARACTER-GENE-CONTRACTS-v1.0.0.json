@@ -5771,37 +5771,42 @@
         {
           "field": "delegator_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated canonical principal; verify active credential, current status and independently authorized live capabilities that may be delegated."
         },
         {
           "field": "delegate_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated canonical principal; reject unknown, revoked, ambiguous or ineligible delegates and bind the proof to this exact principal."
         },
         {
           "field": "capability_subset",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve each item through the versioned capability registry and enforce that the set is a strict subset of delegator live authority, with scope and resource bounds; treat it as a request, not a grant."
         },
         {
           "field": "expires_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require canonical timezone-aware expiry and trusted-time evaluation; enforce maximum delegation duration and ensure it cannot exceed any ancestor or delegator authority expiry."
         },
         {
           "field": "delegation_proof",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Cryptographically verify canonical proof content binding delegator, delegate, capabilities, scope, expiry, audience, nonce and parent-chain reference; reject tampering and replay."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require resolvable provenance for both principals, proof verification, policy, capability registry, parent chain, trusted clock and revocation evidence."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind exact principal/credential, proof format and verifier, capability registry, policy, ancestor-chain tip, revocation snapshot and clock source versions."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Constrain delegated scope, depth, duration and revocation; preserve accountability chain.",
+          "assertion": "Effective capabilities are a strict policy-constrained subset of the delegator's live authorized capabilities and never exceed ancestor scope.",
           "observable_fields": [
             "accepted",
             "effective_capabilities",
@@ -5810,15 +5815,132 @@
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "A delegation is accepted only when both principals and the canonical cryptographic proof are authenticated, unexpired, unrevoked and replay-resistant.",
           "observable_fields": [
             "accepted",
+            "delegation_id",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Delegation depth and onward delegation are explicitly bounded; every child grant is no broader or longer-lived than its parent and the chain is acyclic.",
+          "observable_fields": [
+            "accepted",
+            "effective_capabilities",
+            "expiry",
             "chain_digest",
             "evidence"
           ]
+        },
+        {
+          "assertion": "accepted, effective_capabilities and expiry are mutually consistent; rejected, expired, revoked or unverifiable delegation has no effective capabilities.",
+          "observable_fields": [
+            "accepted",
+            "effective_capabilities",
+            "expiry",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "delegation_id and chain_digest identify the exact immutable grant and complete authenticated ancestor chain; revocation propagates to descendants according to policy.",
+          "observable_fields": [
+            "delegation_id",
+            "chain_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
         }
       ],
-      "character_failure_rule": "Never permit privilege escalation or unbounded onward delegation. fail-closed"
+      "character_failure_rule": "Never permit privilege escalation or unbounded onward delegation. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G07-DELEGATION-BOUNDARY-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "4ce6b015f133d1d5a6efeda77a48871056302c0a",
+          "a2_contract_blob_before_review": "440f4df0ff53a16a27e94549f1cfb1e3ec39e35b",
+          "a2_catalog_blob_before_review": "5148e5deda2ba8378774135dde83e4a7793ea470",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "e997c10c79cb029004c153d4abe67968537c9257",
+          "output_schema_blob": "17e6d480ceb1a6cf69846a0c6dc286d94624d9d3"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires delegator_id, delegate_id, capability_subset, expires_at, delegation_proof, provenance and version_bound_evidence; undeclared top-level fields are rejected.",
+          "capability_subset is a non-empty array of unique non-empty strings, but subset-of-live-authority semantics are only described in non-standard x-genesis metadata.",
+          "delegator_id, delegate_id, expires_at and delegation_proof are unrestricted strings; the schema does not define identity, cryptographic proof or timestamp semantics.",
+          "Output schema requires delegation_id, accepted, effective_capabilities, expiry, chain_digest, evidence and version_bound_evidence.",
+          "effective_capabilities is a unique array of non-empty strings, but intersection and empty-on-invalid rules are only described in non-standard x-genesis metadata.",
+          "accepted is an unconstrained boolean; no standard cross-field rule aligns it with effective_capabilities or expiry.",
+          "provenance and version_bound_evidence are required non-empty opaque objects without defined bindings to principals, proof, policy or delegation chain."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G07-DB-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "delegator_id and delegate_id are unrestricted strings; neither principal is resolved to a canonical authenticated identity or checked for active status and role.",
+            "required_disposition": "Resolve both identifiers to authenticated canonical principals; verify credentials, lifecycle/revocation and eligibility to delegate/receive the specified capability."
+          },
+          {
+            "gap_id": "G07-DB-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "capability_subset items are non-empty unique strings, but capability registry, canonical semantics and subset-of-live-authority rule exist only in non-standard x-genesis metadata.",
+            "required_disposition": "Resolve capabilities against a versioned authenticated registry and compute the delegated set as a strict subset of the delegator's currently effective, independently authorized capabilities; enforce scope and resource constraints."
+          },
+          {
+            "gap_id": "G07-DB-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "delegation_proof is an unrestricted string; proof encoding, canonical signed content, issuer, delegator key, delegate binding, scope, audience, nonce and replay protection are undefined.",
+            "required_disposition": "Verify a cryptographic proof over canonical delegator, delegate, capability set, constraints, expiry, audience and unique nonce; authenticate signing authority and reject replay or altered fields."
+          },
+          {
+            "gap_id": "G07-DB-SEM-04",
+            "severity": "HIGH",
+            "finding": "expires_at and output expiry are unconstrained strings; canonical UTC/timezone, trusted clock, not-before, maximum duration and consistency between requested and effective expiry are unspecified.",
+            "required_disposition": "Require canonical timezone-aware timestamps and trusted time; enforce not-before/expiry ordering, policy maximum duration and effective expiry no later than the request or delegator's own authority expiry."
+          },
+          {
+            "gap_id": "G07-DB-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "The contract does not define delegation depth, onward-delegation policy, chain completeness, cycles, parent revocation propagation or whether a delegate may redelegate.",
+            "required_disposition": "Define a complete acyclic delegation chain with bounded depth; prohibit onward delegation unless explicitly authorized by the parent grant and policy, and ensure every child scope/expiry is bounded by every ancestor."
+          },
+          {
+            "gap_id": "G07-DB-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "Output accepted is an unconstrained boolean and can contradict effective_capabilities; no invariant requires rejected, expired or revoked delegations to have no effective capabilities.",
+            "required_disposition": "Enforce cross-field invariants: accepted=true only for a verified active proof and valid chain; otherwise effective_capabilities is empty; accepted status, expiry and capability set must agree."
+          },
+          {
+            "gap_id": "G07-DB-SEM-07",
+            "severity": "HIGH",
+            "finding": "delegation_id and chain_digest are unrestricted strings; no canonical digest algorithm, chain serialization, immutable registry, uniqueness or binding to the exact proof and ancestor chain is specified.",
+            "required_disposition": "Define immutable unique delegation records and canonical digest semantics binding exact signed grant, principals, capability set, expiry, policy, parent chain and revocation state."
+          },
+          {
+            "gap_id": "G07-DB-SEM-08",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are opaque non-empty objects; no reproducible evidence binds principal authentication, proof verification, policy, ancestor grants, clock, revocation snapshots or evaluator version.",
+            "required_disposition": "Require structured resolvable evidence for both principals, signed proof, capability registry, effective policy, complete parent chain, trusted time, revocation state and verifier version; fail closed on missing or stale evidence."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g07.delegation-boundary schemas and its conformance vectors to close G07-DB-SEM-01 through G07-DB-SEM-08.",
+          "Define authenticated canonical delegator/delegate resolution, cryptographically verifiable delegation proof and versioned capability/policy registries.",
+          "Enforce strict subset-of-live-authority, trusted expiry, bounded acyclic delegation depth, parent-scope inheritance and revocation propagation.",
+          "Define output invariants and canonical immutable delegation/chain digest with reproducible evidence.",
+          "Preserve 12 chromosomes, 36 genes and unrelated contracts; perform schema and runtime conformance validation only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g08.workflow-graph",
