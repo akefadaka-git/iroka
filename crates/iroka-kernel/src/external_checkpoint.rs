@@ -552,14 +552,14 @@ mod tests {
         .unwrap();
         audit.persist_checkpoint_evidence(&evidence, 2_001).unwrap();
         assert_eq!(audit.persist_checkpoint_evidence(&evidence, 2_002), Ok(()));
-        let (checkpoint_bytes, receipt_bytes) = audit
+        let stored = audit
             .latest_checkpoint_evidence_bytes("audit-stream:alpha")
             .unwrap()
             .unwrap();
         let recovered_checkpoint: SignedCheckpoint =
-            serde_json::from_slice(&checkpoint_bytes).unwrap();
+            serde_json::from_slice(&stored.checkpoint_json).unwrap();
         let recovered_receipts: Vec<WitnessReceipt> =
-            serde_json::from_slice(&receipt_bytes).unwrap();
+            serde_json::from_slice(&stored.receipts_json).unwrap();
         let recovered = verify_checkpoint_evidence(
             recovered_checkpoint,
             recovered_receipts,
