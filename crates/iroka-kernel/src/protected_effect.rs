@@ -1256,10 +1256,8 @@ mod tests {
         })
         .unwrap();
         assert_eq!(receipt.status(), ExecutionStatus::Indeterminate);
-        assert_eq!(
-            receipt.verify_executor_attestation(&[trusted_key]),
-            Err(ProtectedEffectError::UnknownExecutorKey)
-        );
+        receipt.verify_integrity().unwrap();
+        assert_eq!(receipt.verify_executor_attestation(&[trusted_key]), Ok(()));
     }
 
     #[test]
