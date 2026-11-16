@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation]
+    branches: [feat/igacms-a3-implementation, feat/a3-security-workstreams]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -19,6 +19,7 @@ on:
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - "rust-toolchain.toml"
       - ".github/workflows/rust-kernel.yml"
   workflow_dispatch:
 
@@ -47,7 +48,6 @@ jobs:
           rustup default 1.100.0
           rustc --version
           cargo --version
-
 
       - name: Check formatting
         run: cargo fmt --all -- --check
