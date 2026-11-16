@@ -318,7 +318,7 @@ impl SqliteAuditSink {
             else {
                 return Err(AuditStoreError::Rejected);
             };
-            if digest.as_slice() != checkpoint_digest
+            if digest.as_slice() != checkpoint_digest.as_slice()
                 || checkpoint_bytes != checkpoint_json
                 || receipt_bytes != receipts_json
                 || stored_count != receipt_count
