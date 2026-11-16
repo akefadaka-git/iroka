@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/contracts/genesis/shared-evidence/1.0.0",
+  "title": "IROKA GENESIS Shared Evidence Contract",
+  "version": "1.0.0",
+  "status": "A3_IMPLEMENTATION_BASELINE",
+  "governance": {
+    "stage": "A3.1",
+    "owner_approval": "2026-11-16: approval of bounded A3 implementation scope",
+    "architecture_constraint": "Preserve 12 chromosomes and 36 genes; do not add g05.data-rights.",
+    "compatibility": "Gene schemas embed these definitions locally under $defs. No external $ref is introduced.",
+    "scope": [
+      "Define closed provenance records",
+      "Define closed version-bound evidence records",
+      "Reuse the same definitions in all 72 gene schemas",
+      "Validate all positive and negative conformance vectors against the exact resulting commit"
+    ]
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "description": "A closed, attributable record of where evidence originated, who or what supplied it, how it was acquired, and its observed trust state. Provenance records do not confer authority or permission.",
+      "properties": {
+        "source_id": { "type": "string", "minLength": 1 },
+        "source_kind": {
+          "type": "string",
+          "enum": ["artifact", "dataset", "document", "event", "user", "system", "tool", "model", "service"]
+        },
+        "source_digest": { "type": "string", "minLength": 1 },
+        "actor_id": { "type": "string", "minLength": 1 },
+        "observed_at": { "type": "string", "format": "date-time" },
+        "acquisition_method": {
+          "type": "string",
+          "enum": ["direct", "imported", "derived", "transformed", "generated"]
+        },
+        "trust_state": {
+          "type": "string",
+          "enum": ["unverified", "verified", "disputed", "revoked"]
+        }
+      },
+      "required": [
+        "source_id",
+        "source_kind",
+        "source_digest",
+        "actor_id",
+        "observed_at",
+        "acquisition_method",
+        "trust_state"
+      ],
+      "additionalProperties": false
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "description": "Binds an evidence-bearing record to the exact gene, schema, contract, artifact digest, evaluator and evaluation time. A binding is descriptive evidence, not authorization.",
+      "properties": {
+        "gene_id": { "type": "string", "pattern": "^g[0-9]{2}\\.[a-z][a-z0-9-]*$" },
+        "gene_version": { "type": "string", "minLength": 1 },
+        "schema_id": { "type": "string", "format": "uri" },
+        "schema_version": { "type": "string", "minLength": 1 },
+        "contract_id": { "type": "string", "minLength": 1 },
+        "contract_version": { "type": "string", "minLength": 1 },
+        "artifact_digest": { "type": "string", "minLength": 1 },
+        "evaluator_id": { "type": "string", "minLength": 1 },
+        "evaluated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "gene_id",
+        "gene_version",
+        "schema_id",
+        "schema_version",
+        "contract_id",
+        "contract_version",
+        "artifact_digest",
+        "evaluator_id",
+        "evaluated_at"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "description": "A closed pairing of provenance and version-bound evidence.",
+      "properties": {
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "version_bound_evidence": { "$ref": "#/$defs/version_bound_evidence" }
+      },
+      "required": ["provenance", "version_bound_evidence"],
+      "additionalProperties": false
+    }
+  },
+  "normative_invariants": [
+    "Every provenance source_id, actor_id and source_digest is non-empty.",
+    "Every provenance observed_at is an RFC 3339 date-time accepted by the Draft 2020-12 date-time format checker.",
+    "A provenance trust_state of revoked or disputed must not be represented as verified.",
+    "Every version-bound record identifies the exact gene, gene version, schema ID/version, contract ID/version, artifact digest, evaluator and evaluation time.",
+    "A schema or contract version mismatch is a verification failure, not a warning.",
+    "An evidence object must contain both provenance and version_bound_evidence.",
+    "Unknown properties are rejected at every shared evidence object boundary.",
+    "Evidence is descriptive and cannot grant authority, capability, consent, execution permission or policy override.",
+    "No external schema reference is introduced; local definitions are embedded in each gene schema.",
+    "The existing 12 chromosomes and 36 genes remain unchanged."
+  ],
+  "conformance_requirements": {
+    "positive": [
+      "Complete provenance and version-bound records with valid date-times are accepted.",
+      "Evidence containing both closed records is accepted."
+    ],
+    "negative": [
+      "Missing any required provenance or version-bound field is rejected.",
+      "Unknown fields in provenance, version-bound evidence or evidence are rejected.",
+      "Wrong field types, invalid enum values and malformed date-times are rejected.",
+      "A mismatched gene/schema/contract version is rejected by semantic conformance checks.",
+      "An evidence object missing either nested record is rejected.",
+      "Evidence must never be interpreted as an authorization grant."
+    ]
+  }
+}
