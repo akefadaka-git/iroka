@@ -65,7 +65,7 @@ pub use trust_lifecycle::{
     restore_rollback_evidence_policy_with_roots, restore_version_lineage_snapshot_with_roots,
     verify_and_install_rollback_evidence_policy, verify_and_install_version_lineage_snapshot,
     RollbackEvidencePolicyPayload, SignedRollbackEvidencePolicy, TrustBundleError,
-    TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
+    TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager, G12SecurityRuntime,
 };
 pub use version_lineage::{
     evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
