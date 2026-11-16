@@ -333,6 +333,26 @@ mod tests {
         assert_eq!(s.verify_integrity(), Ok(()));
     }
     #[test]
+    fn verified_head_checks_chain_and_returns_snapshot_head() {
+        let s = SqliteAuditSink::open_in_memory().unwrap();
+        s.append_event(&event("event:verified-head")).unwrap();
+        assert_eq!(s.verified_head(), s.head());
+
+        {
+            let c = s.connection.lock().unwrap();
+            c.execute_batch(
+                "DROP TRIGGER audit_no_update;
+                 UPDATE audit_events SET subject='tampered' WHERE sequence=1",
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            s.verified_head(),
+            Err(AuditStoreError::IntegrityFailure)
+        );
+    }
+
+    #[test]
     fn rejects_duplicate_event_ids() {
         let s = SqliteAuditSink::open_in_memory().unwrap();
         s.append_event(&event("event:1")).unwrap();
