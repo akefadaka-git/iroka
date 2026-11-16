@@ -9109,55 +9109,199 @@
         {
           "field": "subject_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute a versioned digest over canonical subject bytes and bind it to an immutable artifact revision; reject mismatches."
         },
         {
           "field": "validation_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an immutable verifiable validation record whose valid status, subject digest, validator and policy context match."
         },
         {
           "field": "attester_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Authenticate the attester and verify identity assurance, role, qualification, scope and separation-of-duty constraints."
         },
         {
           "field": "key_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve through a trusted key registry; verify ownership, algorithm/strength, validity, rotation and revocation."
         },
         {
           "field": "challenge_nonce",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify unpredictability, issuer, audience, purpose, expiry and one-time consumption; reject replay or cross-context reuse."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify issuer, integrity, freshness and exact correspondence to subject, validation, attester, key and challenge."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require verifiable version-bound evidence for all signed inputs, key state, validation and verification context."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Bind attestations to exact artifact, evaluator, policy and evidence version.",
+          "assertion": "Signature verification uses a versioned canonical payload and approved algorithm, binding subject, validation, attester, key, challenge, policy and evidence.",
           "observable_fields": [
             "attestation_id",
+            "subject_digest",
+            "attester_id",
             "signature",
+            "issued_at",
+            "verification_status",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Attestation subject digest and validation reference resolve to the same immutable subject revision and valid validation record.",
+          "observable_fields": [
+            "subject_digest",
             "verification_status",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Attester identity and key ownership, validity, rotation and revocation are verified at issuance and verification time.",
+          "observable_fields": [
+            "attester_id",
+            "signature",
+            "issued_at",
+            "verification_status",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Challenge is fresh, purpose/audience bound and consumed once; replay and cross-context reuse are rejected.",
           "observable_fields": [
             "attestation_id",
             "signature",
+            "issued_at",
+            "verification_status",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Unknown, incomplete, stale or unverifiable evidence never yields verification_status=valid.",
+          "observable_fields": [
+            "verification_status",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Attestation establishes only the bounded cryptographic claim and grants no approval, authorization, merge, deployment or execution authority.",
+          "observable_fields": [
+            "attestation_id",
             "verification_status",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never attest to unobserved or self-unverified claims. fail-closed"
+      "character_failure_rule": "Never attest to unobserved or self-unverified claims. Fail closed for digest mismatch, invalid or stale validation, unauthenticated attester, untrusted/revoked key, expired/replayed challenge, signature mismatch or missing/unverifiable evidence; unknown status must never be represented as valid.",
+      "semantic_reconciliation": {
+        "review_id": "A2-G11-ATTESTATION-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "41c78ff2a5d201f2aff3351c205eb09697f8b482",
+          "a2_contract_blob_before_review": "22b320665ccf1853cd933b32ec3c70d85d5a3227",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "449cbc622c0b0b49145a8fce3e1b9e8163fc4ea1",
+          "output_schema_blob": "ee83f1f9322f53af28d7b00bd3b9e49b8595c9e1"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires subject_digest, validation_ref, attester_id, key_ref, challenge_nonce, provenance and version_bound_evidence; top-level additional properties are rejected.",
+          "Output schema requires attestation_id, subject_digest, attester_id, signature, issued_at, verification_status, evidence and version_bound_evidence.",
+          "verification_status is constrained to valid or invalid; evidence requires provenance and version_bound_evidence.",
+          "Both schemas use JSON Schema Draft 2020-12 and reject additional top-level properties."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G11-A-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "subject_digest is an unconstrained string; algorithm, canonicalization, digest recomputation and exact subject artifact/version binding are unspecified.",
+            "required_disposition": "Recompute a versioned digest over canonical subject bytes and bind it to an immutable artifact revision; reject unsupported algorithms, malformed digests and mismatches."
+          },
+          {
+            "gap_id": "G11-A-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "validation_ref is an arbitrary string and is not resolved to a verified validation record; validity, freshness, subject correspondence and policy/validator binding are undefined.",
+            "required_disposition": "Resolve validation_ref to an immutable signed validation record; require valid status, matching subject digest, current policy/validator context and verifiable evidence."
+          },
+          {
+            "gap_id": "G11-A-SEM-03",
+            "severity": "HIGH",
+            "finding": "attester_id does not establish an authenticated principal, role, identity assurance, qualification or separation-of-duty constraints.",
+            "required_disposition": "Authenticate the attester principal and bind identity assurance, role, qualification, authorization scope and conflict/separation checks to the attestation."
+          },
+          {
+            "gap_id": "G11-A-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "key_ref is arbitrary and has no trusted key registry, ownership binding, algorithm/key-strength policy, validity interval, rotation or revocation semantics.",
+            "required_disposition": "Resolve key_ref through an authenticated trust registry; verify key ownership by attester, permitted algorithm/strength, validity, rotation lineage and revocation at issuance and verification time."
+          },
+          {
+            "gap_id": "G11-A-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "challenge_nonce is an unconstrained string; entropy, issuer, audience, expiry, one-time consumption and replay protection are unspecified.",
+            "required_disposition": "Require cryptographically unpredictable challenge material bound to verifier, subject, attester and purpose, with expiry and atomic one-time consumption; reject replay and cross-context reuse."
+          },
+          {
+            "gap_id": "G11-A-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "The signature field has no normative signed-message envelope, canonical serialization, algorithm identifier, domain separation or verification procedure.",
+            "required_disposition": "Define a versioned canonical signed payload binding subject digest, validation record, attester, key, challenge, policy and evidence; verify signature cryptographically with explicit algorithm and domain separation."
+          },
+          {
+            "gap_id": "G11-A-SEM-07",
+            "severity": "HIGH",
+            "finding": "issued_at is an unconstrained string without timestamp format, trusted clock, timezone, precision, clock-skew or historical key-status evaluation semantics.",
+            "required_disposition": "Require normalized RFC 3339 UTC time and trusted timestamp/freshness evidence; evaluate key and challenge validity at issuance and verification with bounded skew."
+          },
+          {
+            "gap_id": "G11-A-SEM-08",
+            "severity": "HIGH",
+            "finding": "verification_status is limited to valid/invalid but the output does not define deterministic failure reasons, partial/unknown evidence handling or how invalid status is bound to findings.",
+            "required_disposition": "Derive status from signature, key, challenge, validation and provenance checks; include evidence-backed failure reasons in the existing evidence structure and never classify unknown as valid."
+          },
+          {
+            "gap_id": "G11-A-SEM-09",
+            "severity": "CRITICAL",
+            "finding": "Evidence and provenance objects are only non-empty; issuer authenticity, integrity, freshness and binding to all signed fields and trust decisions are not defined.",
+            "required_disposition": "Require verifiable provenance and version-bound evidence binding the exact subject, validation record, attester, key state, challenge, signed payload, algorithm and verification result."
+          },
+          {
+            "gap_id": "G11-A-SEM-10",
+            "severity": "CRITICAL",
+            "finding": "The contract required-field inventory omits version_bound_evidence although both schemas require it; no immutable attestation identity, idempotency, lifecycle or explicit non-authority semantics are encoded in attestation verification.",
+            "required_disposition": "Align contract inventory and conformance cases with schema requirements; define unique attestation identity/lifecycle and make clear that cryptographic attestation proves a bounded claim only, not approval, authorization or permission to execute."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g11.attestation input/output schemas and its positive/negative conformance vectors to address G11-A-SEM-01 through G11-A-SEM-10.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not add genes or alter unrelated contracts.",
+          "Bind subject digest and validation reference to immutable, verified artifacts and records; define canonical digest recomputation.",
+          "Use authenticated attester identities and trusted key registry with algorithm policy, ownership, validity, rotation and revocation checks.",
+          "Define a versioned canonical signed-message envelope, domain separation, trusted timestamp semantics and challenge nonce freshness/one-time replay protection.",
+          "Bind provenance and version-bound evidence to every signed field and verification decision; make unknown/incomplete evidence fail closed.",
+          "Align contract inventory and conformance vectors with the actual schema-required version_bound_evidence fields.",
+          "Preserve attestation as evidence only; it must not approve, authorize, merge, deploy or execute.",
+          "After separate A3 authorization, test digest tampering, mismatched validation subject, unknown/revoked keys, wrong key ownership, unsupported algorithms, signature tampering, replayed/expired challenges, timestamp skew and missing version-bound evidence."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g11.conformance-report",
