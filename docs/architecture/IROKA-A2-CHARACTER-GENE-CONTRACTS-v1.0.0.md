@@ -14,7 +14,7 @@ Translate the frozen A1 character constitution into gene-specific logical input/
 
 Each gene contract defines gene-specific required input fields and their meaning; shared provenance and version-bound evidence requirements; gene-specific output fields and decision semantics; applicable character virtues; explicit failure behavior; positive and negative conformance identifiers; and an authority boundary.
 
-The machine-readable register is `IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json`. The positive/negative test catalogue is `IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-v1.0.0.json`.
+The machine-readable register is `IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json`. The positive/negative test catalogue is `IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-v1.0.0.json`. The 72-file schema audit is `IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-v1.0.0.json`.
 
 ## 3. Gene coverage and contract discipline
 
