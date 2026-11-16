@@ -8,8 +8,6 @@ use std::{path::Path, sync::Mutex, time::Duration};
 
 const ZERO: [u8; 32] = [0; 32];
 
-type StoredCheckpointEvidence = (Vec<u8>, Vec<u8>, Vec<u8>, i64, i64);
-type SerializedCheckpointEvidence = (Vec<u8>, Vec<u8>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditStoreError {
