@@ -2623,46 +2623,167 @@
         {
           "field": "knowledge_type",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve knowledge_type against a versioned, governed type registry; reject ambiguous, unknown or conflicting type definitions and preserve domain/context semantics."
         },
         {
           "field": "fields",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require unique stable field IDs and names within the type; validate descriptions, value types, required/nullable semantics and nested object/array definitions. Preserve source meaning and distinguish source fields from derived or normalized fields."
         },
         {
           "field": "constraints",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve each constraint field_id; use a deterministic, non-executable, versioned constraint grammar and typed parameters. Reject arbitrary executable expressions, unresolved references and conflicting constraints; an empty list must be an explicit unconstrained-schema choice."
         },
         {
           "field": "schema_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate against an authoritative schema-version registry and explicit compatibility/evolution policy; reject ambiguous, reused or unregistered versions."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require structured source identity, source digest, origin, author/issuer, acquisition time, rights/license, context, derivation lineage and epistemic status; preserve source context and distinguish original from derived content."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind schema normalization and validation to exact input, type registry, constraint grammar, version policy, rights metadata, evaluator and schema versions."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Represent source, rights, context, validity interval and epistemic status.",
+          "assertion": "The normalized schema is semantically equivalent to the accepted input and preserves source context, rights, validity interval, epistemic status and derivation lineage.",
+          "observable_fields": [
+            "normalized_schema",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Every field and constraint is represented exactly once with stable identity; all constraint references resolve and all constraints are evaluated under the declared deterministic grammar.",
+          "observable_fields": [
+            "normalized_schema",
+            "validation_status",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "The output schema_id and schema_version are registry-bound; schema_digest is computed over a canonical, versioned representation and is reproducible.",
+          "observable_fields": [
+            "schema_id",
+            "normalized_schema",
+            "schema_digest",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Validation status is truthful: invalid, unresolved, unsupported or rights-incompatible schemas cannot be reported as valid.",
           "observable_fields": [
             "validation_status",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Original source content is distinguishable from normalized or derived content, with complete provenance and rights information retained.",
           "observable_fields": [
+            "normalized_schema",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "The output contains no unrecognized or silently discarded schema semantics; any unsupported construct is explicitly reported as a limitation or validation failure.",
+          "observable_fields": [
+            "normalized_schema",
             "validation_status",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never erase source context or misrepresent derived content as original. fail-closed"
+      "character_failure_rule": "Never erase source context or misrepresent derived content as original. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G04-KNOWLEDGE-SCHEMA-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "7a2721a1dac1b78e71ee4357ba63f0045a79328c",
+          "a2_contract_blob_before_review": "ce0f014109d5785709e257c73d1343784c3176bd",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "06603139ddbaacd7adeccb23bf4671d4ecb8e185",
+          "output_schema_blob": "0e5dae0755082239b5be3e5edf53ae2463ee9bc1"
+        },
+        "confirmed_sufficient": [
+          "Input requires a non-empty fields array with field IDs, names, constrained primitive value types, required/nullable flags and descriptions.",
+          "Constraint entries require IDs, field references, type, expression and optional parameters digest.",
+          "Schema version and provenance are required; version-bound evidence is also required.",
+          "Output requires schema_id, normalized_schema, schema_digest, validation_status, evidence and version-bound evidence; validation_status is limited to valid or invalid."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G04-KS-SEM-01",
+            "severity": "HIGH",
+            "finding": "knowledge_type is only a non-empty string and is not resolved against a canonical versioned knowledge-type registry.",
+            "required_disposition": "Bind type identifiers to a governed registry with explicit namespace, version and compatibility rules."
+          },
+          {
+            "gap_id": "G04-KS-SEM-02",
+            "severity": "HIGH",
+            "finding": "fields permit only shallow primitive value types; nested object/array semantics, field identity stability and source-versus-derived lineage are not defined.",
+            "required_disposition": "Define recursive typed field semantics, stable identity and explicit derived-field lineage without losing source meaning."
+          },
+          {
+            "gap_id": "G04-KS-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "constraints.expression is an arbitrary non-empty string with no deterministic grammar or execution-safety semantics.",
+            "required_disposition": "Specify a non-executable, deterministic, typed constraint language and versioned evaluator; reject unknown operators and executable payloads."
+          },
+          {
+            "gap_id": "G04-KS-SEM-04",
+            "severity": "HIGH",
+            "finding": "constraints may be empty and the schema does not require explicit declaration that an unconstrained schema is intentional.",
+            "required_disposition": "Require explicit unconstrained-schema semantics or one or more constraints, and detect contradictory or redundant constraints."
+          },
+          {
+            "gap_id": "G04-KS-SEM-05",
+            "severity": "HIGH",
+            "finding": "schema_version is an arbitrary non-empty string with no registry, immutability, compatibility or evolution semantics.",
+            "required_disposition": "Resolve schema versions through a canonical registry and enforce immutable version identity and governed compatibility transitions."
+          },
+          {
+            "gap_id": "G04-KS-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "provenance is only a non-empty object; source identity, digest, rights/license, context, validity interval, epistemic status and derivation lineage are not structurally required.",
+            "required_disposition": "Require verifiable structured provenance and preserve rights, temporal context, epistemic status and original-versus-derived distinctions."
+          },
+          {
+            "gap_id": "G04-KS-SEM-07",
+            "severity": "HIGH",
+            "finding": "normalized_schema is an unconstrained object and schema_id/schema_digest have no format, registry binding or canonical digest semantics.",
+            "required_disposition": "Define strict normalized-schema structure, registered schema identity and reproducible canonical digest semantics."
+          },
+          {
+            "gap_id": "G04-KS-SEM-08",
+            "severity": "HIGH",
+            "finding": "Output does not expose validation findings or demonstrate that every input field and constraint was preserved and evaluated; a valid status could hide unsupported semantics.",
+            "required_disposition": "Require traceable field/constraint validation evidence, explicit unsupported-feature reporting and exact preservation/coverage assertions."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g04.knowledge-schema input/output schemas and its positive/negative conformance vectors to close G04-KS-SEM-01 through G04-KS-SEM-08.",
+          "Define governed knowledge-type and schema-version registries, recursive field semantics, deterministic non-executable constraint grammar and explicit empty-constraint policy.",
+          "Require structured provenance including rights, temporal validity, epistemic status and derivation lineage; distinguish source content from normalized/derived content.",
+          "Define strict normalized output, registry-bound schema identity, canonical digest and traceable validation findings.",
+          "Run schema meta-validation and exact-head conformance tests only after separately authorized A3 implementation."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g04.provenance-chain",
