@@ -193,7 +193,15 @@ pub fn verify_and_install_trust_bundle(
 
     let trust = TrustStore::new(p.trusted_issuers.clone(), p.keys.clone())?;
     let digest = Sha256::digest(&signing_bytes);
-    store.install_trust_bundle(p.version, digest.as_slice(), p.issued_at, p.expires_at, now)?;
+    let bundle_json = serde_json::to_string(bundle).map_err(|_| TrustBundleError::Malformed)?;
+    store.install_trust_bundle_with_document(
+        p.version,
+        digest.as_slice(),
+        p.issued_at,
+        p.expires_at,
+        now,
+        Some(&bundle_json),
+    )?;
     Ok(trust)
 }
 
@@ -225,6 +233,23 @@ impl TrustSnapshotManager {
             installation: Mutex::new(()),
             current: RwLock::new(Arc::new(initial)),
         }
+    }
+
+    /// Recover the last persisted signed snapshot. The configured out-of-band
+    /// root set is still authoritative; missing, expired, tampered or rolled-back
+    /// persisted material fails closed and never falls back to an empty trust set.
+    pub fn restore_with_roots(
+        roots: &TrustRootSet,
+        store: &SqliteSecurityStore,
+        now: u64,
+    ) -> Result<Self, TrustBundleError> {
+        let document = store
+            .latest_trust_bundle_document()?
+            .ok_or(TrustBundleError::StoreUnavailable)?;
+        let bundle: SignedTrustBundle =
+            serde_json::from_str(&document).map_err(|_| TrustBundleError::Malformed)?;
+        let trust = verify_and_install_trust_bundle_with_roots(&bundle, roots, store, now)?;
+        Ok(Self::new(trust))
     }
 
     pub fn snapshot(&self) -> Result<Arc<TrustStore>, TrustBundleError> {
@@ -389,6 +414,33 @@ mod tests {
             verify_and_install_trust_bundle(&bundle, &root, &store, 1_100).unwrap_err(),
             TrustBundleError::NonCanonicalOrdering
         );
+    }
+
+    #[test]
+    fn signed_snapshot_survives_store_reopen_and_is_reverified_from_owner_roots() {
+        use std::fs;
+        let (_, root, bundle) = fixture(7);
+        let path = std::env::temp_dir().join(format!(
+            "iroka-trust-snapshot-recovery-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            verify_and_install_trust_bundle(&bundle, &root, &store, 1_100).unwrap();
+            assert!(store.latest_trust_bundle_document().unwrap().is_some());
+        }
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
+            let manager = TrustSnapshotManager::restore_with_roots(&roots, &store, 1_200).unwrap();
+            let snapshot = manager.snapshot().unwrap();
+            assert!(snapshot.key("issuer:iroka-test", "issuer-key-7", 1_200).is_ok());
+            assert_eq!(store.highest_trust_bundle_version(), Ok(Some(7)));
+        }
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
     }
 
     #[test]
