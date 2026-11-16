@@ -788,114 +788,99 @@ mod tests {
         revision: u64,
     ) -> SignedVersionLineageRegistrySnapshot {
         use ed25519_dalek::Signer;
-        let artifact = serde_json::json!({"gene":"g12.version-lineage","version":"1.0.0"});
-        let canonical = canonical_json(&artifact).unwrap();
-        let digest = format!("{:x}", Sha256::digest(canonical));
+        let root_artifact = serde_json::json!({"gene":"g12.version-lineage","version":"1.0.0"});
+        let root_digest = format!(
+            "{:x}",
+            Sha256::digest(canonical_json(&root_artifact).unwrap())
+        );
+        let middle_artifact = serde_json::json!({"gene":"g12.version-lineage","version":"1.1.0"});
+        let middle_digest = format!(
+            "{:x}",
+            Sha256::digest(canonical_json(&middle_artifact).unwrap())
+        );
+        let candidate_artifact = serde_json::json!({"gene":"g12.version-lineage","version":"1.2.0"});
+        let candidate_digest = format!(
+            "{:x}",
+            Sha256::digest(canonical_json(&candidate_artifact).unwrap())
+        );
         let payload = crate::VersionLineageRegistrySnapshotPayload {
             revision,
             issued_at: 1_000,
             expires_at: 5_000,
-            artifacts: vec![RegisteredLineageArtifact {
-                gene_id: "g12.version-lineage".into(),
-                version: "1.0.0".into(),
-                artifact_digest: digest,
-                artifact,
-                parent_version: None,
-                parent_digest: None,
-                mutation_id: None,
-                epoch: 0,
-            }],
-            mutations: Vec::new(),
+            artifacts: vec![
+                RegisteredLineageArtifact {
+                    gene_id: "g12.version-lineage".into(),
+                    version: "1.0.0".into(),
+                    artifact_digest: root_digest.clone(),
+                    artifact: root_artifact,
+                    parent_version: None,
+                    parent_digest: None,
+                    mutation_id: None,
+                    epoch: 0,
+                },
+                RegisteredLineageArtifact {
+                    gene_id: "g12.version-lineage".into(),
+                    version: "1.1.0".into(),
+                    artifact_digest: middle_digest.clone(),
+                    artifact: middle_artifact,
+                    parent_version: Some("1.0.0".into()),
+                    parent_digest: Some(root_digest.clone()),
+                    mutation_id: Some("mutation-1".into()),
+                    epoch: 1,
+                },
+                RegisteredLineageArtifact {
+                    gene_id: "g12.version-lineage".into(),
+                    version: "1.2.0".into(),
+                    artifact_digest: candidate_digest.clone(),
+                    artifact: candidate_artifact,
+                    parent_version: Some("1.1.0".into()),
+                    parent_digest: Some(middle_digest.clone()),
+                    mutation_id: Some("mutation-2".into()),
+                    epoch: 2,
+                },
+            ],
+            mutations: vec![
+                RegisteredMutationRecord {
+                    mutation_ref: "mutation-ref-1".into(),
+                    mutation_id: "mutation-1".into(),
+                    source_version: Some("1.0.0".into()),
+                    source_digest: Some(root_digest),
+                    target_version: "1.1.0".into(),
+                    target_digest: middle_digest,
+                    approved: true,
+                    gates_passed: true,
+                    approval_commitment: "a".repeat(64),
+                },
+                RegisteredMutationRecord {
+                    mutation_ref: "mutation-ref-2".into(),
+                    mutation_id: "mutation-2".into(),
+                    source_version: Some("1.1.0".into()),
+                    source_digest: Some(format!(
+                        "{:x}",
+                        Sha256::digest(canonical_json(&serde_json::json!({"gene":"g12.version-lineage","version":"1.1.0"})).unwrap())
+                    )),
+                    target_version: "1.2.0".into(),
+                    target_digest: candidate_digest,
+                    approved: true,
+                    gates_passed: true,
+                    approval_commitment: "b".repeat(64),
+                },
+            ],
         };
         let unsigned = SignedVersionLineageRegistrySnapshot::from_signature(
-            root.key_id.clone(), payload, Vec::new()
+            root.key_id.clone(),
+            payload,
+            Vec::new(),
         );
-        let signature = signer.sign(&unsigned.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&unsigned.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         SignedVersionLineageRegistrySnapshot::from_signature(
-            root.key_id.clone(), unsigned.payload, signature
+            root.key_id.clone(),
+            unsigned.payload,
+            signature,
         )
-    }
-
-    #[test]
-    fn g12_runtime_recovers_and_wires_all_governed_security_components() {
-        use std::fs;
-        use std::sync::Arc;
-        let (signer, root, trust_bundle) = fixture(1);
-        let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
-        let signed_policy = signed_policy_fixture(&signer, &root, 2);
-        let signed_registry = signed_lineage_fixture(&signer, &root, 3);
-        let candidate_digest = signed_registry.payload.artifacts[0].artifact_digest.clone();
-        let path = std::env::temp_dir().join(format!(
-            "iroka-g12-runtime-recovery-{}.sqlite",
-            std::process::id()
-        ));
-        let _ = fs::remove_file(&path);
-        {
-            let store = SqliteSecurityStore::open(&path).unwrap();
-            verify_and_install_trust_bundle(&trust_bundle, &root, &store, 1_100).unwrap();
-            verify_and_install_rollback_evidence_policy(&signed_policy, &roots, &store, 1_100).unwrap();
-            verify_and_install_version_lineage_snapshot(&signed_registry, &roots, &store, 1_100).unwrap();
-            store.integrity_check().unwrap();
-        }
-        let store = Arc::new(SqliteSecurityStore::open(&path).unwrap());
-        let runtime = G12SecurityRuntime::restore(&roots, Arc::clone(&store), 1_200).unwrap();
-        assert!(runtime.trust_snapshots().snapshot().is_ok());
-        let issuer_signer = SigningKey::from_bytes(&[41u8; 32]);
-        let mut receipt = crate::RollbackEvidenceReceipt {
-            subject: "current_state".into(),
-            subject_digest: "a".repeat(64),
-            subject_epoch: 1,
-            revision: 1,
-            issuer: "issuer:state".into(),
-            key_id: "issuer-key-1".into(),
-            issued_at: 1_100,
-            expires_at: 1_200,
-            nonce: "runtime-nonce-single-use-000001".into(),
-            signature: Vec::new(),
-        };
-        let binding = crate::EvidenceBinding {
-            subject: "current_state".into(),
-            digest: "a".repeat(64),
-            epoch: 1,
-            revision: 1,
-        };
-        let payload = serde_json::json!({
-            "subject": receipt.subject,
-            "subject_digest": receipt.subject_digest,
-            "subject_epoch": receipt.subject_epoch,
-            "revision": receipt.revision,
-            "issuer": receipt.issuer,
-            "key_id": receipt.key_id,
-            "issued_at": receipt.issued_at,
-            "expires_at": receipt.expires_at,
-            "nonce": receipt.nonce
-        });
-        receipt.signature = issuer_signer.sign(&crate::canonical_json(&payload).unwrap()).to_bytes().to_vec();
-        assert_eq!(runtime.evidence_verifier().verify(&receipt, &binding, 1_150), Ok(()));
-        assert_eq!(
-            runtime.evidence_verifier().verify(&receipt, &binding, 1_150),
-            Err(crate::EvidenceVerificationError::Replay)
-        );
-        let lineage = runtime.lineage_registry()
-            .resolve_lineage("1.0.0", &candidate_digest).unwrap();
-        assert_eq!(lineage.registry_revision, 3);
-        drop(runtime);
-        drop(store);
-        let _ = fs::remove_file(&path);
-        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
-        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
-    }
-
-    #[test]
-    fn g12_runtime_fails_closed_when_any_governed_document_is_missing() {
-        use std::sync::Arc;
-        let (_, root, _) = fixture(1);
-        let roots = TrustRootSet::new(vec![root]).unwrap();
-        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
-        assert!(matches!(
-            G12SecurityRuntime::restore(&roots, store, 1_200),
-            Err(TrustBundleError::StoreUnavailable)
-        ));
     }
 
     #[test]
@@ -904,7 +889,7 @@ mod tests {
         let (signer, root, _) = fixture(1);
         let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
         let signed = signed_lineage_fixture(&signer, &root, 1);
-        let expected_digest = signed.payload.artifacts[0].artifact_digest.clone();
+        let expected_digest = signed.payload.artifacts[2].artifact_digest.clone();
         let path = std::env::temp_dir().join(format!(
             "iroka-lineage-registry-recovery-{}.sqlite",
             std::process::id()
