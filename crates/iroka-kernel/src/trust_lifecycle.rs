@@ -574,6 +574,7 @@ impl G12SecurityRuntime {
         store: Arc<SqliteSecurityStore>,
         now: u64,
     ) -> Result<Self, TrustBundleError> {
+        store.integrity_check().map_err(|_| TrustBundleError::StoreUnavailable)?;
         let trust_snapshots = TrustSnapshotManager::restore_with_roots(roots, &store, now)?;
         let issuer_policy = restore_rollback_evidence_policy_with_roots(roots, &store, now)?;
         restore_version_lineage_snapshot_with_roots(roots, &store, now)?;
