@@ -15,6 +15,13 @@ pub enum AuditStoreError {
     Rejected,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VerifiedAuditHead {
+    pub sequence: u64,
+    pub digest: [u8; 32],
+    pub prefix_digest: Option<[u8; 32]>,
+}
+
 pub struct SqliteAuditSink {
     connection: Mutex<Connection>,
 }
@@ -168,11 +175,11 @@ impl SqliteAuditSink {
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Deferred)
             .map_err(|_| AuditStoreError::Unavailable)?;
-        let (sequence, digest, _) = verify_chain_and_prefix(&transaction, None)?;
+        let verified = verify_chain_and_prefix(&transaction, None)?;
         transaction
             .commit()
             .map_err(|_| AuditStoreError::Unavailable)?;
-        Ok((sequence, digest))
+        Ok((verified.sequence, verified.digest))
     }
 
     /// Verify the chain and return its terminal head plus the digest at an
@@ -181,7 +188,7 @@ impl SqliteAuditSink {
     pub fn verified_head_and_prefix(
         &self,
         prefix_sequence: u64,
-    ) -> Result<(u64, [u8; 32], Option<[u8; 32]>), AuditStoreError> {
+    ) -> Result<VerifiedAuditHead, AuditStoreError> {
         let mut connection = self
             .connection
             .lock()
@@ -223,7 +230,7 @@ impl SqliteAuditSink {
 fn verify_chain_and_prefix(
     connection: &Connection,
     target_sequence: Option<u64>,
-) -> Result<(u64, [u8; 32], Option<[u8; 32]>), AuditStoreError> {
+) -> Result<VerifiedAuditHead, AuditStoreError> {
     let mut statement = connection
         .prepare(
             "SELECT sequence,event_id,correlation_id,subject,capability,resource,
@@ -283,7 +290,11 @@ fn verify_chain_and_prefix(
     let digest = previous
         .try_into()
         .map_err(|_| AuditStoreError::IntegrityFailure)?;
-    Ok((last_sequence, digest, prefix_hash))
+    Ok(VerifiedAuditHead {
+        sequence: last_sequence,
+        digest,
+        prefix_digest: prefix_hash,
+    })
 }
 
 impl AuditSink for SqliteAuditSink {
@@ -384,11 +395,14 @@ mod tests {
         s.append_event(&event("event:prefix")).unwrap();
         let expected_prefix = s.verified_head().unwrap().1;
         s.append_event(&event("event:tail")).unwrap();
-        let (sequence, head, prefix) = s.verified_head_and_prefix(1).unwrap();
-        assert_eq!(sequence, 2);
-        assert_eq!(head, s.head().unwrap().1);
-        assert_eq!(prefix, Some(expected_prefix));
-        assert_eq!(s.verified_head_and_prefix(3), Ok((2, head, None)));
+        let verified = s.verified_head_and_prefix(1).unwrap();
+        assert_eq!(verified.sequence, 2);
+        assert_eq!(verified.digest, s.head().unwrap().1);
+        assert_eq!(verified.prefix_digest, Some(expected_prefix));
+        let beyond = s.verified_head_and_prefix(3).unwrap();
+        assert_eq!(beyond.sequence, 2);
+        assert_eq!(beyond.digest, verified.digest);
+        assert_eq!(beyond.prefix_digest, None);
     }
 
     #[test]
