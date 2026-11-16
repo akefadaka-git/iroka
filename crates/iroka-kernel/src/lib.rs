@@ -51,7 +51,8 @@ pub use owner_approval::{
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
 pub use rollback_guard::{
-    evaluate_rollback_guard, EffectiveState, EvidenceBinding, EvidenceVerificationError,
+    evaluate_rollback_guard, Ed25519RollbackEvidenceVerifier, EffectiveState, EvidenceBinding,
+    EvidenceVerificationError,
     RollbackDenialCode, RollbackEvidenceReceipt, RollbackEvidenceSummary, RollbackEvidenceVerifier,
     RollbackGuardDecision, RollbackGuardInput,
 };
