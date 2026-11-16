@@ -195,7 +195,7 @@
     "version_bound_evidence": {
       "type": "array",
       "minItems": 0,
-      "maxItems": 128,
+      "maxItems": 130,
       "items": {
         "$ref": "#/$defs/evidence_receipt"
       }
