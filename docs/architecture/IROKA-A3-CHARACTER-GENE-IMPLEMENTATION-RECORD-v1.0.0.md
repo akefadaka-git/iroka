@@ -37,3 +37,18 @@ The A3 branch imports the 72 read-only schema baselines from the frozen gene IO 
 - All approved semantic gaps are addressed by explicit schema/implementation behavior and adversarial tests.
 - The 12/36 genome invariant remains unchanged.
 - Exact-head tests pass; unresolved high/critical findings are zero or explicitly Owner-accepted.
+
+## Exact-head CI evidence — initial increment
+
+**Tested head:** `c2c5f9d4e9f0e00bd99386c5797320913e376cc5`  
+**Workflow:** Rust kernel verification, run `43851995795`  
+**Result:** PASS (completed 2026-11-16)
+
+- `cargo fmt --all -- --check`: PASS
+- `cargo check --workspace --all-targets --locked`: PASS
+- `cargo check --workspace --all-targets --no-default-features`: PASS
+- `cargo test --workspace --all-targets --locked`: PASS — 71 unit tests and 2 integration/contract tests; 0 failures
+- `python3 scripts/a3_schema_baseline_audit.py`: PASS — 12 chromosome scope assertion, 36 contracts, 72 schemas, 72 conformance cases, 36 review records, required version-bound evidence in 72/72 schemas, local references resolved, case mapping PASS
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic`: PASS
+
+This verifies the imported baseline and existing Rust kernel tests only. It does **not** establish that the 36 gene-specific semantic amendments, stronger evidence semantics, or all 72 character conformance scenarios are implemented or executed.
