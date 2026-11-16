@@ -58,6 +58,28 @@ pub struct SignedCheckpoint {
     pub signature: Vec<u8>,
 }
 
+/// Proof object created only after checkpoint signature and witness quorum verification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedCheckpointEvidence {
+    checkpoint: SignedCheckpoint,
+    receipts: Vec<WitnessReceipt>,
+    required_quorum: usize,
+}
+
+impl VerifiedCheckpointEvidence {
+    pub fn checkpoint(&self) -> &SignedCheckpoint {
+        &self.checkpoint
+    }
+
+    pub fn receipts(&self) -> &[WitnessReceipt] {
+        &self.receipts
+    }
+
+    pub fn required_quorum(&self) -> usize {
+        self.required_quorum
+    }
+}
+
 impl SignedCheckpoint {
     pub fn digest(&self) -> Result<[u8; 32], CheckpointError> {
         let bytes = canonical(self)?;
@@ -234,6 +256,29 @@ pub fn verify_witness_quorum(
     Ok(identities.len())
 }
 
+/// Verify a checkpoint signature and a quorum of distinct witness identities
+/// and keys. The returned evidence cannot be constructed directly by callers.
+pub fn verify_checkpoint_evidence(
+    checkpoint: SignedCheckpoint,
+    receipts: Vec<WitnessReceipt>,
+    trusted_checkpoint_signers: &BTreeMap<String, VerifyingKey>,
+    trusted_witnesses: &BTreeMap<String, VerifyingKey>,
+    required: usize,
+) -> Result<VerifiedCheckpointEvidence, CheckpointError> {
+    verify_witness_quorum(
+        &checkpoint,
+        &receipts,
+        trusted_checkpoint_signers,
+        trusted_witnesses,
+        required,
+    )?;
+    Ok(VerifiedCheckpointEvidence {
+        checkpoint,
+        receipts,
+        required_quorum: required,
+    })
+}
+
 /// Compare a locally verified head with a witness-verified external checkpoint.
 /// Local state behind the anchor or a same-position hash mismatch is a hard failure.
 /// Create a signed checkpoint from a locally verified audit head.
@@ -265,19 +310,9 @@ pub fn create_audit_checkpoint(
 /// complete local audit chain before reconciling their sequence and digest.
 pub fn verify_and_reconcile_head(
     audit: &crate::SqliteAuditSink,
-    checkpoint: &SignedCheckpoint,
-    trusted_checkpoint_signers: &BTreeMap<String, VerifyingKey>,
-    receipts: &[WitnessReceipt],
-    trusted_witnesses: &BTreeMap<String, VerifyingKey>,
-    required: usize,
+    evidence: &VerifiedCheckpointEvidence,
 ) -> Result<Reconciliation, CheckpointError> {
-    verify_witness_quorum(
-        checkpoint,
-        receipts,
-        trusted_checkpoint_signers,
-        trusted_witnesses,
-        required,
-    )?;
+    let checkpoint = evidence.checkpoint();
     let verified = audit
         .verified_head_and_prefix(checkpoint.payload.event_sequence)
         .map_err(map_audit_error)?;
@@ -507,54 +542,60 @@ mod tests {
         let audit = audit_with_events(&["event:one"]);
         let cp = create_audit_checkpoint(&s, &audit, "audit-stream:alpha", 1, None, 2_000).unwrap();
         let receipt = w.publish(&cp).unwrap();
+        let evidence = verify_checkpoint_evidence(
+            cp.clone(),
+            vec![receipt],
+            &trust(&s.id, &s.key),
+            &trust(&w.key_id, &w.key),
+            1,
+        )
+        .unwrap();
+        audit.persist_checkpoint_evidence(&evidence, 2_001).unwrap();
         assert_eq!(
-            verify_and_reconcile_head(
-                &audit,
-                &cp,
-                &trust(&s.id, &s.key),
-                std::slice::from_ref(&receipt),
-                &trust(&w.key_id, &w.key),
-                1,
-            ),
+            audit.persist_checkpoint_evidence(&evidence, 2_002),
+            Ok(())
+        );
+        let (checkpoint_bytes, receipt_bytes) = audit
+            .latest_checkpoint_evidence_bytes("audit-stream:alpha")
+            .unwrap()
+            .unwrap();
+        let recovered_checkpoint: SignedCheckpoint =
+            serde_json::from_slice(&checkpoint_bytes).unwrap();
+        let recovered_receipts: Vec<WitnessReceipt> =
+            serde_json::from_slice(&receipt_bytes).unwrap();
+        let recovered = verify_checkpoint_evidence(
+            recovered_checkpoint,
+            recovered_receipts,
+            &trust(&s.id, &s.key),
+            &trust(&w.key_id, &w.key),
+            1,
+        )
+        .unwrap();
+        assert_eq!(
+            verify_and_reconcile_head(&audit, &recovered),
             Ok(Reconciliation::Exact)
+        );
+        let forked_store = audit_with_events(&["event:forked"]);
+        assert_eq!(
+            forked_store.persist_checkpoint_evidence(&evidence, 2_003),
+            Err(crate::AuditStoreError::IntegrityFailure)
         );
 
         let local_ahead = audit_with_events(&["event:one", "event:two"]);
         assert_eq!(
-            verify_and_reconcile_head(
-                &local_ahead,
-                &cp,
-                &trust(&s.id, &s.key),
-                std::slice::from_ref(&receipt),
-                &trust(&w.key_id, &w.key),
-                1,
-            ),
+            verify_and_reconcile_head(&local_ahead, &evidence),
             Ok(Reconciliation::LocalAheadUnanchored)
         );
 
         let local_behind = audit_with_events(&[]);
         assert_eq!(
-            verify_and_reconcile_head(
-                &local_behind,
-                &cp,
-                &trust(&s.id, &s.key),
-                std::slice::from_ref(&receipt),
-                &trust(&w.key_id, &w.key),
-                1,
-            ),
+            verify_and_reconcile_head(&local_behind, &evidence),
             Err(CheckpointError::LocalBehindAnchor)
         );
 
         let forked = audit_with_events(&["event:forked", "event:forked-tail"]);
         assert_eq!(
-            verify_and_reconcile_head(
-                &forked,
-                &cp,
-                &trust(&s.id, &s.key),
-                std::slice::from_ref(&receipt),
-                &trust(&w.key_id, &w.key),
-                1,
-            ),
+            verify_and_reconcile_head(&forked, &evidence),
             Err(CheckpointError::ForkDetected)
         );
     }
