@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.1.0",
+  "title": "Rollback guard — A3 input",
+  "description": "A3 amended contract. Structural validation only; cryptographic evidence and policy semantics MUST be verified by the kernel.",
+  "type": "object",
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "evidence_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "subject_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issued_at": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "nonce": {
+          "type": "string",
+          "minLength": 16
+        },
+        "signature": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      },
+      "required": [
+        "subject",
+        "subject_digest",
+        "subject_epoch",
+        "revision",
+        "issuer",
+        "key_id",
+        "issued_at",
+        "expires_at",
+        "nonce",
+        "signature"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "issued_at": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "issued_at"
+            ]
+          },
+          "then": {
+            "properties": {
+              "expires_at": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "evidence_set": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/evidence_receipt"
+      }
+    }
+  },
+  "properties": {
+    "current_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "current_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "current_artifact": {
+      "type": "object"
+    },
+    "candidate_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "candidate_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "candidate_artifact": {
+      "type": "object"
+    },
+    "revocation_floor": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "revocation_floor_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rollback_authorization": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "approval_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "owner_subject": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "request_subject": {
+                  "const": "iroka:rollback-guard"
+                },
+                "capability": {
+                  "const": "system.rollback"
+                },
+                "resource": {
+                  "type": "string",
+                  "pattern": "^rollback-transition:[a-f0-9]{64}$"
+                },
+                "policy_version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "issued_at": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "expires_at": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "approval_id",
+                "owner_subject",
+                "key_id",
+                "request_subject",
+                "capability",
+                "resource",
+                "policy_version",
+                "issued_at",
+                "expires_at"
+              ]
+            },
+            "signature": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{86}$"
+            }
+          },
+          "required": [
+            "payload",
+            "signature"
+          ]
+        }
+      ]
+    },
+    "provenance": {
+      "$ref": "#/$defs/evidence_set"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/evidence_set"
+    }
+  },
+  "required": [
+    "current_epoch",
+    "current_digest",
+    "current_artifact",
+    "candidate_epoch",
+    "candidate_digest",
+    "candidate_artifact",
+    "revocation_floor",
+    "revocation_floor_revision",
+    "policy_version",
+    "rollback_authorization",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
