@@ -49,8 +49,14 @@
           "minLength": 16
         },
         "signature": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9_-]{86}$"
+          "type": "array",
+          "minItems": 64,
+          "maxItems": 64,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
         }
       },
       "required": [
@@ -191,8 +197,14 @@
               ]
             },
             "signature": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9_-]{86}$"
+              "type": "array",
+              "minItems": 64,
+              "maxItems": 64,
+              "items": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              }
             }
           },
           "required": [
@@ -207,6 +219,11 @@
     },
     "version_bound_evidence": {
       "$ref": "#/$defs/evidence_set"
+    },
+    "rollback_reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
     }
   },
   "required": [
@@ -219,6 +236,7 @@
     "revocation_floor",
     "revocation_floor_revision",
     "policy_version",
+    "rollback_reason",
     "rollback_authorization",
     "provenance",
     "version_bound_evidence"
