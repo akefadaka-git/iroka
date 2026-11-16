@@ -11,6 +11,10 @@ use crate::security_store::{
     ApprovalConsumptionError, ApprovalReceipt, RevocationTarget, SecurityCommandError,
     SignedSecurityCommand,
 };
+use crate::protected_effect::{
+    ExecutionReceipt, OwnerEffectGrantPayload, ProtectedEffectRequest, SignedOwnerEffectGrant,
+    VerifiedEffectGrant,
+};
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 
@@ -174,6 +178,18 @@ impl SignedOwnerSecurityCommand {
 const OWNER_APPROVAL_DOMAIN: &[u8] = b"IROKA:G02:OWNER-APPROVAL:V1\0";
 const OWNER_SECURITY_COMMAND_DOMAIN: &[u8] = b"IROKA:G02:OWNER-SECURITY-COMMAND:V1\0";
 
+fn parse_sha256_hex(value: &str) -> Result<[u8; 32], OwnerApprovalError> {
+    if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(OwnerApprovalError::Malformed);
+    }
+    let mut digest = [0_u8; 32];
+    for (index, chunk) in value.as_bytes().chunks_exact(2).enumerate() {
+        let text = std::str::from_utf8(chunk).map_err(|_| OwnerApprovalError::Malformed)?;
+        digest[index] = u8::from_str_radix(text, 16).map_err(|_| OwnerApprovalError::Malformed)?;
+    }
+    Ok(digest)
+}
+
 fn canonical_domain_bytes<T: Serialize>(
     value: &T,
     domain: &[u8],
@@ -323,6 +339,134 @@ impl OwnerApprovalVerifier {
             return Err(OwnerApprovalError::Replay);
         }
         Ok(())
+    }
+
+    /// Verify and atomically consume an Owner grant bound to one exact protected effect.
+    pub fn verify_and_consume_effect_grant(
+        &self,
+        grant: &SignedOwnerEffectGrant,
+        effect: &ProtectedEffectRequest,
+        principal: &crate::VerifiedPrincipal,
+        genesis: &crate::igacms::VerifiedGenesis,
+        policy_version: &str,
+        now: u64,
+    ) -> Result<VerifiedEffectGrant, OwnerApprovalError> {
+        let p: &OwnerEffectGrantPayload = &grant.payload;
+        if p.nonce.trim().is_empty()
+            || p.nonce.len() > 256
+            || p.owner_subject.trim().is_empty()
+            || p.key_id.trim().is_empty()
+            || p.request_subject.trim().is_empty()
+            || p.executor_subject.trim().is_empty()
+            || p.capability.trim().is_empty()
+            || p.resource.trim().is_empty()
+            || p.effect_type.trim().is_empty()
+            || p.risk_class.trim().is_empty()
+            || p.policy_version.trim().is_empty()
+            || p.issued_at >= p.expires_at
+            || p.operation_digest == [0; 32]
+            || p.genome_digest == [0; 32]
+        {
+            return Err(OwnerApprovalError::Malformed);
+        }
+        if p.issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
+            return Err(OwnerApprovalError::NotYetValid);
+        }
+        if p.expires_at <= now {
+            return Err(OwnerApprovalError::Expired);
+        }
+        if p.expires_at - p.issued_at > 300 {
+            return Err(OwnerApprovalError::Malformed);
+        }
+        let genome_digest = parse_sha256_hex(genesis.digest())?;
+        let expected_operation_digest = effect
+            .operation_digest(principal.subject(), policy_version, genesis.digest())
+            .map_err(|_| OwnerApprovalError::Malformed)?;
+        if p.request_subject != principal.subject()
+            || p.executor_subject != effect.executor_subject()
+            || p.capability != effect.capability()
+            || p.resource != effect.resource()
+            || p.effect_type != effect.effect_type()
+            || p.risk_class != effect.risk_class()
+            || p.policy_version != policy_version
+            || p.genome_digest != genome_digest
+            || p.operation_digest != expected_operation_digest
+        {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        let owner_key = self
+            .keys
+            .get(&p.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if p.owner_subject != owner_key.owner_subject {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || p.issued_at < owner_key.not_before
+            || p.issued_at >= owner_key.not_after
+        {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
+        if self
+            .store
+            .key_revoked(OWNER_ISSUER, &p.key_id)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?
+            || self.store.approval_is_revoked(&p.nonce)?
+        {
+            return Err(OwnerApprovalError::Revoked);
+        }
+        let signing_bytes = p.signing_bytes().map_err(|_| OwnerApprovalError::Malformed)?;
+        let signature =
+            Signature::from_slice(&grant.signature).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(&signing_bytes, &signature)
+            .map_err(|_| OwnerApprovalError::InvalidSignature)?;
+        let consumed = self
+            .store
+            .consume_approval(ApprovalReceipt {
+                approval_id: &p.nonce,
+                payload_digest: p.operation_digest.as_slice(),
+                owner_subject: &p.owner_subject,
+                signer_issuer: OWNER_ISSUER,
+                signer_key_id: &p.key_id,
+                request_subject: &p.request_subject,
+                capability: &p.capability,
+                resource: &p.resource,
+                policy_version: &p.policy_version,
+                issued_at: p.issued_at,
+                expires_at: p.expires_at,
+                consumed_at: now,
+            })
+            .map_err(|error| match error {
+                ApprovalConsumptionError::SigningKeyRevoked
+                | ApprovalConsumptionError::ApprovalRevoked => OwnerApprovalError::Revoked,
+                ApprovalConsumptionError::Store(store_error) => store_error.into(),
+            })?;
+        if !consumed {
+            return Err(OwnerApprovalError::Replay);
+        }
+        Ok(VerifiedEffectGrant::from_payload(p))
+    }
+
+    pub(crate) fn record_execution_receipt(
+        &self,
+        receipt: &ExecutionReceipt,
+        now: u64,
+    ) -> Result<(), OwnerApprovalError> {
+        self.store
+            .record_execution_receipt(receipt, now)
+            .map_err(Into::into)
+    }
+
+    pub(crate) fn latest_execution_receipt_bytes(
+        &self,
+        nonce: &str,
+    ) -> Result<Option<Vec<u8>>, OwnerApprovalError> {
+        self.store
+            .latest_execution_receipt_bytes(nonce)
+            .map_err(Into::into)
     }
 
     /// Apply an Owner-signed, replay-protected revocation command. The command
