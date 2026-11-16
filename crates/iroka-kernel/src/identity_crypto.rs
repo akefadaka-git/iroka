@@ -230,7 +230,6 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         Ok(Self::new(trust, revocations))
     }
 
-
     /// Verify an arbitrary canonical payload with a key from the same immutable
     /// signed trust snapshot used for credential verification.
     pub(crate) fn verify_detached_payload(
