@@ -422,7 +422,9 @@ impl ExecutionReceipt {
         if key.executor_subject != self.executor_subject
             || self.completed_at < key.not_before
             || self.completed_at >= key.not_after
-            || key.revoked_at.is_some_and(|revoked_at| self.completed_at >= revoked_at)
+            || key
+                .revoked_at
+                .is_some_and(|revoked_at| self.completed_at >= revoked_at)
         {
             return Err(ProtectedEffectError::UnknownExecutorKey);
         }
@@ -533,7 +535,9 @@ fn validate_executor_keys(keys: &[TrustedExecutorKey]) -> Result<(), ProtectedEf
             || key.key_id.trim().is_empty()
             || key.key_id.len() > 256
             || key.not_before >= key.not_after
-            || key.revoked_at.is_some_and(|revoked_at| revoked_at < key.not_before)
+            || key
+                .revoked_at
+                .is_some_and(|revoked_at| revoked_at < key.not_before)
             || VerifyingKey::from_bytes(&key.public_key).is_err()
             || !key_ids.insert(key.key_id.as_str())
             || !public_keys.insert(key.public_key)
@@ -729,7 +733,9 @@ fn verify_execution_result(
     if key.executor_subject != p.executor_subject
         || p.completed_at < key.not_before
         || p.completed_at >= key.not_after
-        || key.revoked_at.is_some_and(|revoked_at| p.completed_at >= revoked_at)
+        || key
+            .revoked_at
+            .is_some_and(|revoked_at| p.completed_at >= revoked_at)
     {
         return Err(ProtectedEffectError::UnknownExecutorKey);
     }
