@@ -21,7 +21,8 @@
         "activation and root status are valid at evaluated_epoch",
         "verified=true is consistent with trust_decision=trusted",
         "evidence is sufficient to reproduce the decision",
-        "no authority expansion"
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G01-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -51,7 +52,8 @@
         "missing/conflicting provenance fails closed",
         "contradictory verified/trust_decision output is rejected",
         "no fabricated evidence or silent downgrade",
-        "failure reason and evidence are recorded"
+        "failure reason and evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G01-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -81,7 +83,8 @@
         "epoch ordering is valid against authoritative version/time evidence",
         "chain_digest and verified_depth are reproducible from the verified graph",
         "provenance and version-bound evidence bind the exact lineage decision",
-        "no invented ancestors, signatures or provenance"
+        "no invented ancestors, signatures or provenance",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G01-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -113,7 +116,8 @@
         "invalid/stale epoch ordering fails closed",
         "lineage_valid, chain_digest and verified_depth contradictions are rejected",
         "no fabricated ancestors, signatures or provenance",
-        "failure reason and evidence are recorded"
+        "failure reason and evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G01-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -145,7 +149,8 @@
         "null migration_digest is accepted only when policy evidence establishes no migration is required",
         "compatibility boolean is consistent with decision enum",
         "evidence reproduces policy resolution and semantic comparison",
-        "no implicit coercion or authority expansion"
+        "no implicit coercion or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G01-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -177,7 +182,8 @@
         "null migration digest requires evidence that migration is unnecessary",
         "compatibility=true with incompatible/migration_required is rejected",
         "no implicit compatibility coercion or fabricated evidence",
-        "failure reason and evidence are recorded"
+        "failure reason and evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G01-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -211,7 +217,8 @@
         "evaluation time is trusted and recorded",
         "source_valid=true iff decision=valid",
         "reported scope does not exceed authenticated mandate scope",
-        "evidence reproduces all checks without granting or expanding authority"
+        "evidence reproduces all checks without granting or expanding authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G02-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -246,7 +253,8 @@
         "source_valid=true with invalid/expired decision is rejected",
         "reported scope exceeding mandate scope is rejected",
         "no fabricated trust, mandate or revocation evidence",
-        "failure reason and evidence are recorded"
+        "failure reason and evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G02-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -283,7 +291,8 @@
         "approval_valid=true iff decision=approved",
         "authorized_scope does not exceed exact signed scope",
         "non-overridable safeguards remain effective and approval validation does not execute actions",
-        "evidence is sufficient to reproduce all verification checks"
+        "evidence is sufficient to reproduce all verification checks",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G02-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -319,7 +328,8 @@
         "authorized_scope cannot exceed signed scope",
         "non-overridable safeguard conflict is reported and not bypassed",
         "no fabricated cryptographic or provenance evidence",
-        "no action execution or authority expansion occurs"
+        "no action execution or authority expansion occurs",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G02-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -357,7 +367,8 @@
         "canonical_digest equals exact committed record digest",
         "register_sequence is authoritative, unique and monotonic",
         "evidence preserves scope, rationale, expiry, outcome and full provenance/history",
-        "registration does not itself authorize or execute the decision"
+        "registration does not itself authorize or execute the decision",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G02-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -394,7 +405,8 @@
         "canonical digest and sequence mismatch are rejected",
         "proposed/rejected/unrecorded record is never represented as approved",
         "no history rewrite, evidence fabrication or decision execution",
-        "failure reason and immutable conflict evidence are recorded"
+        "failure reason and immutable conflict evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G02-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -428,7 +440,8 @@
         "confidence semantics are explicit and bounded",
         "digest reproducibly binds canonical premise set, model version and context",
         "normalized and unresolved sets are disjoint and complete",
-        "no authority expansion"
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G03-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -452,7 +465,8 @@
         "all premise IDs accounted for or evaluation fails closed",
         "normalized and unresolved sets cannot overlap",
         "digest mismatch rejected",
-        "reason and evidence recorded"
+        "reason and evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G03-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -477,7 +491,8 @@
         "unsupported steps remain separate and explicit",
         "confidence follows declared versioned policy",
         "inference evidence is reproducible",
-        "no selective rule application or authority expansion"
+        "no selective rule application or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G03-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -502,7 +517,8 @@
         "no unsupported conclusion emitted",
         "applied_rule_ids cannot misstate execution trace",
         "confidence is not fabricated",
-        "reason and reproducibility evidence recorded"
+        "reason and reproducibility evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G03-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -528,7 +544,8 @@
         "lower_bound <= estimate <= upper_bound",
         "output method matches selected input method",
         "insufficient calibration never presented as valid",
-        "no uncertainty suppression or authority expansion"
+        "no uncertainty suppression or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G03-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -554,7 +571,8 @@
         "bounds ordered and finite",
         "all hypotheses accounted for or explicitly unresolved",
         "no fabricated confidence or suppressed uncertainty",
-        "reason and evidence recorded"
+        "reason and evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G03-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -583,7 +601,8 @@
         "schema digest canonical and reproducible",
         "all fields and constraints have validation evidence",
         "no unsupported semantics silently discarded",
-        "no authority expansion"
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G04-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -611,7 +630,8 @@
         "digest mismatch detected",
         "unsupported semantics cannot yield valid status",
         "reason and evidence recorded",
-        "no silent downgrade or authority expansion"
+        "no silent downgrade or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G04-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -639,7 +659,8 @@
         "verified true only when broken_links is empty",
         "chain digest reproducible and version-bound",
         "source-to-event-to-artifact provenance preserved",
-        "no event rewriting or authority expansion"
+        "no event rewriting or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G04-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -667,7 +688,8 @@
         "event_count reconciled without omissions",
         "verified cannot be true with broken links",
         "no provenance rewrite or fabricated evidence",
-        "reason and evidence recorded"
+        "reason and evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G04-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -695,7 +717,8 @@
         "resolved status requires sufficient evidence and policy rule",
         "per-conflict and top-level states are consistent",
         "exclusions and groupings disclosed",
-        "no false consensus or authority expansion"
+        "no false consensus or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G04-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -723,7 +746,8 @@
         "resolved state without sufficient evidence rejected",
         "top-level and per-conflict state contradictions rejected",
         "exclusions and grouping disclosed",
-        "reason and evidence recorded"
+        "reason and evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G04-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -747,7 +771,8 @@
         "classification applies conservative precedence",
         "complete registered controls emitted",
         "evidence binds exact inputs and versions",
-        "no authority expansion"
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G05-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -771,7 +796,8 @@
         "protective controls applied",
         "reason and evidence recorded",
         "no fabricated evidence",
-        "no authority expansion"
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G05-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -795,7 +821,8 @@
         "deadline calculation is deterministic",
         "disposition/deadline/hold invariants hold",
         "evidence reproduces policy and calculation",
-        "no deletion authorization or execution"
+        "no deletion authorization or execution",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G05-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -819,7 +846,8 @@
         "deadline/disposition contradictions rejected",
         "no inferred deletion permission",
         "reason and evidence recorded",
-        "no destructive action executed"
+        "no destructive action executed",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G05-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -840,7 +868,8 @@
         "genesis/prior checkpoint and sequence continuity verified",
         "authority and version-bound evidence resolve and match exact checkpoint",
         "accepted=true implies continuity_verified=true and every required check passes",
-        "no authority or execution capability expansion"
+        "no authority or execution capability expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G05-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -861,7 +890,8 @@
         "rollback, duplicate sequence and invalid genesis/predecessor fail closed",
         "untrusted or revoked authority cannot be accepted",
         "accepted=true with continuity_verified=false is prohibited",
-        "complete reason and verification trace recorded; no silent repair"
+        "complete reason and verification trace recorded; no silent repair",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G05-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -883,7 +913,8 @@
         "digest and byte length match exact retrieved immutable payload bytes",
         "capture timestamp and provenance verify",
         "accepted=true implies integrity_verified=true and rejection_reason=null",
-        "payload remains untrusted and cannot override governance"
+        "payload remains untrusted and cannot override governance",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G06-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -905,7 +936,8 @@
         "digest, length and capture-time mismatches fail closed",
         "missing/conflicting provenance or version evidence blocks acceptance",
         "accepted=true with integrity_verified=false is prohibited",
-        "payload instructions cannot override governance or create authority"
+        "payload instructions cannot override governance or create authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G06-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -928,7 +960,8 @@
         "policy artifact and digest are authenticated and applicable",
         "revocation snapshot is authenticated, fresh and not rolled back",
         "evidence and version bindings reproduce the trust decision",
-        "no authority expansion"
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G06-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -952,7 +985,8 @@
         "policy authenticity and scope are enforced",
         "trust_level and signature_valid are semantically consistent",
         "no fabricated or silently downgraded evidence",
-        "no authority expansion"
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G06-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -977,7 +1011,8 @@
         "all lossy or uncertain segments are annotated and traceable",
         "status matches output completeness and loss annotations",
         "original remains unchanged and retrievable",
-        "evidence binds exact source, transform and execution versions"
+        "evidence binds exact source, transform and execution versions",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G06-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1002,7 +1037,8 @@
         "success cannot coexist with undisclosed material loss",
         "degraded status carries explicit loss and uncertainty evidence",
         "original source is retained unchanged",
-        "no fabricated fidelity or authority expansion"
+        "no fabricated fidelity or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G06-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1026,7 +1062,8 @@
         "principal_class matches authoritative class registry and policy",
         "principal_digest binds canonical principal and verification evidence",
         "identity validity creates no authority or human status",
-        "evidence and versions reproduce the decision"
+        "evidence and versions reproduce the decision",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G07-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1050,7 +1087,8 @@
         "principal-class mismatch is rejected",
         "principal_valid cannot contradict identity_status",
         "no authority, authorization or human status inferred",
-        "no fabricated or incomplete evidence"
+        "no fabricated or incomplete evidence",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G07-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1075,7 +1113,8 @@
         "granted and denied sets are disjoint and exactly cover the request",
         "no unrequested capability is granted",
         "capability profile does not itself authorize execution",
-        "evidence binds exact request and policy/evaluator versions"
+        "evidence binds exact request and policy/evaluator versions",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G07-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1100,7 +1139,8 @@
         "all requested items are accounted for",
         "authority_granted cannot be inferred from capability membership",
         "no permission or execution authorization fabricated",
-        "evidence and version bindings explain the result"
+        "evidence and version bindings explain the result",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G07-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1125,7 +1165,8 @@
         "delegation chain is complete, acyclic and depth-bounded",
         "revocation and policy state are current",
         "output acceptance matches effective capabilities",
-        "chain digest binds immutable complete chain"
+        "chain digest binds immutable complete chain",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G07-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1150,7 +1191,8 @@
         "cyclic or excessive-depth chain rejected",
         "revocation propagates to descendants",
         "accepted=false implies no effective capabilities",
-        "no fabricated proof or evidence"
+        "no fabricated proof or evidence",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G07-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1176,7 +1218,8 @@
         "topological order covers every node exactly once",
         "each dependency source precedes its target",
         "graph digest binds canonical immutable graph content",
-        "graph validity does not authorize execution"
+        "graph validity does not authorize execution",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G08-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1202,7 +1245,8 @@
         "invalid graph has no valid topological order",
         "mandatory dependencies cannot be skipped",
         "evidence identifies exact graph revision and validator",
-        "no execution authority inferred"
+        "no execution authority inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G08-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1229,7 +1273,8 @@
         "normalization preserves policy semantics and protected work",
         "feasibility agrees with constraints and violations",
         "fairness and starvation protections are evidenced",
-        "no execution authority inferred"
+        "no execution authority inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G08-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1256,7 +1301,8 @@
         "protected work cannot be silently starved",
         "violations uniquely identified and class-bound",
         "insufficient evidence yields indeterminate",
-        "no execution authority inferred"
+        "no execution authority inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G08-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1284,7 +1330,8 @@
         "canonical state preserves ownership and dissent",
         "state digest reproducible from canonical state and evidence",
         "conflict IDs unique and participant references valid",
-        "no authority or execution permission inferred"
+        "no authority or execution permission inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G08-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1311,7 +1358,8 @@
         "ownership conflicts remain visible",
         "duplicate effects rejected",
         "no silent conflict overwrite or dissent erasure",
-        "digest not asserted when canonical state is indeterminate"
+        "digest not asserted when canonical state is indeterminate",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G08-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1335,7 +1383,8 @@
         "impact dimensions are evidenced and proportionate",
         "contract_valid=true implies decision=admissible",
         "required authorization does not grant authority or execution",
-        "effect digest and evidence bind the exact evaluated inputs"
+        "effect digest and evidence bind the exact evaluated inputs",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G09-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1358,7 +1407,8 @@
         "missing, stale or conflicting evidence fails closed",
         "materially unknown or harmful impact is inadmissible",
         "contract_valid and decision cannot contradict",
-        "no authority or execution permission is inferred"
+        "no authority or execution permission is inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G09-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1382,7 +1432,8 @@
         "validity interval checked using trusted clock",
         "nonce atomically consumed exactly once",
         "admitted and denial_code are consistent",
-        "admission does not execute the effect"
+        "admission does not execute the effect",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G09-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1406,7 +1457,8 @@
         "nonce replay and concurrent duplicate consumption denied",
         "missing or conflicting evidence fails closed",
         "admitted/denial_code/consumed_nonce consistency enforced",
-        "no execution or authority is inferred from admission"
+        "no execution or authority is inferred from admission",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G09-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1429,7 +1481,8 @@
         "timestamps are timezone-aware, trusted and chronologically consistent",
         "outcome is derived from observed result evidence",
         "integrity_verified is consistent with all verified bindings",
-        "receipt does not grant or retroactively validate authority"
+        "receipt does not grant or retroactively validate authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G09-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1453,7 +1506,8 @@
         "malformed, untrusted or reversed timestamps rejected",
         "outcome/result contradiction rejected",
         "integrity_verified cannot be true when any required check fails",
-        "receipt existence never grants or retroactively validates authorization"
+        "receipt existence never grants or retroactively validates authorization",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G09-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1478,7 +1532,8 @@
         "each eligible item has current purpose-specific authorization and no withdrawal/revocation",
         "eligible/excluded IDs are unique, disjoint and complete",
         "eligibility digest recomputes over canonical decisions and versioned evidence",
-        "eligibility does not authorize training, retention or model mutation"
+        "eligibility does not authorize training, retention or model mutation",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G10-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1504,7 +1559,8 @@
         "null, revoked, expired, withdrawn or purpose-mismatched authorization cannot be eligible",
         "eligible/excluded sets cannot overlap, omit or invent IDs",
         "digest mismatch or missing policy evidence fails closed",
-        "eligibility cannot grant downstream training/model-update permission"
+        "eligibility cannot grant downstream training/model-update permission",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G10-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1529,7 +1585,8 @@
         "rationale covers benefit, risks, affected invariants, alternatives and rollback",
         "change class and evaluation requirements derive from policy",
         "approval_required is policy-derived and cannot be suppressed by proposer",
-        "proposal digest binds canonical proposal and has no approval or execution effect"
+        "proposal digest binds canonical proposal and has no approval or execution effect",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G10-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1554,7 +1611,8 @@
         "unknown risk/change class fails closed",
         "mandatory evaluation set cannot be omitted or proposer-controlled",
         "approval cannot be self-issued or inferred from proposal acceptance",
-        "proposal recording cannot execute, merge or deploy"
+        "proposal recording cannot execute, merge or deploy",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G10-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1580,7 +1638,8 @@
         "test IDs and regression IDs unique; regression deltas recompute correctly",
         "decision follows versioned policy and all result statuses",
         "evidence digest binds complete canonical output and source evidence",
-        "evaluation has no approval, authorization, merge, deployment or execution effect"
+        "evaluation has no approval, authorization, merge, deployment or execution effect",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G10-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1607,7 +1666,8 @@
         "incorrect regression delta rejected",
         "skipped, error, failed or inconclusive outcomes cannot be silently aggregated as pass",
         "missing/conflicting evidence yields fail-closed or inconclusive",
-        "evaluation cannot approve, authorize, merge, deploy or execute"
+        "evaluation cannot approve, authorize, merge, deploy or execute",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G10-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1635,7 +1695,8 @@
         "severity/code/disposition use controlled policy registries",
         "valid is consistent with all findings and blocking policy",
         "validated digest recomputes over canonical inputs and result",
-        "validation grants no approval, authorization or execution authority"
+        "validation grants no approval, authorization or execution authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G11-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1663,7 +1724,8 @@
         "unknown severity/code/disposition cannot be treated as non-blocking",
         "blocking, unresolved or unclassified findings prohibit valid=true",
         "validated digest mismatch rejected",
-        "validation cannot approve, authorize, merge, deploy or execute"
+        "validation cannot approve, authorize, merge, deploy or execute",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G11-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1691,7 +1753,8 @@
         "issued_at is trusted normalized time within bounded skew",
         "provenance and version-bound evidence bind all signed fields and key state",
         "verification_status valid only when every check succeeds",
-        "attestation grants no approval, authorization or execution authority"
+        "attestation grants no approval, authorization or execution authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G11-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1719,7 +1782,8 @@
         "missing, stale, conflicting or unverifiable provenance rejected",
         "missing or mismatched version_bound_evidence rejected",
         "unknown or incomplete verification state cannot yield valid",
-        "attestation cannot approve, authorize, merge, deploy or execute"
+        "attestation cannot approve, authorize, merge, deploy or execute",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G11-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1747,7 +1811,8 @@
         "report digest recomputes over canonical report payload",
         "provenance and version-bound evidence bind suite, commit, environment and results",
         "overall_status pass only for complete all-passed evidence",
-        "report grants no approval, authorization, merge, deployment or execution authority"
+        "report grants no approval, authorization, merge, deployment or execution authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G11-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1776,7 +1841,8 @@
         "missing, stale or unverifiable provenance rejected",
         "missing or mismatched version_bound_evidence rejected",
         "designed/not-run results never presented as executed pass",
-        "report cannot authorize, merge, deploy or execute"
+        "report cannot authorize, merge, deploy or execute",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G11-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1804,7 +1870,8 @@
         "policy digest recomputes from canonical policy and decision inputs",
         "permitted true only with zero denials and complete evidence",
         "provenance and version-bound evidence resolve and match all decision inputs",
-        "no mutation side effect or execution authority"
+        "no mutation side effect or execution authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G12-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1832,7 +1899,8 @@
         "permitted=true with denial reasons or incomplete evidence rejected",
         "policy digest mismatch or tampering rejected",
         "missing, stale or unverifiable provenance/version-bound evidence rejected",
-        "assessment cannot mutate, approve, authorize, merge or deploy"
+        "assessment cannot mutate, approve, authorize, merge or deploy",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G12-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1858,7 +1926,8 @@
         "epochs are authoritative, non-negative and strictly increasing",
         "linked and epoch_monotonic are derived consistently from ancestry",
         "lineage digest recomputes from canonical lineage contents",
-        "no history rewrite and no authority expansion"
+        "no history rewrite and no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G12-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1882,7 +1951,8 @@
         "epoch replay or non-monotonicity is rejected",
         "output flags cannot contradict verified ancestry",
         "no fabricated evidence or silent history rewrite",
-        "no mutation side effect or authority expansion"
+        "no mutation side effect or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G12-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1906,7 +1976,8 @@
         "candidate is not below revocation_floor and no protected invariant is weakened",
         "decision=allow, denial_reason=null, and effective_epoch/effective_digest identify the verified candidate",
         "guard_digest is reproducible from the canonical versioned decision envelope",
-        "no authority or execution capability is created"
+        "no authority or execution capability is created",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G12-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1931,7 +2002,8 @@
         "stale, replayed, incomplete or conflicting provenance/version_bound_evidence fails closed",
         "deny output has a non-empty denial_reason and does not identify the rejected candidate as effective",
         "guard_digest binds the complete decision envelope and cannot be accepted as an opaque caller value",
-        "no fabricated evidence, silent downgrade, authority expansion or protected effect occurs"
+        "no fabricated evidence, silent downgrade, authority expansion or protected effect occurs",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
       ],
       "existing_gene_io_case_id": "G12-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -2735,5 +2807,15 @@
         "G12-RG-SEM-10"
       ]
     }
-  ]
+  ],
+  "schema_inventory_reconciliation": {
+    "audit_id": "A2-CROSS-GENE-VERSION-BOUND-EVIDENCE-INVENTORY-AUDIT-001",
+    "status": "VERIFIED_CORRECTED",
+    "audited_schema_count": 72,
+    "affected_gene_count": 34,
+    "affected_schema_count": 68,
+    "conformance_cases_updated": 72,
+    "assertion": "Every positive and negative case explicitly asserts the common version_bound_evidence requirements of its exact frozen input/output schemas.",
+    "execution_status": "DESIGNED_NOT_EXECUTED"
+  }
 }
