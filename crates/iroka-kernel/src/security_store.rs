@@ -1481,16 +1481,17 @@ mod tests {
                 .unwrap();
         }
 
-        let record = store
-            .resolve_lineage("1.2.0", &candidate_digest)
-            .unwrap();
+        let record = store.resolve_lineage("1.2.0", &candidate_digest).unwrap();
         assert_eq!(record.ancestry.len(), 3);
         assert_eq!(record.ancestry[0].version, "1.0.0");
         assert_eq!(record.ancestry[1].version, "1.1.0");
         assert_eq!(record.ancestry[2].version, "1.2.0");
         assert_eq!(record.registry_revision, 42);
         assert_eq!(
-            record.mutation.as_ref().map(|mutation| mutation.mutation_ref.as_str()),
+            record
+                .mutation
+                .as_ref()
+                .map(|mutation| mutation.mutation_ref.as_str()),
             Some("mutation-ref-2")
         );
         assert!(record.mutation.as_ref().unwrap().approved);
@@ -1545,6 +1546,4 @@ mod tests {
             Err(LineageRegistryError::IntegrityFailure)
         );
     }
-
-
 }
