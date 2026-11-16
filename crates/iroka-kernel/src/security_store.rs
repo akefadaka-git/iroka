@@ -351,9 +351,8 @@ impl SqliteSecurityStore {
                 SecurityStoreError::InvalidVersion,
             ));
         }
-        let occurred_at = i64::try_from(at).map_err(|_| {
-            SecurityCommandError::Store(SecurityStoreError::InvalidVersion)
-        })?;
+        let occurred_at = i64::try_from(at)
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::InvalidVersion))?;
         let mut connection = self
             .connection
             .lock()
@@ -417,12 +416,7 @@ impl SqliteSecurityStore {
             } => {
                 tx.execute(
                     "INSERT OR IGNORE INTO revoked_credentials VALUES(?1, ?2, ?3, ?4)",
-                    params![
-                        issuer,
-                        credential_id,
-                        occurred_at,
-                        reason
-                    ],
+                    params![issuer, credential_id, occurred_at, reason],
                 )
                 .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
             }
@@ -433,12 +427,7 @@ impl SqliteSecurityStore {
             } => {
                 tx.execute(
                     "INSERT OR IGNORE INTO revoked_keys VALUES(?1, ?2, ?3, ?4)",
-                    params![
-                        issuer,
-                        key_id,
-                        occurred_at,
-                        reason
-                    ],
+                    params![issuer, key_id, occurred_at, reason],
                 )
                 .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
             }
@@ -448,11 +437,7 @@ impl SqliteSecurityStore {
             } => {
                 tx.execute(
                     "INSERT OR IGNORE INTO revoked_approvals VALUES(?1, ?2, ?3)",
-                    params![
-                        approval_id,
-                        occurred_at,
-                        reason
-                    ],
+                    params![approval_id, occurred_at, reason],
                 )
                 .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
             }
@@ -1055,7 +1040,10 @@ mod tests {
 
         assert_eq!(result, Err(SecurityCommandError::SigningKeyRevoked));
         assert_eq!(store.security_command_count(), Ok(0));
-        assert_eq!(store.credential_revoked("issuer:test", "credential:test"), Ok(false));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:test"),
+            Ok(false)
+        );
     }
 
     #[test]
@@ -1081,7 +1069,10 @@ mod tests {
             .revoke_key("iroka:owner-authority", "owner-key-race", 21, "compromised")
             .unwrap();
         assert_eq!(store.security_command_count(), Ok(1));
-        assert_eq!(store.credential_revoked("issuer:test", "credential:before"), Ok(true));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:before"),
+            Ok(true)
+        );
     }
 
     #[test]
@@ -1160,5 +1151,4 @@ mod tests {
         let _ = fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = fs::remove_file(path.with_extension("sqlite-shm"));
     }
-
 }
