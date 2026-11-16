@@ -160,7 +160,19 @@ impl SqliteSecurityStore {
              );
              CREATE TABLE IF NOT EXISTS approval_consumptions (
                approval_id TEXT PRIMARY KEY, scope_digest BLOB NOT NULL, consumed_at INTEGER NOT NULL
-             );"
+             );
+             CREATE TABLE IF NOT EXISTS protected_effect_receipts (
+               nonce TEXT PRIMARY KEY,
+               receipt_digest BLOB NOT NULL CHECK(length(receipt_digest)=32),
+               receipt_json BLOB NOT NULL,
+               persisted_at INTEGER NOT NULL
+             );
+             CREATE TRIGGER IF NOT EXISTS protected_effect_receipts_no_update
+               BEFORE UPDATE ON protected_effect_receipts
+               BEGIN SELECT RAISE(ABORT,'append-only protected effect receipts'); END;
+             CREATE TRIGGER IF NOT EXISTS protected_effect_receipts_no_delete
+               BEFORE DELETE ON protected_effect_receipts
+               BEGIN SELECT RAISE(ABORT,'append-only protected effect receipts'); END;"
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(Self {
             connection: Mutex::new(connection),
@@ -485,6 +497,88 @@ impl SqliteSecurityStore {
             })
             .map_err(|_| SecurityStoreError::Unavailable)?;
         u64::try_from(count).map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Persist an integrity-checked G09 execution receipt as append-only evidence.
+    /// Exact retries are idempotent; a conflicting receipt for the same nonce is rejected.
+    pub fn record_execution_receipt(
+        &self,
+        verified_receipt: &crate::VerifiedExecutionReceipt,
+        persisted_at: u64,
+    ) -> Result<(), SecurityStoreError> {
+        let receipt = verified_receipt.receipt();
+        receipt
+            .verify_integrity()
+            .map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let nonce = receipt.nonce();
+        if nonce.trim().is_empty() || persisted_at == 0 {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let persisted_at =
+            i64::try_from(persisted_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let digest = receipt.receipt_digest();
+        let value = serde_json::to_value(receipt).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let receipt_json =
+            crate::canonical_json(&value).map_err(|_| SecurityStoreError::InvalidVersion)?;
+
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let changed = transaction
+            .execute(
+                "INSERT OR IGNORE INTO protected_effect_receipts(
+                    nonce, receipt_digest, receipt_json, persisted_at
+                 ) VALUES(?1, ?2, ?3, ?4)",
+                params![nonce, digest.as_slice(), receipt_json, persisted_at],
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if changed == 0 {
+            let existing: Option<(Vec<u8>, Vec<u8>)> = transaction
+                .query_row(
+                    "SELECT receipt_digest, receipt_json
+                     FROM protected_effect_receipts WHERE nonce=?1",
+                    [nonce],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()
+                .map_err(|_| SecurityStoreError::Unavailable)?;
+            let Some((stored_digest, stored_json)) = existing else {
+                return Err(SecurityStoreError::ConflictingVersion);
+            };
+            if stored_digest.as_slice() != digest.as_slice() || stored_json != receipt_json {
+                return Err(SecurityStoreError::ConflictingVersion);
+            }
+        }
+        transaction
+            .commit()
+            .map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Load raw canonical receipt bytes for recovery. The caller must parse and
+    /// re-verify the receipt digest and executor attestation before trusting it.
+    pub fn latest_execution_receipt_bytes(
+        &self,
+        nonce: &str,
+    ) -> Result<Option<Vec<u8>>, SecurityStoreError> {
+        if nonce.trim().is_empty() {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        connection
+            .query_row(
+                "SELECT receipt_json FROM protected_effect_receipts WHERE nonce=?1",
+                [nonce],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)
     }
 
     pub fn approval_receipt_count(&self) -> Result<u64, SecurityStoreError> {
