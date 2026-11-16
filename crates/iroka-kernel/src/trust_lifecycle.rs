@@ -838,27 +838,42 @@ mod tests {
         let store = Arc::new(SqliteSecurityStore::open(&path).unwrap());
         let runtime = G12SecurityRuntime::restore(&roots, Arc::clone(&store), 1_200).unwrap();
         assert!(runtime.trust_snapshots().snapshot().is_ok());
-        assert!(runtime.evidence_verifier().verify(
-            &crate::RollbackEvidenceReceipt {
-                subject: "current_state".into(),
-                subject_digest: "a".repeat(64),
-                subject_epoch: 1,
-                revision: 1,
-                issuer: "issuer:state".into(),
-                key_id: "issuer-key-1".into(),
-                issued_at: 1_100,
-                expires_at: 1_200,
-                nonce: "runtime-nonce-single-use-000001".into(),
-                signature: vec![0; 64],
-            },
-            &crate::EvidenceBinding {
-                subject: "current_state".into(),
-                digest: "a".repeat(64),
-                epoch: 1,
-                revision: 1,
-            },
-            1_150,
-        ).is_err());
+        let issuer_signer = SigningKey::from_bytes(&[41u8; 32]);
+        let mut receipt = crate::RollbackEvidenceReceipt {
+            subject: "current_state".into(),
+            subject_digest: "a".repeat(64),
+            subject_epoch: 1,
+            revision: 1,
+            issuer: "issuer:state".into(),
+            key_id: "issuer-key-1".into(),
+            issued_at: 1_100,
+            expires_at: 1_200,
+            nonce: "runtime-nonce-single-use-000001".into(),
+            signature: Vec::new(),
+        };
+        let binding = crate::EvidenceBinding {
+            subject: "current_state".into(),
+            digest: "a".repeat(64),
+            epoch: 1,
+            revision: 1,
+        };
+        let payload = serde_json::json!({
+            "subject": receipt.subject,
+            "subject_digest": receipt.subject_digest,
+            "subject_epoch": receipt.subject_epoch,
+            "revision": receipt.revision,
+            "issuer": receipt.issuer,
+            "key_id": receipt.key_id,
+            "issued_at": receipt.issued_at,
+            "expires_at": receipt.expires_at,
+            "nonce": receipt.nonce
+        });
+        receipt.signature = issuer_signer.sign(&crate::canonical_json(&payload).unwrap()).to_bytes().to_vec();
+        assert_eq!(runtime.evidence_verifier().verify(&receipt, &binding, 1_150), Ok(()));
+        assert_eq!(
+            runtime.evidence_verifier().verify(&receipt, &binding, 1_150),
+            Err(crate::EvidenceVerificationError::Replay)
+        );
         let lineage = runtime.lineage_registry()
             .resolve_lineage("1.0.0", &candidate_digest).unwrap();
         assert_eq!(lineage.registry_revision, 3);
