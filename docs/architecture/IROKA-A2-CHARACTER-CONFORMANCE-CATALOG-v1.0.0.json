@@ -466,13 +466,18 @@
       "case_id": "CHAR-G03.INFERENCE-RULES-P",
       "gene_id": "g03.inference-rules",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (rules, premise_ids, query, rule_version, provenance), valid provenance/version evidence and the baseline positive condition (valid rule chain produces trace; unknown rule rejected), the gene must satisfy: Apply explicit, valid inference rules and expose unsupported steps.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given the exact approved input schema fields (non-empty unique rules with rule_id, rule_version, antecedent_premise_ids, conclusion_template and rule_expression; unique premise_ids; query; rule_version; provenance; version_bound_evidence), valid resolvable premises and registered deterministic rule versions, the baseline positive condition (valid rule chain produces trace; unknown rule rejected) must satisfy: apply only explicit, versioned, non-executable rules and expose complete derivations and unsupported steps.",
+      "expected": "Return conclusions only when each is supported by a complete ordered derivation trace linking exact premise IDs, rule IDs and rule versions; applied_rule_ids must exactly match rules used. Report unsupported or ambiguous steps separately, with reproducible evidence and no authority expansion.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all premise references resolve to exact premise-model version",
+        "rule versions resolve and are mutually compatible",
+        "rule expressions parse under deterministic non-executable grammar",
+        "derivation trace links every conclusion to premises and rules",
+        "applied_rule_ids exactly equals rules used",
+        "unsupported steps remain separate and explicit",
+        "confidence follows declared versioned policy",
+        "inference evidence is reproducible",
+        "no selective rule application or authority expansion"
       ],
       "existing_gene_io_case_id": "G03-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -486,13 +491,18 @@
       "case_id": "CHAR-G03.INFERENCE-RULES-N",
       "gene_id": "g03.inference-rules",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never fabricate deductions or selectively apply rules to favor a party.), and the baseline negative condition (rule references missing premise or unknown rule version), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never fabricate deductions or selectively apply rules to favor a party.), and baseline negative conditions including empty antecedents without registered axiom status, missing premise references, unknown/mixed rule versions, invalid or executable rule expression, conflicting rules, unsupported inference step or inconsistent derivation trace, the gene must fail closed or report the exact step as unsupported.",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose exact failing step, premise and rule references; never fabricate a conclusion, silently omit a conflict, accept a mismatched rule version or claim a rule was applied when it was not.",
       "assertions": [
         "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "missing premises and unknown rule versions rejected",
+        "empty antecedents require registered axiom status",
+        "invalid or executable rule expressions rejected",
+        "conflicting or ambiguous steps exposed",
+        "no unsupported conclusion emitted",
+        "applied_rule_ids cannot misstate execution trace",
+        "confidence is not fabricated",
+        "reason and reproducibility evidence recorded"
       ],
       "existing_gene_io_case_id": "G03-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1778,6 +1788,27 @@
         "G03-PREM-SEM-06",
         "G03-PREM-SEM-07",
         "G03-PREM-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G03-INFERENCE-RULES-SEMANTIC-REVIEW-001",
+      "gene_id": "g03.inference-rules",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G03.INFERENCE-RULES-P",
+        "CHAR-G03.INFERENCE-RULES-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G03-INF-SEM-01",
+        "G03-INF-SEM-02",
+        "G03-INF-SEM-03",
+        "G03-INF-SEM-04",
+        "G03-INF-SEM-05",
+        "G03-INF-SEM-06",
+        "G03-INF-SEM-07",
+        "G03-INF-SEM-08"
       ]
     }
   ]
