@@ -244,11 +244,7 @@ pub fn publish_witness_quorum(
     for witness in witnesses {
         if let Ok(receipt) = witness.publish(checkpoint) {
             if receipt
-                .verify(
-                    checkpoint,
-                    trusted_checkpoint_signers,
-                    trusted_witnesses,
-                )
+                .verify(checkpoint, trusted_checkpoint_signers, trusted_witnesses)
                 .is_ok()
             {
                 receipts.push(receipt);
