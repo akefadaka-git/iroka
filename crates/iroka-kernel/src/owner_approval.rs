@@ -60,7 +60,7 @@ impl OwnerApprovalPayload {
 
     /// Deterministic struct-field-order JSON used as the Ed25519 signing input.
     pub fn signing_bytes(&self) -> Result<Vec<u8>, OwnerApprovalError> {
-        serde_json::to_vec(self).map_err(|_| OwnerApprovalError::Malformed)
+        canonical_domain_bytes(self, OWNER_APPROVAL_DOMAIN)
     }
 }
 
@@ -151,7 +151,7 @@ pub struct OwnerSecurityCommandPayload {
 
 impl OwnerSecurityCommandPayload {
     pub fn signing_bytes(&self) -> Result<Vec<u8>, OwnerApprovalError> {
-        serde_json::to_vec(self).map_err(|_| OwnerApprovalError::Malformed)
+        canonical_domain_bytes(self, OWNER_SECURITY_COMMAND_DOMAIN)
     }
 }
 
@@ -171,6 +171,20 @@ impl SignedOwnerSecurityCommand {
 /// Owner authority is established only by explicitly provisioned public keys.
 /// There is no default Owner, self-registration, model-issued authority or
 /// automatic privilege inheritance. Private keys remain in an offline signer/HSM.
+const OWNER_APPROVAL_DOMAIN: &[u8] = b"IROKA:G02:OWNER-APPROVAL:V1\\0";
+const OWNER_SECURITY_COMMAND_DOMAIN: &[u8] = b"IROKA:G02:OWNER-SECURITY-COMMAND:V1\\0";
+
+fn canonical_domain_bytes<T: Serialize>(
+    value: &T,
+    domain: &[u8],
+) -> Result<Vec<u8>, OwnerApprovalError> {
+    let value = serde_json::to_value(value).map_err(|_| OwnerApprovalError::Malformed)?;
+    let canonical = crate::canonical_json(&value).map_err(|_| OwnerApprovalError::Malformed)?;
+    let mut bytes = domain.to_vec();
+    bytes.extend_from_slice(&canonical);
+    Ok(bytes)
+}
+
 pub struct OwnerApprovalVerifier {
     keys: HashMap<String, OwnerKeyRecord>,
     store: Arc<SqliteSecurityStore>,
@@ -479,6 +493,37 @@ mod tests {
             .to_bytes()
             .to_vec();
         SignedOwnerApproval::from_signature(payload, signature)
+    }
+
+    #[test]
+    fn owner_signatures_use_canonical_domain_separated_payloads() {
+        let approval = OwnerApprovalPayload::new(
+            "approval:canonical",
+            "owner:test",
+            "owner-key:test",
+            "principal:test",
+            "records.export",
+            "records:1",
+            "policy:v1",
+            1_000,
+            1_200,
+        );
+        let command = OwnerSecurityCommandPayload {
+            command_id: "command:canonical".into(),
+            owner_subject: "owner:test".into(),
+            key_id: "owner-key:test".into(),
+            issued_at: 1_000,
+            expires_at: 1_200,
+            action: OwnerSecurityAction::RevokeApproval {
+                approval_id: "approval:old".into(),
+                reason: "test".into(),
+            },
+        };
+        let approval_bytes = approval.signing_bytes().unwrap();
+        let command_bytes = command.signing_bytes().unwrap();
+        assert!(approval_bytes.starts_with(OWNER_APPROVAL_DOMAIN));
+        assert!(command_bytes.starts_with(OWNER_SECURITY_COMMAND_DOMAIN));
+        assert_ne!(approval_bytes, command_bytes);
     }
 
     #[test]
