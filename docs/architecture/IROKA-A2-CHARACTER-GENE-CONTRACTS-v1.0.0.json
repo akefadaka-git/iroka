@@ -10356,7 +10356,8 @@
           "candidate_digest",
           "revocation_floor",
           "rollback_authorization",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "decision",
@@ -10364,7 +10365,8 @@
           "effective_digest",
           "denial_reason",
           "guard_digest",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -10401,6 +10403,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -10433,6 +10440,11 @@
             "name": "evidence",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ]
       },
@@ -10447,56 +10459,194 @@
         {
           "field": "current_epoch",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-negative authoritative current epoch and bind it to the trusted active-state record; reject missing, stale, conflicting or unverifiable current-state evidence."
         },
         {
           "field": "current_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve the digest algorithm and canonical serialization policy; recompute or independently verify the digest against the exact current state, not a caller-supplied string alone."
         },
         {
           "field": "candidate_epoch",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-negative candidate epoch; compare it deterministically with current_epoch and the revocation floor. A lower epoch is a rollback candidate and must never be allowed solely because authorization is present."
         },
         {
           "field": "candidate_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify the candidate digest against the exact candidate artifact and approved digest algorithm; reject mismatches, ambiguous artifacts and weak/unsupported algorithms."
         },
         {
           "field": "revocation_floor",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve the authoritative, monotonic revocation floor from trusted version-bound evidence; reject stale, rolled-back, conflicting or unauthenticated floors. Candidate epoch below the floor is always denied."
         },
         {
           "field": "rollback_authorization",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Treat null as no authorization. For non-null values, resolve an authenticated Owner-approved authorization bound to exact current/candidate digests and epochs, reason, scope, expiry and revocation status. Authorization cannot override the revocation floor, identity, safety or constitutional invariants."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify trusted provenance for current state, candidate state, revocation floor and authorization; bind issuer, timestamps/epochs, source identifiers and artifact digests. Missing, untrusted or conflicting provenance fails closed."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require authenticated evidence bound to the exact schema/contract version, current and candidate epochs/digests, revocation-floor revision and decision inputs; reject stale, replayed, incomplete or mismatched evidence."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Detect rollback and preserve protected floors, evidence and recovery integrity.",
+          "assertion": "A decision of allow is possible only for an integrity-verified candidate whose epoch is not below the current epoch or authoritative revocation floor, and whose provenance and version-bound evidence validate.",
           "observable_fields": [
             "decision",
-            "evidence"
+            "effective_epoch",
+            "effective_digest",
+            "denial_reason",
+            "guard_digest",
+            "evidence",
+            "version_bound_evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "A candidate below the revocation floor is always denied; rollback authorization cannot lower or bypass the floor or any identity, safety or constitutional invariant.",
           "observable_fields": [
             "decision",
-            "evidence"
+            "effective_epoch",
+            "effective_digest",
+            "denial_reason",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "The output decision, effective epoch/digest and denial_reason are mutually consistent: allow has no denial reason and identifies the verified candidate; deny has a non-empty reason and does not represent the rejected candidate as effective.",
+          "observable_fields": [
+            "decision",
+            "effective_epoch",
+            "effective_digest",
+            "denial_reason",
+            "guard_digest"
+          ]
+        },
+        {
+          "assertion": "guard_digest is reproducibly computed over a canonical, versioned decision envelope that binds all decision inputs, policy/floor revision, outcome and evidence references; it is not accepted as an opaque caller assertion.",
+          "observable_fields": [
+            "guard_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Unknown, stale, replayed, malformed or conflicting evidence produces a fail-closed denial or explicit unresolved state; no evidence or authorization is fabricated.",
+          "observable_fields": [
+            "decision",
+            "denial_reason",
+            "evidence",
+            "version_bound_evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never roll back to an untrusted or constitutionally weaker state. fail-closed"
+      "character_failure_rule": "Never roll back to an untrusted or constitutionally weaker state. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G12-ROLLBACK-GUARD-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "fb87ce289144f3ff71c9e8d0799a6504baf0da75",
+          "a2_contract_blob_before_review": "53f937dec70d8b5384cfc984d9a94abd730c737f",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "aaadfb688a6a7fb4a5395ada499b38480a637ec0",
+          "output_schema_blob": "4df169bc905873195b38925e263e6589275b29f0"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires current_epoch, current_digest, candidate_epoch, candidate_digest, revocation_floor, rollback_authorization, provenance and version_bound_evidence; additional top-level properties are rejected.",
+          "Input types distinguish integer epochs/floor, string digests, nullable authorization, and object provenance/evidence.",
+          "Output schema constrains decision to allow or deny and requires effective_epoch, effective_digest, denial_reason, guard_digest, evidence and version_bound_evidence.",
+          "Output evidence requires both provenance and version_bound_evidence; undeclared top-level properties are rejected.",
+          "The existing positive and negative vectors identify permitted forward transition, candidate below revocation floor and stale epoch as baseline conditions."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G12-RG-SEM-01",
+            "severity": "HIGH",
+            "finding": "Epoch fields and revocation_floor are integers but have no minimum, monotonicity, source-of-truth or overflow/representation constraints.",
+            "required_disposition": "Define non-negative epoch domain, authoritative epoch source, monotonic floor semantics and deterministic comparison/overflow handling."
+          },
+          {
+            "gap_id": "G12-RG-SEM-02",
+            "severity": "HIGH",
+            "finding": "current_digest and candidate_digest are unrestricted strings; algorithm, encoding, canonicalization and artifact binding are unspecified.",
+            "required_disposition": "Specify versioned digest algorithms, canonical serialization, format validation and recomputation against exact artifacts."
+          },
+          {
+            "gap_id": "G12-RG-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "The schema does not encode the decision invariant that a candidate below revocation_floor must be denied.",
+            "required_disposition": "Make the floor an absolute deny condition in policy and add adversarial conformance vectors proving authorization cannot bypass it."
+          },
+          {
+            "gap_id": "G12-RG-SEM-04",
+            "severity": "HIGH",
+            "finding": "rollback_authorization is nullable/free-form and is not bound to an authenticated Owner, exact state transition, scope, reason, expiry or revocation state.",
+            "required_disposition": "Resolve non-null authorization to a signed, scoped, time-bounded Owner approval bound to exact current/candidate identities and digests; null means absent."
+          },
+          {
+            "gap_id": "G12-RG-SEM-05",
+            "severity": "HIGH",
+            "finding": "The output permits contradictory combinations of decision, effective epoch/digest and denial_reason.",
+            "required_disposition": "Add conditional output constraints and conformance assertions for allow/deny consistency and rejected-candidate non-effectiveness."
+          },
+          {
+            "gap_id": "G12-RG-SEM-06",
+            "severity": "HIGH",
+            "finding": "guard_digest is only a required string; no canonical decision-envelope definition or recomputation rule exists.",
+            "required_disposition": "Define a versioned canonical envelope and reproducible digest binding every decision input, policy revision, outcome and evidence reference."
+          },
+          {
+            "gap_id": "G12-RG-SEM-07",
+            "severity": "HIGH",
+            "finding": "Provenance and version_bound_evidence are only non-empty objects; issuer trust, freshness, replay resistance and exact decision-input binding are unspecified.",
+            "required_disposition": "Define authenticated, fresh, replay-resistant evidence binding current/candidate state, floor revision, authorization and schema/policy versions."
+          },
+          {
+            "gap_id": "G12-RG-SEM-08",
+            "severity": "HIGH",
+            "finding": "The output schema does not state how effective state is selected on denial; it could accidentally report the rejected candidate as effective.",
+            "required_disposition": "Define deny semantics to retain the verified current state or return an explicit unresolved state, never the rejected candidate as effective."
+          },
+          {
+            "gap_id": "G12-RG-SEM-09",
+            "severity": "MEDIUM",
+            "finding": "No explicit precedence is defined among revocation-floor violation, stale epoch, digest mismatch, invalid authorization and provenance failure.",
+            "required_disposition": "Define deterministic denial precedence and stable machine-readable denial codes while preserving a human-readable denial_reason."
+          },
+          {
+            "gap_id": "G12-RG-SEM-10",
+            "severity": "HIGH",
+            "finding": "The schema and existing two vectors do not test authorization replay, digest substitution, floor rollback, stale evidence, conflicting state or contradictory outputs.",
+            "required_disposition": "Expand positive/negative vectors for each invariant and ensure every vector binds exact schema IDs and version-bound evidence."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g12.rollback-guard input/output schemas and its gene-specific conformance vectors to close G12-RG-SEM-01 through G12-RG-SEM-10.",
+          "Preserve the existing 12 chromosomes, 36 genes, gene responsibilities and all unrelated contracts.",
+          "Do not permit rollback below the revocation floor, even with rollback authorization; do not confer Owner authority or execution capability through schema changes.",
+          "Specify canonical digest/envelope, signed scoped authorization, evidence freshness and deterministic allow/deny output invariants.",
+          "Run Draft 2020-12 meta-validation and exact-head schema/conformance tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     }
   ],
   "a2_boundary": {
