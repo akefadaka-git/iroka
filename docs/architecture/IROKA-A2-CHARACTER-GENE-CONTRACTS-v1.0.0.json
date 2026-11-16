@@ -7252,54 +7252,191 @@
         {
           "field": "effect_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to the canonical, active effect-contract record and bind admission to its exact immutable revision/digest, target, operation and resource scope; reject unknown, changed, substituted or inadmissible effects."
         },
         {
           "field": "authorization_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated versioned authorization record; verify issuer, subject, audience, tenant, exact effect/target/resource scope, validity interval, status and revocation state. Identifier presence is not approval."
         },
         {
           "field": "authorization_signature",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify the signature over the canonical authorization payload using a trusted versioned algorithm and key registry; authenticate signer identity and key validity/revocation, and reject malformed, invalid, stale or ambiguous signatures."
         },
         {
           "field": "policy_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve and independently recompute the digest against a trusted immutable policy snapshot using an approved algorithm/version; verify policy applicability and freshness and reject unknown, stale, substituted or rolled-back policy."
         },
         {
           "field": "expires_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a canonical timezone-aware timestamp and validate the complete authorization validity interval against a trusted clock with bounded skew; reject expired, not-yet-valid, malformed or excessively long-lived authorization."
         },
         {
           "field": "nonce",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a cryptographically unpredictable nonce bound to authorization, principal, audience and validity window; perform durable atomic single-use consumption with replay and concurrency protection. A failed or unavailable replay check fails closed."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Authenticate and freshness-check provenance and version_bound_evidence; bind evidence to effect, authorization payload, signer/key, policy snapshot, trusted clock, revocation state and nonce transaction. Missing or conflicting evidence fails closed."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Require exact, current, scoped authorization and all mandatory safety gates.",
+          "assertion": "Admit only when the exact effect contract, signed authorization, principal, audience, tenant, target, resource scope and policy snapshot all match and remain current; admission does not execute the effect.",
           "observable_fields": [
+            "admitted",
+            "authorization_digest",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Verify signature authenticity and signer/key trust against current revocation state; never treat a signature-shaped string or authorization reference as proof of approval.",
           "observable_fields": [
+            "admitted",
+            "denial_code",
+            "authorization_digest",
             "evidence"
+          ]
+        },
+        {
+          "assertion": "Evaluate validity using a trusted clock and reject expired, not-yet-valid, stale or time-ambiguous authorizations.",
+          "observable_fields": [
+            "admitted",
+            "denial_code",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Consume each nonce atomically at most once; concurrent or subsequent replay attempts are denied and the output truthfully records whether the nonce was consumed.",
+          "observable_fields": [
+            "admitted",
+            "consumed_nonce",
+            "denial_code",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Keep output states consistent: admitted=true requires denial_code=null and a verified authorization digest plus successful nonce transaction; admitted=false requires a non-empty denial_code and accurate consumed_nonce semantics.",
+          "observable_fields": [
+            "admitted",
+            "denial_code",
+            "consumed_nonce",
+            "authorization_digest"
+          ]
+        },
+        {
+          "assertion": "Evidence independently reproduces the effect/authorization binding, signature and key verification, policy revision, clock decision, revocation snapshot and nonce transaction; unknown or unavailable checks fail closed.",
+          "observable_fields": [
+            "evidence",
+            "authorization_digest",
+            "admission_id",
+            "admitted"
           ]
         }
       ],
-      "character_failure_rule": "Fail closed on missing, expired, conflicting or unverifiable approval. fail-closed"
+      "character_failure_rule": "Fail closed on missing, expired, conflicting or unverifiable approval. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G09-ADMISSION-GATE-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "54f49f949d4ed609032aefd6345136b64245f201",
+          "a2_contract_blob_before_review": "bef17532f8958fb94e803a298bf0030e8818abb8",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "c6403bf0d82dc7710ec5d4afb8b293dc13095d3f",
+          "output_schema_blob": "7d85b6622b96f33acea6a8e74f646d712c781eb8"
+        },
+        "confirmed_sufficient": [
+          "Input requires effect_id, authorization_ref, authorization_signature, policy_digest, expires_at, nonce, provenance and version_bound_evidence; undeclared top-level properties are rejected.",
+          "Output requires admission_id, admitted, denial_code, authorization_digest, consumed_nonce, evidence and version_bound_evidence; admitted is boolean and denial_code/consumed_nonce permit null.",
+          "Evidence definitions require provenance and version_bound_evidence objects with at least one property, and top-level output properties are closed."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G09-AG-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "effect_id is an unrestricted string and is not cryptographically or semantically bound to the exact previously evaluated effect contract and immutable revision.",
+            "required_disposition": "Resolve effect_id to the canonical approved effect-contract registry; bind authorization and admission to its exact immutable digest/revision, target and resource scope."
+          },
+          {
+            "gap_id": "G09-AG-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "authorization_ref is an unrestricted string; no canonical authorization registry, issuer, subject, audience, tenant, scope or lifecycle status is required.",
+            "required_disposition": "Resolve authorization_ref to an authenticated, versioned authorization record with issuer, subject, audience, tenant, scope, effect binding, status and revocation state."
+          },
+          {
+            "gap_id": "G09-AG-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "authorization_signature is an unrestricted string; signer identity, key trust, signature algorithm, canonical signed payload, signature verification and key revocation are unspecified.",
+            "required_disposition": "Verify a cryptographic signature over a canonical authorization payload using a trusted, versioned algorithm/key policy; bind signer identity and key status, and reject invalid, revoked or ambiguous signatures."
+          },
+          {
+            "gap_id": "G09-AG-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "The schema does not establish that the authorization covers the exact effect, target, resource scope, risk class, principal, audience or requested operation; scoped authorization is only described at a high level.",
+            "required_disposition": "Require exact least-privilege scope and principal/audience/tenant binding to the previously verified effect contract; reject any mismatch, excess scope or substitution."
+          },
+          {
+            "gap_id": "G09-AG-SEM-05",
+            "severity": "HIGH",
+            "finding": "policy_digest is an unrestricted string with no canonical digest syntax, algorithm, policy registry, immutable policy snapshot or applicability/rollback validation.",
+            "required_disposition": "Resolve and recompute policy_digest against a trusted immutable policy snapshot, approved algorithm/version and applicable policy epoch; reject stale, unknown or rolled-back policies."
+          },
+          {
+            "gap_id": "G09-AG-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "expires_at is an unrestricted string with no date-time format, timezone requirement, not-before bound, trusted clock, clock-skew allowance or maximum authorization lifetime.",
+            "required_disposition": "Require canonical timezone-aware timestamps and evaluate not-before/expiry against a trusted monotonic or authenticated clock with bounded skew and explicit validity interval."
+          },
+          {
+            "gap_id": "G09-AG-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "nonce is an unrestricted string; uniqueness, entropy, issuer/session binding, validity window and atomic single-use consumption are not defined, so replay prevention is not enforceable from the schema.",
+            "required_disposition": "Require cryptographically unpredictable nonce values bound to authorization/principal/audience and atomically consume them in a durable replay-resistant store; concurrent duplicates must fail closed."
+          },
+          {
+            "gap_id": "G09-AG-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "No explicit input field or required evidence establishes current authorization revocation/status, signer/key revocation, emergency suspension or intervening policy/authority changes.",
+            "required_disposition": "Check live revocation and suspension state immediately before admission, bind freshness/version evidence and fail closed on unavailable, stale or conflicting status."
+          },
+          {
+            "gap_id": "G09-AG-SEM-09",
+            "severity": "HIGH",
+            "finding": "Output fields admitted, denial_code and consumed_nonce can be contradictory; no conditional constraints distinguish accepted admission from denial or explain whether nonce consumption occurred on failed attempts.",
+            "required_disposition": "Enforce output invariants: admitted=true requires no denial code and exact successful nonce consumption; admitted=false requires a stable denial code and truthful consumed_nonce semantics, with no ambiguous state."
+          },
+          {
+            "gap_id": "G09-AG-SEM-10",
+            "severity": "HIGH",
+            "finding": "admission_id, authorization_digest and evidence are weakly constrained; output does not prove which exact authorization, policy, effect, verifier, clock, revocation snapshot and nonce transaction produced the decision.",
+            "required_disposition": "Define canonical admission identity/digest and structured reproducible evidence binding authorization, signature verification, effect, policy, clock, revocation checks, nonce transaction and decision."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g09.admission-gate input/output schemas and its conformance vectors to address G09-AG-SEM-01 through G09-AG-SEM-10.",
+          "Introduce canonical effect and authorization references, signer/key trust, exact principal/audience/tenant/scope binding and current revocation checks.",
+          "Define canonical signature payload, approved cryptographic algorithms, policy snapshot digest and trusted-clock validity semantics.",
+          "Implement durable atomic nonce consumption with concurrency-safe replay prevention and explicit failed-attempt semantics.",
+          "Add schema-level output consistency constraints and structured evidence binding all verification inputs and the final admission decision.",
+          "Preserve the separation between admission, authorization and execution: an admitted result is not an execution command or permission to bypass independent safety gates.",
+          "Preserve the existing 12 chromosomes, 36 genes and all unrelated contracts; run Draft 2020-12 meta-validation and exact-head conformance tests only after A3 is separately authorized."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g09.execution-receipt",
