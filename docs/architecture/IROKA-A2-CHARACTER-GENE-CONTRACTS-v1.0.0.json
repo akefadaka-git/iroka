@@ -9778,63 +9778,213 @@
         {
           "field": "mutation_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a stable unique mutation request identity and bind it to immutable canonical mutation content; reject reuse with changed content."
         },
         {
           "field": "target_gene",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve exactly one registered target gene and bind its immutable contract and schema revision; reject unknown or ambiguous targets."
         },
         {
           "field": "base_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve the exact immutable current target artifact and verify its canonical version and lineage."
         },
         {
           "field": "proposed_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate canonical version syntax, compatibility, lineage and permitted upgrade/downgrade policy against the base artifact."
         },
         {
           "field": "risk_class",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Classify against a versioned closed taxonomy using evidence-backed criteria and derive mandatory gates deterministically."
         },
         {
           "field": "protected_invariants",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve the complete mandatory invariant set from the constitutional and target-gene registries; reject omissions, stale IDs and substitutions."
         },
         {
           "field": "approval_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve explicit authenticated Owner approval where required; bind signed approval to exact mutation digest, target, versions, risk and invariant set; null is never approval."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify authentic issuer, integrity, freshness and lineage for the mutation request, target artifacts, policy and approval."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require immutable evidence binding the exact policy, registry revisions, target versions, invariant set, approvals, gate evaluations and decision."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Permit only explicitly approved, classified and testable mutation classes.",
+          "assertion": "Target identity and base/proposed versions resolve to immutable registered artifacts with valid lineage.",
           "observable_fields": [
+            "mutation_id",
             "permitted",
             "policy_digest",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Risk classification and complete protected-invariant inventory are derived from versioned authoritative registries, not caller-selected omissions.",
+          "observable_fields": [
+            "required_gates",
+            "denial_reasons",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Protected or constitutional invariant changes require explicit authenticated Owner approval bound to the exact mutation; null approval never grants permission.",
           "observable_fields": [
             "permitted",
+            "denial_reasons",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Required gates are unique, complete and evidence-backed; permitted=true requires every blocking gate to pass.",
+          "observable_fields": [
+            "permitted",
+            "required_gates",
+            "denial_reasons",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "permitted, denial_reasons, required_gates and evidence satisfy deterministic consistency rules; unknown or failed blocking gates force permitted=false.",
+          "observable_fields": [
+            "permitted",
+            "required_gates",
+            "denial_reasons",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Policy digest is recomputed from canonical effective policy and all decision-relevant inputs and registry revisions.",
+          "observable_fields": [
             "policy_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "The decision is an assessment only; this gene cannot mutate, approve, authorize, merge, deploy or execute changes.",
+          "observable_fields": [
+            "mutation_id",
+            "permitted",
+            "required_gates",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never allow mutation to weaken constitutional invariants without Owner approval. fail-closed"
+      "character_failure_rule": "Never allow mutation to weaken constitutional invariants without explicit authenticated Owner approval. Fail closed for unknown target/version/risk, incomplete or stale invariant sets, missing or mismatched approval, unresolved/failed/unknown blocking gates, denial/output inconsistency, policy digest mismatch or unverifiable evidence. This gene evaluates policy only and never performs or authorizes mutation execution.",
+      "semantic_reconciliation": {
+        "review_id": "A2-G12-MUTATION-POLICY-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "9f6d54de960d6e15b48862481cf1dc2d02b24b42",
+          "a2_contract_blob_before_review": "c64dff799c49efcd342ba6bdef75250aa9988d20",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "6a6c503b59eae809e1a6f5b1e6858fff9a41db68",
+          "output_schema_blob": "994ecb178e5a7ffdf9a8de4a5fe283fb341b4eee"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires mutation_id, target_gene, base_version, proposed_version, risk_class, protected_invariants, approval_ref, provenance and version_bound_evidence; top-level additional properties are rejected.",
+          "protected_invariants is non-empty, unique and contains non-empty strings; approval_ref explicitly permits string or null.",
+          "Output schema requires permitted, required_gates, policy_digest, denial_reasons, evidence and version_bound_evidence.",
+          "Gate records and denial records have required fields and reject additional properties; evidence requires provenance and version-bound evidence."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G12-MP-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "target_gene is an unconstrained string and is not resolved to a registered gene identity, current version or immutable contract artifact.",
+            "required_disposition": "Resolve target_gene to exactly one registered gene and bind the policy decision to its immutable contract/schema revision; reject unknown, ambiguous or retired targets."
+          },
+          {
+            "gap_id": "G12-MP-SEM-02",
+            "severity": "HIGH",
+            "finding": "base_version and proposed_version are arbitrary strings; ordering, compatibility, downgrade, prerelease and immutable source identity rules are undefined.",
+            "required_disposition": "Require canonical version identifiers and resolve each to immutable artifacts; enforce permitted upgrade/downgrade and compatibility policy explicitly."
+          },
+          {
+            "gap_id": "G12-MP-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "risk_class is an arbitrary string with no controlled taxonomy, assessment criteria, assessor provenance or mandatory gate mapping.",
+            "required_disposition": "Define a versioned closed risk taxonomy, evidence-based classification criteria and deterministic mapping from each risk class to mandatory gates."
+          },
+          {
+            "gap_id": "G12-MP-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "protected_invariants is only non-empty and unique; the schema extension says each ID resolves to a versioned invariant but does not enforce completeness or prevent omission of applicable invariants.",
+            "required_disposition": "Resolve the complete mandatory invariant set from the target gene and constitutional registry; compare supplied IDs to that set and reject omissions, substitutions or stale references."
+          },
+          {
+            "gap_id": "G12-MP-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "approval_ref may be null and, when present, is an arbitrary string; Owner identity, explicit signed approval, scope, mutation digest, expiry and revocation are not verified.",
+            "required_disposition": "Require authenticated, explicit Owner approval for constitutional/protected invariant changes; bind signed approval to exact mutation, target, versions, risk and invariant set, with validity and revocation checks. Null must never be interpreted as approval."
+          },
+          {
+            "gap_id": "G12-MP-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "required_gates uniqueness and mandatory gate completeness exist only as x-genesis metadata; no normative gate lifecycle, evidence, reviewer independence or pass criteria are specified.",
+            "required_disposition": "Enforce unique gate IDs and complete policy-derived gate inventory; define evidence-backed pass/fail/blocked states and independent review where required. All blocking gates must pass before permitted=true."
+          },
+          {
+            "gap_id": "G12-MP-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "permitted has no schema-level consistency rules with denial_reasons, required_gates or evidence; permitted=true could coexist with denial reasons or failed/missing blocking gates.",
+            "required_disposition": "Define deterministic output invariants: permitted=true only with zero denials, all blocking gates passed, verified approval where required and complete evidence; any unknown or failed blocking gate forces false."
+          },
+          {
+            "gap_id": "G12-MP-SEM-08",
+            "severity": "HIGH",
+            "finding": "denial_reasons uniqueness and invariant_ref resolution exist only in extension metadata; reason codes are free-form and may be omitted when permitted=false.",
+            "required_disposition": "Define a controlled reason-code registry, enforce unique codes and resolvable invariant references, and require at least one actionable denial reason whenever permitted=false."
+          },
+          {
+            "gap_id": "G12-MP-SEM-09",
+            "severity": "CRITICAL",
+            "finding": "policy_digest is an unconstrained string without canonical policy version, algorithm, recomputation or binding to target, mutation, risk, invariants, approvals and gates.",
+            "required_disposition": "Compute and verify a versioned digest over canonical effective policy and all decision inputs, including policy precedence and registry revisions; reject mismatches."
+          },
+          {
+            "gap_id": "G12-MP-SEM-10",
+            "severity": "CRITICAL",
+            "finding": "Provenance/evidence are non-empty objects without issuer authenticity, freshness, immutable version binding or proof that policy evaluation itself cannot execute the mutation; contract inventory omits version_bound_evidence.",
+            "required_disposition": "Align inventory with schema-required version_bound_evidence; verify provenance and evidence for every input and gate, and explicitly restrict this gene to policy evaluation with no mutation side effects or execution authority."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g12.mutation-policy input/output schemas and its positive/negative conformance vectors for G12-MP-SEM-01 through G12-MP-SEM-10.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not alter unrelated contracts.",
+          "Resolve target and versions to immutable registered artifacts; define canonical version and lineage checks.",
+          "Introduce controlled risk and denial taxonomies and derive the complete protected-invariant set from authoritative registries.",
+          "Require explicit authenticated Owner approval for protected/constitutional changes, cryptographically bound to the exact mutation and context; null is never approval.",
+          "Define complete unique gate inventory and deterministic evidence-backed gate outcomes; every blocking gate must pass for permitted=true.",
+          "Enforce output consistency across permitted, gates, denials and evidence; unknown or failed conditions deny.",
+          "Define canonical policy digest and verify provenance/version-bound evidence for all decision inputs and gate outcomes.",
+          "Keep this gene assessment-only: it cannot execute mutations or confer approval, authorization, merge or deployment permission.",
+          "After separate A3 authorization, test missing invariant IDs, null/forged/expired approval, unknown target/version/risk, failed/unknown gates, duplicate gates/denial codes, inconsistent outputs and digest/evidence tampering."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g12.version-lineage",
