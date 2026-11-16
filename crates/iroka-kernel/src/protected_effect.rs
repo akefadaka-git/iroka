@@ -272,6 +272,7 @@ pub struct TrustedExecutorKey {
     pub public_key: [u8; 32],
     pub not_before: u64,
     pub not_after: u64,
+    pub revoked_at: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -401,6 +402,7 @@ impl ExecutionReceipt {
         trusted_keys: &[TrustedExecutorKey],
     ) -> Result<(), ProtectedEffectError> {
         self.verify_integrity()?;
+        validate_executor_keys(trusted_keys)?;
         let (Some(key_id), Some(signature)) = (
             self.executor_key_id.as_deref(),
             self.executor_signature.as_deref(),
@@ -420,6 +422,7 @@ impl ExecutionReceipt {
         if key.executor_subject != self.executor_subject
             || self.completed_at < key.not_before
             || self.completed_at >= key.not_after
+            || key.revoked_at.is_some_and(|revoked_at| self.completed_at >= revoked_at)
         {
             return Err(ProtectedEffectError::UnknownExecutorKey);
         }
@@ -492,6 +495,7 @@ pub enum ProtectedEffectError {
     OwnerApproval(OwnerApprovalError),
     AuditUnavailable,
     InvalidExecutorAttestation,
+    InvalidExecutorKeySet,
     UnknownExecutorKey,
     ReceiptIntegrityFailure,
     StoreUnavailable,
@@ -520,10 +524,31 @@ pub struct ProtectedExecutionContext<'a> {
     pub correlation_id: &'a str,
 }
 
+fn validate_executor_keys(keys: &[TrustedExecutorKey]) -> Result<(), ProtectedEffectError> {
+    let mut key_ids = std::collections::HashSet::new();
+    let mut public_keys = std::collections::HashSet::new();
+    for key in keys {
+        if key.executor_subject.trim().is_empty()
+            || key.executor_subject.len() > 256
+            || key.key_id.trim().is_empty()
+            || key.key_id.len() > 256
+            || key.not_before >= key.not_after
+            || key.revoked_at.is_some_and(|revoked_at| revoked_at < key.not_before)
+            || VerifyingKey::from_bytes(&key.public_key).is_err()
+            || !key_ids.insert(key.key_id.as_str())
+            || !public_keys.insert(key.public_key)
+        {
+            return Err(ProtectedEffectError::InvalidExecutorKeySet);
+        }
+    }
+    Ok(())
+}
+
 pub fn execute_protected_effect(
     context: ProtectedExecutionContext<'_>,
 ) -> Result<ExecutionReceipt, ProtectedEffectError> {
     context.effect.validate()?;
+    validate_executor_keys(context.executor_keys)?;
     if context.principal.subject().trim().is_empty()
         || context.policy.version().trim().is_empty()
         || context.genesis.epoch() != 0
@@ -704,6 +729,7 @@ fn verify_execution_result(
     if key.executor_subject != p.executor_subject
         || p.completed_at < key.not_before
         || p.completed_at >= key.not_after
+        || key.revoked_at.is_some_and(|revoked_at| p.completed_at >= revoked_at)
     {
         return Err(ProtectedEffectError::UnknownExecutorKey);
     }
@@ -761,6 +787,7 @@ mod tests {
                 public_key: self.key.verifying_key().to_bytes(),
                 not_before: 900,
                 not_after: 5_000,
+                revoked_at: None,
             }
         }
 
@@ -1194,6 +1221,97 @@ mod tests {
             ),
             Err(OwnerApprovalError::Replay)
         );
+    }
+
+    #[test]
+    fn revoked_executor_key_cannot_produce_a_success_receipt() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let policy = policy();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:revoked-executor",
+        );
+        let executor = TestExecutor::new("executor:finance", "executor-key-revoked", 95);
+        let mut trusted_key = executor.trusted_key();
+        trusted_key.revoked_at = Some(1_201);
+        let audit = SqliteAuditSink::open_in_memory().unwrap();
+
+        let receipt = execute_protected_effect(ProtectedExecutionContext {
+            effect: &effect,
+            principal: &principal,
+            genesis: &genesis,
+            grant: &grant,
+            owner_verifier: &owner,
+            executor: &executor,
+            executor_keys: &[trusted_key.clone()],
+            audit_sink: &audit,
+            policy: &policy,
+            now: 1_200,
+            emergency_stop_active: false,
+            admission_event_id: "event:revoked-executor-admission",
+            result_event_id: "event:revoked-executor-result",
+            correlation_id: "trace:revoked-executor",
+        })
+        .unwrap();
+        assert_eq!(receipt.status(), ExecutionStatus::Indeterminate);
+        receipt.verify_integrity().unwrap();
+        assert_eq!(receipt.verify_executor_attestation(&[trusted_key]), Ok(()));
+    }
+
+    #[test]
+    fn duplicate_executor_trust_keys_fail_before_consuming_owner_grant() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let policy = policy();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:duplicate-executor-key",
+        );
+        let executor = TestExecutor::new("executor:finance", "executor-key-duplicate", 96);
+        let key = executor.trusted_key();
+        let audit = SqliteAuditSink::open_in_memory().unwrap();
+
+        assert_eq!(
+            execute_protected_effect(ProtectedExecutionContext {
+                effect: &effect,
+                principal: &principal,
+                genesis: &genesis,
+                grant: &grant,
+                owner_verifier: &owner,
+                executor: &executor,
+                executor_keys: &[key.clone(), key],
+                audit_sink: &audit,
+                policy: &policy,
+                now: 1_200,
+                emergency_stop_active: false,
+                admission_event_id: "event:duplicate-key-admission",
+                result_event_id: "event:duplicate-key-result",
+                correlation_id: "trace:duplicate-key",
+            }),
+            Err(ProtectedEffectError::InvalidExecutorKeySet)
+        );
+        assert_eq!(executor.calls.load(Ordering::SeqCst), 0);
+        owner
+            .verify_and_consume_effect_grant(
+                &grant,
+                &effect,
+                &principal,
+                &genesis,
+                "policy-v1",
+                1_200,
+            )
+            .unwrap();
     }
 
     #[test]
