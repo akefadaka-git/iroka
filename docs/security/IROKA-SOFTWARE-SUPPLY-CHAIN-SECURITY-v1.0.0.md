@@ -1,25 +1,23 @@
 # IROKA Software Supply-Chain Security Baseline v1.0.0
 
-**Status:** A3.10.5 implementation baseline  
+**Status:** A3.10.5 implementation baseline; CI validation pending  
 **Deployment:** Not authorized  
-**CI execution:** Pending workflow activation on the protected default branch or authorized manual dispatch
+**Implementation branch:** `feat/a3-security-workstreams`
 
 ## 1. Objective
 
-Establish a reproducible, read-only security gate for dependency integrity, known vulnerabilities, license policy, source provenance, unsafe-code policy and repository secret scanning. The gate uses public/free tooling and requires no repository secrets, paid CI minutes, private registry or external deployment credentials.
+Establish a read-only security gate for dependency integrity, known vulnerabilities, license policy, source restrictions, unsafe-code policy and repository secret scanning. The gate uses public/free tooling and requires no repository secrets, paid CI minutes, private registry or external deployment credentials.
 
 ## 2. Repository dependency inventory
 
 The exact `Cargo.lock` at the A3.10 baseline was fetched and parsed:
 - Blob SHA: `ad864ae2b098c1cdea7a81d2d2fc8cdcf9fddf63`
-- 62 locked package records.
-- 61 external packages plus the `iroka-kernel` workspace package.
-- 0 Git-sourced dependencies.
-- 0 non-crates.io registry sources.
+- 62 locked package records: 61 external packages plus the `iroka-kernel` workspace package.
+- 0 Git-sourced dependencies and 0 non-crates.io registry sources.
 - All external packages resolve from the canonical crates.io index.
-- Two versions of `syn` are present: 2.0.119 and 3.0.9. The initial duplicate-version policy reports this as a warning pending dependency-graph review; wildcard dependencies are denied.
+- Two versions of `syn` are present: 2.0.119 and 3.0.9. The policy reports multiple versions as a warning pending explicit dependency-graph disposition; wildcard dependencies are denied.
 
-The lockfile is committed and all security/build workflows use `--locked` for Cargo resolution.
+The lockfile is committed. Security/build workflows use locked Cargo resolution. Cargo metadata and the lockfile provide a machine-readable dependency inventory; a separately generated SBOM and signed build-provenance attestation are not yet produced and remain a documented enhancement/gap.
 
 ## 3. Pinned toolchain and scanner versions
 
@@ -27,7 +25,7 @@ The lockfile is committed and all security/build workflows use `--locked` for Ca
 - RustSec cargo-audit: 0.23.0, installed with `--locked`.
 - cargo-deny: 0.20.2, installed with `--locked`.
 - Gitleaks: 8.30.1, installed at an exact Go module version.
-- GitHub checkout action: `actions/checkout` v7.0.1, pinned to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
+- GitHub checkout action: pinned to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
 
 The Rust workspace declares `unsafe_code = "forbid"` and the kernel crate opts into workspace lints. This prevents new unsafe Rust blocks unless the policy is explicitly changed and reviewed.
 
@@ -35,18 +33,18 @@ The Rust workspace declares `unsafe_code = "forbid"` and the kernel crate opts i
 
 `deny.toml`:
 - Denies wildcard dependency requirements.
-- Warns on multiple versions so duplicate dependencies are visible for review.
+- Warns on multiple versions so duplicate dependencies remain visible for review.
 - Allows only the enumerated permissive licenses.
 - Ignores license checks for the private workspace package itself.
 - Denies unknown registries and unknown Git sources.
 - Allows only the canonical crates.io registry.
 - Enables advisory checking.
 
-The policy is intentionally explicit. Any future license exception must be documented, reviewed and separately approved; do not add broad wildcard exceptions merely to make CI green.
+Any future license exception must be documented, reviewed and separately approved. Do not add broad wildcard exceptions merely to make CI green.
 
 ## 5. Security workflow
 
-`.github/workflows/security-supply-chain.yml` is read-only and has no secrets or write permissions. It performs:
+`.github/workflows/security-supply-chain.yml` is read-only, has `contents: read` permission and uses no repository secrets. It performs:
 1. Full-history checkout with persisted credentials disabled.
 2. Pinned Rust toolchain installation and version reporting.
 3. Locked Cargo metadata resolution and duplicate dependency inventory.
@@ -55,31 +53,31 @@ The policy is intentionally explicit. Any future license exception must be docum
 6. Locked optimized workspace build.
 7. Full Git history and working-tree secret scanning with Gitleaks.
 
-The existing Rust kernel workflow is also updated to:
-- Use the pinned checkout action and Rust toolchain.
-- Run formatting, all-target compile, production-feature guard, tests, optimized release build and Clippy with `--locked`.
-- Include the A3 security branch and PR #85's architecture branch in the intended workflow filters.
+The workflow runs on pull requests targeting `main`, PR #85's architecture branch, and the A3.10 implementation branch; relevant pushes and manual dispatch are also configured. It now includes `docs/security/**` in its path filters so security-contract and evidence-document changes trigger the gate. PR #88 itself has already triggered this workflow; default-branch merging or manual dispatch is not a prerequisite for its current pull-request run.
 
-## 6. CI activation constraint
+The Rust kernel workflow is also pinned to the selected Rust toolchain and checkout action, and runs formatting, all-target compilation, production-feature guard, tests, optimized release build and Clippy with locked dependencies.
 
-GitHub Actions does not execute a newly introduced workflow from a PR head until the workflow is available on the base/default branch or it is explicitly dispatched through an authorized workflow-dispatch path. This branch-only implementation has not been merged, and no paid browser automation or wallet top-up is authorized.
+## 6. CI evidence and current state
 
-Therefore:
-- The supply-chain workflow definition and policies are committed in the implementation branch.
-- Its actual `cargo audit`, `cargo deny`, Gitleaks and release-build results remain **NOT RUN**.
-- Existing exact-source Rust kernel CI evidence is separate and does not count as execution of this new supply-chain workflow.
-- No clean vulnerability, license or secret-scan result is claimed until the workflow has actually run.
+The first supply-chain workflow attempts (#1 through #6) were cancelled as the implementation branch received successive commits; cancellation is not a pass or a scanner finding. The Rust kernel workflow also had cancelled attempts during those updates. A successful source-blob-equivalent Rust validation exists separately (run #1690, validation mirror head `828481dad9521becb9261b180b5cd7341ab303a0`), with all eight security Rust source blobs re-fetched and confirmed byte-identical to the implementation branch.
+
+A fresh exact-branch validation is required after this document and workflow-trigger update. Until the current run completes successfully:
+- cargo-audit, cargo-deny, Gitleaks and release-build results are **NOT VERIFIED**.
+- No clean vulnerability, license or secret-scan result is claimed.
+- A3.10.5 remains **PARTIAL / VERIFICATION PENDING**.
 
 ## 7. Required acceptance evidence
 
-A3.10.5 can be marked verified only after the exact implementation head has:
+A3.10.5 may be marked verified only after the current implementation head has:
 - Passed cargo metadata and locked release build.
 - Passed cargo-audit with no unaccepted advisories.
 - Passed cargo-deny advisory, source and license checks.
 - Had duplicate dependencies reviewed and explicitly dispositioned.
 - Passed full-history Gitleaks with no unaccepted findings.
 - Passed the updated Rust kernel workflow.
-- Produced run URLs, exact head SHA, tool versions and complete logs.
+- Produced run URLs, exact triggering head SHA, tool versions and complete job conclusions.
+
+The current dependency inventory is inspectable, but the separately generated SBOM and signed build-provenance attestation remain open. Do not claim those artifacts exist.
 
 ## 8. Scope limits
 
