@@ -516,13 +516,19 @@
       "case_id": "CHAR-G03.UNCERTAINTY-CALCULUS-P",
       "gene_id": "g03.uncertainty-calculus",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (hypotheses, evidence_items, calibration_id, method, provenance), valid provenance/version evidence and the baseline positive condition (bounded weights calculated; invalid weights rejected), the gene must satisfy: Propagate uncertainty and calibrate confidence to evidence.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given the exact approved input schema fields (non-empty hypotheses with unique IDs and bounded priors; evidence_items; calibration_id; method enum; provenance; version_bound_evidence), verifiable evidence and a method-compatible versioned calibration profile, the baseline positive condition (bounded weights calculated; invalid weights rejected) must satisfy: propagate uncertainty, account for supporting/refuting/neutral evidence, and expose calibrated estimates, method-specific bounds and limitations.",
+      "expected": "Return an estimate or explicit insufficient/unresolved disposition for every input hypothesis; bounds must be finite, within [0,1] and ordered around the estimate; calibration status and method must be truthful and bound to exact versions; evidence contributions and uncertainty must remain visible.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "every input hypothesis accounted for exactly once",
+        "evidence source and provenance resolve",
+        "method and calibration profile are version-bound and compatible",
+        "prior and weight semantics follow declared method",
+        "refuting and neutral evidence accounted for",
+        "all estimates and bounds finite and within [0,1]",
+        "lower_bound <= estimate <= upper_bound",
+        "output method matches selected input method",
+        "insufficient calibration never presented as valid",
+        "no uncertainty suppression or authority expansion"
       ],
       "existing_gene_io_case_id": "G03-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -536,12 +542,18 @@
       "case_id": "CHAR-G03.UNCERTAINTY-CALCULUS-N",
       "gene_id": "g03.uncertainty-calculus",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never suppress uncertainty to appear decisive.), and the baseline negative condition (non-finite or out-of-range weights), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never suppress uncertainty to appear decisive.), and baseline negative conditions including missing evidence without explicit insufficient status, uncalibrated or mismatched calibration ID, invalid/non-finite/out-of-range weights, method mismatch, contradictory evidence or invalid bounds, the gene must fail closed or explicitly return insufficient/invalid status.",
+      "expected": "Return a fail-closed/reject/unknown or explicit insufficient/invalid result as appropriate; expose affected hypotheses, evidence and calibration failures; never fabricate calibrated estimates, suppress uncertainty or emit invalid bounds.",
       "assertions": [
         "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
+        "missing evidence explicitly insufficient",
+        "unknown or mismatched calibration rejected",
+        "invalid or non-finite values rejected",
+        "method mismatch rejected",
+        "contradictory and dependent evidence exposed",
+        "bounds ordered and finite",
+        "all hypotheses accounted for or explicitly unresolved",
+        "no fabricated confidence or suppressed uncertainty",
         "reason and evidence recorded"
       ],
       "existing_gene_io_case_id": "G03-GENE-003",
@@ -1809,6 +1821,27 @@
         "G03-INF-SEM-06",
         "G03-INF-SEM-07",
         "G03-INF-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G03-UNCERTAINTY-CALCULUS-SEMANTIC-REVIEW-001",
+      "gene_id": "g03.uncertainty-calculus",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G03.UNCERTAINTY-CALCULUS-P",
+        "CHAR-G03.UNCERTAINTY-CALCULUS-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G03-UNC-SEM-01",
+        "G03-UNC-SEM-02",
+        "G03-UNC-SEM-03",
+        "G03-UNC-SEM-04",
+        "G03-UNC-SEM-05",
+        "G03-UNC-SEM-06",
+        "G03-UNC-SEM-07",
+        "G03-UNC-SEM-08"
       ]
     }
   ]
