@@ -8,7 +8,6 @@ use std::{path::Path, sync::Mutex, time::Duration};
 
 const ZERO: [u8; 32] = [0; 32];
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditStoreError {
     Unavailable,
