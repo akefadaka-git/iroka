@@ -12,8 +12,8 @@ use crate::security_store::{
     SignedSecurityCommand,
 };
 use crate::protected_effect::{
-    ExecutionReceipt, OwnerEffectGrantPayload, ProtectedEffectRequest, SignedOwnerEffectGrant,
-    VerifiedEffectGrant, VerifiedExecutionReceipt,
+    OwnerEffectGrantPayload, ProtectedEffectRequest, SignedOwnerEffectGrant, VerifiedEffectGrant,
+    VerifiedExecutionReceipt,
 };
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
