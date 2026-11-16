@@ -1,13 +1,13 @@
 //! Root-signed trust-bundle lifecycle: verification, expiry and rollback protection.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, RwLock};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{SecurityStoreError, SqliteSecurityStore, TrustConfigError, TrustStore, TrustedKey};
+use crate::{RollbackEvidenceTrustPolicy, SecurityStoreError, SqliteSecurityStore, TrustConfigError, TrustStore, TrustedKey};
 
 const MAX_BUNDLE_LIFETIME_SECS: u64 = 31_536_000;
 const MAX_CLOCK_SKEW_SECS: u64 = 30;
@@ -61,6 +61,43 @@ impl SignedTrustBundle {
 
     pub fn signing_bytes(&self) -> Result<Vec<u8>, TrustBundleError> {
         Self::signing_bytes_for(&self.root_key_id, &self.payload)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RollbackEvidencePolicyPayload {
+    pub version: u64,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub allowed_issuers: BTreeMap<String, BTreeSet<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedRollbackEvidencePolicy {
+    pub root_key_id: String,
+    pub payload: RollbackEvidencePolicyPayload,
+    pub signature: Vec<u8>,
+}
+
+impl SignedRollbackEvidencePolicy {
+    pub fn from_signature(
+        root_key_id: impl Into<String>,
+        payload: RollbackEvidencePolicyPayload,
+        signature: Vec<u8>,
+    ) -> Self {
+        Self { root_key_id: root_key_id.into(), payload, signature }
+    }
+
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, TrustBundleError> {
+        #[derive(Serialize)]
+        struct Envelope<'a> {
+            root_key_id: &'a str,
+            payload: &'a RollbackEvidencePolicyPayload,
+        }
+        serde_json::to_vec(&Envelope { root_key_id: &self.root_key_id, payload: &self.payload })
+            .map_err(|_| TrustBundleError::Malformed)
     }
 }
 
@@ -203,6 +240,59 @@ pub fn verify_and_install_trust_bundle(
         Some(&bundle_json),
     )?;
     Ok(trust)
+}
+
+/// Verify and persist a root-signed subject-to-issuer policy. The root set
+/// is provisioned out of band by the Owner; policy updates are monotonic and
+/// only become active after durable storage succeeds.
+pub fn verify_and_install_rollback_evidence_policy(
+    signed: &SignedRollbackEvidencePolicy,
+    roots: &TrustRootSet,
+    store: &SqliteSecurityStore,
+    now: u64,
+) -> Result<RollbackEvidenceTrustPolicy, TrustBundleError> {
+    let root = roots.get(&signed.root_key_id)?;
+    if now < root.not_before || now >= root.not_after {
+        return Err(TrustBundleError::RootOutsideValidity);
+    }
+    let payload = &signed.payload;
+    if payload.version == 0
+        || payload.issued_at >= payload.expires_at
+        || payload.issued_at > now.saturating_add(MAX_CLOCK_SKEW_SECS)
+        || payload.expires_at <= now.saturating_sub(MAX_CLOCK_SKEW_SECS)
+        || payload.expires_at - payload.issued_at > MAX_BUNDLE_LIFETIME_SECS
+    {
+        return Err(TrustBundleError::Malformed);
+    }
+    let policy = RollbackEvidenceTrustPolicy::new(payload.allowed_issuers.clone())
+        .map_err(|_| TrustBundleError::InvalidTrustConfiguration)?;
+    let root_key = VerifyingKey::from_bytes(&root.public_key).map_err(|_| TrustBundleError::InvalidRoot)?;
+    let signature = Signature::from_slice(&signed.signature).map_err(|_| TrustBundleError::Malformed)?;
+    let signing_bytes = signed.signing_bytes()?;
+    root_key.verify(&signing_bytes, &signature).map_err(|_| TrustBundleError::InvalidSignature)?;
+    let digest = Sha256::digest(&signing_bytes);
+    let document = serde_json::to_string(signed).map_err(|_| TrustBundleError::Malformed)?;
+    store.install_rollback_evidence_policy(
+        payload.version,
+        digest.as_slice(),
+        payload.expires_at,
+        &document,
+    )?;
+    Ok(policy)
+}
+
+/// Rebuild the issuer policy after restart only from a persisted, root-signed
+/// document that is revalidated against the current out-of-band root set.
+pub fn restore_rollback_evidence_policy_with_roots(
+    roots: &TrustRootSet,
+    store: &SqliteSecurityStore,
+    now: u64,
+) -> Result<RollbackEvidenceTrustPolicy, TrustBundleError> {
+    let document = store.latest_rollback_evidence_policy_document()?
+        .ok_or(TrustBundleError::StoreUnavailable)?;
+    let signed: SignedRollbackEvidencePolicy =
+        serde_json::from_str(&document).map_err(|_| TrustBundleError::Malformed)?;
+    verify_and_install_rollback_evidence_policy(&signed, roots, store, now)
 }
 
 /// Select the signing root by key ID from an explicitly provisioned overlapping
@@ -414,6 +504,61 @@ mod tests {
             verify_and_install_trust_bundle(&bundle, &root, &store, 1_100).unwrap_err(),
             TrustBundleError::NonCanonicalOrdering
         );
+    }
+
+    fn signed_policy_fixture(
+        signer: &ed25519_dalek::SigningKey,
+        root: &TrustRoot,
+        version: u64,
+    ) -> SignedRollbackEvidencePolicy {
+        use ed25519_dalek::Signer;
+        let allowed_issuers = BTreeMap::from([
+            ("current_state".into(), BTreeSet::from(["issuer:state".into()])),
+            ("candidate_state".into(), BTreeSet::from(["issuer:candidate".into()])),
+            ("revocation_floor".into(), BTreeSet::from(["issuer:revocation".into()])),
+            ("policy_version".into(), BTreeSet::from(["issuer:policy".into()])),
+            ("lineage:artifact:*".into(), BTreeSet::from(["issuer:lineage".into()])),
+            ("lineage:mutation:*".into(), BTreeSet::from(["issuer:lineage".into()])),
+            ("lineage:registry".into(), BTreeSet::from(["issuer:registry".into()])),
+        ]);
+        let payload = RollbackEvidencePolicyPayload {
+            version,
+            issued_at: 1_000,
+            expires_at: 5_000,
+            allowed_issuers,
+        };
+        let unsigned = SignedRollbackEvidencePolicy::from_signature(
+            root.key_id.clone(), payload, Vec::new()
+        );
+        let signature = signer.sign(&unsigned.signing_bytes().unwrap()).to_bytes().to_vec();
+        SignedRollbackEvidencePolicy::from_signature(root.key_id.clone(), unsigned.payload, signature)
+    }
+
+    #[test]
+    fn signed_issuer_policy_is_persisted_and_recovered_after_restart() {
+        use std::fs;
+        let (signer, root, _) = fixture(1);
+        let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
+        let signed = signed_policy_fixture(&signer, &root, 3);
+        let path = std::env::temp_dir().join(format!(
+            "iroka-rollback-policy-recovery-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            let policy = verify_and_install_rollback_evidence_policy(&signed, &roots, &store, 1_100).unwrap();
+            assert!(policy.allows("lineage:artifact:abc", "issuer:lineage"));
+            assert!(!policy.allows("lineage:artifact:abc", "issuer:untrusted"));
+        }
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            let recovered = restore_rollback_evidence_policy_with_roots(&roots, &store, 1_200).unwrap();
+            assert!(recovered.allows("lineage:mutation:xyz", "issuer:lineage"));
+        }
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
     }
 
     #[test]
