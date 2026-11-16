@@ -687,7 +687,6 @@ impl SqliteSecurityStore {
     }
 }
 
-
 impl VersionLineageRegistry for SqliteSecurityStore {
     fn resolve_lineage(
         &self,
@@ -747,8 +746,17 @@ impl VersionLineageRegistry for SqliteSecurityStore {
                 )
                 .optional()
                 .map_err(|_| LineageRegistryError::Unavailable)?;
-            let Some((gene_id, version, artifact_digest, artifact_json, parent_version,
-                parent_digest, mutation_id, epoch)) = row else {
+            let Some((
+                gene_id,
+                version,
+                artifact_digest,
+                artifact_json,
+                parent_version,
+                parent_digest,
+                mutation_id,
+                epoch,
+            )) = row
+            else {
                 return Err(LineageRegistryError::UnknownVersion);
             };
             let artifact = serde_json::from_str(&artifact_json)
@@ -766,12 +774,7 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             })
         }
 
-        let mut current = load_artifact(
-            &connection,
-            GENE_ID,
-            candidate_version,
-            candidate_digest,
-        )?;
+        let mut current = load_artifact(&connection, GENE_ID, candidate_version, candidate_digest)?;
         let mut ancestry = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
         loop {
@@ -829,8 +832,18 @@ impl VersionLineageRegistry for SqliteSecurityStore {
                 )
                 .optional()
                 .map_err(|_| LineageRegistryError::Unavailable)?;
-            let Some((mutation_ref, mutation_id, source_version, source_digest, target_version,
-                target_digest, approved, gates_passed, approval_commitment)) = row else {
+            let Some((
+                mutation_ref,
+                mutation_id,
+                source_version,
+                source_digest,
+                target_version,
+                target_digest,
+                approved,
+                gates_passed,
+                approval_commitment,
+            )) = row
+            else {
                 return Err(LineageRegistryError::IntegrityFailure);
             };
             Some(RegisteredMutationRecord {
