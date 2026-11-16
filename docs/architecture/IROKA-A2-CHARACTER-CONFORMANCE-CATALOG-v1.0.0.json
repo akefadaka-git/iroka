@@ -1847,13 +1847,18 @@
       "case_id": "CHAR-G12.VERSION-LINEAGE-P",
       "gene_id": "g12.version-lineage",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (artifact_digest, version, parent_version, parent_digest, mutation_ref, epoch, provenance), valid provenance/version evidence and the baseline positive condition (linked monotonic lineage accepted; broken ancestry rejected), the gene must satisfy: Preserve immutable version ancestry and compatibility facts.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given all eight schema-required input fields (artifact_digest, version, parent_version, parent_digest, mutation_ref, epoch, provenance, version_bound_evidence), authenticated evidence bound to the candidate and every ancestor, a registered mutation record, and one complete acyclic oldest-to-candidate chain with exact digest links and strictly increasing epochs, the gene must verify lineage and preserve immutable history.",
+      "expected": "Return the existing gene-specific output contract; derive linked=true and epoch_monotonic=true only from verified ancestry, return the recomputed lineage digest, complete ancestry and authentic evidence, and grant no authority or side effects.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all schema-required inputs validated, including version_bound_evidence",
+        "candidate and each ancestor resolve to immutable registered artifacts",
+        "parent version and digest identify the same exact parent",
+        "mutation_ref resolves and matches the candidate artifact/version transition",
+        "ancestry is unique, acyclic, correctly ordered and digest-linked",
+        "epochs are authoritative, non-negative and strictly increasing",
+        "linked and epoch_monotonic are derived consistently from ancestry",
+        "lineage digest recomputes from canonical lineage contents",
+        "no history rewrite and no authority expansion"
       ],
       "existing_gene_io_case_id": "G12-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1867,13 +1872,17 @@
       "case_id": "CHAR-G12.VERSION-LINEAGE-N",
       "gene_id": "g12.version-lineage",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never rewrite version history or hide a breaking change.), and the baseline negative condition (missing parent digest or non-monotonic epoch), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given any lineage-integrity violation: missing/stale/forged version_bound_evidence, unknown or mismatched parent, unregistered version/mutation, malformed or mismatched digest, cyclic/duplicate/disconnected ancestry, non-monotonic or replayed epoch, candidate mismatch, or contradictory linked/epoch_monotonic flags, the gene must fail closed.",
+      "expected": "Return the existing output contract with linked=false and/or epoch_monotonic=false as applicable, expose the precise violation and evidence, and never fabricate lineage, silently continue, rewrite history or confer authority.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "missing or invalid evidence fails closed",
+        "unknown version, parent or mutation reference is rejected",
+        "digest and parent-link mismatches are exposed",
+        "cycles, duplicates, disconnected ancestry and candidate mismatch are rejected",
+        "epoch replay or non-monotonicity is rejected",
+        "output flags cannot contradict verified ancestry",
+        "no fabricated evidence or silent history rewrite",
+        "no mutation side effect or authority expansion"
       ],
       "existing_gene_io_case_id": "G12-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -2668,6 +2677,29 @@
         "G12-MP-SEM-08",
         "G12-MP-SEM-09",
         "G12-MP-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G12-VERSION-LINEAGE-SEMANTIC-REVIEW-001",
+      "gene_id": "g12.version-lineage",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G12.VERSION-LINEAGE-P",
+        "CHAR-G12.VERSION-LINEAGE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G12-VL-SEM-01",
+        "G12-VL-SEM-02",
+        "G12-VL-SEM-03",
+        "G12-VL-SEM-04",
+        "G12-VL-SEM-05",
+        "G12-VL-SEM-06",
+        "G12-VL-SEM-07",
+        "G12-VL-SEM-08",
+        "G12-VL-SEM-09",
+        "G12-VL-SEM-10"
       ]
     }
   ]
