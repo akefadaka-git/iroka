@@ -343,13 +343,21 @@
       "case_id": "CHAR-G02.DECISION-REGISTER-P",
       "gene_id": "g02.decision-register",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (decision_id, authority_id, decision_digest, status, effective_at, supersedes, provenance), valid provenance/version evidence and the baseline positive condition (unique immutable decision recorded; conflicting duplicate rejected), the gene must satisfy: Record decision provenance, scope, rationale, expiry and outcome.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "A new decision has a unique canonical ID, trusted decision authority for its exact scope and transition, and a recomputed digest over the complete immutable record. Its status transition is permitted; effective time is canonical and authorized; supersession, if any, points to a valid existing record with no cycle or competing active successor; the append-only register confirms durable commit.",
+      "expected": "Return recorded=true only after durable append-only commit, with exact canonical_digest and authoritative unique monotonic register_sequence. Preserve the complete immutable decision history, provenance, scope, rationale, expiry and outcome.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "decision_id is unique or exact-record idempotent; conflicting duplicate/replay is rejected",
+        "authority_id resolves to trusted principal authorized for decision type, scope and transition at effective time",
+        "decision_digest recomputes over canonical complete record and schema version",
+        "status transition is permitted and approval status has required authority",
+        "effective_at is canonical timezone-aware and not unauthorized backdating",
+        "supersedes target exists, belongs to same lineage and has authorized successor relation",
+        "supersession graph has no self-reference, cycle or competing active successor",
+        "recorded=true follows durable append-only commit only",
+        "canonical_digest equals exact committed record digest",
+        "register_sequence is authoritative, unique and monotonic",
+        "evidence preserves scope, rationale, expiry, outcome and full provenance/history",
+        "registration does not itself authorize or execute the decision"
       ],
       "existing_gene_io_case_id": "G02-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -357,19 +365,36 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
         "https://iroka.dev/schemas/genes/g02.decision-register/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-DEC-SEM-01",
+        "G02-DEC-SEM-02",
+        "G02-DEC-SEM-03",
+        "G02-DEC-SEM-04",
+        "G02-DEC-SEM-05",
+        "G02-DEC-SEM-06",
+        "G02-DEC-SEM-07",
+        "G02-DEC-SEM-08"
       ]
     },
     {
       "case_id": "CHAR-G02.DECISION-REGISTER-N",
       "gene_id": "g02.decision-register",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never rewrite history or represent an unrecorded decision as approved.), and the baseline negative condition (duplicate ID with conflicting digest), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "A decision ID conflicts with an existing record or is replayed; authority is unknown or insufficient; digest differs from canonical content; status transition is unauthorized; effective time is malformed or backdated; supersedes target is missing, self-referential, cyclic or conflicts with another active successor; or output claims recording without durable commit or with mismatched digest/sequence.",
+      "expected": "Reject or fail closed without rewriting history. Do not claim recorded or approved, fabricate a sequence/digest, erase prior decisions or execute the decision; return evidence identifying the conflict.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "conflicting duplicate ID or non-identical replay fails closed",
+        "untrusted or insufficient authority fails closed",
+        "digest mismatch or ambiguous canonicalization fails closed",
+        "unauthorized status transition fails closed",
+        "malformed, ambiguous or unauthorized backdated effective time fails closed",
+        "missing/self/cyclic/competing supersession relation fails closed",
+        "recorded=true without durable commit is rejected",
+        "canonical digest and sequence mismatch are rejected",
+        "proposed/rejected/unrecorded record is never represented as approved",
+        "no history rewrite, evidence fabrication or decision execution",
+        "failure reason and immutable conflict evidence are recorded"
       ],
       "existing_gene_io_case_id": "G02-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -377,6 +402,16 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
         "https://iroka.dev/schemas/genes/g02.decision-register/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-DEC-SEM-01",
+        "G02-DEC-SEM-02",
+        "G02-DEC-SEM-03",
+        "G02-DEC-SEM-04",
+        "G02-DEC-SEM-05",
+        "G02-DEC-SEM-06",
+        "G02-DEC-SEM-07",
+        "G02-DEC-SEM-08"
       ]
     },
     {
@@ -1693,6 +1728,27 @@
         "G02-OWNER-SEM-06",
         "G02-OWNER-SEM-07",
         "G02-OWNER-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G02-DECISION-REGISTER-SEMANTIC-REVIEW-001",
+      "gene_id": "g02.decision-register",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G02.DECISION-REGISTER-P",
+        "CHAR-G02.DECISION-REGISTER-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G02-DEC-SEM-01",
+        "G02-DEC-SEM-02",
+        "G02-DEC-SEM-03",
+        "G02-DEC-SEM-04",
+        "G02-DEC-SEM-05",
+        "G02-DEC-SEM-06",
+        "G02-DEC-SEM-07",
+        "G02-DEC-SEM-08"
       ]
     }
   ]
