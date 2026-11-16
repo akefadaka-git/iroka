@@ -1,0 +1,953 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "document_id": "IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-001",
+  "version": "1.0.0",
+  "status": "A2_TEST_DESIGN_NOT_YET_EXECUTED",
+  "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
+  "case_count": 72,
+  "genes_covered": 36,
+  "cases": [
+    {
+      "case_id": "CHAR-G01.IDENTITY-ROOT-P",
+      "gene_id": "g01.identity-root",
+      "polarity": "positive",
+      "scenario": "A valid g01.identity-root request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.IDENTITY-ROOT-N",
+      "gene_id": "g01.identity-root",
+      "polarity": "negative",
+      "scenario": "A g01.identity-root request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.LINEAGE-P",
+      "gene_id": "g01.lineage",
+      "polarity": "positive",
+      "scenario": "A valid g01.lineage request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.LINEAGE-N",
+      "gene_id": "g01.lineage",
+      "polarity": "negative",
+      "scenario": "A g01.lineage request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.COMPATIBILITY-P",
+      "gene_id": "g01.compatibility",
+      "polarity": "positive",
+      "scenario": "A valid g01.compatibility request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.COMPATIBILITY-N",
+      "gene_id": "g01.compatibility",
+      "polarity": "negative",
+      "scenario": "A g01.compatibility request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.AUTHORITY-SOURCE-P",
+      "gene_id": "g02.authority-source",
+      "polarity": "positive",
+      "scenario": "A valid g02.authority-source request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.AUTHORITY-SOURCE-N",
+      "gene_id": "g02.authority-source",
+      "polarity": "negative",
+      "scenario": "A g02.authority-source request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.OWNER-GOVERNANCE-P",
+      "gene_id": "g02.owner-governance",
+      "polarity": "positive",
+      "scenario": "A valid g02.owner-governance request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.OWNER-GOVERNANCE-N",
+      "gene_id": "g02.owner-governance",
+      "polarity": "negative",
+      "scenario": "A g02.owner-governance request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.DECISION-REGISTER-P",
+      "gene_id": "g02.decision-register",
+      "polarity": "positive",
+      "scenario": "A valid g02.decision-register request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.DECISION-REGISTER-N",
+      "gene_id": "g02.decision-register",
+      "polarity": "negative",
+      "scenario": "A g02.decision-register request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.PREMISE-MODEL-P",
+      "gene_id": "g03.premise-model",
+      "polarity": "positive",
+      "scenario": "A valid g03.premise-model request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.PREMISE-MODEL-N",
+      "gene_id": "g03.premise-model",
+      "polarity": "negative",
+      "scenario": "A g03.premise-model request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.INFERENCE-RULES-P",
+      "gene_id": "g03.inference-rules",
+      "polarity": "positive",
+      "scenario": "A valid g03.inference-rules request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.INFERENCE-RULES-N",
+      "gene_id": "g03.inference-rules",
+      "polarity": "negative",
+      "scenario": "A g03.inference-rules request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.UNCERTAINTY-CALCULUS-P",
+      "gene_id": "g03.uncertainty-calculus",
+      "polarity": "positive",
+      "scenario": "A valid g03.uncertainty-calculus request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.UNCERTAINTY-CALCULUS-N",
+      "gene_id": "g03.uncertainty-calculus",
+      "polarity": "negative",
+      "scenario": "A g03.uncertainty-calculus request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.KNOWLEDGE-SCHEMA-P",
+      "gene_id": "g04.knowledge-schema",
+      "polarity": "positive",
+      "scenario": "A valid g04.knowledge-schema request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.KNOWLEDGE-SCHEMA-N",
+      "gene_id": "g04.knowledge-schema",
+      "polarity": "negative",
+      "scenario": "A g04.knowledge-schema request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.PROVENANCE-CHAIN-P",
+      "gene_id": "g04.provenance-chain",
+      "polarity": "positive",
+      "scenario": "A valid g04.provenance-chain request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.PROVENANCE-CHAIN-N",
+      "gene_id": "g04.provenance-chain",
+      "polarity": "negative",
+      "scenario": "A g04.provenance-chain request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.CONFLICT-MODEL-P",
+      "gene_id": "g04.conflict-model",
+      "polarity": "positive",
+      "scenario": "A valid g04.conflict-model request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.CONFLICT-MODEL-N",
+      "gene_id": "g04.conflict-model",
+      "polarity": "negative",
+      "scenario": "A g04.conflict-model request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.MEMORY-CLASSIFICATION-P",
+      "gene_id": "g05.memory-classification",
+      "polarity": "positive",
+      "scenario": "A valid g05.memory-classification request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.MEMORY-CLASSIFICATION-N",
+      "gene_id": "g05.memory-classification",
+      "polarity": "negative",
+      "scenario": "A g05.memory-classification request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.RETENTION-CONTROL-P",
+      "gene_id": "g05.retention-control",
+      "polarity": "positive",
+      "scenario": "A valid g05.retention-control request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.RETENTION-CONTROL-N",
+      "gene_id": "g05.retention-control",
+      "polarity": "negative",
+      "scenario": "A g05.retention-control request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.INTEGRITY-CHECKPOINT-P",
+      "gene_id": "g05.integrity-checkpoint",
+      "polarity": "positive",
+      "scenario": "A valid g05.integrity-checkpoint request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.INTEGRITY-CHECKPOINT-N",
+      "gene_id": "g05.integrity-checkpoint",
+      "polarity": "negative",
+      "scenario": "A g05.integrity-checkpoint request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.INPUT-ENVELOPE-P",
+      "gene_id": "g06.input-envelope",
+      "polarity": "positive",
+      "scenario": "A valid g06.input-envelope request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.INPUT-ENVELOPE-N",
+      "gene_id": "g06.input-envelope",
+      "polarity": "negative",
+      "scenario": "A g06.input-envelope request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.SOURCE-TRUST-P",
+      "gene_id": "g06.source-trust",
+      "polarity": "positive",
+      "scenario": "A valid g06.source-trust request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.SOURCE-TRUST-N",
+      "gene_id": "g06.source-trust",
+      "polarity": "negative",
+      "scenario": "A g06.source-trust request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-P",
+      "gene_id": "g06.perception-transform",
+      "polarity": "positive",
+      "scenario": "A valid g06.perception-transform request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-N",
+      "gene_id": "g06.perception-transform",
+      "polarity": "negative",
+      "scenario": "A g06.perception-transform request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G07.AGENT-PRINCIPAL-P",
+      "gene_id": "g07.agent-principal",
+      "polarity": "positive",
+      "scenario": "A valid g07.agent-principal request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G07.AGENT-PRINCIPAL-N",
+      "gene_id": "g07.agent-principal",
+      "polarity": "negative",
+      "scenario": "A g07.agent-principal request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G07.CAPABILITY-PROFILE-P",
+      "gene_id": "g07.capability-profile",
+      "polarity": "positive",
+      "scenario": "A valid g07.capability-profile request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G07.CAPABILITY-PROFILE-N",
+      "gene_id": "g07.capability-profile",
+      "polarity": "negative",
+      "scenario": "A g07.capability-profile request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G07.DELEGATION-BOUNDARY-P",
+      "gene_id": "g07.delegation-boundary",
+      "polarity": "positive",
+      "scenario": "A valid g07.delegation-boundary request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G07.DELEGATION-BOUNDARY-N",
+      "gene_id": "g07.delegation-boundary",
+      "polarity": "negative",
+      "scenario": "A g07.delegation-boundary request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G08.WORKFLOW-GRAPH-P",
+      "gene_id": "g08.workflow-graph",
+      "polarity": "positive",
+      "scenario": "A valid g08.workflow-graph request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G08.WORKFLOW-GRAPH-N",
+      "gene_id": "g08.workflow-graph",
+      "polarity": "negative",
+      "scenario": "A g08.workflow-graph request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G08.SCHEDULER-POLICY-P",
+      "gene_id": "g08.scheduler-policy",
+      "polarity": "positive",
+      "scenario": "A valid g08.scheduler-policy request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G08.SCHEDULER-POLICY-N",
+      "gene_id": "g08.scheduler-policy",
+      "polarity": "negative",
+      "scenario": "A g08.scheduler-policy request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G08.COORDINATION-STATE-P",
+      "gene_id": "g08.coordination-state",
+      "polarity": "positive",
+      "scenario": "A valid g08.coordination-state request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G08.COORDINATION-STATE-N",
+      "gene_id": "g08.coordination-state",
+      "polarity": "negative",
+      "scenario": "A g08.coordination-state request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.EFFECT-CONTRACT-P",
+      "gene_id": "g09.effect-contract",
+      "polarity": "positive",
+      "scenario": "A valid g09.effect-contract request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.EFFECT-CONTRACT-N",
+      "gene_id": "g09.effect-contract",
+      "polarity": "negative",
+      "scenario": "A g09.effect-contract request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.ADMISSION-GATE-P",
+      "gene_id": "g09.admission-gate",
+      "polarity": "positive",
+      "scenario": "A valid g09.admission-gate request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.ADMISSION-GATE-N",
+      "gene_id": "g09.admission-gate",
+      "polarity": "negative",
+      "scenario": "A g09.admission-gate request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.EXECUTION-RECEIPT-P",
+      "gene_id": "g09.execution-receipt",
+      "polarity": "positive",
+      "scenario": "A valid g09.execution-receipt request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.EXECUTION-RECEIPT-N",
+      "gene_id": "g09.execution-receipt",
+      "polarity": "negative",
+      "scenario": "A g09.execution-receipt request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G10.LEARNING-INPUT-P",
+      "gene_id": "g10.learning-input",
+      "polarity": "positive",
+      "scenario": "A valid g10.learning-input request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G10.LEARNING-INPUT-N",
+      "gene_id": "g10.learning-input",
+      "polarity": "negative",
+      "scenario": "A g10.learning-input request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G10.CHANGE-PROPOSAL-P",
+      "gene_id": "g10.change-proposal",
+      "polarity": "positive",
+      "scenario": "A valid g10.change-proposal request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G10.CHANGE-PROPOSAL-N",
+      "gene_id": "g10.change-proposal",
+      "polarity": "negative",
+      "scenario": "A g10.change-proposal request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G10.EVALUATION-RECORD-P",
+      "gene_id": "g10.evaluation-record",
+      "polarity": "positive",
+      "scenario": "A valid g10.evaluation-record request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G10.EVALUATION-RECORD-N",
+      "gene_id": "g10.evaluation-record",
+      "polarity": "negative",
+      "scenario": "A g10.evaluation-record request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G11.VALIDATOR-P",
+      "gene_id": "g11.validator",
+      "polarity": "positive",
+      "scenario": "A valid g11.validator request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G11.VALIDATOR-N",
+      "gene_id": "g11.validator",
+      "polarity": "negative",
+      "scenario": "A g11.validator request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G11.ATTESTATION-P",
+      "gene_id": "g11.attestation",
+      "polarity": "positive",
+      "scenario": "A valid g11.attestation request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G11.ATTESTATION-N",
+      "gene_id": "g11.attestation",
+      "polarity": "negative",
+      "scenario": "A g11.attestation request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G11.CONFORMANCE-REPORT-P",
+      "gene_id": "g11.conformance-report",
+      "polarity": "positive",
+      "scenario": "A valid g11.conformance-report request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G11.CONFORMANCE-REPORT-N",
+      "gene_id": "g11.conformance-report",
+      "polarity": "negative",
+      "scenario": "A g11.conformance-report request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G12.MUTATION-POLICY-P",
+      "gene_id": "g12.mutation-policy",
+      "polarity": "positive",
+      "scenario": "A valid g12.mutation-policy request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G12.MUTATION-POLICY-N",
+      "gene_id": "g12.mutation-policy",
+      "polarity": "negative",
+      "scenario": "A g12.mutation-policy request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G12.VERSION-LINEAGE-P",
+      "gene_id": "g12.version-lineage",
+      "polarity": "positive",
+      "scenario": "A valid g12.version-lineage request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G12.VERSION-LINEAGE-N",
+      "gene_id": "g12.version-lineage",
+      "polarity": "negative",
+      "scenario": "A g12.version-lineage request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    },
+    {
+      "case_id": "CHAR-G12.ROLLBACK-GUARD-P",
+      "gene_id": "g12.rollback-guard",
+      "polarity": "positive",
+      "scenario": "A valid g12.rollback-guard request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
+      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "assertions": [
+        "required inputs validated",
+        "evidence references resolve",
+        "no authority expansion",
+        "decision status reflects observed result"
+      ]
+    },
+    {
+      "case_id": "CHAR-G12.ROLLBACK-GUARD-N",
+      "gene_id": "g12.rollback-guard",
+      "polarity": "negative",
+      "scenario": "A g12.rollback-guard request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
+      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "assertions": [
+        "failure semantics enforced",
+        "no fabricated evidence",
+        "no silent downgrade",
+        "reason and evidence recorded"
+      ]
+    }
+  ],
+  "execution_policy": {
+    "positive_and_negative_per_gene": true,
+    "exact_artifact_and_policy_version_required": true,
+    "runtime_tests_not_authorized_in_A2": true,
+    "a3_required_for_implementation": true
+  }
+}
