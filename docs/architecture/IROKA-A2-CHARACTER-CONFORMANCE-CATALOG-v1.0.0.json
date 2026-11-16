@@ -737,13 +737,17 @@
       "case_id": "CHAR-G05.MEMORY-CLASSIFICATION-P",
       "gene_id": "g05.memory-classification",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (memory_id, content_digest, labels, purpose, owner_id, data_class, provenance), valid provenance/version evidence and the baseline positive condition (recognized class maps to controls; unknown class quarantined), the gene must satisfy: Classify sensitivity, purpose, consent, owner and access boundaries.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a memory record whose immutable content digest is independently verified, whose labels and data_class resolve to the active versioned taxonomy, whose purpose and lawful-basis/consent evidence and owner/subject roles are verified, and whose source/context evidence is complete, the gene must classify conservatively and emit every applicable registered handling control without granting disclosure authority.",
+      "expected": "Return a registered classification no less restrictive than any applicable input or policy obligation, a complete enforceable handling-control set, and reproducible evidence bound to the exact content, identities, purpose/basis, taxonomy and policy versions.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "content digest independently verified",
+        "all labels and data class resolve to active taxonomy",
+        "purpose and lawful-basis/consent evidence verified",
+        "owner and relevant subject/controller roles authenticated",
+        "classification applies conservative precedence",
+        "complete registered controls emitted",
+        "evidence binds exact inputs and versions",
+        "no authority expansion"
       ],
       "existing_gene_io_case_id": "G05-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -757,13 +761,17 @@
       "case_id": "CHAR-G05.MEMORY-CLASSIFICATION-N",
       "gene_id": "g05.memory-classification",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never infer or retain sensitive data without lawful, justified basis.), and the baseline negative condition (unknown classification label), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unknown or retired label/data class, a content-digest mismatch, unresolved owner/subject role, absent/withdrawn or incompatible lawful-basis/consent evidence, missing material context, or conflicting policy/control evidence, the gene must fail closed and apply the most protective handling without inferring permission.",
+      "expected": "Return an unresolved/rejected/unknown result under the existing output contract, do not emit a less restrictive classification, expose the missing/conflicting evidence and required protective controls, and never authorize disclosure or retention.",
       "assertions": [
-        "failure semantics enforced",
+        "unknown or conflicting evidence fails closed",
+        "no inferred consent or lawful basis",
+        "no identity or content substitution",
+        "no classification downgrade",
+        "protective controls applied",
+        "reason and evidence recorded",
         "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "no authority expansion"
       ],
       "existing_gene_io_case_id": "G05-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1954,6 +1962,27 @@
         "G04-CM-SEM-06",
         "G04-CM-SEM-07",
         "G04-CM-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G05-MEMORY-CLASSIFICATION-SEMANTIC-REVIEW-001",
+      "gene_id": "g05.memory-classification",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G05.MEMORY-CLASSIFICATION-P",
+        "CHAR-G05.MEMORY-CLASSIFICATION-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G05-MC-SEM-01",
+        "G05-MC-SEM-02",
+        "G05-MC-SEM-03",
+        "G05-MC-SEM-04",
+        "G05-MC-SEM-05",
+        "G05-MC-SEM-06",
+        "G05-MC-SEM-07",
+        "G05-MC-SEM-08"
       ]
     }
   ]
