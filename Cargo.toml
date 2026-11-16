@@ -3,6 +3,7 @@ resolver = "2"
 members = ["crates/iroka-kernel"]
 
 [workspace.package]
+# rusqlite 0.42.0 requires Rust 1.89 and bundles patched SQLite 3.54.1.
 edition = "2021"
 license = "LicenseRef-Proprietary"
 rust-version = "1.89.0"
