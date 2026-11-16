@@ -112,6 +112,41 @@ pub trait RollbackEvidenceVerifier: Send + Sync {
     ) -> Result<(), EvidenceVerificationError>;
 }
 
+
+/// Subject-specific issuer allowlist. A generally trusted signing key is not
+/// sufficient: each evidence subject must be issued by an explicitly assigned authority.
+#[derive(Debug, Clone)]
+pub struct RollbackEvidenceTrustPolicy {
+    allowed_issuers: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+}
+
+impl RollbackEvidenceTrustPolicy {
+    pub fn new(
+        allowed_issuers: std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+    ) -> Result<Self, EvidenceVerificationError> {
+        for subject in [
+            "current_state",
+            "candidate_state",
+            "revocation_floor",
+            "policy_version",
+        ] {
+            let issuers = allowed_issuers
+                .get(subject)
+                .ok_or(EvidenceVerificationError::UnknownIssuer)?;
+            if issuers.is_empty() || issuers.iter().any(|issuer| issuer.trim().is_empty()) {
+                return Err(EvidenceVerificationError::UnknownIssuer);
+            }
+        }
+        Ok(Self { allowed_issuers })
+    }
+
+    fn allows(&self, subject: &str, issuer: &str) -> bool {
+        self.allowed_issuers
+            .get(subject)
+            .is_some_and(|issuers| issuers.contains(issuer))
+    }
+}
+
 const MAX_ROLLBACK_EVIDENCE_TTL_SECS: u64 = 300;
 
 /// Production Ed25519 evidence verifier backed by the signed credential trust
@@ -120,14 +155,16 @@ const MAX_ROLLBACK_EVIDENCE_TTL_SECS: u64 = 300;
 pub struct Ed25519RollbackEvidenceVerifier<R> {
     credentials: crate::Ed25519CredentialVerifier<R>,
     store: std::sync::Arc<crate::SqliteSecurityStore>,
+    trust_policy: RollbackEvidenceTrustPolicy,
 }
 
 impl<R: crate::RevocationChecker> Ed25519RollbackEvidenceVerifier<R> {
     pub fn new(
         credentials: crate::Ed25519CredentialVerifier<R>,
         store: std::sync::Arc<crate::SqliteSecurityStore>,
+        trust_policy: RollbackEvidenceTrustPolicy,
     ) -> Self {
-        Self { credentials, store }
+        Self { credentials, store, trust_policy }
     }
 }
 
@@ -138,6 +175,9 @@ impl<R: crate::RevocationChecker> RollbackEvidenceVerifier for Ed25519RollbackEv
         expected: &EvidenceBinding,
         now: u64,
     ) -> Result<(), EvidenceVerificationError> {
+        if !self.trust_policy.allows(&expected.subject, &receipt.issuer) {
+            return Err(EvidenceVerificationError::UnknownIssuer);
+        }
         if receipt.subject != expected.subject
             || receipt.subject_digest != expected.digest
             || receipt.subject_epoch != expected.epoch
@@ -751,7 +791,25 @@ mod tests {
         )
         .unwrap();
         let credentials = crate::Ed25519CredentialVerifier::new(trust, Arc::clone(&store));
-        let verifier = Ed25519RollbackEvidenceVerifier::new(credentials, Arc::clone(&store));
+        let trust_policy = RollbackEvidenceTrustPolicy::new(
+            [
+                ("current_state", "issuer:rollback-test"),
+                ("candidate_state", "issuer:rollback-test"),
+                ("revocation_floor", "issuer:rollback-test"),
+                ("policy_version", "issuer:rollback-test"),
+            ]
+            .into_iter()
+            .map(|(subject, issuer)| {
+                (
+                    subject.to_owned(),
+                    std::collections::BTreeSet::from([issuer.to_owned()]),
+                )
+            })
+            .collect(),
+        )
+        .unwrap();
+        let verifier =
+            Ed25519RollbackEvidenceVerifier::new(credentials, Arc::clone(&store), trust_policy);
         (signer, store, verifier)
     }
 
