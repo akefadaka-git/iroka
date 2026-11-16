@@ -184,6 +184,16 @@ impl SqliteSecurityStore {
                expires_at INTEGER NOT NULL,
                PRIMARY KEY (issuer, key_id, nonce)
              );
+             CREATE TABLE IF NOT EXISTS rollback_evidence_policy_state (
+               singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+               version INTEGER NOT NULL CHECK(version > 0),
+               digest BLOB NOT NULL CHECK(length(digest) = 32),
+               expires_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS rollback_evidence_policy_documents (
+               version INTEGER PRIMARY KEY,
+               policy_json TEXT NOT NULL
+             );
              CREATE TABLE IF NOT EXISTS rollback_revocation_floor (
                singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
                floor INTEGER NOT NULL, revision INTEGER NOT NULL
@@ -424,6 +434,70 @@ impl SqliteSecurityStore {
         connection.query_row(
             "SELECT d.bundle_json FROM trust_bundle_documents d
              JOIN trust_bundle_state s ON s.version=d.version
+             WHERE s.singleton=1",
+            [],
+            |row| row.get(0),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Atomically persist a root-signed, versioned issuer policy after its
+    /// signature and semantic validation have succeeded.
+    pub(crate) fn install_rollback_evidence_policy(
+        &self,
+        version: u64,
+        digest: &[u8],
+        expires_at: u64,
+        policy_json: &str,
+    ) -> Result<(), SecurityStoreError> {
+        if version == 0 || digest.len() != 32 || policy_json.trim().is_empty() {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let expires_i = i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, Vec<u8>)> = tx.query_row(
+            "SELECT version, digest FROM rollback_evidence_policy_state WHERE singleton=1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        match current {
+            Some((old, _)) if version_i < old => return Err(SecurityStoreError::Rollback),
+            Some((old, old_digest)) if version_i == old => {
+                if old_digest != digest { return Err(SecurityStoreError::ConflictingVersion); }
+                let stored: String = tx.query_row(
+                    "SELECT policy_json FROM rollback_evidence_policy_documents WHERE version=?1",
+                    params![version_i],
+                    |row| row.get(0),
+                ).optional().map_err(|_| SecurityStoreError::Unavailable)?
+                 .ok_or(SecurityStoreError::Unavailable)?;
+                if stored != policy_json { return Err(SecurityStoreError::ConflictingVersion); }
+                tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                return Ok(());
+            }
+            _ => {}
+        }
+        tx.execute(
+            "INSERT INTO rollback_evidence_policy_state(singleton, version, digest, expires_at)
+             VALUES(1, ?1, ?2, ?3)
+             ON CONFLICT(singleton) DO UPDATE SET version=excluded.version, digest=excluded.digest, expires_at=excluded.expires_at",
+            params![version_i, digest, expires_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "INSERT INTO rollback_evidence_policy_documents(version, policy_json) VALUES(?1, ?2)",
+            params![version_i, policy_json],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub(crate) fn latest_rollback_evidence_policy_document(
+        &self,
+    ) -> Result<Option<String>, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        connection.query_row(
+            "SELECT d.policy_json FROM rollback_evidence_policy_documents d
+             JOIN rollback_evidence_policy_state s ON s.version=d.version
              WHERE s.singleton=1",
             [],
             |row| row.get(0),
