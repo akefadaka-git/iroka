@@ -8799,54 +8799,179 @@
         {
           "field": "artifact_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated immutable artifact revision; verify content digest, ownership, type and lifecycle."
         },
         {
           "field": "contract_ids",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve every unique ID to an exact version-pinned applicable contract and verify complete required coverage."
         },
         {
           "field": "validator_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify signed immutable validator release, implementation digest, compatibility and revocation status."
         },
         {
           "field": "policy_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute against the canonical versioned policy artifact and verify issuer, scope, effective interval and revocation."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify issuer, integrity, freshness and exact source correspondence; a non-empty object is insufficient."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require verifiable evidence binding artifact revision, contract versions, validator build, policy snapshot and validation run."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Independently test contracts and fail closed on critical violations.",
+          "assertion": "Independently validate the exact immutable artifact revision against the complete version-pinned contract set using an authenticated validator and policy snapshot.",
           "observable_fields": [
             "validation_id",
             "valid",
             "findings",
             "validated_digest",
             "validator_version",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Every finding has a unique ID, resolves to an input contract and uses controlled severity, code and disposition semantics.",
+          "observable_fields": [
+            "findings",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "valid is derived from all findings under the pinned policy; blocking, unresolved or unclassified findings cannot yield valid=true.",
+          "observable_fields": [
+            "valid",
+            "findings",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "validated_digest recomputes over the canonical artifact, contract set, validator, policy, findings and result.",
+          "observable_fields": [
+            "validated_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Validation reports evidence and limitations but cannot approve, authorize, merge, deploy or execute the validated artifact.",
           "observable_fields": [
             "validation_id",
             "valid",
             "findings",
-            "validated_digest",
-            "validator_version",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never waive a failure to satisfy delivery pressure. fail-closed"
+      "character_failure_rule": "Never waive a failure to satisfy delivery pressure. Unknown artifacts/contracts/validator/policy, missing or unverifiable version-bound evidence, unresolved findings or digest mismatches fail closed; valid=true is prohibited when any blocking or unresolved finding exists.",
+      "semantic_reconciliation": {
+        "review_id": "A2-G11-VALIDATOR-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "02d0d17c15a14bddf7a652420a7676e17c5c2315",
+          "a2_contract_blob_before_review": "7698b1a435df4545b83f28d428bca9756002bec2",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "cbcaf37ce8858aab084a7478e8b694a3449ffc49",
+          "output_schema_blob": "948249e6929f13a33414706eef2e6631c1559837"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires artifact_ref, contract_ids, validator_version, policy_digest, provenance and version_bound_evidence; top-level additional properties are rejected.",
+          "contract_ids items are non-empty strings; the array requires at least one item and uniqueItems is enabled.",
+          "Output schema requires validation_id, valid, findings, validated_digest, validator_version, evidence and version_bound_evidence; finding items require finding_id, contract_id, severity, code, message, instance_path and disposition.",
+          "Both schemas use JSON Schema Draft 2020-12 and constrain the top-level object shape."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G11-V-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "artifact_ref is an unconstrained string; artifact identity, immutable revision resolution, content integrity and source trust are unspecified.",
+            "required_disposition": "Resolve artifact_ref through an authenticated immutable artifact registry; verify exact revision, content digest, ownership, media/type and lifecycle before validation."
+          },
+          {
+            "gap_id": "G11-V-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "contract_ids are unique non-empty strings, but version pinning and registry resolution exist only in x-genesis metadata; contract identity, version, applicability and completeness are not enforceable.",
+            "required_disposition": "Resolve every contract ID to an immutable version-pinned contract; verify uniqueness, availability, applicability to the artifact and complete required contract coverage."
+          },
+          {
+            "gap_id": "G11-V-SEM-03",
+            "severity": "HIGH",
+            "finding": "validator_version is an arbitrary string with no authenticated validator build, implementation digest, compatibility declaration or revocation status.",
+            "required_disposition": "Resolve validator_version to a signed, immutable validator release and implementation digest; verify compatibility, trust status and revocation before use."
+          },
+          {
+            "gap_id": "G11-V-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "policy_digest is an arbitrary string with no canonical policy artifact, digest recomputation, policy version, effective interval or precedence semantics.",
+            "required_disposition": "Recompute policy digest over a canonical versioned policy artifact; verify issuer, effective time, scope, precedence and revocation, failing closed for unknown policy."
+          },
+          {
+            "gap_id": "G11-V-SEM-05",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects; issuer authentication, integrity, freshness and binding to artifact, contracts, validator and policy are undefined.",
+            "required_disposition": "Require verifiable provenance and version-bound evidence binding exact artifact revision, contract versions, validator release, policy snapshot and validation run."
+          },
+          {
+            "gap_id": "G11-V-SEM-06",
+            "severity": "HIGH",
+            "finding": "Finding IDs are not schema-enforced unique; uniqueness and reference resolution are described only in x-genesis metadata.",
+            "required_disposition": "Promote unique finding IDs and contract-reference resolution to normative constraints; each finding must point to one of the exact input contract versions."
+          },
+          {
+            "gap_id": "G11-V-SEM-07",
+            "severity": "HIGH",
+            "finding": "Finding severity and disposition are free-form strings with no controlled taxonomy, blocking threshold, deterministic mapping or policy-version binding.",
+            "required_disposition": "Use controlled severity/code/disposition registries and versioned policy mapping; unknown or unmapped criticality must fail closed."
+          },
+          {
+            "gap_id": "G11-V-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "The boolean valid has no normative consistency rule with findings; extension metadata says valid=true requires no blocking findings, but the blocking taxonomy is undefined.",
+            "required_disposition": "Derive valid deterministically from all findings under the pinned policy; any blocking, unresolved or unclassified finding prevents valid=true."
+          },
+          {
+            "gap_id": "G11-V-SEM-09",
+            "severity": "CRITICAL",
+            "finding": "validated_digest is an unconstrained string and is not defined as a recomputable digest over the exact artifact, contracts, validator, policy and validation result.",
+            "required_disposition": "Recompute a versioned canonical validation digest binding artifact bytes/revision, contract set, validator build, policy snapshot, findings and result; reject mismatches."
+          },
+          {
+            "gap_id": "G11-V-SEM-10",
+            "severity": "CRITICAL",
+            "finding": "The contract's required-field summary omits version_bound_evidence although both actual schemas require it; conformance cases also omit it. Validation identity, idempotency and lifecycle are undefined.",
+            "required_disposition": "Align contract inventory and conformance cases with actual schema requirements; require version_bound_evidence on input and output and define immutable validation identity/lifecycle without granting approval or execution authority."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g11.validator input/output schemas and its positive/negative conformance vectors to address G11-V-SEM-01 through G11-V-SEM-10.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not add genes or alter unrelated contracts.",
+          "Resolve artifact, contract set, validator build and policy snapshot through authenticated immutable registries with recomputable digests.",
+          "Promote finding uniqueness, contract-reference resolution, controlled severity/disposition and valid/findings consistency to normative enforceable constraints rather than extension metadata alone.",
+          "Bind provenance and version-bound evidence to the exact validation context; recompute a canonical validated digest over all relevant inputs and outputs.",
+          "Define immutable validation identity/idempotency/lifecycle and preserve the boundary between validation, approval, authorization and execution.",
+          "After separate A3 authorization, run Draft 2020-12 validation and exact-head tests for unknown/stale artifact, missing contract version, untrusted validator, revoked policy, forged digests, duplicate findings, unknown severity, blocking findings with valid=true and missing version-bound evidence."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g11.attestation",
