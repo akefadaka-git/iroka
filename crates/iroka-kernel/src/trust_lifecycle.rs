@@ -777,6 +777,59 @@ mod tests {
     }
 
     #[test]
+    fn g12_runtime_recovers_and_wires_all_governed_security_components() {
+        use std::sync::Arc;
+        let (signer, root, trust_bundle) = fixture(1);
+        let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
+        let signed_policy = signed_policy_fixture(&signer, &root, 2);
+        let signed_registry = signed_lineage_fixture(&signer, &root, 3);
+        let candidate_digest = signed_registry.payload.artifacts[0].artifact_digest.clone();
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        verify_and_install_trust_bundle(&trust_bundle, &root, &store, 1_100).unwrap();
+        verify_and_install_rollback_evidence_policy(&signed_policy, &roots, &store, 1_100).unwrap();
+        verify_and_install_version_lineage_snapshot(&signed_registry, &roots, &store, 1_100).unwrap();
+
+        let runtime = G12SecurityRuntime::restore(&roots, Arc::clone(&store), 1_200).unwrap();
+        assert!(runtime.trust_snapshots().snapshot().is_ok());
+        assert!(runtime.evidence_verifier().verify(
+            &crate::RollbackEvidenceReceipt {
+                subject: "current_state".into(),
+                subject_digest: "a".repeat(64),
+                subject_epoch: 1,
+                revision: 1,
+                issuer: "issuer:state".into(),
+                key_id: "issuer-key-1".into(),
+                issued_at: 1_100,
+                expires_at: 1_200,
+                nonce: "runtime-nonce-single-use-000001".into(),
+                signature: vec![0; 64],
+            },
+            &crate::EvidenceBinding {
+                subject: "current_state".into(),
+                digest: "a".repeat(64),
+                epoch: 1,
+                revision: 1,
+            },
+            1_150,
+        ).is_err());
+        let lineage = runtime.lineage_registry()
+            .resolve_lineage("1.0.0", &candidate_digest).unwrap();
+        assert_eq!(lineage.registry_revision, 3);
+    }
+
+    #[test]
+    fn g12_runtime_fails_closed_when_any_governed_document_is_missing() {
+        use std::sync::Arc;
+        let (_, root, _) = fixture(1);
+        let roots = TrustRootSet::new(vec![root]).unwrap();
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        assert!(matches!(
+            G12SecurityRuntime::restore(&roots, store, 1_200),
+            Err(TrustBundleError::StoreUnavailable)
+        ));
+    }
+
+    #[test]
     fn signed_lineage_registry_is_atomically_provisioned_and_recovered() {
         use std::fs;
         let (signer, root, _) = fixture(1);
