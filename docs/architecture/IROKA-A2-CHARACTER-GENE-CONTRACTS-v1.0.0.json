@@ -4053,50 +4053,148 @@
         {
           "field": "snapshot_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Treat the supplied digest as an untrusted claim. Resolve the exact immutable snapshot bytes/reference, recompute using the registered canonicalization and versioned digest algorithm, and reject mismatch or unavailable material."
         },
         {
           "field": "sequence",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-negative sequence and compare it with the authenticated prior checkpoint and authoritative checkpoint state; reject duplicate, regressed, skipped or otherwise policy-invalid sequence transitions."
         },
         {
           "field": "previous_checkpoint",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Permit null only for a formally authorized genesis checkpoint; otherwise resolve the exact prior checkpoint and verify its digest, sequence, status and continuity before accepting a successor."
         },
         {
           "field": "authority_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated, versioned authority record; verify issuer/signature, scope, effective interval and revocation. The reference is evidence of authority, not an execution capability."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require independently resolvable provenance bound to snapshot material, digest computation, sequence, predecessor, authority evidence and evaluator version; missing or conflicting evidence fails closed."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind the decision to the exact schema, digest/canonicalization policy, authority registry, evaluator version and checkpoint record; reject stale or mismatched evidence."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Detect unauthorized memory alteration and preserve verifiable checkpoints.",
+          "assertion": "Detect unauthorized memory alteration and preserve verifiable checkpoints; recompute the snapshot and checkpoint digests from canonical material and bind them to the exact checkpoint sequence and predecessor.",
           "observable_fields": [
             "checkpoint_digest",
-            "accepted",
+            "sequence",
             "continuity_verified",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Set accepted=true only when the snapshot digest, checkpoint digest, sequence transition, predecessor continuity and authority evidence all verify; accepted and continuity_verified must never contradict.",
           "observable_fields": [
+            "accepted",
+            "continuity_verified",
+            "sequence",
             "checkpoint_digest",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever silent alteration, digest mismatch, rollback or evidence rewrite is detected; never silently repair or rewrite evidence.",
+          "observable_fields": [
             "accepted",
             "continuity_verified",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never silently repair or rewrite evidence without an audit trail. fail-closed"
+      "character_failure_rule": "Never silently repair or rewrite evidence without an audit trail. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G05-INTEGRITY-CHECKPOINT-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "a69188ab416fe98b8920bd07329a7255a637ed6f",
+          "a2_contract_blob_before_review": "4aedcb75ea169e0ad3ffeb5d762c6bff74817860",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "62cfce5145384329685c671e1f9f557615d06f46",
+          "output_schema_blob": "4f71f5ffaa8ca21185a71cf2f076febac09d12da"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires snapshot_digest, sequence, previous_checkpoint, authority_ref, provenance and version_bound_evidence; previous_checkpoint explicitly permits string or null.",
+          "Input and output schemas are top-level objects and reject undeclared top-level properties.",
+          "Output schema requires checkpoint_digest, accepted, sequence, continuity_verified, evidence and version_bound_evidence; the two status fields are typed boolean.",
+          "Evidence definitions require both provenance and version_bound_evidence objects, but only constrain each to be non-empty."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G05-IC-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "snapshot_digest is only an unconstrained string; the input schema does not define an algorithm, canonical snapshot encoding, digest length/format, or retrievable snapshot binding, so integrity cannot be independently recomputed.",
+            "required_disposition": "Bind the digest to canonical snapshot bytes or an immutable retrievable snapshot reference; specify algorithm, canonicalization and versioned digest policy."
+          },
+          {
+            "gap_id": "G05-IC-SEM-02",
+            "severity": "HIGH",
+            "finding": "sequence is an integer without a non-negative minimum or monotonicity/uniqueness semantics; the schema alone permits negative, repeated or regressed sequence values.",
+            "required_disposition": "Require non-negative sequence values and verify strict monotonicity against an authenticated prior checkpoint and authoritative sequence state."
+          },
+          {
+            "gap_id": "G05-IC-SEM-03",
+            "severity": "HIGH",
+            "finding": "previous_checkpoint permits null but the schema does not distinguish an authorized genesis checkpoint from a missing predecessor or define prior-checkpoint digest/reference resolution.",
+            "required_disposition": "Define a genesis-only null rule; otherwise require resolution and verification of the exact previous checkpoint, including its digest, sequence and status."
+          },
+          {
+            "gap_id": "G05-IC-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "authority_ref is an unrestricted string; no authority registry, issuer authenticity, signature, scope, validity interval or revocation semantics are required by the schema.",
+            "required_disposition": "Resolve authority_ref against an authenticated, versioned authority registry and verify signature, scope, validity and revocation without granting execution permission."
+          },
+          {
+            "gap_id": "G05-IC-SEM-05",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects; neither schema requires binding to snapshot bytes, digest algorithm, sequence, predecessor, authority decision or evaluator version.",
+            "required_disposition": "Define structured, independently resolvable evidence binding all checkpoint inputs and the exact verification policy/evaluator version."
+          },
+          {
+            "gap_id": "G05-IC-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "The output schema permits accepted and continuity_verified to take independent boolean values; it does not enforce that acceptance requires verified continuity and all integrity/authority checks.",
+            "required_disposition": "Add cross-field conditional constraints and conformance rules: accepted=true only when continuity_verified=true and all required checks pass; unknown or failed checks cannot be accepted."
+          },
+          {
+            "gap_id": "G05-IC-SEM-07",
+            "severity": "HIGH",
+            "finding": "checkpoint_digest is an unconstrained string and the output does not require equality/binding to the input snapshot digest, computed checkpoint record, predecessor or sequence.",
+            "required_disposition": "Specify canonical checkpoint-record construction and digest computation, and require output digest/sequence to match the verified record and input lineage."
+          },
+          {
+            "gap_id": "G05-IC-SEM-08",
+            "severity": "HIGH",
+            "finding": "The evidence object contains only generic provenance and version_bound_evidence; it does not require prior-tip, sequence comparison, digest recomputation, authority verification, mismatch or exception trace, so the result is not reproducible.",
+            "required_disposition": "Require a complete decision trace with resolved prior checkpoint, computed and observed digests, sequence comparison, authority evidence, policy/evaluator versions and explicit unresolved findings."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g05.integrity-checkpoint input/output schemas and its conformance vectors to close G05-IC-SEM-01 through G05-IC-SEM-08.",
+          "Define canonical snapshot/checkpoint serialization, registered digest algorithms, immutable material resolution, genesis semantics, monotonic sequence rules and authenticated prior-checkpoint verification.",
+          "Bind authority_ref and version-bound evidence to authenticated registries and the exact evaluated checkpoint; preserve the authority/authorization/execution separation.",
+          "Enforce accepted/continuity_verified invariants and produce a reproducible verification trace; never silently repair or rewrite checkpoint evidence.",
+          "Preserve the 12 chromosomes, 36 genes and all unrelated contracts; run Draft 2020-12 meta-validation and exact-head conformance tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g06.input-envelope",
