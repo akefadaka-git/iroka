@@ -292,6 +292,7 @@ impl OwnerApprovalVerifier {
             || now >= owner_key.not_after
             || p.issued_at < owner_key.not_before
             || p.issued_at >= owner_key.not_after
+            || p.expires_at > owner_key.not_after
         {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
@@ -380,7 +381,7 @@ impl OwnerApprovalVerifier {
         }
         let genome_digest = parse_sha256_hex(genesis.digest())?;
         let expected_operation_digest = effect
-            .operation_digest(principal.subject(), policy_version, genesis.digest())
+            .operation_digest(principal, policy_version, genesis.digest())
             .map_err(|_| OwnerApprovalError::Malformed)?;
         if p.request_subject != principal.subject()
             || p.executor_subject != effect.executor_subject()
