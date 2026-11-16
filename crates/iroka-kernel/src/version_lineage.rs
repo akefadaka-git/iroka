@@ -85,6 +85,7 @@ pub struct SignedVersionLineageRegistrySnapshot {
     pub signature: Vec<u8>,
 }
 
+#[rustfmt::skip]
 impl SignedVersionLineageRegistrySnapshot {
     pub fn from_signature(
         root_key_id: impl Into<String>,
