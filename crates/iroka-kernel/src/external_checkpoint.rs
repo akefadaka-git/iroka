@@ -658,6 +658,34 @@ mod tests {
     }
 
     #[test]
+    fn quorum_rejects_reusing_one_witness_key_under_multiple_identities() {
+        let s = signer();
+        let w = TestWitness::new(&s);
+        let checkpoint =
+            create_checkpoint(&s, "audit-stream:key-uniqueness", 1, 1, [5; 32], None, 1_900)
+                .unwrap();
+        let first = w.publish(&checkpoint).unwrap();
+        let mut alias = first.clone();
+        alias.payload.witness_id = "witness:aliased-identity".into();
+        alias.signature = w
+            .key
+            .sign(&WitnessReceipt::signing_bytes(&alias.payload).unwrap())
+            .to_bytes()
+            .to_vec();
+
+        assert_eq!(
+            verify_witness_quorum(
+                &checkpoint,
+                &[first, alias],
+                &trust(&s.id, &s.key),
+                &trust(&w.key_id, &w.key),
+                2,
+            ),
+            Err(CheckpointError::DuplicateWitness)
+        );
+    }
+
+    #[test]
     fn witness_keeps_streams_separate_and_receipt_is_bound_to_digest() {
         let s = signer();
         let w = TestWitness::new(&s);
