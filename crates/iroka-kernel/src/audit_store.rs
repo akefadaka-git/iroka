@@ -8,6 +8,9 @@ use std::{path::Path, sync::Mutex, time::Duration};
 
 const ZERO: [u8; 32] = [0; 32];
 
+type StoredCheckpointEvidence = (Vec<u8>, Vec<u8>, Vec<u8>, i64, i64);
+type SerializedCheckpointEvidence = (Vec<u8>, Vec<u8>);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuditStoreError {
     Unavailable,
@@ -293,7 +296,7 @@ impl SqliteAuditSink {
             )
             .map_err(|_| AuditStoreError::Unavailable)?;
         if changed == 0 {
-            let existing: Option<(Vec<u8>, Vec<u8>, Vec<u8>, i64, i64)> = transaction
+            let existing: Option<StoredCheckpointEvidence> = transaction
                 .query_row(
                     "SELECT checkpoint_digest, checkpoint_json, receipts_json, receipt_count, required_quorum
                      FROM external_checkpoint_evidence
@@ -335,7 +338,7 @@ impl SqliteAuditSink {
     pub fn latest_checkpoint_evidence_bytes(
         &self,
         stream_id: &str,
-    ) -> Result<Option<(Vec<u8>, Vec<u8>)>, AuditStoreError> {
+    ) -> Result<Option<SerializedCheckpointEvidence>, AuditStoreError> {
         if stream_id.trim().is_empty() {
             return Err(AuditStoreError::Rejected);
         }
