@@ -162,10 +162,7 @@ impl SqliteSecurityStore {
         Ok(Self {
             connection: Mutex::new(connection),
         })
-    }
-
-
-    /// Atomically consume a signed rollback-evidence nonce after signature
+    }\n\n    /// Atomically consume a signed rollback-evidence nonce after signature
     /// verification. Key revocation is rechecked inside the same transaction.
     pub(crate) fn consume_rollback_evidence_nonce(
         &self,
@@ -175,28 +172,38 @@ impl SqliteSecurityStore {
         expires_at: u64,
         now: u64,
     ) -> Result<(), SecurityStoreError> {
-        if issuer.trim().is_empty() || key_id.trim().is_empty() || nonce.trim().len() < 16
+        if issuer.trim().is_empty()
+            || key_id.trim().is_empty()
+            || nonce.trim().len() < 16
             || expires_at <= now
         {
             return Err(SecurityStoreError::InvalidVersion);
         }
-        let expires_i = i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let expires_i =
+            i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let now_i = i64::try_from(now).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let mut connection = self
+            .connection
+            .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let revoked: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
-            params![issuer, key_id],
-            |row| row.get(0),
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params![issuer, key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         if revoked {
             return Err(SecurityStoreError::RevokedEvidenceKey);
         }
         tx.execute(
             "DELETE FROM rollback_evidence_nonces WHERE expires_at <= ?1",
             params![now_i],
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
         let inserted = tx.execute(
             "INSERT OR IGNORE INTO rollback_evidence_nonces(issuer, key_id, nonce, expires_at) VALUES(?1, ?2, ?3, ?4)",
             params![issuer, key_id, nonce, expires_i],
@@ -216,25 +223,36 @@ impl SqliteSecurityStore {
     ) -> Result<(), SecurityStoreError> {
         let floor_i = i64::try_from(floor).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let revision_i = i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+        let mut connection = self
+            .connection
+            .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let current: Option<(i64, i64)> = tx.query_row(
-            "SELECT floor, revision FROM rollback_revocation_floor WHERE singleton=1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, i64)> = tx
+            .query_row(
+                "SELECT floor, revision FROM rollback_revocation_floor WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         match current {
             Some((_old_floor, old_revision)) if revision_i < old_revision => {
                 return Err(SecurityStoreError::RevocationFloorRollback);
             }
-            Some((old_floor, old_revision)) if revision_i == old_revision && floor_i != old_floor => {
+            Some((old_floor, old_revision))
+                if revision_i == old_revision && floor_i != old_floor =>
+            {
                 return Err(SecurityStoreError::ConflictingRevocationFloor);
             }
             Some((old_floor, old_revision)) if revision_i > old_revision && floor_i < old_floor => {
                 return Err(SecurityStoreError::RevocationFloorRollback);
             }
-            Some((old_floor, old_revision)) if revision_i == old_revision && floor_i == old_floor => {
+            Some((old_floor, old_revision))
+                if revision_i == old_revision && floor_i == old_floor =>
+            {
                 tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
@@ -244,7 +262,8 @@ impl SqliteSecurityStore {
             "INSERT INTO rollback_revocation_floor(singleton, floor, revision) VALUES(1, ?1, ?2)
              ON CONFLICT(singleton) DO UPDATE SET floor=excluded.floor, revision=excluded.revision",
             params![floor_i, revision_i],
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
     }
 
@@ -638,7 +657,11 @@ impl SqliteSecurityStore {
 }
 
 impl RevocationChecker for std::sync::Arc<SqliteSecurityStore> {
-    fn credential_revoked(&self, issuer: &str, credential_id: &str) -> Result<bool, RevocationError> {
+    fn credential_revoked(
+        &self,
+        issuer: &str,
+        credential_id: &str,
+    ) -> Result<bool, RevocationError> {
         self.as_ref().credential_revoked(issuer, credential_id)
     }
     fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError> {
@@ -1100,20 +1123,34 @@ mod tests {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
         assert_eq!(
             store.consume_rollback_evidence_nonce(
-                "issuer:test", "key:test", "nonce-evidence-proof-0001", 200, 100
+                "issuer:test",
+                "key:test",
+                "nonce-evidence-proof-0001",
+                200,
+                100
             ),
             Ok(())
         );
         assert_eq!(
             store.consume_rollback_evidence_nonce(
-                "issuer:test", "key:test", "nonce-evidence-proof-0001", 200, 101
+                "issuer:test",
+                "key:test",
+                "nonce-evidence-proof-0001",
+                200,
+                101
             ),
             Err(SecurityStoreError::EvidenceReplay)
         );
-        store.revoke_key("issuer:test", "key:test", 102, "compromised").unwrap();
+        store
+            .revoke_key("issuer:test", "key:test", 102, "compromised")
+            .unwrap();
         assert_eq!(
             store.consume_rollback_evidence_nonce(
-                "issuer:test", "key:test", "nonce-evidence-proof-0002", 200, 103
+                "issuer:test",
+                "key:test",
+                "nonce-evidence-proof-0002",
+                200,
+                103
             ),
             Err(SecurityStoreError::RevokedEvidenceKey)
         );
@@ -1138,6 +1175,4 @@ mod tests {
             Err(SecurityStoreError::RevocationFloorRollback)
         );
     }
-
-
 }
