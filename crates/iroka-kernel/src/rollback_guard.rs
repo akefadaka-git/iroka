@@ -105,10 +105,10 @@ pub trait RollbackEvidenceVerifier: Send + Sync {
 
 pub struct RollbackGuardInput<'a> {
     pub current_epoch: u64,
-    pub current_digest: &'a str,
+    pub current_digest: String,
     pub current_artifact: &'a Value,
     pub candidate_epoch: u64,
-    pub candidate_digest: &'a str,
+    pub candidate_digest: String,
     pub candidate_artifact: &'a Value,
     pub revocation_floor: u64,
     pub revocation_floor_revision: u64,
@@ -147,13 +147,13 @@ fn expected_bindings(input: &RollbackGuardInput<'_>) -> Result<Vec<EvidenceBindi
     Ok(vec![
         EvidenceBinding {
             subject: "current_state".into(),
-            digest: input.current_digest.into(),
+            digest: input.current_digest.clone(),
             epoch: input.current_epoch,
             revision: input.current_epoch,
         },
         EvidenceBinding {
             subject: "candidate_state".into(),
-            digest: input.candidate_digest.into(),
+            digest: input.candidate_digest.clone(),
             epoch: input.candidate_epoch,
             revision: input.candidate_epoch,
         },
@@ -270,13 +270,13 @@ fn finish(
         (
             EffectiveState::Candidate,
             Some(input.candidate_epoch),
-            Some(input.candidate_digest.to_owned()),
+            Some(input.candidate_digest.clone()),
         )
     } else if current_verified && input.current_epoch >= input.revocation_floor {
         (
             EffectiveState::Current,
             Some(input.current_epoch),
-            Some(input.current_digest.to_owned()),
+            Some(input.current_digest.clone()),
         )
     } else {
         (EffectiveState::Unresolved, None, None)
@@ -456,10 +456,10 @@ mod tests {
     ) -> RollbackGuardInput<'a> {
         RollbackGuardInput {
             current_epoch,
-            current_digest: &digest_value(current).unwrap(),
+            current_digest: digest_value(current).unwrap(),
             current_artifact: current,
             candidate_epoch,
-            candidate_digest: &digest_value(candidate).unwrap(),
+            candidate_digest: digest_value(candidate).unwrap(),
             candidate_artifact: candidate,
             revocation_floor: floor,
             revocation_floor_revision: 5,
@@ -547,7 +547,7 @@ mod tests {
         let conflict = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(conflict.denial_code, RollbackDenialCode::EpochConflict);
         let mut substituted = fixture(20, 21, 10, &current, &candidate, None, &p, &v);
-        substituted.candidate_digest = "0".repeat(64).leak();
+        substituted.candidate_digest = "0".repeat(64);
         let mismatch = evaluate_rollback_guard(&substituted, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(mismatch.denial_code, RollbackDenialCode::DigestMismatch);
     }
