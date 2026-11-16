@@ -1,7 +1,5 @@
 //! G09 operation-specific authorization, admission, execution and receipt boundary.
 
-use std::collections::BTreeMap;
-
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -168,34 +166,28 @@ impl SignedOwnerEffectGrant {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedEffectGrant {
     nonce: String,
-    owner_subject: String,
     request_subject: String,
     executor_subject: String,
     capability: String,
     resource: String,
     effect_type: String,
-    risk_class: String,
     policy_version: String,
     genome_digest: [u8; 32],
     operation_digest: [u8; 32],
-    expires_at: u64,
 }
 
 impl VerifiedEffectGrant {
     pub(crate) fn from_payload(payload: &OwnerEffectGrantPayload) -> Self {
         Self {
             nonce: payload.nonce.clone(),
-            owner_subject: payload.owner_subject.clone(),
             request_subject: payload.request_subject.clone(),
             executor_subject: payload.executor_subject.clone(),
             capability: payload.capability.clone(),
             resource: payload.resource.clone(),
             effect_type: payload.effect_type.clone(),
-            risk_class: payload.risk_class.clone(),
             policy_version: payload.policy_version.clone(),
             genome_digest: payload.genome_digest,
             operation_digest: payload.operation_digest,
-            expires_at: payload.expires_at,
         }
     }
 
@@ -458,7 +450,6 @@ pub enum ProtectedEffectError {
     CapabilityNotApprovalGated,
     OwnerApproval(OwnerApprovalError),
     AuditUnavailable,
-    ExecutorUnavailable,
     InvalidExecutorAttestation,
     UnknownExecutorKey,
     ReceiptIntegrityFailure,
@@ -654,8 +645,7 @@ fn verify_execution_result(
         || p.operation_digest != grant.operation_digest
         || p.executor_subject != grant.executor_subject
         || p.executor_key_id.trim().is_empty()
-        || p.completed_at.saturating_add(30) < now
-        || p.completed_at > now.saturating_add(30)
+        || p.completed_at < now || p.completed_at > now.saturating_add(30)
         || matches!(p.outcome, ExecutionOutcome::Succeeded | ExecutionOutcome::Partial)
             && p.result_digest.is_none()
     {
