@@ -224,9 +224,7 @@ fn verify_evidence_set(
     Ok(())
 }
 
-fn transition_resource(
-    input: &RollbackGuardInput<'_>,
-) -> Result<String, RollbackGuardError> {
+fn transition_resource(input: &RollbackGuardInput<'_>) -> Result<String, RollbackGuardError> {
     let payload = json!({
         "current_epoch": input.current_epoch,
         "current_digest": input.current_digest,
@@ -240,9 +238,7 @@ fn transition_resource(
     Ok(format!("rollback-transition:{}", digest_value(&payload)?))
 }
 
-fn input_commitment(
-    input: &RollbackGuardInput<'_>,
-) -> Result<String, RollbackGuardError> {
+fn input_commitment(input: &RollbackGuardInput<'_>) -> Result<String, RollbackGuardError> {
     let approval = input.rollback_authorization.map(|signed| {
         json!({
             "approval_id": signed.payload.approval_id,
@@ -270,10 +266,9 @@ fn evidence_commitment(
     provenance: &[RollbackEvidenceReceipt],
     version_bound: &[RollbackEvidenceReceipt],
 ) -> Result<String, RollbackGuardError> {
-    let p = serde_json::to_value(provenance)
-        .map_err(|_| RollbackGuardError::EvidenceCommitment)?;
-    let v = serde_json::to_value(version_bound)
-        .map_err(|_| RollbackGuardError::EvidenceCommitment)?;
+    let p = serde_json::to_value(provenance).map_err(|_| RollbackGuardError::EvidenceCommitment)?;
+    let v =
+        serde_json::to_value(version_bound).map_err(|_| RollbackGuardError::EvidenceCommitment)?;
     digest_value(&json!({ "provenance": p, "version_bound_evidence": v }))
 }
 
