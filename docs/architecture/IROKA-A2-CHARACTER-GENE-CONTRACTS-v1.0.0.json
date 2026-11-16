@@ -907,32 +907,32 @@
         {
           "field": "authority_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve authority_id only through the configured trusted-principal registry; verify canonical identity, issuer binding, key/status and revocation state. Never accept a self-asserted identifier as proof of authority."
         },
         {
           "field": "source_type",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Treat source_type as a claimed class, not proof. Verify that the principal is registered for this exact class and that the governing policy permits that class for the requested authority context; reject class substitution."
         },
         {
           "field": "mandate_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve mandate_ref to an authenticated, immutable mandate record; verify issuer/signature, subject authority_id, source class, exact scope, delegation chain, constraints, status and revocation."
         },
         {
           "field": "valid_from",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse as a canonical timezone-aware timestamp under the governing temporal policy; reject malformed or ambiguous local times and evaluate against a trusted clock with recorded evaluation time."
         },
         {
           "field": "valid_until",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse as a canonical timezone-aware timestamp or null. Null means unbounded only where the governing mandate policy explicitly permits it; otherwise require finite expiry. Enforce valid_until strictly after valid_from."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify provenance and version-bound evidence against trusted sources and bind it to the resolved principal, mandate, source class, scope, temporal interval, status and revocation checks."
         }
       ],
       "character_output_assertions": [
@@ -953,9 +953,110 @@
             "decision",
             "evidence"
           ]
+        },
+        {
+          "assertion": "source_valid=true is permitted only when decision=valid; source_valid=false for invalid or expired. The reported scope must be the verified mandate scope and must never exceed it.",
+          "observable_fields": [
+            "authority_id",
+            "source_valid",
+            "scope",
+            "decision",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "A valid result must include reproducible evidence of principal resolution, source-class authorization, mandate authenticity and scope, temporal validity, and non-revocation at the evaluation time.",
+          "observable_fields": [
+            "authority_id",
+            "source_valid",
+            "scope",
+            "decision",
+            "evidence"
+          ]
         }
       ],
-      "character_failure_rule": "Reject inferred, self-issued, revoked or ambiguous authority. fail-closed"
+      "character_failure_rule": "Reject inferred, self-issued, revoked or ambiguous authority. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G02-AUTHORITY-SOURCE-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "a0b567ffae940dddb44d7ed2211568132e0608e2",
+          "a2_contract_blob_before_review": "f34cf112ac84fc356183fb386baf443a1286e2db",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "3c0f8d223bc7291621445df0bf9ab3dfe0519fb1",
+          "output_schema_blob": "ed391411a4d4a28c4efe056866ee396065f24b69"
+        },
+        "confirmed_sufficient": [
+          "Input requires authority_id, source_type, mandate_ref, valid_from, valid_until, provenance and version-bound evidence.",
+          "source_type is restricted to owner, delegated, statutory or system.",
+          "valid_until explicitly permits null as a representable value.",
+          "Output requires authority_id, source_valid, scope, decision, evidence and version-bound evidence.",
+          "decision is restricted to valid, invalid or expired.",
+          "Both schemas reject undeclared top-level properties."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G02-AUTH-SRC-SEM-01",
+            "severity": "HIGH",
+            "finding": "authority_id is an arbitrary non-empty string; no trusted principal registry, issuer binding, key status or revocation resolution is specified.",
+            "required_disposition": "Resolve canonical principal identity and current trust/revocation status through configured trusted sources."
+          },
+          {
+            "gap_id": "G02-AUTH-SRC-SEM-02",
+            "severity": "HIGH",
+            "finding": "source_type enum constrains syntax only; no proof binds the principal to the claimed owner, delegated, statutory or system class.",
+            "required_disposition": "Verify class membership and policy eligibility for the exact authority context; reject class substitution."
+          },
+          {
+            "gap_id": "G02-AUTH-SRC-SEM-03",
+            "severity": "HIGH",
+            "finding": "mandate_ref is an arbitrary non-empty string; mandate authenticity, issuer, subject, delegation chain, scope, constraints and revocation are not modeled.",
+            "required_disposition": "Resolve mandate_ref to authenticated immutable mandate evidence bound to the authority principal and exact scope."
+          },
+          {
+            "gap_id": "G02-AUTH-SRC-SEM-04",
+            "severity": "HIGH",
+            "finding": "valid_from and valid_until are unconstrained strings; timestamp format, timezone, ordering and evaluation-time semantics are absent.",
+            "required_disposition": "Use canonical timezone-aware timestamps, enforce valid_until after valid_from, and record trusted evaluation time."
+          },
+          {
+            "gap_id": "G02-AUTH-SRC-SEM-05",
+            "severity": "HIGH",
+            "finding": "valid_until=null has no policy condition defining whether indefinite authority is permitted.",
+            "required_disposition": "Permit null only where the governing mandate policy explicitly allows an unbounded interval; otherwise require expiry."
+          },
+          {
+            "gap_id": "G02-AUTH-SRC-SEM-06",
+            "severity": "HIGH",
+            "finding": "Output permits source_valid=true with decision=invalid or expired, and scope is not constrained to the authenticated mandate scope.",
+            "required_disposition": "Enforce status consistency and ensure reported scope is exactly bounded by verified mandate scope."
+          },
+          {
+            "gap_id": "G02-AUTH-SRC-SEM-07",
+            "severity": "HIGH",
+            "finding": "Evidence requires only provenance and version-bound evidence; it does not explicitly establish principal trust, source-class eligibility, mandate authenticity, scope, temporal validity or non-revocation.",
+            "required_disposition": "Require structured, reproducible evidence for every authority-source validation dimension."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g02.authority-source input/output schemas and its conformance vectors.",
+          "Define trusted-principal resolution and source-class verification using configured trust policy; do not create or grant authority.",
+          "Authenticate mandate references and bind mandate subject, issuer, scope, delegation chain, status and revocation.",
+          "Define canonical timezone-aware validity timestamps, interval ordering and policy-controlled null expiry.",
+          "Enforce output status consistency and scope non-expansion; add reproducible validation evidence.",
+          "Preserve existing gene boundaries, 12 chromosomes and 36 genes; no execution or authority expansion."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g02.owner-governance",
