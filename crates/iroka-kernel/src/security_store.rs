@@ -1376,4 +1376,162 @@ mod tests {
             Err(SecurityStoreError::RevocationFloorRollback)
         );
     }
+
+    fn artifact_digest(value: &serde_json::Value) -> String {
+        use sha2::{Digest, Sha256};
+        let bytes = crate::canonical_json(value).unwrap();
+        format!("{:x}", Sha256::digest(bytes))
+    }
+
+    fn insert_lineage_artifact(
+        store: &SqliteSecurityStore,
+        version: &str,
+        value: &serde_json::Value,
+        parent_version: Option<&str>,
+        parent_digest: Option<&str>,
+        mutation_id: Option<&str>,
+        epoch: i64,
+    ) -> String {
+        let digest = artifact_digest(value);
+        let connection = store.connection.lock().unwrap();
+        connection
+            .execute(
+                "INSERT INTO version_lineage_artifacts(
+                    gene_id, version, artifact_digest, artifact_json,
+                    parent_version, parent_digest, mutation_id, epoch
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    "g12.version-lineage",
+                    version,
+                    digest,
+                    serde_json::to_string(value).unwrap(),
+                    parent_version,
+                    parent_digest,
+                    mutation_id,
+                    epoch
+                ],
+            )
+            .unwrap();
+        digest
+    }
+
+    #[test]
+    fn sqlite_version_lineage_registry_resolves_immutable_chain_and_mutation() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let root_value = serde_json::json!({"version":1});
+        let middle_value = serde_json::json!({"version":2});
+        let candidate_value = serde_json::json!({"version":3});
+        let root_digest =
+            insert_lineage_artifact(&store, "1.0.0", &root_value, None, None, None, 0);
+        let middle_digest = insert_lineage_artifact(
+            &store,
+            "1.1.0",
+            &middle_value,
+            Some("1.0.0"),
+            Some(&root_digest),
+            Some("mutation-1"),
+            1,
+        );
+        let candidate_digest = insert_lineage_artifact(
+            &store,
+            "1.2.0",
+            &candidate_value,
+            Some("1.1.0"),
+            Some(&middle_digest),
+            Some("mutation-2"),
+            2,
+        );
+        {
+            let connection = store.connection.lock().unwrap();
+            connection
+                .execute(
+                    "INSERT INTO version_lineage_mutations(
+                        mutation_ref, mutation_id, source_version, source_digest,
+                        target_version, target_digest, approved, gates_passed, approval_commitment
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, 1, 1, ?7)",
+                    params![
+                        "mutation-ref-2",
+                        "mutation-2",
+                        "1.1.0",
+                        middle_digest,
+                        "1.2.0",
+                        candidate_digest,
+                        "a".repeat(64)
+                    ],
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "UPDATE version_lineage_registry_meta SET revision=42 WHERE singleton=1",
+                    [],
+                )
+                .unwrap();
+        }
+
+        let record = store
+            .resolve_lineage("1.2.0", &candidate_digest)
+            .unwrap();
+        assert_eq!(record.ancestry.len(), 3);
+        assert_eq!(record.ancestry[0].version, "1.0.0");
+        assert_eq!(record.ancestry[1].version, "1.1.0");
+        assert_eq!(record.ancestry[2].version, "1.2.0");
+        assert_eq!(record.registry_revision, 42);
+        assert_eq!(
+            record.mutation.as_ref().map(|mutation| mutation.mutation_ref.as_str()),
+            Some("mutation-ref-2")
+        );
+        assert!(record.mutation.as_ref().unwrap().approved);
+        assert!(record.mutation.as_ref().unwrap().gates_passed);
+    }
+
+    #[test]
+    fn sqlite_version_lineage_registry_rejects_unknown_and_cyclic_ancestry() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            store.resolve_lineage("9.9.9", &"a".repeat(64)),
+            Err(LineageRegistryError::UnknownVersion)
+        );
+
+        let value_a = serde_json::json!({"node":"a"});
+        let value_b = serde_json::json!({"node":"b"});
+        let digest_a = artifact_digest(&value_a);
+        let digest_b = artifact_digest(&value_b);
+        {
+            let connection = store.connection.lock().unwrap();
+            connection
+                .execute(
+                    "INSERT INTO version_lineage_artifacts(
+                        gene_id, version, artifact_digest, artifact_json,
+                        parent_version, parent_digest, mutation_id, epoch
+                     ) VALUES(?1, '1.0.0', ?2, ?3, '1.1.0', ?4, 'mutation-a', 1)",
+                    params![
+                        "g12.version-lineage",
+                        digest_a,
+                        serde_json::to_string(&value_a).unwrap(),
+                        digest_b
+                    ],
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "INSERT INTO version_lineage_artifacts(
+                        gene_id, version, artifact_digest, artifact_json,
+                        parent_version, parent_digest, mutation_id, epoch
+                     ) VALUES(?1, '1.1.0', ?2, ?3, '1.0.0', ?4, 'mutation-b', 2)",
+                    params![
+                        "g12.version-lineage",
+                        digest_b,
+                        serde_json::to_string(&value_b).unwrap(),
+                        digest_a
+                    ],
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            store.resolve_lineage("1.1.0", &digest_b),
+            Err(LineageRegistryError::IntegrityFailure)
+        );
+    }
+
+
 }
