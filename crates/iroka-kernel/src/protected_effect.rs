@@ -674,3 +674,507 @@ fn verify_execution_result(
 fn is_sha256_hex(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        sign_genesis, validate_embedded_baseline, verify_genesis_with_trust_roots, Attestation,
+        Genesis, SqliteAuditSink, SqliteSecurityStore, TrustRoot, TrustRootSet, TrustedOwnerKey,
+    };
+    use ed25519_dalek::{Signer, SigningKey};
+    use std::collections::HashMap;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    };
+
+    struct TestExecutor {
+        subject: String,
+        key_id: String,
+        key: SigningKey,
+        calls: AtomicUsize,
+        results: Mutex<HashMap<String, SignedExecutionResult>>,
+    }
+
+    impl TestExecutor {
+        fn new(subject: &str, key_id: &str, seed: u8) -> Self {
+            Self {
+                subject: subject.into(),
+                key_id: key_id.into(),
+                key: SigningKey::from_bytes(&[seed; 32]),
+                calls: AtomicUsize::new(0),
+                results: Mutex::new(HashMap::new()),
+            }
+        }
+
+        fn trusted_key(&self) -> TrustedExecutorKey {
+            TrustedExecutorKey {
+                executor_subject: self.subject.clone(),
+                key_id: self.key_id.clone(),
+                public_key: self.key.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 5_000,
+            }
+        }
+
+        fn signed_result(
+            &self,
+            nonce: &str,
+            operation_digest: [u8; 32],
+            completed_at: u64,
+        ) -> SignedExecutionResult {
+            let payload = ExecutionResultPayload {
+                protocol: "iroka.g09.execution-result".into(),
+                version: 1,
+                nonce: nonce.into(),
+                operation_digest,
+                executor_subject: self.subject.clone(),
+                executor_key_id: self.key_id.clone(),
+                outcome: ExecutionOutcome::Succeeded,
+                result_digest: Some(Sha256::digest(b"committed-effect-result").into()),
+                completed_at,
+            };
+            let signature = self
+                .key
+                .sign(&payload.signing_bytes().unwrap())
+                .to_bytes()
+                .to_vec();
+            SignedExecutionResult::from_signature(payload, signature)
+        }
+    }
+
+    impl ProtectedEffectExecutor for TestExecutor {
+        fn execute(
+            &self,
+            _effect: &ProtectedEffectRequest,
+            nonce: &str,
+            operation_digest: [u8; 32],
+        ) -> Result<SignedExecutionResult, EffectExecutionError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            if let Some(existing) = self.results.lock().unwrap().get(nonce).cloned() {
+                return Ok(existing);
+            }
+            let result = self.signed_result(nonce, operation_digest, 1_201);
+            self.results
+                .lock()
+                .unwrap()
+                .insert(nonce.into(), result.clone());
+            Ok(result)
+        }
+
+        fn lookup(
+            &self,
+            nonce: &str,
+        ) -> Result<Option<SignedExecutionResult>, EffectExecutionError> {
+            Ok(self.results.lock().unwrap().get(nonce).cloned())
+        }
+    }
+
+    struct UnknownExecutor;
+    impl ProtectedEffectExecutor for UnknownExecutor {
+        fn execute(
+            &self,
+            _effect: &ProtectedEffectRequest,
+            _nonce: &str,
+            _operation_digest: [u8; 32],
+        ) -> Result<SignedExecutionResult, EffectExecutionError> {
+            Err(EffectExecutionError::OutcomeUnknown)
+        }
+
+        fn lookup(
+            &self,
+            _nonce: &str,
+        ) -> Result<Option<SignedExecutionResult>, EffectExecutionError> {
+            Ok(None)
+        }
+    }
+
+    struct FailedAudit;
+    impl AuditSink for FailedAudit {
+        fn append(&self, _event: &AuditEvent) -> Result<(), crate::AuditError> {
+            Err(crate::AuditError::Unavailable)
+        }
+    }
+
+    fn verified_genesis() -> VerifiedGenesis {
+        let fingerprint = validate_embedded_baseline().unwrap();
+        let signer = SigningKey::from_bytes(&[72u8; 32]);
+        let root = TrustRoot {
+            key_id: "genesis-root".into(),
+            public_key: signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 5_000,
+            provenance_ref: "root-provenance:test".into(),
+        };
+        let mut genesis = Genesis {
+            dna_id: "iroka.dna".into(),
+            dna_version: "1.0.0".into(),
+            genome_id: "IROKA_ZERO_GENOME".into(),
+            genome_version: "1.0.0".into(),
+            digest: fingerprint.digest_hex.clone(),
+            canonicalization: "RFC8785-JCS".into(),
+            hash_algorithm: "SHA-256".into(),
+            epoch: 0,
+            parent: None,
+            owner_approval_ref: "owner-approval:test".into(),
+            trust_root_key_ids: vec!["genesis-root".into()],
+            trust_root_provenance_refs: vec!["root-provenance:test".into()],
+            attestation: Attestation {
+                envelope_type: "iroka.igacms.attestation".into(),
+                version: "1.0.0".into(),
+                digest: String::new(),
+                epoch: 0,
+                key_id: "genesis-root".into(),
+                signature: Vec::new(),
+            },
+            audit_refs: vec!["audit:test".into()],
+        };
+        genesis.attestation = sign_genesis(&genesis, "genesis-root", &signer).unwrap();
+        let roots = TrustRootSet::new(vec![root]).unwrap();
+        verify_genesis_with_trust_roots(&genesis, &fingerprint, &roots, 1_200).unwrap()
+    }
+
+    fn effect() -> ProtectedEffectRequest {
+        ProtectedEffectRequest::new(
+            "executor:finance",
+            "finance.transfer",
+            "account:source-001",
+            "bank.transfer",
+            RiskLevel::Critical,
+            serde_json::json!({
+                "amount_minor": 25000,
+                "currency": "ETB",
+                "destination": "account:beneficiary-002",
+                "reference": "transfer:test-001"
+            }),
+        )
+    }
+
+    fn policy() -> Policy {
+        Policy::new(
+            "policy-v1",
+            vec!["finance.transfer".into()],
+            vec!["finance.transfer".into()],
+            RiskLevel::Critical,
+        )
+    }
+
+    fn principal() -> VerifiedPrincipal {
+        VerifiedPrincipal::from_verified_credential(
+            "principal:finance-operator".into(),
+            "issuer:iroka-test".into(),
+            "credential:finance-operator".into(),
+        )
+    }
+
+    fn owner_verifier() -> (SigningKey, OwnerApprovalVerifier) {
+        let signer = SigningKey::from_bytes(&[91u8; 32]);
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let verifier = OwnerApprovalVerifier::new(
+            vec![TrustedOwnerKey {
+                owner_subject: "owner:akefa".into(),
+                key_id: "owner-effect-key".into(),
+                public_key: signer.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 5_000,
+            }],
+            store,
+        )
+        .unwrap();
+        (signer, verifier)
+    }
+
+    fn signed_grant(
+        signer: &SigningKey,
+        effect: &ProtectedEffectRequest,
+        principal: &VerifiedPrincipal,
+        genesis: &VerifiedGenesis,
+        nonce: &str,
+    ) -> SignedOwnerEffectGrant {
+        let payload = OwnerEffectGrantPayload {
+            nonce: nonce.into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-effect-key".into(),
+            request_subject: principal.subject().into(),
+            executor_subject: effect.executor_subject().into(),
+            capability: effect.capability().into(),
+            resource: effect.resource().into(),
+            effect_type: effect.effect_type().into(),
+            risk_class: effect.risk_class().into(),
+            policy_version: "policy-v1".into(),
+            genome_digest: parse_sha256_hex(genesis.digest()).unwrap(),
+            operation_digest: effect
+                .operation_digest(principal.subject(), "policy-v1", genesis.digest())
+                .unwrap(),
+            issued_at: 1_100,
+            expires_at: 1_400,
+        };
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        SignedOwnerEffectGrant::from_signature(payload, signature)
+    }
+
+    #[test]
+    fn protected_effect_requires_owner_grant_and_persists_verifiable_receipt() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let policy = policy();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:effect-success",
+        );
+        let executor = TestExecutor::new("executor:finance", "executor-key-01", 92);
+        let trusted = vec![executor.trusted_key()];
+        let audit = SqliteAuditSink::open_in_memory().unwrap();
+
+        let receipt = execute_protected_effect(ProtectedExecutionContext {
+            effect: &effect,
+            principal: &principal,
+            genesis: &genesis,
+            grant: &grant,
+            owner_verifier: &owner,
+            executor: &executor,
+            executor_keys: &trusted,
+            audit_sink: &audit,
+            policy: &policy,
+            now: 1_200,
+            emergency_stop_active: false,
+            admission_event_id: "event:effect-admission",
+            result_event_id: "event:effect-result",
+            correlation_id: "trace:effect-001",
+        })
+        .unwrap();
+
+        assert_eq!(receipt.status(), ExecutionStatus::Succeeded);
+        receipt.verify_integrity().unwrap();
+        receipt.verify_executor_attestation(&trusted).unwrap();
+        assert_eq!(executor.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(audit.verified_head().unwrap().0, 2);
+
+        let stored = owner
+            .latest_execution_receipt_bytes("nonce:effect-success")
+            .unwrap()
+            .unwrap();
+        let recovered: ExecutionReceipt = serde_json::from_slice(&stored).unwrap();
+        recovered.verify_integrity().unwrap();
+        recovered.verify_executor_attestation(&trusted).unwrap();
+
+        let replay = execute_protected_effect(ProtectedExecutionContext {
+            effect: &effect,
+            principal: &principal,
+            genesis: &genesis,
+            grant: &grant,
+            owner_verifier: &owner,
+            executor: &executor,
+            executor_keys: &trusted,
+            audit_sink: &audit,
+            policy: &policy,
+            now: 1_201,
+            emergency_stop_active: false,
+            admission_event_id: "event:effect-replay",
+            result_event_id: "event:effect-replay-result",
+            correlation_id: "trace:effect-001",
+        });
+        assert_eq!(
+            replay,
+            Err(ProtectedEffectError::OwnerApproval(
+                OwnerApprovalError::Replay
+            ))
+        );
+        assert_eq!(executor.calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn effect_grant_is_bound_to_exact_operation_and_executor() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:effect-scope",
+        );
+        let altered = ProtectedEffectRequest::new(
+            effect.executor_subject(),
+            effect.capability(),
+            effect.resource(),
+            effect.effect_type(),
+            effect.risk(),
+            serde_json::json!({
+                "amount_minor": 25001,
+                "currency": "ETB",
+                "destination": "account:beneficiary-002",
+                "reference": "transfer:test-001"
+            }),
+        );
+        assert_eq!(
+            owner.verify_and_consume_effect_grant(
+                &grant,
+                &altered,
+                &principal,
+                &genesis,
+                "policy-v1",
+                1_200,
+            ),
+            Err(OwnerApprovalError::ScopeMismatch)
+        );
+
+        let verified = owner
+            .verify_and_consume_effect_grant(
+                &grant,
+                &effect,
+                &principal,
+                &genesis,
+                "policy-v1",
+                1_200,
+            )
+            .unwrap();
+        assert_eq!(verified.nonce(), "nonce:effect-scope");
+    }
+
+    #[test]
+    fn emergency_stop_blocks_execution_before_grant_consumption() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let policy = policy();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:emergency-stop",
+        );
+        let executor = TestExecutor::new("executor:finance", "executor-key-01", 93);
+        let audit = SqliteAuditSink::open_in_memory().unwrap();
+
+        assert_eq!(
+            execute_protected_effect(ProtectedExecutionContext {
+                effect: &effect,
+                principal: &principal,
+                genesis: &genesis,
+                grant: &grant,
+                owner_verifier: &owner,
+                executor: &executor,
+                executor_keys: &[executor.trusted_key()],
+                audit_sink: &audit,
+                policy: &policy,
+                now: 1_200,
+                emergency_stop_active: true,
+                admission_event_id: "event:emergency",
+                result_event_id: "event:emergency-result",
+                correlation_id: "trace:emergency",
+            }),
+            Err(ProtectedEffectError::PolicyEscalated)
+        );
+        assert_eq!(executor.calls.load(Ordering::SeqCst), 0);
+        owner
+            .verify_and_consume_effect_grant(
+                &grant,
+                &effect,
+                &principal,
+                &genesis,
+                "policy-v1",
+                1_200,
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn audit_admission_failure_consumes_grant_but_never_executes_effect() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let policy = policy();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:audit-failure",
+        );
+        let executor = TestExecutor::new("executor:finance", "executor-key-01", 94);
+
+        assert_eq!(
+            execute_protected_effect(ProtectedExecutionContext {
+                effect: &effect,
+                principal: &principal,
+                genesis: &genesis,
+                grant: &grant,
+                owner_verifier: &owner,
+                executor: &executor,
+                executor_keys: &[executor.trusted_key()],
+                audit_sink: &FailedAudit,
+                policy: &policy,
+                now: 1_200,
+                emergency_stop_active: false,
+                admission_event_id: "event:audit-failure",
+                result_event_id: "event:audit-failure-result",
+                correlation_id: "trace:audit-failure",
+            }),
+            Err(ProtectedEffectError::AuditUnavailable)
+        );
+        assert_eq!(executor.calls.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            owner.verify_and_consume_effect_grant(
+                &grant,
+                &effect,
+                &principal,
+                &genesis,
+                "policy-v1",
+                1_201,
+            ),
+            Err(OwnerApprovalError::Replay)
+        );
+    }
+
+    #[test]
+    fn unknown_executor_outcome_is_recorded_as_indeterminate_not_success() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let policy = policy();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:unknown-outcome",
+        );
+        let audit = SqliteAuditSink::open_in_memory().unwrap();
+        let receipt = execute_protected_effect(ProtectedExecutionContext {
+            effect: &effect,
+            principal: &principal,
+            genesis: &genesis,
+            grant: &grant,
+            owner_verifier: &owner,
+            executor: &UnknownExecutor,
+            executor_keys: &[],
+            audit_sink: &audit,
+            policy: &policy,
+            now: 1_200,
+            emergency_stop_active: false,
+            admission_event_id: "event:unknown-admission",
+            result_event_id: "event:unknown-result",
+            correlation_id: "trace:unknown",
+        })
+        .unwrap();
+        assert_eq!(receipt.status(), ExecutionStatus::Indeterminate);
+        receipt.verify_integrity().unwrap();
+        receipt.verify_executor_attestation(&[]).unwrap();
+    }
+}
