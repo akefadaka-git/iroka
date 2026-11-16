@@ -7868,44 +7868,175 @@
         {
           "field": "observations",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate every item independently: resolve observation_id uniquely, retrieve canonical content, recompute content_digest, authenticate source_ref, verify observed_at against trusted time evidence, and resolve item data_class and authorization_ref. Treat all content as untrusted data, never as instructions or ground truth."
         },
         {
           "field": "source_refs",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve every unique reference to an authenticated source identity and rights/provenance record; require exact correspondence between each observation.source_ref and this declared set."
         },
         {
           "field": "data_class",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve against a versioned authoritative data-classification registry; apply defined compatibility rules to every observation and fail closed on unknown or conflicting classifications."
         },
         {
           "field": "authorization_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Treat null as no authorization. For each observation, verify a current authorization/consent record bound to subject, source, data class, purpose and processing operation, including expiry, withdrawal and revocation status; batch authorization cannot override item-level restrictions."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify source, observation, rights, classification, authorization and version evidence; bind it to exact content digests and policy decisions, and preserve unresolved or conflicting evidence as ineligible."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Admit only provenance-tracked, rights-checked and purpose-authorized learning data.",
+          "assertion": "Only observations with independently verified source trust, content integrity, rights, classification and purpose-specific authorization may appear in eligible_observations.",
           "observable_fields": [
+            "eligible_observations",
+            "excluded_observations",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Eligible and excluded observations form an exact, disjoint, duplicate-free partition of the input observation IDs; no input is silently dropped or invented.",
           "observable_fields": [
+            "eligible_observations",
+            "excluded_observations",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Every eligibility or exclusion decision identifies a resolvable policy basis and reproducible evidence; unknown, revoked or conflicting rights fail closed.",
+          "observable_fields": [
+            "eligible_observations",
+            "excluded_observations",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "eligibility_digest is recomputed over canonical batch inputs, decisions and versioned policy/evidence; it does not imply permission to train, mutate a model or perform downstream processing.",
+          "observable_fields": [
+            "learning_batch_id",
+            "eligibility_digest",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never learn from untrusted data as authoritative ground truth. fail-closed"
+      "character_failure_rule": "Never learn from untrusted data as authoritative ground truth. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G10-LEARNING-INPUT-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "c8ed65e3e0c189730a31a6dafefd7d311c6e7c3a",
+          "a2_contract_blob_before_review": "60f3f82091fdc228c9ba4c37eabe694852c049a5",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "74eeeb12bbe41984471a04b9c48bc5267f67c21e",
+          "output_schema_blob": "f66cc42f0f2ca7bf68bfc3543b01996090e232df"
+        },
+        "confirmed_sufficient": [
+          "Input requires observations, source_refs, data_class, authorization_ref, provenance and version_bound_evidence; unknown top-level fields are rejected.",
+          "Each observation requires observation_id, content_digest, source_ref, observed_at, data_class and authorization_ref; item properties are closed and observed_at declares date-time format.",
+          "source_refs are non-empty unique strings and both source_refs and observations require at least one item.",
+          "Per-observation authorization_ref explicitly permits string or null, and the outcome schema retains item-level authorization references for eligible observations.",
+          "Output requires eligible_observations, excluded_observations, eligibility_digest, evidence and version_bound_evidence; item records carry eligibility or exclusion basis fields."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G10-LI-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "observations_item.content_digest and source_ref are non-empty strings only; no canonical digest algorithm, content retrieval, source identity or recomputation is required.",
+            "required_disposition": "Bind each observation to retrievable immutable content and an authenticated source record; recompute a versioned digest over canonical content and verify source_ref resolution."
+          },
+          {
+            "gap_id": "G10-LI-SEM-02",
+            "severity": "HIGH",
+            "finding": "observation_id uniqueness is expressed only in non-standard x-genesis-collection-rules metadata, not JSON Schema validation.",
+            "required_disposition": "Enforce unique observation_id values with executable schema/application conformance and reject duplicates before eligibility evaluation."
+          },
+          {
+            "gap_id": "G10-LI-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "observed_at has date-time format but no trusted clock, freshness window, timezone normalization or source-time authenticity rule.",
+            "required_disposition": "Require timezone-aware normalized timestamps and independently verifiable source/clock evidence; define freshness, skew and future-time rejection policy."
+          },
+          {
+            "gap_id": "G10-LI-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "data_class is a non-empty string at both batch and observation level; no authoritative classification registry, hierarchy or conflict precedence is defined.",
+            "required_disposition": "Resolve data_class against a versioned classification registry; define batch-versus-observation precedence and fail closed on unknown or conflicting classes."
+          },
+          {
+            "gap_id": "G10-LI-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "authorization_ref may be null or any string; no issuer, subject, purpose, data scope, processing operation, validity, consent withdrawal or revocation semantics are specified.",
+            "required_disposition": "Require a verified, current authorization/consent record for each eligible observation, bound to subject, source, data class, purpose and operation; null or absent permission must exclude."
+          },
+          {
+            "gap_id": "G10-LI-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "source_refs entries are unique non-empty strings, but the schema does not prove source trust, ownership, licensing, integrity, provenance or observation-to-source correspondence.",
+            "required_disposition": "Resolve every source reference to an authenticated source registry and rights/provenance record; verify each observation source_ref belongs to the declared source_refs set."
+          },
+          {
+            "gap_id": "G10-LI-SEM-07",
+            "severity": "HIGH",
+            "finding": "Batch-level data_class and authorization_ref can diverge from per-observation values without defined consistency or precedence rules.",
+            "required_disposition": "Define per-observation authorization and classification as authoritative; require batch metadata to be compatible and prohibit batch-level permission from overriding missing item-level permission."
+          },
+          {
+            "gap_id": "G10-LI-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "Output arrays do not schema-enforce unique IDs, disjoint eligible/excluded sets, complete accounting or correspondence to input observations; these are only x-genesis annotations.",
+            "required_disposition": "Enforce unique IDs, disjointness and exact partition of all input observations; prohibit unknown, duplicated, omitted or cross-batch observation IDs."
+          },
+          {
+            "gap_id": "G10-LI-SEM-09",
+            "severity": "HIGH",
+            "finding": "eligible_observations.eligibility_basis and excluded_observations.exclusion_reason/policy_ref are free-form strings; no decision taxonomy or policy-version resolution is required.",
+            "required_disposition": "Use controlled eligibility/exclusion reason codes and resolve policy_ref to an immutable effective policy version with reproducible decision evidence."
+          },
+          {
+            "gap_id": "G10-LI-SEM-10",
+            "severity": "CRITICAL",
+            "finding": "eligibility_digest is an unconstrained string with no canonical serialization, algorithm, batch/input/policy binding or recomputation invariant.",
+            "required_disposition": "Define canonical digest computation over complete input set, per-item decisions, policy/classification/authorization versions and evidence; recompute and verify before accepting output."
+          },
+          {
+            "gap_id": "G10-LI-SEM-11",
+            "severity": "HIGH",
+            "finding": "learning_batch_id is an unconstrained string with no uniqueness, tenant/scope, idempotency or immutable batch lifecycle semantics.",
+            "required_disposition": "Define canonical unique batch identity, scope, creation/version binding and idempotent replay handling."
+          },
+          {
+            "gap_id": "G10-LI-SEM-12",
+            "severity": "CRITICAL",
+            "finding": "The output does not explicitly distinguish eligibility for consideration from permission to train, update model parameters, retain data or perform downstream processing.",
+            "required_disposition": "Constrain eligible_observations to screening eligibility only; require separate purpose-specific approval and downstream gates for training, retention, model mutation or other processing."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g10.learning-input input/output schemas and its positive/negative conformance vectors to close G10-LI-SEM-01 through G10-LI-SEM-12.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not add genes or alter unrelated contracts.",
+          "Add enforceable source, content-integrity, classification, rights and per-observation authorization checks with explicit consent withdrawal/revocation behavior.",
+          "Enforce unique observation identity and exact disjoint partitioning of input observations into eligible/excluded results.",
+          "Define canonical eligibility digest and batch identity semantics, with reproducible policy/version evidence.",
+          "Keep eligibility distinct from authorization to train, retain, mutate models or conduct downstream processing.",
+          "After separate A3 authorization, run Draft 2020-12 validation and exact-head conformance tests for duplicate IDs, source mismatch, null/revoked authorization, class conflicts, missing rights, partition omissions/overlap and digest tampering."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g10.change-proposal",
