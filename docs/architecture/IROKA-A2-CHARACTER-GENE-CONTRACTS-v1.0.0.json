@@ -9439,53 +9439,202 @@
         {
           "field": "suite_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to a trusted immutable suite identity and authenticated publisher; reject unknown or ambiguous suite identifiers."
         },
         {
           "field": "suite_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve exact immutable suite version and compatibility metadata; do not accept mutable tags as version proof."
         },
         {
           "field": "test_results",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require non-empty unique test IDs, controlled statuses and non-negative durations; reconcile every result exactly once and treat skipped/error/inconclusive as blocked evidence."
         },
         {
           "field": "tested_commit",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a full immutable commit object ID and verified repository provenance; bind all test results to that exact commit."
         },
         {
           "field": "environment_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute a versioned digest over a canonical execution environment manifest including runner, OS, toolchain, dependencies, configuration and test data."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify authentic issuer, integrity, freshness and linkage to suite, commit, environment and test execution evidence."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require verifiable immutable evidence binding exact suite version, tested commit, environment, result set and report-generation context."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Report pass, fail, partial, unknown and not-run states with actionable findings.",
+          "assertion": "Every test result has a unique test_id and is counted exactly once; counts reconcile to the complete result set.",
           "observable_fields": [
+            "passed_count",
+            "failed_count",
+            "blocked_count",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Skipped, errored, inconclusive, missing or unverifiable results cannot contribute to a passing report.",
+          "observable_fields": [
+            "blocked_count",
             "overall_status",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "overall_status is deterministically derived from all test results and evidence; pass requires complete all-passed coverage.",
+          "observable_fields": [
+            "passed_count",
+            "failed_count",
+            "blocked_count",
+            "overall_status"
+          ]
+        },
+        {
+          "assertion": "The tested commit is an immutable verified commit and every result is bound to that exact commit.",
+          "observable_fields": [
+            "report_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Environment and report digests are recomputed from canonical versioned payloads and detect tampering.",
+          "observable_fields": [
+            "environment_digest",
             "report_digest",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Failure and blocked outcomes include resolvable evidence and preserve the distinction between executed, skipped, inconclusive and not-run.",
           "observable_fields": [
+            "failed_count",
+            "blocked_count",
+            "overall_status",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "A conformance report is evidence only and grants no approval, authorization, merge, deployment or execution authority.",
+          "observable_fields": [
+            "report_id",
             "overall_status",
             "report_digest",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never mislabel partial evidence as closure. fail-closed"
+      "character_failure_rule": "Never mislabel partial evidence as closure. Fail closed for duplicate or missing test identities, count mismatch, missing results, non-passing statuses represented as pass, unverified commit/environment, digest mismatch or incomplete provenance/version-bound evidence. A report with any skipped, error, inconclusive or unverified result cannot pass.",
+      "semantic_reconciliation": {
+        "review_id": "A2-G11-CONFORMANCE-REPORT-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "454d2e5c8107b64f87556499b9ba728c9fdd4ac8",
+          "a2_contract_blob_before_review": "5ee89c2b43c1f7ba55de760d69183c467704e7b5",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "5359f09621506404841bc1c4ecb7581f1141628a",
+          "output_schema_blob": "2281c073901aa5e906f3991f5e161481bdaeeac4"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires suite_id, suite_version, test_results, tested_commit, environment_digest, provenance and version_bound_evidence; top-level additional properties are rejected.",
+          "Each test result requires test_id, controlled status, non-negative duration_ms and failure_ref; result array must be non-empty.",
+          "Output schema requires report_id, passed_count, failed_count, blocked_count, overall_status, report_digest, evidence and version_bound_evidence; status is pass/fail/blocked.",
+          "Evidence object requires provenance and version_bound_evidence; schemas use Draft 2020-12."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G11-CR-SEM-01",
+            "severity": "HIGH",
+            "finding": "suite_id and suite_version are arbitrary strings; suite identity, immutable versioning, publisher trust and compatibility are not defined.",
+            "required_disposition": "Resolve suite identity/version through a trusted immutable registry and bind the exact suite artifact and publisher provenance."
+          },
+          {
+            "gap_id": "G11-CR-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "test_results uniqueness is specified only in x-genesis-collection-rules; JSON Schema itself does not enforce unique test_id values.",
+            "required_disposition": "Enforce unique test_id values normatively in the validator and reject duplicates before aggregation; add duplicate-ID negative conformance."
+          },
+          {
+            "gap_id": "G11-CR-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "test_results statuses passed/failed/skipped/error/inconclusive have no complete aggregation mapping to passed_count, failed_count, blocked_count and overall_status.",
+            "required_disposition": "Define deterministic mutually exclusive count mapping; skipped/error/inconclusive and missing evidence must contribute to blocked_count and prohibit pass."
+          },
+          {
+            "gap_id": "G11-CR-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "No invariant requires counts to equal the test_results population or prevents negative/inconsistent counts in the output schema.",
+            "required_disposition": "Require non-negative counts, count reconciliation to every unique input result, and deterministic pass/fail/blocked precedence."
+          },
+          {
+            "gap_id": "G11-CR-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "overall_status enum pass/fail/blocked lacks normative aggregation semantics, especially mixed outcomes, empty/partial suites and skipped/inconclusive tests.",
+            "required_disposition": "Permit pass only when every required test is present and passed with complete evidence; fail on demonstrated failure; blocked on missing, skipped, error, inconclusive or unverifiable evidence unless a demonstrated failure takes precedence."
+          },
+          {
+            "gap_id": "G11-CR-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "tested_commit is an unconstrained string and does not prove the exact immutable source commit or relationship to the suite run.",
+            "required_disposition": "Require a full immutable commit object ID and independently verifiable repository/ref provenance; ensure every reported result was executed against that exact commit."
+          },
+          {
+            "gap_id": "G11-CR-SEM-07",
+            "severity": "HIGH",
+            "finding": "environment_digest is an arbitrary string with no algorithm, canonical environment manifest, recomputation or binding to runtime/toolchain/dependencies.",
+            "required_disposition": "Define a canonical environment manifest and versioned digest covering relevant runner, OS, toolchain, dependencies, configuration and test data; recompute and verify it."
+          },
+          {
+            "gap_id": "G11-CR-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "report_digest is unconstrained and its canonical payload, algorithm, recomputation, coverage and tamper-detection semantics are unspecified.",
+            "required_disposition": "Compute a versioned digest over canonical report content including suite, commit, environment, all results, counts, status and evidence; reject mismatch."
+          },
+          {
+            "gap_id": "G11-CR-SEM-09",
+            "severity": "HIGH",
+            "finding": "failure_ref and evidence/provenance are not required to resolve to authentic, immutable, access-controlled evidence with retention and completeness guarantees.",
+            "required_disposition": "Require verifiable immutable evidence references for failed/error/inconclusive results and bind all provenance/version evidence to the report, suite, commit and environment."
+          },
+          {
+            "gap_id": "G11-CR-SEM-10",
+            "severity": "HIGH",
+            "finding": "The contract inventory omits version_bound_evidence required by both schemas; report identity, generation time, report lifecycle and distinction between designed/not-run and executed results are not specified.",
+            "required_disposition": "Align required-field inventory with schemas; define unique report identity and generation metadata within the approved contract boundary, and never represent designed/not-run tests as executed pass evidence."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g11.conformance-report input/output schemas and its positive/negative conformance vectors for G11-CR-SEM-01 through G11-CR-SEM-10.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not alter unrelated gene contracts.",
+          "Enforce unique test IDs, controlled result aggregation, count reconciliation and strict pass/fail/blocked semantics.",
+          "Bind suite version, exact tested commit and canonical execution environment to trusted immutable provenance.",
+          "Define canonical report digest computation and evidence integrity; align contract inventory with version_bound_evidence.",
+          "Preserve designed/not-run, skipped, inconclusive, blocked and executed states as distinct; never claim execution that did not occur.",
+          "Ensure reports remain evidentiary and confer no approval, authorization, merge, deployment or execution authority.",
+          "After separate A3 authorization, test duplicates, all status combinations, count mismatch, missing results, SHA mismatch, environment tampering, report digest tampering and absent version-bound evidence."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g12.mutation-policy",
