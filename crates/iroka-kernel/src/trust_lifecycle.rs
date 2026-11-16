@@ -7,7 +7,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{canonical_json, RegisteredLineageArtifact, RegisteredMutationRecord, RollbackEvidenceTrustPolicy, SecurityStoreError, SignedVersionLineageRegistrySnapshot, SqliteSecurityStore, TrustConfigError, TrustStore, TrustedKey, VersionLineageError};
+use crate::{canonical_json, RegisteredLineageArtifact, RegisteredMutationRecord, RollbackEvidenceTrustPolicy, SecurityStoreError, SignedVersionLineageRegistrySnapshot, SqliteSecurityStore, TrustConfigError, TrustStore, TrustedKey};
 
 const MAX_BUNDLE_LIFETIME_SECS: u64 = 31_536_000;
 const MAX_CLOCK_SKEW_SECS: u64 = 30;
@@ -686,6 +686,101 @@ mod tests {
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    fn signed_lineage_fixture(
+        signer: &ed25519_dalek::SigningKey,
+        root: &TrustRoot,
+        revision: u64,
+    ) -> SignedVersionLineageRegistrySnapshot {
+        use ed25519_dalek::Signer;
+        let artifact = serde_json::json!({"gene":"g12.version-lineage","version":"1.0.0"});
+        let canonical = canonical_json(&artifact).unwrap();
+        let digest = format!("{:x}", Sha256::digest(canonical));
+        let payload = crate::VersionLineageRegistrySnapshotPayload {
+            revision,
+            issued_at: 1_000,
+            expires_at: 5_000,
+            artifacts: vec![RegisteredLineageArtifact {
+                gene_id: "g12.version-lineage".into(),
+                version: "1.0.0".into(),
+                artifact_digest: digest,
+                artifact,
+                parent_version: None,
+                parent_digest: None,
+                mutation_id: None,
+                epoch: 0,
+            }],
+            mutations: Vec::new(),
+        };
+        let unsigned = SignedVersionLineageRegistrySnapshot::from_signature(
+            root.key_id.clone(), payload, Vec::new()
+        );
+        let signature = signer.sign(&unsigned.signing_bytes().unwrap()).to_bytes().to_vec();
+        SignedVersionLineageRegistrySnapshot::from_signature(
+            root.key_id.clone(), unsigned.payload, signature
+        )
+    }
+
+    #[test]
+    fn signed_lineage_registry_is_atomically_provisioned_and_recovered() {
+        use std::fs;
+        let (signer, root, _) = fixture(1);
+        let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
+        let signed = signed_lineage_fixture(&signer, &root, 1);
+        let expected_digest = signed.payload.artifacts[0].artifact_digest.clone();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-lineage-registry-recovery-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            assert_eq!(
+                verify_and_install_version_lineage_snapshot(&signed, &roots, &store, 1_100),
+                Ok(1)
+            );
+        }
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            assert_eq!(
+                restore_version_lineage_snapshot_with_roots(&roots, &store, 1_200),
+                Ok(1)
+            );
+            let record = crate::VersionLineageRegistry::resolve_lineage(
+                &store, "1.0.0", &expected_digest
+            ).unwrap();
+            assert_eq!(record.registry_revision, 1);
+            assert_eq!(record.ancestry.len(), 1);
+        }
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
+    fn lineage_registry_rejects_unsigned_tampering_and_revision_rollback() {
+        let (signer, root, _) = fixture(1);
+        let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
+        let first = signed_lineage_fixture(&signer, &root, 2);
+        let older = signed_lineage_fixture(&signer, &root, 1);
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        verify_and_install_version_lineage_snapshot(&first, &roots, &store, 1_100).unwrap();
+        assert_eq!(
+            verify_and_install_version_lineage_snapshot(&older, &roots, &store, 1_100),
+            Err(TrustBundleError::Rollback)
+        );
+        let mut tampered = signed_lineage_fixture(&signer, &root, 3);
+        tampered.payload.artifacts[0].artifact["version"] = serde_json::json!("9.9.9");
+        assert_eq!(
+            verify_and_install_version_lineage_snapshot(&tampered, &roots, &store, 1_100),
+            Err(TrustBundleError::InvalidSignature)
+        );
+        let record = store.resolve_lineage(
+            "1.0.0",
+            &first.payload.artifacts[0].artifact_digest
+        ).unwrap();
+        assert_eq!(record.registry_revision, 2);
     }
 
     #[test]
