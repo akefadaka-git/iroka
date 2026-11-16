@@ -225,7 +225,7 @@ impl SqliteSecurityStore {
             |row| Ok((row.get(0)?, row.get(1)?)),
         ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
         match current {
-            Some((old_floor, old_revision)) if revision_i < old_revision => {
+            Some((_old_floor, old_revision)) if revision_i < old_revision => {
                 return Err(SecurityStoreError::RevocationFloorRollback);
             }
             Some((old_floor, old_revision)) if revision_i == old_revision && floor_i != old_floor => {
@@ -1094,4 +1094,50 @@ mod tests {
         assert_eq!(store.highest_trust_bundle_version(), Ok(None));
         assert_eq!(store.trust_bundle_history_count(), Ok(before_count));
     }
+
+    #[test]
+    fn rollback_evidence_nonces_are_single_use_and_key_revocation_is_rechecked() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:test", "key:test", "nonce-evidence-proof-0001", 200, 100
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:test", "key:test", "nonce-evidence-proof-0001", 200, 101
+            ),
+            Err(SecurityStoreError::EvidenceReplay)
+        );
+        store.revoke_key("issuer:test", "key:test", 102, "compromised").unwrap();
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:test", "key:test", "nonce-evidence-proof-0002", 200, 103
+            ),
+            Err(SecurityStoreError::RevokedEvidenceKey)
+        );
+    }
+
+    #[test]
+    fn rollback_revocation_floor_is_monotonic_and_revision_bound() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(store.advance_rollback_revocation_floor(10, 5), Ok(()));
+        assert_eq!(store.advance_rollback_revocation_floor(10, 5), Ok(()));
+        assert_eq!(
+            store.advance_rollback_revocation_floor(9, 6),
+            Err(SecurityStoreError::RevocationFloorRollback)
+        );
+        assert_eq!(
+            store.advance_rollback_revocation_floor(11, 5),
+            Err(SecurityStoreError::ConflictingRevocationFloor)
+        );
+        assert_eq!(store.advance_rollback_revocation_floor(11, 6), Ok(()));
+        assert_eq!(
+            store.advance_rollback_revocation_floor(10, 7),
+            Err(SecurityStoreError::RevocationFloorRollback)
+        );
+    }
+
+
 }
