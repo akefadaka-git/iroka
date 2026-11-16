@@ -816,17 +816,26 @@ mod tests {
 
     #[test]
     fn g12_runtime_recovers_and_wires_all_governed_security_components() {
+        use std::fs;
         use std::sync::Arc;
         let (signer, root, trust_bundle) = fixture(1);
         let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
         let signed_policy = signed_policy_fixture(&signer, &root, 2);
         let signed_registry = signed_lineage_fixture(&signer, &root, 3);
         let candidate_digest = signed_registry.payload.artifacts[0].artifact_digest.clone();
-        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
-        verify_and_install_trust_bundle(&trust_bundle, &root, &store, 1_100).unwrap();
-        verify_and_install_rollback_evidence_policy(&signed_policy, &roots, &store, 1_100).unwrap();
-        verify_and_install_version_lineage_snapshot(&signed_registry, &roots, &store, 1_100).unwrap();
-
+        let path = std::env::temp_dir().join(format!(
+            "iroka-g12-runtime-recovery-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            verify_and_install_trust_bundle(&trust_bundle, &root, &store, 1_100).unwrap();
+            verify_and_install_rollback_evidence_policy(&signed_policy, &roots, &store, 1_100).unwrap();
+            verify_and_install_version_lineage_snapshot(&signed_registry, &roots, &store, 1_100).unwrap();
+            store.integrity_check().unwrap();
+        }
+        let store = Arc::new(SqliteSecurityStore::open(&path).unwrap());
         let runtime = G12SecurityRuntime::restore(&roots, Arc::clone(&store), 1_200).unwrap();
         assert!(runtime.trust_snapshots().snapshot().is_ok());
         assert!(runtime.evidence_verifier().verify(
@@ -853,6 +862,11 @@ mod tests {
         let lineage = runtime.lineage_registry()
             .resolve_lineage("1.0.0", &candidate_digest).unwrap();
         assert_eq!(lineage.registry_revision, 3);
+        drop(runtime);
+        drop(store);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
     }
 
     #[test]
