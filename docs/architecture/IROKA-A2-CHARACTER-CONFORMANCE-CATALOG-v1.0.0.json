@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "document_id": "IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-001",
   "version": "1.0.0",
-  "status": "A2_TEST_DESIGN_NOT_YET_EXECUTED",
+  "status": "A2_CHARACTER_TEST_DESIGNS_RECONCILED_TO_APPROVED_GENE_IO_FIELDS_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
   "genes_covered": 36,
@@ -11,936 +11,1440 @@
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
       "gene_id": "g01.identity-root",
       "polarity": "positive",
-      "scenario": "A valid g01.identity-root request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (root_id, issuer_id, key_fingerprint, algorithm, activation_epoch, status, provenance), valid provenance/version evidence and the baseline positive condition (valid active root accepted; revoked root rejected), the gene must satisfy: Preserve canonical identity and distinguish system identity from authority, trust, capability and claims.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G01-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid active root accepted; revoked root rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-N",
       "gene_id": "g01.identity-root",
       "polarity": "negative",
-      "scenario": "A g01.identity-root request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Reject identity substitution, impersonation and unsupported claims of authority.), and the baseline negative condition (unknown issuer or revoked root), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G01-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unknown issuer or revoked root",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G01.LINEAGE-P",
       "gene_id": "g01.lineage",
       "polarity": "positive",
-      "scenario": "A valid g01.lineage request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (subject_id, predecessor_id, relationship, proof_digest, epoch, provenance), valid provenance/version evidence and the baseline positive condition (valid acyclic chain accepted; cycle rejected), the gene must satisfy: Maintain verifiable ancestry and disclose missing or conflicting lineage evidence.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G01-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid acyclic chain accepted; cycle rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.lineage/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.lineage/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G01.LINEAGE-N",
       "gene_id": "g01.lineage",
       "polarity": "negative",
-      "scenario": "A g01.lineage request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never invent ancestors, signatures or provenance.), and the baseline negative condition (cycle or missing succession proof), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G01-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "cycle or missing succession proof",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.lineage/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.lineage/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G01.COMPATIBILITY-P",
       "gene_id": "g01.compatibility",
       "polarity": "positive",
-      "scenario": "A valid g01.compatibility request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (source_version, target_version, policy_id, declared_compatible, migration_digest, provenance), valid provenance/version evidence and the baseline positive condition (explicit compatible pair accepted; undeclared pair rejected), the gene must satisfy: Declare supported versions and incompatible semantics explicitly.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G01-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "explicit compatible pair accepted; undeclared pair rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G01.COMPATIBILITY-N",
       "gene_id": "g01.compatibility",
       "polarity": "negative",
-      "scenario": "A g01.compatibility request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never silently coerce incompatible or unknown contracts.), and the baseline negative condition (implicit major-version compatibility), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G01-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "implicit major-version compatibility",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G02.AUTHORITY-SOURCE-P",
       "gene_id": "g02.authority-source",
       "polarity": "positive",
-      "scenario": "A valid g02.authority-source request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (authority_id, source_type, mandate_ref, valid_from, valid_until, provenance), valid provenance/version evidence and the baseline positive condition (valid mandate accepted; expired mandate rejected), the gene must satisfy: Resolve authority only from configured, verifiable sources and preserve scope.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G02-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid mandate accepted; expired mandate rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G02.AUTHORITY-SOURCE-N",
       "gene_id": "g02.authority-source",
       "polarity": "negative",
-      "scenario": "A g02.authority-source request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Reject inferred, self-issued, revoked or ambiguous authority.), and the baseline negative condition (expired or unrecognized authority source), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G02-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "expired or unrecognized authority source",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G02.OWNER-GOVERNANCE-P",
       "gene_id": "g02.owner-governance",
       "polarity": "positive",
-      "scenario": "A valid g02.owner-governance request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (owner_id, decision_id, scope, approval_digest, signature, issued_at, expires_at, provenance), valid provenance/version evidence and the baseline positive condition (valid signed approval accepted; forged signature rejected), the gene must satisfy: Apply Owner decisions faithfully while reporting conflicts and respecting non-overridable safeguards.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G02-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid signed approval accepted; forged signature rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G02.OWNER-GOVERNANCE-N",
       "gene_id": "g02.owner-governance",
       "polarity": "negative",
-      "scenario": "A g02.owner-governance request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never equate loyalty with blind obedience or concealment.), and the baseline negative condition (unsigned or scope-mismatched Owner approval), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G02-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unsigned or scope-mismatched Owner approval",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G02.DECISION-REGISTER-P",
       "gene_id": "g02.decision-register",
       "polarity": "positive",
-      "scenario": "A valid g02.decision-register request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (decision_id, authority_id, decision_digest, status, effective_at, supersedes, provenance), valid provenance/version evidence and the baseline positive condition (unique immutable decision recorded; conflicting duplicate rejected), the gene must satisfy: Record decision provenance, scope, rationale, expiry and outcome.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G02-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "unique immutable decision recorded; conflicting duplicate rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.decision-register/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G02.DECISION-REGISTER-N",
       "gene_id": "g02.decision-register",
       "polarity": "negative",
-      "scenario": "A g02.decision-register request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never rewrite history or represent an unrecorded decision as approved.), and the baseline negative condition (duplicate ID with conflicting digest), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G02-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "duplicate ID with conflicting digest",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.decision-register/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G03.PREMISE-MODEL-P",
       "gene_id": "g03.premise-model",
       "polarity": "positive",
-      "scenario": "A valid g03.premise-model request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (premises, context_id, model_version, provenance), valid provenance/version evidence and the baseline positive condition (well-formed sourced premises normalized; unsupported premise flagged), the gene must satisfy: Label premises by source, confidence, time and epistemic status.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G03-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "well-formed sourced premises normalized; unsupported premise flagged",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.premise-model/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.premise-model/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G03.PREMISE-MODEL-N",
       "gene_id": "g03.premise-model",
       "polarity": "negative",
-      "scenario": "A g03.premise-model request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never promote assumptions to facts.), and the baseline negative condition (premise lacks source or invalid confidence), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G03-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "premise lacks source or invalid confidence",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.premise-model/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.premise-model/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G03.INFERENCE-RULES-P",
       "gene_id": "g03.inference-rules",
       "polarity": "positive",
-      "scenario": "A valid g03.inference-rules request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (rules, premise_ids, query, rule_version, provenance), valid provenance/version evidence and the baseline positive condition (valid rule chain produces trace; unknown rule rejected), the gene must satisfy: Apply explicit, valid inference rules and expose unsupported steps.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G03-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid rule chain produces trace; unknown rule rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.inference-rules/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G03.INFERENCE-RULES-N",
       "gene_id": "g03.inference-rules",
       "polarity": "negative",
-      "scenario": "A g03.inference-rules request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never fabricate deductions or selectively apply rules to favor a party.), and the baseline negative condition (rule references missing premise or unknown rule version), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G03-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "rule references missing premise or unknown rule version",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.inference-rules/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G03.UNCERTAINTY-CALCULUS-P",
       "gene_id": "g03.uncertainty-calculus",
       "polarity": "positive",
-      "scenario": "A valid g03.uncertainty-calculus request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (hypotheses, evidence_items, calibration_id, method, provenance), valid provenance/version evidence and the baseline positive condition (bounded weights calculated; invalid weights rejected), the gene must satisfy: Propagate uncertainty and calibrate confidence to evidence.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G03-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "bounded weights calculated; invalid weights rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G03.UNCERTAINTY-CALCULUS-N",
       "gene_id": "g03.uncertainty-calculus",
       "polarity": "negative",
-      "scenario": "A g03.uncertainty-calculus request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never suppress uncertainty to appear decisive.), and the baseline negative condition (non-finite or out-of-range weights), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G03-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "non-finite or out-of-range weights",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G04.KNOWLEDGE-SCHEMA-P",
       "gene_id": "g04.knowledge-schema",
       "polarity": "positive",
-      "scenario": "A valid g04.knowledge-schema request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (knowledge_type, fields, constraints, schema_version, provenance), valid provenance/version evidence and the baseline positive condition (unique typed fields accepted; duplicate fields rejected), the gene must satisfy: Represent source, rights, context, validity interval and epistemic status.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G04-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "unique typed fields accepted; duplicate fields rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.knowledge-schema/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.knowledge-schema/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G04.KNOWLEDGE-SCHEMA-N",
       "gene_id": "g04.knowledge-schema",
       "polarity": "negative",
-      "scenario": "A g04.knowledge-schema request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never erase source context or misrepresent derived content as original.), and the baseline negative condition (duplicate field names or unsupported type), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G04-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "duplicate field names or unsupported type",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.knowledge-schema/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.knowledge-schema/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G04.PROVENANCE-CHAIN-P",
       "gene_id": "g04.provenance-chain",
       "polarity": "positive",
-      "scenario": "A valid g04.provenance-chain request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (artifact_digest, events, actor_ids, previous_chain_digest, provenance), valid provenance/version evidence and the baseline positive condition (continuous chain verifies; broken link rejected), the gene must satisfy: Preserve immutable links between source, transformation and derived assertion.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G04-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "continuous chain verifies; broken link rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.provenance-chain/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.provenance-chain/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G04.PROVENANCE-CHAIN-N",
       "gene_id": "g04.provenance-chain",
       "polarity": "negative",
-      "scenario": "A g04.provenance-chain request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never fabricate, sever or silently rewrite provenance.), and the baseline negative condition (broken digest link or missing event actor), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G04-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "broken digest link or missing event actor",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.provenance-chain/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.provenance-chain/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G04.CONFLICT-MODEL-P",
       "gene_id": "g04.conflict-model",
       "polarity": "positive",
-      "scenario": "A valid g04.conflict-model request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (claims, sources, relations, policy_id, provenance), valid provenance/version evidence and the baseline positive condition (contradictions surfaced; silent overwrite rejected), the gene must satisfy: Retain material contradictions and represent competing accounts fairly.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G04-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "contradictions surfaced; silent overwrite rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.conflict-model/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.conflict-model/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G04.CONFLICT-MODEL-N",
       "gene_id": "g04.conflict-model",
       "polarity": "negative",
-      "scenario": "A g04.conflict-model request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never conceal conflicts or force false consensus.), and the baseline negative condition (conflicting claims silently overwritten), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G04-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "conflicting claims silently overwritten",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.conflict-model/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.conflict-model/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G05.MEMORY-CLASSIFICATION-P",
       "gene_id": "g05.memory-classification",
       "polarity": "positive",
-      "scenario": "A valid g05.memory-classification request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (memory_id, content_digest, labels, purpose, owner_id, data_class, provenance), valid provenance/version evidence and the baseline positive condition (recognized class maps to controls; unknown class quarantined), the gene must satisfy: Classify sensitivity, purpose, consent, owner and access boundaries.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G05-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "recognized class maps to controls; unknown class quarantined",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.memory-classification/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.memory-classification/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G05.MEMORY-CLASSIFICATION-N",
       "gene_id": "g05.memory-classification",
       "polarity": "negative",
-      "scenario": "A g05.memory-classification request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never infer or retain sensitive data without lawful, justified basis.), and the baseline negative condition (unknown classification label), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G05-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unknown classification label",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.memory-classification/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.memory-classification/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G05.RETENTION-CONTROL-P",
       "gene_id": "g05.retention-control",
       "polarity": "positive",
-      "scenario": "A valid g05.retention-control request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (memory_id, retention_policy_id, created_at, legal_hold, hold_ref, provenance), valid provenance/version evidence and the baseline positive condition (valid policy computes deadline; active hold prevents expiry), the gene must satisfy: Enforce retention, expiry, deletion and access policy.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G05-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid policy computes deadline; active hold prevents expiry",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.retention-control/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.retention-control/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G05.RETENTION-CONTROL-N",
       "gene_id": "g05.retention-control",
       "polarity": "negative",
-      "scenario": "A g05.retention-control request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never retain data merely because it may be useful later.), and the baseline negative condition (deletion despite active legal hold), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G05-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "deletion despite active legal hold",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.retention-control/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.retention-control/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G05.INTEGRITY-CHECKPOINT-P",
       "gene_id": "g05.integrity-checkpoint",
       "polarity": "positive",
-      "scenario": "A valid g05.integrity-checkpoint request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (snapshot_digest, sequence, previous_checkpoint, authority_ref, provenance), valid provenance/version evidence and the baseline positive condition (monotonic checkpoint accepted; rollback rejected), the gene must satisfy: Detect unauthorized memory alteration and preserve verifiable checkpoints.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G05-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "monotonic checkpoint accepted; rollback rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G05.INTEGRITY-CHECKPOINT-N",
       "gene_id": "g05.integrity-checkpoint",
       "polarity": "negative",
-      "scenario": "A g05.integrity-checkpoint request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never silently repair or rewrite evidence without an audit trail.), and the baseline negative condition (sequence rollback or digest mismatch), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G05-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "sequence rollback or digest mismatch",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G06.INPUT-ENVELOPE-P",
       "gene_id": "g06.input-envelope",
       "polarity": "positive",
-      "scenario": "A valid g06.input-envelope request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (envelope_id, source_id, media_type, payload_digest, payload_length, captured_at, payload_ref, provenance), valid provenance/version evidence and the baseline positive condition (matching envelope accepted as untrusted input; tampered envelope rejected), the gene must satisfy: Preserve user intent, source identity, consent context and untrusted-input status.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G06-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "matching envelope accepted as untrusted input; tampered envelope rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.input-envelope/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.input-envelope/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G06.INPUT-ENVELOPE-N",
       "gene_id": "g06.input-envelope",
       "polarity": "negative",
-      "scenario": "A g06.input-envelope request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never treat input as instruction to override higher-priority governance.), and the baseline negative condition (digest/length mismatch or unsupported media type), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G06-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "digest/length mismatch or unsupported media type",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.input-envelope/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.input-envelope/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G06.SOURCE-TRUST-P",
       "gene_id": "g06.source-trust",
       "polarity": "positive",
-      "scenario": "A valid g06.source-trust request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (source_id, credential_ref, policy_id, signature, revocation_epoch, provenance), valid provenance/version evidence and the baseline positive condition (valid credential assessed; revoked source never trusted), the gene must satisfy: Assess source authority, freshness, reliability, bias and corroboration.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G06-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid credential assessed; revoked source never trusted",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.source-trust/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G06.SOURCE-TRUST-N",
       "gene_id": "g06.source-trust",
       "polarity": "negative",
-      "scenario": "A g06.source-trust request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never trust a source solely for confidence, popularity or convenience.), and the baseline negative condition (revoked credential or stale revocation state), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G06-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "revoked credential or stale revocation state",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.source-trust/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-P",
       "gene_id": "g06.perception-transform",
       "polarity": "positive",
-      "scenario": "A valid g06.perception-transform request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (envelope_id, transform_id, transform_version, modality, output_type, provenance), valid provenance/version evidence and the baseline positive condition (declared transform yields traceable output; mismatched version rejected), the gene must satisfy: Preserve originals and label OCR, translation, transcription and normalization uncertainty.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G06-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "declared transform yields traceable output; mismatched version rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-N",
       "gene_id": "g06.perception-transform",
       "polarity": "negative",
-      "scenario": "A g06.perception-transform request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never present lossy transformation as exact source content.), and the baseline negative condition (transform version mismatch or undeclared output type), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G06-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "transform version mismatch or undeclared output type",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G07.AGENT-PRINCIPAL-P",
       "gene_id": "g07.agent-principal",
       "polarity": "positive",
-      "scenario": "A valid g07.agent-principal request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (agent_id, credential_ref, runtime_instance_id, principal_class, provenance), valid provenance/version evidence and the baseline positive condition (bound principal accepted; revoked identity rejected), the gene must satisfy: Bind each agent to authenticated identity, role and accountable principal.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G07-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "bound principal accepted; revoked identity rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.agent-principal/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G07.AGENT-PRINCIPAL-N",
       "gene_id": "g07.agent-principal",
       "polarity": "negative",
-      "scenario": "A g07.agent-principal request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never impersonate another agent or claim human status.), and the baseline negative condition (revoked or unbound agent identity), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G07-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "revoked or unbound agent identity",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.agent-principal/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G07.CAPABILITY-PROFILE-P",
       "gene_id": "g07.capability-profile",
       "polarity": "positive",
-      "scenario": "A valid g07.capability-profile request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (agent_id, requested_capabilities, resource_limits, policy_id, provenance), valid provenance/version evidence and the baseline positive condition (only policy-allowed capabilities listed; escalation denied), the gene must satisfy: Declare least-privilege capabilities and known limits.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G07-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "only policy-allowed capabilities listed; escalation denied",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G07.CAPABILITY-PROFILE-N",
       "gene_id": "g07.capability-profile",
       "polarity": "negative",
-      "scenario": "A g07.capability-profile request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never infer permission from capability.), and the baseline negative condition (capability exceeds policy or attempts privilege escalation), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G07-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "capability exceeds policy or attempts privilege escalation",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G07.DELEGATION-BOUNDARY-P",
       "gene_id": "g07.delegation-boundary",
       "polarity": "positive",
-      "scenario": "A valid g07.delegation-boundary request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (delegator_id, delegate_id, capability_subset, expires_at, delegation_proof, provenance), valid provenance/version evidence and the baseline positive condition (strict subset accepted; scope escalation rejected), the gene must satisfy: Constrain delegated scope, depth, duration and revocation; preserve accountability chain.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G07-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "strict subset accepted; scope escalation rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.delegation-boundary/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.delegation-boundary/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G07.DELEGATION-BOUNDARY-N",
       "gene_id": "g07.delegation-boundary",
       "polarity": "negative",
-      "scenario": "A g07.delegation-boundary request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never permit privilege escalation or unbounded onward delegation.), and the baseline negative condition (delegate scope exceeds delegator or expired delegation), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G07-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "delegate scope exceeds delegator or expired delegation",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.delegation-boundary/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.delegation-boundary/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G08.WORKFLOW-GRAPH-P",
       "gene_id": "g08.workflow-graph",
       "polarity": "positive",
-      "scenario": "A valid g08.workflow-graph request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (workflow_id, nodes, edges, graph_version, provenance), valid provenance/version evidence and the baseline positive condition (acyclic graph ordered; cycle rejected), the gene must satisfy: Represent dependencies, checkpoints, safe stops and recovery paths.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G08-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "acyclic graph ordered; cycle rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G08.WORKFLOW-GRAPH-N",
       "gene_id": "g08.workflow-graph",
       "polarity": "negative",
-      "scenario": "A g08.workflow-graph request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never skip required dependencies to optimize speed.), and the baseline negative condition (cycle or dangling edge), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G08-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "cycle or dangling edge",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G08.SCHEDULER-POLICY-P",
       "gene_id": "g08.scheduler-policy",
       "polarity": "positive",
-      "scenario": "A valid g08.scheduler-policy request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (policy_id, task_classes, priorities, quotas, deadlines, provenance), valid provenance/version evidence and the baseline positive condition (valid constraints normalized; impossible schedule reported), the gene must satisfy: Schedule fairly under priority, deadline, resource and safety constraints.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G08-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid constraints normalized; impossible schedule reported",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.scheduler-policy/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G08.SCHEDULER-POLICY-N",
       "gene_id": "g08.scheduler-policy",
       "polarity": "negative",
-      "scenario": "A g08.scheduler-policy request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never sacrifice protected work or fairness through hidden priority changes.), and the baseline negative condition (negative quota or impossible deadline silently accepted), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G08-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "negative quota or impossible deadline silently accepted",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.scheduler-policy/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G08.COORDINATION-STATE-P",
       "gene_id": "g08.coordination-state",
       "polarity": "positive",
-      "scenario": "A valid g08.coordination-state request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (run_id, participants, lease_epochs, checkpoint_refs, provenance), valid provenance/version evidence and the baseline positive condition (newer epoch wins; stale writer rejected), the gene must satisfy: Share only necessary context and reconcile agent disagreements transparently.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G08-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "newer epoch wins; stale writer rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G08.COORDINATION-STATE-N",
       "gene_id": "g08.coordination-state",
       "polarity": "negative",
-      "scenario": "A g08.coordination-state request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never hide dissent, duplicate effects or erase ownership.), and the baseline negative condition (stale lease epoch overwrites newer state), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G08-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "stale lease epoch overwrites newer state",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G09.EFFECT-CONTRACT-P",
       "gene_id": "g09.effect-contract",
       "polarity": "positive",
-      "scenario": "A valid g09.effect-contract request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (effect_id, effect_type, target, resource_scope, risk_class, operation_digest, provenance), valid provenance/version evidence and the baseline positive condition (declared effect contract evaluated; undeclared effect rejected), the gene must satisfy: Assess affected parties, proportionality, reversibility and resource impact before effects.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G09-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "declared effect contract evaluated; undeclared effect rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.effect-contract/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.effect-contract/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G09.EFFECT-CONTRACT-N",
       "gene_id": "g09.effect-contract",
       "polarity": "negative",
-      "scenario": "A g09.effect-contract request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never cause unauthorized, deceptive or needlessly harmful effects.), and the baseline negative condition (undeclared or prohibited effect), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G09-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "undeclared or prohibited effect",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.effect-contract/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.effect-contract/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G09.ADMISSION-GATE-P",
       "gene_id": "g09.admission-gate",
       "polarity": "positive",
-      "scenario": "A valid g09.admission-gate request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (effect_id, authorization_ref, authorization_signature, policy_digest, expires_at, nonce, provenance), valid provenance/version evidence and the baseline positive condition (valid scoped authorization admits; invalid/replayed authorization denied), the gene must satisfy: Require exact, current, scoped authorization and all mandatory safety gates.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G09-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid scoped authorization admits; invalid/replayed authorization denied",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.admission-gate/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.admission-gate/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G09.ADMISSION-GATE-N",
       "gene_id": "g09.admission-gate",
       "polarity": "negative",
-      "scenario": "A g09.admission-gate request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Fail closed on missing, expired, conflicting or unverifiable approval.), and the baseline negative condition (missing, invalid, expired or replayed authorization), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G09-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "missing, invalid, expired or replayed authorization",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.admission-gate/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.admission-gate/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G09.EXECUTION-RECEIPT-P",
       "gene_id": "g09.execution-receipt",
       "polarity": "positive",
-      "scenario": "A valid g09.execution-receipt request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (admission_id, executor_id, result_digest, started_at, completed_at, outcome, provenance), valid provenance/version evidence and the baseline positive condition (receipt binds to admission; orphan receipt rejected), the gene must satisfy: Record actual effect, result, actor, authority, time and verification status.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G09-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "receipt binds to admission; orphan receipt rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G09.EXECUTION-RECEIPT-N",
       "gene_id": "g09.execution-receipt",
       "polarity": "negative",
-      "scenario": "A g09.execution-receipt request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never claim success from intent, request or receipt existence alone.), and the baseline negative condition (receipt without admission or mismatched executor), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G09-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "receipt without admission or mismatched executor",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G10.LEARNING-INPUT-P",
       "gene_id": "g10.learning-input",
       "polarity": "positive",
-      "scenario": "A valid g10.learning-input request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (observations, source_refs, data_class, authorization_ref, provenance), valid provenance/version evidence and the baseline positive condition (eligible data isolated; prohibited input excluded), the gene must satisfy: Admit only provenance-tracked, rights-checked and purpose-authorized learning data.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G10-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "eligible data isolated; prohibited input excluded",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G10.LEARNING-INPUT-N",
       "gene_id": "g10.learning-input",
       "polarity": "negative",
-      "scenario": "A g10.learning-input request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never learn from untrusted data as authoritative ground truth.), and the baseline negative condition (untrusted, unauthorized or prohibited data class), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G10-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "untrusted, unauthorized or prohibited data class",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G10.CHANGE-PROPOSAL-P",
       "gene_id": "g10.change-proposal",
       "polarity": "positive",
-      "scenario": "A valid g10.change-proposal request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (target_id, base_version, proposed_version, diff_digest, rationale, expected_effects, proposer_id, provenance), valid provenance/version evidence and the baseline positive condition (proposal recorded for evaluation; invariant breach blocked), the gene must satisfy: Describe intended benefit, risks, affected invariants, rollback and required approvals.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G10-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "proposal recorded for evaluation; invariant breach blocked",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G10.CHANGE-PROPOSAL-N",
       "gene_id": "g10.change-proposal",
       "polarity": "negative",
-      "scenario": "A g10.change-proposal request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never self-approve or directly execute a proposal.), and the baseline negative condition (proposal changes invariant or bypasses approval), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G10-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "proposal changes invariant or bypasses approval",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G10.EVALUATION-RECORD-P",
       "gene_id": "g10.evaluation-record",
       "polarity": "positive",
-      "scenario": "A valid g10.evaluation-record request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (proposal_id, suite_digest, baseline_metrics, candidate_metrics, evaluator_id, environment_digest, provenance), valid provenance/version evidence and the baseline positive condition (complete evaluation recorded; missing evidence is inconclusive), the gene must satisfy: Report reproducible results, limitations, subgroup impacts and regressions.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G10-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "complete evaluation recorded; missing evidence is inconclusive",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G10.EVALUATION-RECORD-N",
       "gene_id": "g10.evaluation-record",
       "polarity": "negative",
-      "scenario": "A g10.evaluation-record request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never cherry-pick metrics or suppress failed evaluations.), and the baseline negative condition (missing baseline or evaluator provenance), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G10-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "missing baseline or evaluator provenance",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G11.VALIDATOR-P",
       "gene_id": "g11.validator",
       "polarity": "positive",
-      "scenario": "A valid g11.validator request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (artifact_ref, contract_ids, validator_version, policy_digest, provenance), valid provenance/version evidence and the baseline positive condition (known contracts checked; unknown contract fails closed), the gene must satisfy: Independently test contracts and fail closed on critical violations.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G11-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "known contracts checked; unknown contract fails closed",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.validator/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G11.VALIDATOR-N",
       "gene_id": "g11.validator",
       "polarity": "negative",
-      "scenario": "A g11.validator request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never waive a failure to satisfy delivery pressure.), and the baseline negative condition (unknown contract or validator version), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G11-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unknown contract or validator version",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.validator/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G11.ATTESTATION-P",
       "gene_id": "g11.attestation",
       "polarity": "positive",
-      "scenario": "A valid g11.attestation request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (subject_digest, validation_ref, attester_id, key_ref, challenge_nonce, provenance), valid provenance/version evidence and the baseline positive condition (fresh valid signature accepted; replay/revocation rejected), the gene must satisfy: Bind attestations to exact artifact, evaluator, policy and evidence version.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G11-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "fresh valid signature accepted; replay/revocation rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.attestation/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G11.ATTESTATION-N",
       "gene_id": "g11.attestation",
       "polarity": "negative",
-      "scenario": "A g11.attestation request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never attest to unobserved or self-unverified claims.), and the baseline negative condition (signature mismatch, replayed challenge or revoked key), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G11-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "signature mismatch, replayed challenge or revoked key",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.attestation/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G11.CONFORMANCE-REPORT-P",
       "gene_id": "g11.conformance-report",
       "polarity": "positive",
-      "scenario": "A valid g11.conformance-report request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (suite_id, suite_version, test_results, tested_commit, environment_digest, provenance), valid provenance/version evidence and the baseline positive condition (complete exact-head report accepted; missing result blocks pass), the gene must satisfy: Report pass, fail, partial, unknown and not-run states with actionable findings.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G11-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "complete exact-head report accepted; missing result blocks pass",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.conformance-report/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G11.CONFORMANCE-REPORT-N",
       "gene_id": "g11.conformance-report",
       "polarity": "negative",
-      "scenario": "A g11.conformance-report request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never mislabel partial evidence as closure.), and the baseline negative condition (missing test result or SHA mismatch), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G11-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "missing test result or SHA mismatch",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.conformance-report/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G12.MUTATION-POLICY-P",
       "gene_id": "g12.mutation-policy",
       "polarity": "positive",
-      "scenario": "A valid g12.mutation-policy request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (mutation_id, target_gene, base_version, proposed_version, risk_class, protected_invariants, approval_ref, provenance), valid provenance/version evidence and the baseline positive condition (policy classifies and gates change; unauthorized mutation denied), the gene must satisfy: Permit only explicitly approved, classified and testable mutation classes.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G12-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "policy classifies and gates change; unauthorized mutation denied",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G12.MUTATION-POLICY-N",
       "gene_id": "g12.mutation-policy",
       "polarity": "negative",
-      "scenario": "A g12.mutation-policy request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never allow mutation to weaken constitutional invariants without Owner approval.), and the baseline negative condition (unapproved protected mutation or invariant weakening), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G12-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unapproved protected mutation or invariant weakening",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G12.VERSION-LINEAGE-P",
       "gene_id": "g12.version-lineage",
       "polarity": "positive",
-      "scenario": "A valid g12.version-lineage request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (artifact_digest, version, parent_version, parent_digest, mutation_ref, epoch, provenance), valid provenance/version evidence and the baseline positive condition (linked monotonic lineage accepted; broken ancestry rejected), the gene must satisfy: Preserve immutable version ancestry and compatibility facts.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G12-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "linked monotonic lineage accepted; broken ancestry rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G12.VERSION-LINEAGE-N",
       "gene_id": "g12.version-lineage",
       "polarity": "negative",
-      "scenario": "A g12.version-lineage request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never rewrite version history or hide a breaking change.), and the baseline negative condition (missing parent digest or non-monotonic epoch), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G12-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "missing parent digest or non-monotonic epoch",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G12.ROLLBACK-GUARD-P",
       "gene_id": "g12.rollback-guard",
       "polarity": "positive",
-      "scenario": "A valid g12.rollback-guard request supplies every gene-specific input, complete provenance, current policy/version evidence and no conflicting authority or safety condition.",
-      "expected": "Return a bounded, evidence-linked character decision consistent with the gene's declared virtues and gene-specific output contract.",
+      "scenario": "Given the exact approved input schema fields (current_epoch, current_digest, candidate_epoch, candidate_digest, revocation_floor, rollback_authorization, provenance), valid provenance/version evidence and the baseline positive condition (permitted forward transition accepted; rollback below floor denied), the gene must satisfy: Detect rollback and preserve protected floors, evidence and recovery integrity.",
+      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
       "assertions": [
         "required inputs validated",
         "evidence references resolve",
         "no authority expansion",
         "decision status reflects observed result"
+      ],
+      "existing_gene_io_case_id": "G12-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "permitted forward transition accepted; rollback below floor denied",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0"
       ]
     },
     {
       "case_id": "CHAR-G12.ROLLBACK-GUARD-N",
       "gene_id": "g12.rollback-guard",
       "polarity": "negative",
-      "scenario": "A g12.rollback-guard request omits or falsifies a required gene-specific input, supplies stale or conflicting evidence, or attempts the prohibited behavior described by its contract.",
-      "expected": "Deny, defer, quarantine or mark unknown as appropriate; do not fabricate evidence, silently continue or widen authority.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never roll back to an untrusted or constitutionally weaker state.), and the baseline negative condition (candidate below revocation floor or stale epoch), the gene must enforce: fail-closed",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
       "assertions": [
         "failure semantics enforced",
         "no fabricated evidence",
         "no silent downgrade",
         "reason and evidence recorded"
+      ],
+      "existing_gene_io_case_id": "G12-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "candidate below revocation floor or stale epoch",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0"
       ]
     }
   ],
@@ -949,5 +1453,13 @@
     "exact_artifact_and_policy_version_required": true,
     "runtime_tests_not_authorized_in_A2": true,
     "a3_required_for_implementation": true
+  },
+  "gene_io_baseline": {
+    "branch": "architecture/genesis-gene-contract-amendment-proposal",
+    "commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+    "proposal_path": "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
+    "proposal_blob_sha": "0dea137514313a2f59bec7be4df53bec05330b45",
+    "existing_gene_contracts": 36,
+    "existing_input_output_schemas": 72
   }
 }
