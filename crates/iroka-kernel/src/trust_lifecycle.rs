@@ -527,6 +527,53 @@ impl TrustSnapshotManager {
     }
 }
 
+/// Recovered, mutually consistent G12 security runtime. Startup fails closed
+/// unless all three signed operational documents are present, current and valid.
+pub struct G12SecurityRuntime {
+    trust_snapshots: TrustSnapshotManager,
+    evidence_verifier: crate::Ed25519RollbackEvidenceVerifier<Arc<SqliteSecurityStore>>,
+    store: Arc<SqliteSecurityStore>,
+}
+
+impl G12SecurityRuntime {
+    pub fn restore(
+        roots: &TrustRootSet,
+        store: Arc<SqliteSecurityStore>,
+        now: u64,
+    ) -> Result<Self, TrustBundleError> {
+        let trust_snapshots = TrustSnapshotManager::restore_with_roots(roots, &store, now)?;
+        let issuer_policy = restore_rollback_evidence_policy_with_roots(roots, &store, now)?;
+        restore_version_lineage_snapshot_with_roots(roots, &store, now)?;
+        let trust_snapshot = trust_snapshots.snapshot()?;
+        let credentials = crate::Ed25519CredentialVerifier::from_verified_trust_snapshot(
+            trust_snapshot.as_ref(),
+            Arc::clone(&store),
+        );
+        let evidence_verifier = crate::Ed25519RollbackEvidenceVerifier::new(
+            credentials,
+            Arc::clone(&store),
+            issuer_policy,
+        );
+        Ok(Self {
+            trust_snapshots,
+            evidence_verifier,
+            store,
+        })
+    }
+
+    pub fn evidence_verifier(&self) -> &dyn crate::RollbackEvidenceVerifier {
+        &self.evidence_verifier
+    }
+
+    pub fn lineage_registry(&self) -> &SqliteSecurityStore {
+        &self.store
+    }
+
+    pub fn trust_snapshots(&self) -> &TrustSnapshotManager {
+        &self.trust_snapshots
+    }
+}
+
 #[rustfmt::skip]
 #[cfg(test)]
 mod tests {
