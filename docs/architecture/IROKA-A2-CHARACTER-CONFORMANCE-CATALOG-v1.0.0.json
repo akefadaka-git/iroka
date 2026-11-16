@@ -1622,13 +1622,20 @@
       "case_id": "CHAR-G11.VALIDATOR-P",
       "gene_id": "g11.validator",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (artifact_ref, contract_ids, validator_version, policy_digest, provenance), valid provenance/version evidence and the baseline positive condition (known contracts checked; unknown contract fails closed), the gene must satisfy: Independently test contracts and fail closed on critical violations.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an authenticated immutable artifact revision, complete version-pinned applicable contract set, signed validator release, canonical effective policy snapshot, verifiable provenance and version_bound_evidence, independently validate the artifact and emit unique contract-resolved findings with a recomputable validation digest.",
+      "expected": "Return the existing output contract with valid derived from all findings under the pinned policy, complete evidence and version_bound_evidence; validation does not approve or authorize execution.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all six required input fields including version_bound_evidence validated",
+        "artifact reference resolves to exact immutable revision and content",
+        "all contract IDs resolve uniquely to applicable version-pinned contracts",
+        "validator release is signed, compatible and not revoked",
+        "policy digest recomputes and policy is effective for this scope",
+        "provenance and version-bound evidence bind exact validation context",
+        "finding IDs unique and contract references resolve to input set",
+        "severity/code/disposition use controlled policy registries",
+        "valid is consistent with all findings and blocking policy",
+        "validated digest recomputes over canonical inputs and result",
+        "validation grants no approval, authorization or execution authority"
       ],
       "existing_gene_io_case_id": "G11-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1636,19 +1643,27 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g11.validator/input/1.0.0",
         "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G11.VALIDATOR-N",
       "gene_id": "g11.validator",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never waive a failure to satisfy delivery pressure.), and the baseline negative condition (unknown contract or validator version), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unknown or mutable artifact, missing or stale contract version, duplicate/unresolved contract ID, untrusted or revoked validator, forged/expired policy, missing version_bound_evidence, unverifiable provenance, duplicate finding IDs, unresolved contract references, unknown severity/disposition, blocking finding with valid=true or forged validated digest, validation must fail closed.",
+      "expected": "Reject or return valid=false with explicit findings and evidence; never waive failures, infer validity from delivery pressure, fabricate evidence or grant approval/execution authority.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown/stale artifact rejected",
+        "missing, duplicate, unresolved or inapplicable contract rejected",
+        "untrusted, incompatible or revoked validator rejected",
+        "unknown, forged, expired or revoked policy fails closed",
+        "missing or unverifiable version_bound_evidence rejected",
+        "provenance mismatch or stale evidence rejected",
+        "duplicate finding IDs or out-of-set contract references rejected",
+        "unknown severity/code/disposition cannot be treated as non-blocking",
+        "blocking, unresolved or unclassified findings prohibit valid=true",
+        "validated digest mismatch rejected",
+        "validation cannot approve, authorize, merge, deploy or execute"
       ],
       "existing_gene_io_case_id": "G11-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1656,7 +1671,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g11.validator/input/1.0.0",
         "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G11.ATTESTATION-P",
@@ -2511,6 +2527,29 @@
         "G10-ERD-SEM-08",
         "G10-ERD-SEM-09",
         "G10-ERD-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G11-VALIDATOR-SEMANTIC-REVIEW-001",
+      "gene_id": "g11.validator",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G11.VALIDATOR-P",
+        "CHAR-G11.VALIDATOR-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G11-V-SEM-01",
+        "G11-V-SEM-02",
+        "G11-V-SEM-03",
+        "G11-V-SEM-04",
+        "G11-V-SEM-05",
+        "G11-V-SEM-06",
+        "G11-V-SEM-07",
+        "G11-V-SEM-08",
+        "G11-V-SEM-09",
+        "G11-V-SEM-10"
       ]
     }
   ]
