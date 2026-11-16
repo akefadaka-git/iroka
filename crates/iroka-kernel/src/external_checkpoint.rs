@@ -278,10 +278,15 @@ pub fn verify_and_reconcile_head(
         trusted_witnesses,
         required,
     )?;
-    let (local_sequence, local_hash, prefix_hash) = audit
+    let verified = audit
         .verified_head_and_prefix(checkpoint.payload.event_sequence)
         .map_err(map_audit_error)?;
-    reconcile_head(local_sequence, local_hash, prefix_hash, checkpoint)
+    reconcile_head(
+        verified.sequence,
+        verified.digest,
+        verified.prefix_digest,
+        checkpoint,
+    )
 }
 
 fn map_audit_error(error: crate::AuditStoreError) -> CheckpointError {
