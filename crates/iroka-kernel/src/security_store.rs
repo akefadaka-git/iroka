@@ -203,6 +203,11 @@ impl SqliteSecurityStore {
                revision INTEGER NOT NULL CHECK(revision >= 0)
              );
              INSERT OR IGNORE INTO version_lineage_registry_meta(singleton, revision) VALUES(1, 0);
+             CREATE TABLE IF NOT EXISTS version_lineage_registry_history (
+               revision INTEGER PRIMARY KEY CHECK(revision > 0),
+               digest BLOB NOT NULL CHECK(length(digest) = 32),
+               snapshot_json TEXT NOT NULL
+             );
              CREATE TABLE IF NOT EXISTS version_lineage_artifacts (
                gene_id TEXT NOT NULL, version TEXT NOT NULL, artifact_digest TEXT NOT NULL,
                artifact_json TEXT NOT NULL, parent_version TEXT, parent_digest TEXT,
@@ -829,6 +834,121 @@ impl SqliteSecurityStore {
         tx.commit()
             .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         Ok(true)
+    }
+}
+
+impl SqliteSecurityStore {
+    /// Replace the active lineage registry as one immutable, monotonic snapshot.
+    /// Callers must verify the root signature and all snapshot invariants first.
+    pub(crate) fn install_version_lineage_snapshot(
+        &self,
+        revision: u64,
+        digest: &[u8],
+        snapshot_json: &str,
+        artifacts: &[RegisteredLineageArtifact],
+        mutations: &[RegisteredMutationRecord],
+    ) -> Result<(), SecurityStoreError> {
+        if revision == 0 || digest.len() != 32 || snapshot_json.trim().is_empty() || artifacts.is_empty() {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let revision_i = i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: i64 = tx.query_row(
+            "SELECT revision FROM version_lineage_registry_meta WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if revision_i < current {
+            return Err(SecurityStoreError::Rollback);
+        }
+        if revision_i == current {
+            if current == 0 {
+                return Err(SecurityStoreError::ConflictingVersion);
+            }
+            let existing: Option<(Vec<u8>, String)> = tx.query_row(
+                "SELECT digest, snapshot_json FROM version_lineage_registry_history WHERE revision=?1",
+                params![revision_i],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+            return match existing {
+                Some((old_digest, old_json)) if old_digest == digest && old_json == snapshot_json => {
+                    tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                    Ok(())
+                }
+                _ => Err(SecurityStoreError::ConflictingVersion),
+            };
+        }
+        tx.execute("DELETE FROM version_lineage_artifacts WHERE gene_id='g12.version-lineage'", [])
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute("DELETE FROM version_lineage_mutations", [])
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        for artifact in artifacts {
+            if artifact.gene_id != "g12.version-lineage" || artifact.version.trim().is_empty()
+                || artifact.artifact_digest.len() != 64 || artifact.epoch > i64::MAX as u64
+            {
+                return Err(SecurityStoreError::InvalidVersion);
+            }
+            let artifact_json = serde_json::to_string(&artifact.artifact)
+                .map_err(|_| SecurityStoreError::InvalidVersion)?;
+            tx.execute(
+                "INSERT INTO version_lineage_artifacts(
+                    gene_id, version, artifact_digest, artifact_json, parent_version,
+                    parent_digest, mutation_id, epoch
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    artifact.gene_id, artifact.version, artifact.artifact_digest,
+                    artifact_json, artifact.parent_version, artifact.parent_digest,
+                    artifact.mutation_id, i64::try_from(artifact.epoch).map_err(|_| SecurityStoreError::InvalidVersion)?
+                ],
+            ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
+        }
+        for mutation in mutations {
+            if mutation.mutation_ref.trim().is_empty() || mutation.mutation_id.trim().is_empty()
+                || mutation.source_version.as_deref().unwrap_or("").trim().is_empty()
+                || mutation.source_digest.as_deref().unwrap_or("").len() != 64
+                || mutation.target_version.trim().is_empty() || mutation.target_digest.len() != 64
+                || mutation.approval_commitment.len() != 64
+            {
+                return Err(SecurityStoreError::InvalidVersion);
+            }
+            tx.execute(
+                "INSERT INTO version_lineage_mutations(
+                    mutation_ref, mutation_id, source_version, source_digest,
+                    target_version, target_digest, approved, gates_passed, approval_commitment
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    mutation.mutation_ref, mutation.mutation_id,
+                    mutation.source_version.as_deref().unwrap_or(""),
+                    mutation.source_digest.as_deref().unwrap_or(""),
+                    mutation.target_version, mutation.target_digest,
+                    i64::from(mutation.approved), i64::from(mutation.gates_passed),
+                    mutation.approval_commitment
+                ],
+            ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
+        }
+        tx.execute(
+            "UPDATE version_lineage_registry_meta SET revision=?1 WHERE singleton=1",
+            params![revision_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "INSERT INTO version_lineage_registry_history(revision, digest, snapshot_json) VALUES(?1, ?2, ?3)",
+            params![revision_i, digest, snapshot_json],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub(crate) fn latest_version_lineage_snapshot_document(
+        &self,
+    ) -> Result<Option<String>, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        connection.query_row(
+            "SELECT snapshot_json FROM version_lineage_registry_history
+             WHERE revision=(SELECT revision FROM version_lineage_registry_meta WHERE singleton=1)",
+            [],
+            |row| row.get(0),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)
     }
 }
 
