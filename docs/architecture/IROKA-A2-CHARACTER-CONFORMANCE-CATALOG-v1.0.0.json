@@ -1420,13 +1420,16 @@
       "case_id": "CHAR-G09.EXECUTION-RECEIPT-P",
       "gene_id": "g09.execution-receipt",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (admission_id, executor_id, result_digest, started_at, completed_at, outcome, provenance), valid provenance/version evidence and the baseline positive condition (receipt binds to admission; orphan receipt rejected), the gene must satisfy: Record actual effect, result, actor, authority, time and verification status.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a canonical, unexpired and consumed admission bound to the authenticated executor and exact effect, a recomputable digest of observed result artifacts, trusted ordered execution timestamps, and verifiable provenance/version evidence, the receipt records the actual outcome without conferring authority.",
+      "expected": "Return a uniquely identified, canonically digested receipt bound to the exact admission and executor; integrity_verified is true only after all receipt, result, time and evidence checks pass.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "admission resolves to exact immutable admitted effect and is not orphaned, expired, revoked or replayed",
+        "executor identity and runtime attestation match admission scope",
+        "result_digest and receipt_digest recompute over canonical material",
+        "timestamps are timezone-aware, trusted and chronologically consistent",
+        "outcome is derived from observed result evidence",
+        "integrity_verified is consistent with all verified bindings",
+        "receipt does not grant or retroactively validate authority"
       ],
       "existing_gene_io_case_id": "G09-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1434,19 +1437,23 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
         "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G09.EXECUTION-RECEIPT-N",
       "gene_id": "g09.execution-receipt",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never claim success from intent, request or receipt existence alone.), and the baseline negative condition (receipt without admission or mismatched executor), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an orphan, expired or replayed admission; mismatched/unattested executor; forged result or receipt digest; malformed or reversed timestamps; outcome inconsistent with observed results; or unverifiable provenance, the receipt must fail closed and must not claim success or authority.",
+      "expected": "Reject or mark integrity unverified with explicit reason/evidence; never fabricate result evidence, accept an orphan receipt, or treat receipt existence as permission.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "orphan, revoked, expired or replayed admission rejected",
+        "executor mismatch or missing attestation rejected",
+        "digest mismatch rejected",
+        "malformed, untrusted or reversed timestamps rejected",
+        "outcome/result contradiction rejected",
+        "integrity_verified cannot be true when any required check fails",
+        "receipt existence never grants or retroactively validates authorization"
       ],
       "existing_gene_io_case_id": "G09-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1454,7 +1461,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
         "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G10.LEARNING-INPUT-P",
@@ -2375,6 +2383,29 @@
         "G09-AG-SEM-08",
         "G09-AG-SEM-09",
         "G09-AG-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G09-EXECUTION-RECEIPT-SEMANTIC-REVIEW-001",
+      "gene_id": "g09.execution-receipt",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G09.EXECUTION-RECEIPT-P",
+        "CHAR-G09.EXECUTION-RECEIPT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G09-ER-SEM-01",
+        "G09-ER-SEM-02",
+        "G09-ER-SEM-03",
+        "G09-ER-SEM-04",
+        "G09-ER-SEM-05",
+        "G09-ER-SEM-06",
+        "G09-ER-SEM-07",
+        "G09-ER-SEM-08",
+        "G09-ER-SEM-09",
+        "G09-ER-SEM-10"
       ]
     }
   ]
