@@ -1,0 +1,164 @@
+{
+  "specification": "IROKA-A3-G12-VERSION-LINEAGE-CONFORMANCE",
+  "version": "1.1.0",
+  "gene_id": "g12.version-lineage",
+  "chromosome_count": 12,
+  "gene_count": 36,
+  "baseline_schema_ids": {
+    "input": "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.0.0",
+    "output": "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.0.0"
+  },
+  "amended_schema_ids": {
+    "input": "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.1.0",
+    "output": "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.1.0"
+  },
+  "invariants": [
+    "Artifact and ancestry digests are SHA-256 over RFC 8785 JCS canonical immutable artifact bytes.",
+    "Version and parent version use canonical MAJOR.MINOR.PATCH identifiers resolved through one authoritative immutable version registry.",
+    "The only root representation is parent_version=null, parent_digest=null, mutation_ref=GENESIS and epoch=0.",
+    "Non-root parent_version and parent_digest must resolve to the same registered immutable parent.",
+    "Every non-root mutation_ref resolves to one immutable mutation record whose source/target version and digest pair exactly match parent and candidate; approval and gates must be verified, but this gene grants no execution authority.",
+    "Ancestry is a complete, unique, acyclic oldest-ancestor-to-candidate chain with exact digest links and strictly increasing authoritative non-negative epochs.",
+    "Candidate and every ancestor require authenticated provenance and version-bound evidence bound to their exact version, digest and epoch.",
+    "linked and epoch_monotonic are derived only from verified ancestry; contradictory booleans cannot be accepted.",
+    "lineage_digest is recomputed over a versioned canonical envelope covering candidate, ancestry, mutation references, epochs and evidence commitments.",
+    "Lineage evaluation is read-only and never rewrites history, creates approval, or grants mutation, execution, merge or deployment authority."
+  ],
+  "cases": [
+    {
+      "case_id": "VL-A3-P01",
+      "class": "positive",
+      "title": "registered genesis root",
+      "expected": "allow_verified",
+      "asserts": [
+        "canonical_root_tuple",
+        "epoch_zero",
+        "candidate_digest_matches",
+        "provenance_and_version_evidence_verified",
+        "lineage_digest_recomputed"
+      ]
+    },
+    {
+      "case_id": "VL-A3-P02",
+      "class": "positive",
+      "title": "complete three-node linear ancestry",
+      "expected": "allow_verified",
+      "asserts": [
+        "exact_parent_version_digest_pairs",
+        "oldest_to_candidate_order",
+        "unique_acyclic_chain",
+        "strictly_increasing_epochs",
+        "mutation_record_approved_and_gate_bound",
+        "all_ancestor_evidence_verified"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N01",
+      "class": "negative",
+      "title": "malformed or substituted artifact digest",
+      "expected": "deny",
+      "asserts": [
+        "recompute_sha256_jcs",
+        "candidate_never_linked"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N02",
+      "class": "negative",
+      "title": "unknown or ambiguous version registry entry",
+      "expected": "deny",
+      "asserts": [
+        "canonical_semver_required",
+        "registry_lookup_must_be_unique"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N03",
+      "class": "adversarial",
+      "title": "root parent pair ambiguity",
+      "expected": "deny",
+      "asserts": [
+        "parent_version_and_digest_both_null_or_both_present",
+        "only_genesis_marker_for_root"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N04",
+      "class": "adversarial",
+      "title": "mutation record target/source mismatch or unapproved mutation",
+      "expected": "deny",
+      "asserts": [
+        "one_immutable_mutation_record",
+        "exact_source_target_pair",
+        "approval_and_gates_verified",
+        "no_execution_authority_created"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N05",
+      "class": "adversarial",
+      "title": "missing stale forged or ancestor-unbound evidence",
+      "expected": "deny",
+      "asserts": [
+        "candidate_and_every_ancestor_have_both_evidence_types",
+        "subject_version_digest_epoch_binding",
+        "issuer_signature_freshness_and_replay_checks"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N06",
+      "class": "adversarial",
+      "title": "cycle duplicate or disconnected ancestry",
+      "expected": "deny",
+      "asserts": [
+        "unique_identity",
+        "cycle_detection",
+        "complete_chain_only"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N07",
+      "class": "negative",
+      "title": "broken parent digest link or candidate mismatch",
+      "expected": "deny",
+      "asserts": [
+        "parent_pair_matches_previous_node",
+        "last_node_matches_candidate"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N08",
+      "class": "negative",
+      "title": "epoch replay or non-monotonic ancestry",
+      "expected": "deny",
+      "asserts": [
+        "authoritative_nonnegative_epochs",
+        "strict_increase",
+        "no_epoch_replay"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N09",
+      "class": "adversarial",
+      "title": "caller-supplied linked or epoch flags contradict ancestry",
+      "expected": "deny",
+      "asserts": [
+        "flags_are_derived_not_trusted_input",
+        "deny_output_flags_false"
+      ]
+    },
+    {
+      "case_id": "VL-A3-N10",
+      "class": "adversarial",
+      "title": "lineage digest mismatch or incomplete digest preimage",
+      "expected": "deny",
+      "asserts": [
+        "canonical_envelope_versioned",
+        "all_ancestry_and_evidence_commitments_covered",
+        "recompute_and_compare"
+      ]
+    }
+  ],
+  "execution_status": "DESIGNED_NOT_EXECUTED",
+  "authority_boundary": "Read-only lineage assessment only; no mutation, approval, authorization, execution, merge or deployment permission."
+}
