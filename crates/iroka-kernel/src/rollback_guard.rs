@@ -647,6 +647,10 @@ mod tests {
         assert_eq!(result.effective_state, EffectiveState::Candidate);
         assert_eq!(result.denial_code, RollbackDenialCode::None);
         assert_eq!(result.guard_digest.len(), 64);
+        let output = serde_json::to_value(&result).unwrap();
+        assert_eq!(output["decision"], "allow");
+        assert_eq!(output["evidence"]["status"], "verified");
+        assert_eq!(output["version_bound_evidence"].as_array().unwrap().len(), 4);
     }
 
     #[test]
@@ -666,6 +670,10 @@ mod tests {
         assert!(!result.allowed);
         assert_eq!(result.denial_code, RollbackDenialCode::RevocationFloor);
         assert_eq!(result.effective_state, EffectiveState::Current);
+        let output = serde_json::to_value(&result).unwrap();
+        assert_eq!(output["decision"], "deny");
+        assert_eq!(output["effective_state"], "current");
+        assert_eq!(output["evidence"]["status"], "verified");
     }
 
     #[test]
