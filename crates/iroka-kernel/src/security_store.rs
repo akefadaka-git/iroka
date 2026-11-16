@@ -347,8 +347,13 @@ impl SqliteSecurityStore {
             || signer_key_id.trim().is_empty()
             || digest.len() != 32
         {
-            return Err(SecurityCommandError::Store(SecurityStoreError::InvalidVersion));
+            return Err(SecurityCommandError::Store(
+                SecurityStoreError::InvalidVersion,
+            ));
         }
+        let occurred_at = i64::try_from(at).map_err(|_| {
+            SecurityCommandError::Store(SecurityStoreError::InvalidVersion)
+        })?;
         let mut connection = self
             .connection
             .lock()
@@ -371,10 +376,12 @@ impl SqliteSecurityStore {
             return Err(SecurityCommandError::SigningKeyRevoked);
         }
 
-        let changed = tx.execute(
-            "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
-            params![format!("security-command:{command_id}"), digest, i64::try_from(at).map_err(|_| SecurityCommandError::Store(SecurityStoreError::InvalidVersion))?]
-        ).map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
+        let changed = tx
+            .execute(
+                "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
+                params![format!("security-command:{command_id}"), digest, occurred_at],
+            )
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
         if changed == 0 {
             return Ok(false);
         }
@@ -413,7 +420,7 @@ impl SqliteSecurityStore {
                     params![
                         issuer,
                         credential_id,
-                        i64::try_from(at).map_err(|_| SecurityCommandError::Store(SecurityStoreError::InvalidVersion))?,
+                        occurred_at,
                         reason
                     ],
                 )
@@ -429,7 +436,7 @@ impl SqliteSecurityStore {
                     params![
                         issuer,
                         key_id,
-                        i64::try_from(at).map_err(|_| SecurityCommandError::Store(SecurityStoreError::InvalidVersion))?,
+                        occurred_at,
                         reason
                     ],
                 )
@@ -443,7 +450,7 @@ impl SqliteSecurityStore {
                     "INSERT OR IGNORE INTO revoked_approvals VALUES(?1, ?2, ?3)",
                     params![
                         approval_id,
-                        i64::try_from(at).map_err(|_| SecurityCommandError::Store(SecurityStoreError::InvalidVersion))?,
+                        occurred_at,
                         reason
                     ],
                 )
@@ -452,9 +459,20 @@ impl SqliteSecurityStore {
         }
         tx.execute(
             "INSERT INTO security_command_log(command_id, digest, owner_subject, signer_key_id, action, target, reason, occurred_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![command_id, digest, owner_subject, signer_key_id, action_name, target_name, reason_text, i64::try_from(at).map_err(|_| SecurityCommandError::Store(SecurityStoreError::InvalidVersion))?]
-        ).map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
-        tx.commit().map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
+            params![
+                command_id,
+                digest,
+                owner_subject,
+                signer_key_id,
+                action_name,
+                target_name,
+                reason_text,
+                occurred_at
+            ]
+        )
+        .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
+        tx.commit()
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
         Ok(true)
     }
 
