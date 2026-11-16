@@ -1500,37 +1500,37 @@
         {
           "field": "decision_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve decision_id against the authoritative append-only decision register; enforce globally unique canonical identity, immutable record binding and duplicate/replay detection. A repeated ID is idempotent only when every canonical field and digest matches exactly."
         },
         {
           "field": "authority_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve authority_id to the trusted principal registry and verify the principal was authorized for this decision type, scope and status transition at the decision's effective time; identity alone does not establish decision authority."
         },
         {
           "field": "decision_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute a canonical, domain-separated digest over the complete decision payload, including decision text/content, authority, scope, rationale, status, effective time, expiry, supersession relation and schema version. Reject mismatches and digest-algorithm ambiguity."
         },
         {
           "field": "status",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate status transitions against the decision lifecycle policy; proposed must not be represented as approved, rejected is terminal unless a new linked decision is created, and superseded requires a valid successor relation. Verify approval authority for approved status."
         },
         {
           "field": "effective_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse as canonical timezone-aware timestamp, validate against trusted time and applicable authority validity, and preserve the distinction between recorded_at and effective_at; reject malformed or unauthorized backdating."
         },
         {
           "field": "supersedes",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve non-null supersedes to an existing immutable record; verify same decision lineage, authorized successor relationship, no self-reference, no cycles and no multiple conflicting active successors. Null is valid only for a root decision."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify source provenance and version-bound evidence; bind it to canonical decision content, authority proof, scope, rationale, lifecycle transition, register event and any supersession chain."
         }
       ],
       "character_output_assertions": [
@@ -1549,9 +1549,124 @@
             "recorded",
             "evidence"
           ]
+        },
+        {
+          "assertion": "recorded=true only after the immutable register commit is durably confirmed; canonical_digest must equal the recomputed digest of the exact canonical record and register_sequence must be authoritative, unique and monotonic.",
+          "observable_fields": [
+            "decision_id",
+            "recorded",
+            "canonical_digest",
+            "register_sequence",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "A previously used decision_id may be treated as idempotent only when the complete canonical record matches; any conflicting duplicate, replay or attempted history rewrite fails closed.",
+          "observable_fields": [
+            "decision_id",
+            "recorded",
+            "canonical_digest",
+            "register_sequence",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Evidence preserves the immutable history, authority, scope, rationale, expiry and outcome, including any valid supersession chain; it never converts proposed/rejected/unrecorded states into approved.",
+          "observable_fields": [
+            "decision_id",
+            "recorded",
+            "evidence"
+          ]
         }
       ],
-      "character_failure_rule": "Never rewrite history or represent an unrecorded decision as approved. fail-closed"
+      "character_failure_rule": "Never rewrite history or represent an unrecorded decision as approved. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G02-DECISION-REGISTER-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "ea1b25c64f6b027f485b5cb0439926dbcc90f1e0",
+          "a2_contract_blob_before_review": "3795bd50f57ee0bdce031efec0b385d1621d147b",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "7421fed5d6a9fef2216d8d4405262bcb5199395b",
+          "output_schema_blob": "fff522ee210755e4d6b330a98080b834548aaea4"
+        },
+        "confirmed_sufficient": [
+          "Input requires decision_id, authority_id, decision_digest, status, effective_at, supersedes, provenance and version-bound evidence.",
+          "Status is restricted to proposed, approved, rejected or superseded.",
+          "supersedes explicitly permits null to represent a root record.",
+          "Output requires decision_id, recorded, canonical_digest, register_sequence, evidence and version-bound evidence.",
+          "register_sequence is a non-negative integer and both schemas reject undeclared top-level properties."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G02-DEC-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "decision_id is only a non-empty string; global uniqueness, immutable binding, idempotency and replay semantics are not specified.",
+            "required_disposition": "Resolve against append-only authoritative register; permit idempotency only for exact canonical record equality and reject conflicting duplicates/replays."
+          },
+          {
+            "gap_id": "G02-DEC-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "authority_id is not bound to trusted identity or decision-type/scope/status-transition authorization at effective time.",
+            "required_disposition": "Verify trusted principal and its authority for the exact decision context and lifecycle transition."
+          },
+          {
+            "gap_id": "G02-DEC-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "decision_digest is an arbitrary non-empty string; canonical payload, digest algorithm and binding to decision text, scope, rationale, expiry and schema version are absent.",
+            "required_disposition": "Recompute a domain-separated canonical digest over the complete immutable decision record."
+          },
+          {
+            "gap_id": "G02-DEC-SEM-04",
+            "severity": "HIGH",
+            "finding": "Status enum defines values but no allowed lifecycle transitions, approval authority, terminal-state or supersession transition rules.",
+            "required_disposition": "Enforce policy-governed lifecycle transitions; proposed/rejected/superseded cannot be misrepresented as approved."
+          },
+          {
+            "gap_id": "G02-DEC-SEM-05",
+            "severity": "HIGH",
+            "finding": "effective_at is an unconstrained string; timezone, trusted-time, backdating and distinction from register recording time are unspecified.",
+            "required_disposition": "Require canonical timezone-aware effective time, validate authority validity and preserve separate recorded time."
+          },
+          {
+            "gap_id": "G02-DEC-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "supersedes accepts any string or null without target existence, lineage, successor authorization, cycle or competing-successor checks.",
+            "required_disposition": "Validate supersession graph against existing immutable records; reject self-reference, cycles and conflicting active successors."
+          },
+          {
+            "gap_id": "G02-DEC-SEM-07",
+            "severity": "HIGH",
+            "finding": "Output has no consistency rule connecting recorded, canonical_digest and register_sequence to an actually durable immutable register event.",
+            "required_disposition": "Set recorded=true only after durable commit; verify digest and authoritative unique monotonic sequence."
+          },
+          {
+            "gap_id": "G02-DEC-SEM-08",
+            "severity": "HIGH",
+            "finding": "Evidence only requires provenance and version-bound evidence; scope, rationale, expiry, authority proof, lifecycle transition and supersession history are not guaranteed.",
+            "required_disposition": "Require reproducible evidence preserving the complete decision record and its immutable history."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g02.decision-register schemas and its positive/negative conformance vectors.",
+          "Define authoritative append-only register uniqueness, exact-record idempotency and replay/conflict rejection.",
+          "Bind authority_id to trusted principal and decision-specific authorization at effective time.",
+          "Define canonical digest over complete decision content and enforce lifecycle transition rules.",
+          "Validate canonical effective timestamps and supersession graph integrity, including cycles and competing successors.",
+          "Tie output recorded/digest/sequence to durable immutable commit and require evidence preserving scope, rationale, expiry and history.",
+          "Preserve 12 chromosomes, 36 genes and all unrelated contracts; do not create authority or execute registered decisions."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g03.premise-model",
