@@ -231,7 +231,6 @@ pub fn evaluate_version_lineage(
     if !valid_digest(&input.artifact_digest)
         || parse_semver(&input.version).is_none()
         || input.mutation_ref.trim().is_empty()
-
     {
         return Ok(deny(
             input,
@@ -641,7 +640,8 @@ mod tests {
                     "version": entry.version,
                     "artifact_digest": entry.artifact_digest,
                     "epoch": entry.epoch
-                })).unwrap(),
+                }))
+                .unwrap(),
                 epoch: entry.epoch,
                 revision: record.registry_revision,
             });
