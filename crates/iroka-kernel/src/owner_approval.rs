@@ -407,14 +407,21 @@ impl OwnerApprovalVerifier {
                 }
             }
         };
-        let applied = self.store.apply_signed_revocation(
-            &p.command_id,
-            &p.owner_subject,
-            &p.key_id,
-            digest.as_slice(),
-            now,
-            target,
-        )?;
+        let applied = self
+            .store
+            .apply_signed_revocation(
+                &p.command_id,
+                &p.owner_subject,
+                OWNER_ISSUER,
+                &p.key_id,
+                digest.as_slice(),
+                now,
+                target,
+            )
+            .map_err(|error| match error {
+                SecurityCommandError::SigningKeyRevoked => OwnerApprovalError::Revoked,
+                SecurityCommandError::Store(store_error) => store_error.into(),
+            })?;
         if applied {
             Ok(())
         } else {
