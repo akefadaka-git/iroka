@@ -117,7 +117,6 @@
       "gene_id": "g02.decision-register",
       "chromosome_id": "02.",
       "virtues": [
-        "accountability",
         "truth",
         "faithfulness"
       ],
@@ -183,8 +182,7 @@
       "chromosome_id": "04.",
       "virtues": [
         "truth",
-        "faithfulness",
-        "accountability"
+        "faithfulness"
       ],
       "character_obligation": "Preserve immutable links between source, transformation and derived assertion.",
       "prohibited_behavior": "Never fabricate, sever or silently rewrite provenance.",
@@ -391,8 +389,7 @@
       "chromosome_id": "09.",
       "virtues": [
         "truth",
-        "faithfulness",
-        "accountability"
+        "faithfulness"
       ],
       "character_obligation": "Record actual effect, result, actor, authority, time and verification status.",
       "prohibited_behavior": "Never claim success from intent, request or receipt existence alone.",
@@ -444,7 +441,7 @@
       "virtues": [
         "truth",
         "justice",
-        "courage"
+        "self-control"
       ],
       "character_obligation": "Independently test contracts and fail closed on critical violations.",
       "prohibited_behavior": "Never waive a failure to satisfy delivery pressure.",
@@ -468,8 +465,8 @@
       "gene_id": "g11.conformance-report",
       "chromosome_id": "11.",
       "virtues": [
-        "accountability",
         "truth",
+        "faithfulness",
         "servant-leadership"
       ],
       "character_obligation": "Report pass, fail, partial, unknown and not-run states with actionable findings.",
