@@ -67,6 +67,7 @@ pub use protected_effect::{
     ExecutionResultPayload, ExecutionStatus, OwnerEffectGrantPayload, ProtectedEffectError,
     ProtectedEffectExecutor, ProtectedEffectRequest, ProtectedExecutionContext,
     SignedExecutionResult, SignedOwnerEffectGrant, TrustedExecutorKey, VerifiedEffectGrant,
+    VerifiedExecutionReceipt,
 };
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
