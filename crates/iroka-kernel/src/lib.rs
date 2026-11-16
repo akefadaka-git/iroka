@@ -56,11 +56,6 @@ pub use rollback_guard::{
     EvidenceVerificationError, RollbackDenialCode, RollbackEvidenceReceipt,
     RollbackEvidenceSummary, RollbackEvidenceVerifier, RollbackGuardDecision, RollbackGuardInput,
 };
-pub use version_lineage::{
-    evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
-    LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord, VersionLineageError,
-    VersionLineageInput, VersionLineageRecord, VersionLineageRegistry, VersionLineageResult,
-};
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
@@ -68,6 +63,11 @@ pub(crate) use service::{authorize, authorize_authenticated};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
+};
+pub use version_lineage::{
+    evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
+    LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord, VersionLineageError,
+    VersionLineageInput, VersionLineageRecord, VersionLineageRegistry, VersionLineageResult,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
