@@ -125,12 +125,18 @@ impl SqliteSecurityStore {
 
     /// Run SQLite's full integrity checker before security state is trusted on recovery.
     pub fn integrity_check(&self) -> Result<(), SecurityStoreError> {
-        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
-        let mut statement = connection.prepare("PRAGMA integrity_check")
+        let connection = self
+            .connection
+            .lock()
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let rows = statement.query_map([], |row| row.get::<_, String>(0))
+        let mut statement = connection
+            .prepare("PRAGMA integrity_check")
             .map_err(|_| SecurityStoreError::Unavailable)?;
-        let results = rows.collect::<Result<Vec<_>, _>>()
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let results = rows
+            .collect::<Result<Vec<_>, _>>()
             .map_err(|_| SecurityStoreError::Unavailable)?;
         if results.len() == 1 && results[0] == "ok" {
             Ok(())
