@@ -372,6 +372,21 @@ mod tests {
     }
 
     #[test]
+    fn rejects_root_outside_its_validity_window() {
+        let (_, root, bundle) = fixture(1);
+        let expired_root = TrustRoot {
+            not_after: 1_100,
+            ..root
+        };
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            verify_and_install_trust_bundle(&bundle, &expired_root, &store, 1_200),
+            Err(TrustBundleError::RootOutsideValidity)
+        );
+        assert_eq!(store.highest_trust_bundle_version(), Ok(None));
+    }
+
+    #[test]
     fn rejects_unprovenanced_root_on_direct_bundle_install_path() {
         let (_, mut root, bundle) = fixture(1);
         root.provenance_ref.clear();
