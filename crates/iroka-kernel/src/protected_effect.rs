@@ -1220,6 +1220,99 @@ mod tests {
     }
 
     #[test]
+    fn revoked_executor_key_cannot_produce_a_success_receipt() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let policy = policy();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:revoked-executor",
+        );
+        let executor = TestExecutor::new("executor:finance", "executor-key-revoked", 95);
+        let mut trusted_key = executor.trusted_key();
+        trusted_key.revoked_at = Some(1_201);
+        let audit = SqliteAuditSink::open_in_memory().unwrap();
+
+        let receipt = execute_protected_effect(ProtectedExecutionContext {
+            effect: &effect,
+            principal: &principal,
+            genesis: &genesis,
+            grant: &grant,
+            owner_verifier: &owner,
+            executor: &executor,
+            executor_keys: &[trusted_key.clone()],
+            audit_sink: &audit,
+            policy: &policy,
+            now: 1_200,
+            emergency_stop_active: false,
+            admission_event_id: "event:revoked-executor-admission",
+            result_event_id: "event:revoked-executor-result",
+            correlation_id: "trace:revoked-executor",
+        })
+        .unwrap();
+        assert_eq!(receipt.status(), ExecutionStatus::Indeterminate);
+        assert_eq!(
+            receipt.verify_executor_attestation(&[trusted_key]),
+            Err(ProtectedEffectError::UnknownExecutorKey)
+        );
+    }
+
+    #[test]
+    fn duplicate_executor_trust_keys_fail_before_consuming_owner_grant() {
+        let genesis = verified_genesis();
+        let principal = principal();
+        let effect = effect();
+        let policy = policy();
+        let (owner_signer, owner) = owner_verifier();
+        let grant = signed_grant(
+            &owner_signer,
+            &effect,
+            &principal,
+            &genesis,
+            "nonce:duplicate-executor-key",
+        );
+        let executor = TestExecutor::new("executor:finance", "executor-key-duplicate", 96);
+        let key = executor.trusted_key();
+        let audit = SqliteAuditSink::open_in_memory().unwrap();
+
+        assert_eq!(
+            execute_protected_effect(ProtectedExecutionContext {
+                effect: &effect,
+                principal: &principal,
+                genesis: &genesis,
+                grant: &grant,
+                owner_verifier: &owner,
+                executor: &executor,
+                executor_keys: &[key.clone(), key],
+                audit_sink: &audit,
+                policy: &policy,
+                now: 1_200,
+                emergency_stop_active: false,
+                admission_event_id: "event:duplicate-key-admission",
+                result_event_id: "event:duplicate-key-result",
+                correlation_id: "trace:duplicate-key",
+            }),
+            Err(ProtectedEffectError::InvalidExecutorKeySet)
+        );
+        assert_eq!(executor.calls.load(Ordering::SeqCst), 0);
+        owner
+            .verify_and_consume_effect_grant(
+                &grant,
+                &effect,
+                &principal,
+                &genesis,
+                "policy-v1",
+                1_200,
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn unknown_executor_outcome_is_recorded_as_indeterminate_not_success() {
         let genesis = verified_genesis();
         let principal = principal();
