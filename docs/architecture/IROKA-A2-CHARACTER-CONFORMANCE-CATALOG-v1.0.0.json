@@ -5,7 +5,7 @@
   "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
-  "genes_covered": 36,
+  "genes_covered": 17,
   "cases": [
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
@@ -919,13 +919,16 @@
       "case_id": "CHAR-G06.SOURCE-TRUST-P",
       "gene_id": "g06.source-trust",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (source_id, credential_ref, policy_id, signature, revocation_epoch, provenance), valid provenance/version evidence and the baseline positive condition (valid credential assessed; revoked source never trusted), the gene must satisfy: Assess source authority, freshness, reliability, bias and corroboration.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a canonical authenticated source, a valid credential chain bound to that source, a valid signature under the declared profile, an applicable signed/versioned policy and a fresh authenticated revocation snapshot showing no revocation, the gene must verify every binding and preserve reproducible version-bound evidence.",
+      "expected": "Return trust_level=trusted and signature_valid=true only when all independent checks pass; bind policy_digest and evidence to the exact authenticated artifacts and evaluator versions. No authority or execution permission is created.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "source identity resolves to one authenticated canonical principal",
+        "credential issuer, subject, scope, validity and key use are verified",
+        "signature is valid over the canonical context-bound message",
+        "policy artifact and digest are authenticated and applicable",
+        "revocation snapshot is authenticated, fresh and not rolled back",
+        "evidence and version bindings reproduce the trust decision",
+        "no authority expansion"
       ],
       "existing_gene_io_case_id": "G06-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -933,19 +936,23 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
         "https://iroka.dev/schemas/genes/g06.source-trust/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G06.SOURCE-TRUST-N",
       "gene_id": "g06.source-trust",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never trust a source solely for confidence, popularity or convenience.), and the baseline negative condition (revoked credential or stale revocation state), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given a revoked, stale, unknown, substituted or unverifiable source/credential/policy/revocation input, or a malformed/invalid signature, the gene must not report trusted even when references are syntactically present or the source is popular/confident.",
+      "expected": "Return revoked, unknown or untrusted as justified by verified evidence; never emit trusted for invalid, stale or unverifiable inputs. Fail closed, expose the precise reason and preserve the verification evidence without fabricating trust.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "invalid or unresolved identity/credential fails closed",
+        "invalid signature never yields trusted",
+        "stale, rolled-back or unverifiable revocation state never yields trusted",
+        "policy authenticity and scope are enforced",
+        "trust_level and signature_valid are semantically consistent",
+        "no fabricated or silently downgraded evidence",
+        "no authority expansion"
       ],
       "existing_gene_io_case_id": "G06-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -953,7 +960,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
         "https://iroka.dev/schemas/genes/g06.source-trust/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-P",
@@ -2060,6 +2068,27 @@
         "G06-IE-SEM-06",
         "G06-IE-SEM-07",
         "G06-IE-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G06-SOURCE-TRUST-SEMANTIC-REVIEW-001",
+      "gene_id": "g06.source-trust",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G06.SOURCE-TRUST-P",
+        "CHAR-G06.SOURCE-TRUST-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G06-ST-SEM-01",
+        "G06-ST-SEM-02",
+        "G06-ST-SEM-03",
+        "G06-ST-SEM-04",
+        "G06-ST-SEM-05",
+        "G06-ST-SEM-06",
+        "G06-ST-SEM-07",
+        "G06-ST-SEM-08"
       ]
     }
   ]
