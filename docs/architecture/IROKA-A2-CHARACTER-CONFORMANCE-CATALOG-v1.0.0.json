@@ -568,13 +568,22 @@
       "case_id": "CHAR-G04.KNOWLEDGE-SCHEMA-P",
       "gene_id": "g04.knowledge-schema",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (knowledge_type, fields, constraints, schema_version, provenance), valid provenance/version evidence and the baseline positive condition (unique typed fields accepted; duplicate fields rejected), the gene must satisfy: Represent source, rights, context, validity interval and epistemic status.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a registered knowledge type and schema version, non-empty uniquely identified field definitions, deterministic typed non-executable constraints, structured provenance including source rights/context/validity/epistemic status/derivation lineage, and version-bound evidence, the baseline positive condition (valid schema normalized deterministically; invalid constraints rejected) must preserve the complete source semantics.",
+      "expected": "Return a registry-bound schema_id, canonical reproducible schema_digest and strictly normalized schema that preserves every field, constraint, source context, rights, validity interval, epistemic status and derivation lineage; validation evidence must account for every input element.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "knowledge type and schema version resolve in authoritative registries",
+        "field IDs and names are unique and stable",
+        "nested field types and required/nullable semantics preserved",
+        "every constraint reference resolves",
+        "constraint grammar is deterministic and non-executable",
+        "empty constraints explicitly declared intentional",
+        "provenance and rights/context/validity/epistemic status preserved",
+        "original and derived content distinguished",
+        "normalized schema semantically equivalent to input",
+        "schema digest canonical and reproducible",
+        "all fields and constraints have validation evidence",
+        "no unsupported semantics silently discarded",
+        "no authority expansion"
       ],
       "existing_gene_io_case_id": "G04-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -588,13 +597,21 @@
       "case_id": "CHAR-G04.KNOWLEDGE-SCHEMA-N",
       "gene_id": "g04.knowledge-schema",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never erase source context or misrepresent derived content as original.), and the baseline negative condition (duplicate field names or unsupported type), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given the exact approved input schema with a character invariant violation (Never erase source context or misrepresent derived content as original.), or malformed knowledge type/version, duplicate fields, unresolved constraint references, executable/unknown constraint expressions, contradictory constraints, missing rights/provenance, digest mismatch or unsupported normalization semantics, the gene must fail closed.",
+      "expected": "Return invalid/reject/fail-closed status with specific findings and evidence; preserve source content and provenance; do not silently discard unsupported fields, misstate rights, relabel derived content as original or emit a valid digest for altered semantics.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown type or version rejected",
+        "duplicate field identity rejected",
+        "unresolved constraint references rejected",
+        "unknown or executable constraint grammar rejected",
+        "contradictory constraints reported",
+        "missing or unverifiable provenance/rights rejected or unresolved",
+        "source context and derivation lineage retained",
+        "normalization loss detected",
+        "digest mismatch detected",
+        "unsupported semantics cannot yield valid status",
+        "reason and evidence recorded",
+        "no silent downgrade or authority expansion"
       ],
       "existing_gene_io_case_id": "G04-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1842,6 +1859,27 @@
         "G03-UNC-SEM-06",
         "G03-UNC-SEM-07",
         "G03-UNC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G04-KNOWLEDGE-SCHEMA-SEMANTIC-REVIEW-001",
+      "gene_id": "g04.knowledge-schema",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G04.KNOWLEDGE-SCHEMA-P",
+        "CHAR-G04.KNOWLEDGE-SCHEMA-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G04-KS-SEM-01",
+        "G04-KS-SEM-02",
+        "G04-KS-SEM-03",
+        "G04-KS-SEM-04",
+        "G04-KS-SEM-05",
+        "G04-KS-SEM-06",
+        "G04-KS-SEM-07",
+        "G04-KS-SEM-08"
       ]
     }
   ]
