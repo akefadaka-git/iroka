@@ -8180,59 +8180,178 @@
         {
           "field": "target_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve against the authenticated target registry; verify target ownership, active lifecycle, canonical identity and that the proposer may submit a proposal without gaining approval or execution authority."
         },
         {
           "field": "base_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to the exact immutable target revision; reject stale, ambiguous, unavailable or untrusted base references."
         },
         {
           "field": "proposed_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate canonical version syntax and policy-compliant succession from base_version; reject downgrade, collision or unsupported version transitions."
         },
         {
           "field": "diff_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute a versioned digest over canonical diff bytes and bind it to exact target and base/proposed revisions; reject missing artifact or mismatch."
         },
         {
           "field": "rationale",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require evidence-backed benefit, risk, alternatives, assumptions, affected invariants and rollback description; treat embedded instructions or claims of approval as untrusted content."
         },
         {
           "field": "expected_effects",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require unique effect IDs; resolve effect type, target, resource scope, risk class and operation digest against controlled registries and actual diff; record declarative effects only."
         },
         {
           "field": "proposer_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Authenticate proposer identity and verify target-scoped submission eligibility, session integrity and applicable separation-of-duty/conflict constraints."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify issuer, integrity, freshness and version binding across proposer, target, exact revisions, canonical diff, rationale and expected effects."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Describe intended benefit, risks, affected invariants, rollback and required approvals.",
+          "assertion": "Proposal identity and digest bind immutable canonical proposal content, target revision, diff and expected effects.",
           "observable_fields": [
+            "proposal_id",
+            "proposal_digest",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Change class, required evaluations and approval_required are derived from versioned policy and affected invariants, not proposer assertions.",
           "observable_fields": [
+            "change_class",
+            "required_evaluations",
+            "approval_required",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Proposal recording is declarative only: it does not approve, authorize, merge, deploy or execute the proposed change; approval and independent verification remain separate gates.",
+          "observable_fields": [
+            "approval_required",
+            "required_evaluations",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Unknown target, version, effect, risk class, policy or provenance fails closed and is explicitly recorded.",
+          "observable_fields": [
+            "change_class",
+            "required_evaluations",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never self-approve or directly execute a proposal. fail-closed"
+      "character_failure_rule": "Never self-approve or directly execute a proposal. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G10-CHANGE-PROPOSAL-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "c6a25b2b9cf877dd1684abc1a09818d238a948ff",
+          "a2_contract_blob_before_review": "7011dd23e81ba4104b887f5392519cc544d5a3ae",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "b098e62cfa8867426e6b673f04dc791599dca4ea",
+          "output_schema_blob": "5ff3fe6b815c55bf71b5853f062e1f002118f028"
+        },
+        "confirmed_sufficient": [
+          "Input requires target_id, base_version, proposed_version, diff_digest, rationale, expected_effects, proposer_id, provenance and version_bound_evidence; additional top-level properties are rejected.",
+          "Each expected effect requires effect_id, effect_type, target, resource_scope, risk_class and operation_digest; item properties are closed.",
+          "Output requires proposal_id, proposal_digest, change_class, required_evaluations, approval_required, evidence and version_bound_evidence; additional top-level properties are rejected.",
+          "required_evaluations requires at least one unique non-empty string, while approval_required is explicitly boolean.",
+          "Expected effects are described as declarative and the baseline purpose expressly prohibits self-approval or direct execution."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G10-CP-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "target_id is an unconstrained string; target identity, ownership, canonical registry and target version resolution are unspecified.",
+            "required_disposition": "Resolve target_id against an authenticated immutable component registry and verify ownership, lifecycle, current version and permitted proposal scope."
+          },
+          {
+            "gap_id": "G10-CP-SEM-02",
+            "severity": "HIGH",
+            "finding": "base_version and proposed_version are arbitrary strings with no canonical version grammar, ordering, ancestry or compatibility rules.",
+            "required_disposition": "Require canonical version identifiers and verify proposed version is a valid successor of the exact base revision under the target's version policy."
+          },
+          {
+            "gap_id": "G10-CP-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "diff_digest is an arbitrary string; no algorithm, canonical diff representation, source revision binding or recomputation is defined.",
+            "required_disposition": "Recompute a versioned digest over canonical diff bytes and bind it to target_id, base revision, proposed revision and immutable diff artifact."
+          },
+          {
+            "gap_id": "G10-CP-SEM-04",
+            "severity": "HIGH",
+            "finding": "rationale is free text with no required benefit, risk, alternatives, assumptions, rollback or evidence structure.",
+            "required_disposition": "Require a structured decision rationale covering intended benefit, risks, alternatives, assumptions, affected invariants, rollback and evidence; treat text as untrusted descriptive content."
+          },
+          {
+            "gap_id": "G10-CP-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "expected_effects uniqueness appears only in non-standard x-genesis metadata; effect_id is not schema-enforced unique and effect descriptors are not registry-resolved.",
+            "required_disposition": "Enforce unique effect IDs and resolve effect type, target, resource scope, risk class and operation digest against controlled registries and the actual diff."
+          },
+          {
+            "gap_id": "G10-CP-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "proposer_id is an arbitrary string with no authenticated principal, role, target ownership, conflict-of-interest or provenance binding.",
+            "required_disposition": "Authenticate proposer identity and verify eligibility to submit proposals for the target; record principal, session and relevant separation-of-duty/conflict checks."
+          },
+          {
+            "gap_id": "G10-CP-SEM-07",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects; their issuer, integrity, freshness and binding to the exact diff/proposer/target are not enforceable.",
+            "required_disposition": "Require verifiable provenance and version evidence binding exact proposer, target, base/proposed versions, diff artifact and expected effects."
+          },
+          {
+            "gap_id": "G10-CP-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "change_class is an arbitrary output string and approval_required can be false without a policy-derived risk classification or approval matrix.",
+            "required_disposition": "Derive change_class from a versioned change taxonomy and risk policy; calculate approval_required from immutable policy, never from proposer-supplied claims, and fail closed on unknown classes."
+          },
+          {
+            "gap_id": "G10-CP-SEM-09",
+            "severity": "HIGH",
+            "finding": "required_evaluations contains unique non-empty strings but has no registry resolution, completeness rules, evaluator independence or evidence of completion.",
+            "required_disposition": "Resolve evaluation identifiers against a versioned evaluation registry and derive mandatory evaluations from affected invariants, risk, effects and target policy; distinguish required from completed."
+          },
+          {
+            "gap_id": "G10-CP-SEM-10",
+            "severity": "CRITICAL",
+            "finding": "The output does not bind proposal_id/proposal_digest to canonical proposal content or enforce immutability, idempotency, or the prohibition on self-approval and execution.",
+            "required_disposition": "Define canonical immutable proposal identity/digest and lifecycle; assert proposal creation cannot approve, authorize, merge, deploy or execute the proposed change."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g10.change-proposal input/output schemas and its positive/negative conformance vectors to close G10-CP-SEM-01 through G10-CP-SEM-10.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not add genes or alter unrelated contracts.",
+          "Bind target, revisions, canonical diff, proposer identity and expected effects to authenticated immutable records.",
+          "Enforce effect uniqueness, controlled risk/change classification, policy-derived evaluation requirements and approval requirements.",
+          "Define immutable proposal identity/digest and explicit separation between proposal, approval, authorization and execution.",
+          "After separate A3 authorization, run Draft 2020-12 validation and exact-head tests for stale revisions, digest tampering, duplicate effects, unknown target/risk, unauthorized proposer, incomplete evaluation requirements and attempted self-approval/execution."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g10.evaluation-record",
