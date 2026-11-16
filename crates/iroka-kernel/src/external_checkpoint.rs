@@ -278,8 +278,10 @@ pub fn verify_and_reconcile_head(
         trusted_witnesses,
         required,
     )?;
-    let (local_sequence, local_hash) = audit.verified_head().map_err(map_audit_error)?;
-    reconcile_head(local_sequence, local_hash, checkpoint)
+    let (local_sequence, local_hash, prefix_hash) = audit
+        .verified_head_and_prefix(checkpoint.payload.event_sequence)
+        .map_err(map_audit_error)?;
+    reconcile_head(local_sequence, local_hash, prefix_hash, checkpoint)
 }
 
 fn map_audit_error(error: crate::AuditStoreError) -> CheckpointError {
@@ -293,6 +295,7 @@ fn map_audit_error(error: crate::AuditStoreError) -> CheckpointError {
 fn reconcile_head(
     local_sequence: u64,
     local_hash: [u8; 32],
+    local_prefix_hash: Option<[u8; 32]>,
     checkpoint: &SignedCheckpoint,
 ) -> Result<Reconciliation, CheckpointError> {
     let p = &checkpoint.payload;
@@ -305,6 +308,10 @@ fn reconcile_head(
             return Err(CheckpointError::ForkDetected);
         }
         return Ok(Reconciliation::Exact);
+    }
+    let anchored_prefix = local_prefix_hash.ok_or(CheckpointError::LocalBehindAnchor)?;
+    if hex(&anchored_prefix) != p.event_head_sha256 {
+        return Err(CheckpointError::ForkDetected);
     }
     Ok(Reconciliation::LocalAheadUnanchored)
 }
