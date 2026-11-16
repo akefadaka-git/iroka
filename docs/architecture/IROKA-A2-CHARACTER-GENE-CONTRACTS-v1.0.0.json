@@ -155,37 +155,37 @@
         {
           "field": "root_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve the exact root_id against the configured canonical trust-root registry; reject aliases, collisions or identity substitution. Presence of the identifier does not confer authority."
         },
         {
           "field": "issuer_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve issuer_id to an authenticated issuer identity and require verifiable issuer-trust evidence; reject unknown, substituted or revoked issuers."
         },
         {
           "field": "key_fingerprint",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require evidence that the fingerprint is computed from or independently matched to the exact public key material; the current input schema has no key material or key reference, so this check cannot yet be completed from the declared input alone."
         },
         {
           "field": "algorithm",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require algorithm to match an explicit, versioned supported-algorithm policy; a non-empty free-form string is not sufficient evidence of an accepted cryptographic algorithm."
         },
         {
           "field": "activation_epoch",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-negative epoch and evaluate activation against the authoritative epoch and version-bound evidence; do not infer validity from the field value alone."
         },
         {
           "field": "status",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Apply status as a trust-state constraint: suspended and revoked roots must never yield a trusted decision; revoked status takes precedence over a positive verification claim."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify provenance against a trusted source and bind it to the exact root, issuer, key fingerprint, algorithm, status and evaluated version; missing or conflicting provenance fails closed."
         }
       ],
       "character_output_assertions": [
@@ -204,9 +204,79 @@
             "trust_decision",
             "evidence"
           ]
+        },
+        {
+          "assertion": "Keep the boolean verified result consistent with trust_decision: verified may be true only when trust_decision is trusted and all issuer, key, algorithm, activation, status and provenance checks pass; untrusted or revoked decisions must not be reported as verified.",
+          "observable_fields": [
+            "verified",
+            "trust_decision",
+            "evaluated_epoch",
+            "evidence"
+          ]
         }
       ],
-      "character_failure_rule": "Reject identity substitution, impersonation and unsupported claims of authority. fail-closed"
+      "character_failure_rule": "Reject identity substitution, impersonation and unsupported claims of authority. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G01-IDENTITY-ROOT-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "0d2dedbffafe17efa35b3339279d4de59354e5d1",
+          "a2_contract_blob_before_review": "65ed220ad710da5e7f5dcd684096a326fbed848a",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "8ad605390250290a94784974bc7cb43f2535a0f4",
+          "output_schema_blob": "8acb93c188a6c700040de170f478a029101274e7"
+        },
+        "confirmed_sufficient": [
+          "The input schema requires root_id, issuer_id, key_fingerprint, algorithm, activation_epoch, status, provenance and version_bound_evidence.",
+          "The input schema constrains identifiers and fingerprint/algorithm to non-empty strings, activation_epoch to a non-negative integer, and status to active, suspended or revoked.",
+          "The output schema requires root_id, verified, trust_decision, evaluated_epoch, evidence and version_bound_evidence.",
+          "The output schema constrains verified to boolean and trust_decision to trusted, untrusted or revoked.",
+          "Both schemas reject undeclared top-level properties and resolve their local evidence/provenance definitions."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G01-SEM-01",
+            "severity": "HIGH",
+            "finding": "key_fingerprint is a non-empty string but the input has no public-key material or key reference with which to independently recompute or match the fingerprint.",
+            "required_disposition": "Add a verifiable key-material reference or equivalent authenticated key descriptor and bind the fingerprint to it."
+          },
+          {
+            "gap_id": "G01-SEM-02",
+            "severity": "HIGH",
+            "finding": "algorithm is an unrestricted non-empty string; the schema does not bind it to a versioned supported-algorithm policy.",
+            "required_disposition": "Bind algorithm to a versioned allowlist/policy and record the policy version in evidence."
+          },
+          {
+            "gap_id": "G01-SEM-03",
+            "severity": "HIGH",
+            "finding": "The output schema permits logically contradictory combinations such as verified=true with trust_decision=revoked or untrusted.",
+            "required_disposition": "Add a schema-level conditional constraint and a conformance assertion enforcing verified=true if and only if the trust decision is trusted and all required checks pass."
+          },
+          {
+            "gap_id": "G01-SEM-04",
+            "severity": "MEDIUM",
+            "finding": "The evidence definition only requires provenance and version_bound_evidence objects; it does not require explicit issuer-chain, key-status/revocation, algorithm-policy or decision-rationale evidence.",
+            "required_disposition": "Define structured evidence fields sufficient to reproduce the trust decision and distinguish unknown from rejected."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g01.identity-root input/output schemas and its conformance vectors to close G01-SEM-01 through G01-SEM-04.",
+          "Preserve the existing 12 chromosomes, 36 genes and all unrelated gene contracts.",
+          "Do not grant authority or execution capability through the amendment.",
+          "Add positive/negative vectors for fingerprint mismatch, unsupported algorithm, unknown/revoked issuer, revoked root and contradictory verified/trust_decision output.",
+          "Run Draft 2020-12 meta-validation and exact-head schema/conformance tests after the A3 implementation is separately authorized."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g01.lineage",
