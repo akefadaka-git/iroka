@@ -5202,32 +5202,48 @@
         {
           "field": "agent_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to one canonical immutable agent identity in an authenticated registry; reject unknown, ambiguous, aliased or substituted identities and retain registry version evidence."
         },
         {
           "field": "credential_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve immutable credential material and verify issuer chain, agent subject binding, key ownership/use, scope, validity and current revocation against authenticated trust roots."
         },
         {
           "field": "runtime_instance_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Authenticate the runtime instance and bind it to the agent and credential using attestation, runtime measurements, lifecycle/session nonce and anti-replay checks."
         },
         {
           "field": "principal_class",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Treat the class as an untrusted claim until checked against an authenticated versioned class registry and policy; reject mismatches with the verified principal/runtime."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require resolvable evidence for agent registry resolution, credential chain, trust roots, runtime attestation, class policy and identity evaluation."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind exact registry, credential, trust-root, runtime measurement/attestation, class-policy, freshness challenge and verifier versions to the decision."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Bind each agent to authenticated identity, role and accountable principal.",
+          "assertion": "A principal is valid only when canonical agent identity, credential chain and scope, current revocation state, and authenticated runtime instance all match.",
+          "observable_fields": [
+            "agent_id",
+            "principal_valid",
+            "identity_status",
+            "principal_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "principal_valid and identity_status are consistent: invalid or revoked identities cannot be reported valid; unavailable or contradictory evidence fails closed.",
           "observable_fields": [
             "principal_valid",
             "identity_status",
@@ -5235,7 +5251,16 @@
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "principal_digest is computed over canonical identity material and is bound to the exact credential and runtime evidence used for validation.",
+          "observable_fields": [
+            "principal_digest",
+            "agent_id",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Identity validity and principal_class do not create authority, authorization, owner status or human status; an agent must never impersonate another agent or claim human status.",
           "observable_fields": [
             "principal_valid",
             "identity_status",
@@ -5243,7 +5268,94 @@
           ]
         }
       ],
-      "character_failure_rule": "Never impersonate another agent or claim human status. fail-closed"
+      "character_failure_rule": "Never impersonate another agent or claim human status. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G07-AGENT-PRINCIPAL-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "94e3402cf1b1a9f31f6c95faf5eda5177eccc02f",
+          "a2_contract_blob_before_review": "d3ba2a7808c8f928d442bf1bf39e2ed9afcb17d1",
+          "a2_catalog_blob_before_review": "49ffdc1490d2a4c3de3d18752939de704dbf5326",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "8fe9c1d19a74ab66e973adb8176eae180f49458b",
+          "output_schema_blob": "0ab1459523bb1d7833af37b3a06c0a8394c47f2f"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires agent_id, credential_ref, runtime_instance_id, principal_class, provenance and version_bound_evidence and rejects undeclared top-level fields.",
+          "principal_class is constrained to system, service, task or subagent; the other identity and runtime references are strings without registry-resolution constraints.",
+          "provenance and version_bound_evidence are required non-empty objects, but their internal semantic structure and binding are unspecified.",
+          "Output schema requires agent_id, principal_valid, principal_digest, identity_status, evidence and version_bound_evidence.",
+          "identity_status is constrained to valid, invalid or revoked, but no cross-field invariant prevents principal_valid=true with invalid or revoked status.",
+          "principal_digest is an unrestricted string; the schema does not define canonicalization, digest algorithm or binding to credential and runtime evidence."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G07-AP-SEM-01",
+            "severity": "HIGH",
+            "finding": "agent_id is an unrestricted string; no canonical agent registry, immutable identity, namespace, uniqueness or alias/substitution handling is specified.",
+            "required_disposition": "Resolve agent_id to one canonical immutable agent record in an authenticated registry; reject unknown, ambiguous, aliased or substituted identities and bind the registry version."
+          },
+          {
+            "gap_id": "G07-AP-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "credential_ref is an unrestricted string; credential issuer, subject-to-agent binding, key ownership, permitted use, scope, validity and revocation are not semantically verified.",
+            "required_disposition": "Resolve immutable credential material and verify its issuer chain, subject/agent binding, key use, scope, validity interval and current revocation state against authenticated trust roots."
+          },
+          {
+            "gap_id": "G07-AP-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "runtime_instance_id is an unrestricted string; the schema does not authenticate the runtime, bind it to the agent and credential, attest software/configuration or prevent instance cloning/replay.",
+            "required_disposition": "Resolve runtime_instance_id to an authenticated runtime registry/attestation; bind agent identity, credential, runtime measurement, boot/session nonce and lifecycle to prevent substitution, cloning and replay."
+          },
+          {
+            "gap_id": "G07-AP-SEM-04",
+            "severity": "HIGH",
+            "finding": "principal_class is enum-constrained, but no authoritative registry or policy binds the declared class to the authenticated agent, runtime, lifecycle or allowed identity semantics.",
+            "required_disposition": "Treat principal_class as a claim until independently resolved against an authenticated principal-class registry and policy; reject class/credential/runtime mismatches and preserve class version evidence."
+          },
+          {
+            "gap_id": "G07-AP-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "The contract does not distinguish an agent's identity from its authority, delegated permissions or human status; a valid principal could be misrepresented as having powers or human identity it does not possess.",
+            "required_disposition": "Explicitly constrain this gene to identity verification only; never infer authority, authorization, owner status or human status from principal validity or class, and require separately governed authorization for permissions."
+          },
+          {
+            "gap_id": "G07-AP-SEM-06",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are non-empty opaque objects; they need not bind the registry entry, credential chain, runtime attestation, principal class, challenge/freshness or verifier version.",
+            "required_disposition": "Define structured resolvable evidence binding canonical agent record, credential and trust roots, runtime attestation/measurement, class registry, freshness challenge and exact verifier/policy versions."
+          },
+          {
+            "gap_id": "G07-AP-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "Output permits principal_valid=true with identity_status=invalid or revoked, and does not define the principal_digest algorithm or bind the digest to canonical principal, credential and runtime evidence.",
+            "required_disposition": "Define digest algorithm/canonical principal record and enforce invariants: valid requires authenticated active identity, valid credential and matching attested runtime; invalid/revoked must never be principal_valid=true."
+          },
+          {
+            "gap_id": "G07-AP-SEM-08",
+            "severity": "HIGH",
+            "finding": "The schema does not define identity freshness, session binding, rotation/revocation propagation, duplicate active instances or deterministic handling of unavailable/contradictory identity evidence.",
+            "required_disposition": "Specify freshness and challenge semantics, credential/runtime rotation and revocation propagation, duplicate-instance conflict handling and deterministic fail-closed outcomes for stale, unavailable or contradictory evidence."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g07.agent-principal input/output schemas and its conformance vectors to close G07-AP-SEM-01 through G07-AP-SEM-08.",
+          "Define authenticated canonical agent identity and credential resolution, runtime attestation/session binding, and authoritative principal-class registry validation.",
+          "Explicitly separate identity validity from authority, authorization, owner status and human status; no permission may be inferred from principal identity.",
+          "Define canonical principal digest semantics, output invariants, freshness/replay controls and structured reproducible version-bound evidence.",
+          "Preserve 12 chromosomes, 36 genes and unrelated contracts; perform schema meta-validation and exact-head conformance tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g07.capability-profile",
