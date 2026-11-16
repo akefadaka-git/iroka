@@ -1,6 +1,7 @@
 [package]
 name = "iroka-kernel"
 version = "0.1.0"
+publish = false
 description = "Deterministic, fail-closed authorization decision core for IROKA ZERO"
 edition.workspace = true
 license.workspace = true
