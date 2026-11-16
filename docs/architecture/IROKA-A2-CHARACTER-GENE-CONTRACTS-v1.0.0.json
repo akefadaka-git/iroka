@@ -652,32 +652,32 @@
         {
           "field": "source_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve source_version using the version grammar and canonical version registry declared by policy_id; reject ambiguous, unknown or normalized-by-guessing values. Preserve the exact source contract identity."
         },
         {
           "field": "target_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve target_version using the same explicit version grammar and registry; compare exact canonical versions and reject unknown targets rather than inferring compatibility."
         },
         {
           "field": "policy_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve policy_id to an authenticated, immutable, versioned compatibility policy; verify issuer, policy version, scope, validity period and provenance. An arbitrary non-empty identifier is not policy evidence."
         },
         {
           "field": "declared_compatible",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Treat declared_compatible as an untrusted assertion, never as the decision. Independently evaluate source/target contract semantics under the authenticated policy; disagreement must fail closed or produce an explicit conflict."
         },
         {
           "field": "migration_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "When non-null, bind migration_digest to retrievable, authenticated migration artifact(s), their source/target versions, integrity digest and provenance. Null is valid only when the policy explicitly establishes that no migration is required."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify provenance and version-bound evidence against trusted sources; bind them to exact source/target contract identities, policy version, compatibility declaration and migration artifact or explicit absence."
         }
       ],
       "character_output_assertions": [
@@ -696,9 +696,92 @@
             "decision",
             "evidence"
           ]
+        },
+        {
+          "assertion": "The boolean compatibility must agree with decision: true only for decision=compatible; false for incompatible or migration_required. The decision must be derived from the authenticated policy and exact source/target semantics, not copied from declared_compatible.",
+          "observable_fields": [
+            "compatibility",
+            "decision",
+            "policy_id",
+            "evidence"
+          ]
         }
       ],
-      "character_failure_rule": "Never silently coerce incompatible or unknown contracts. fail-closed"
+      "character_failure_rule": "Never silently coerce incompatible or unknown contracts. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G01-COMPATIBILITY-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "48e1ebadd3116713833db5578581af5da3b6cfe9",
+          "a2_contract_blob_before_review": "b5605d4bef42f481854d6fe9349af91e0ea1a411",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "dd325170eebd20917c1b2f3410ac473b67c6311d",
+          "output_schema_blob": "ee739ff7f5423267b8137151b8c14d19c56de951"
+        },
+        "confirmed_sufficient": [
+          "Input requires source_version, target_version, policy_id, declared_compatible, migration_digest, provenance and version_bound_evidence.",
+          "declared_compatible is boolean; migration_digest explicitly permits string or null.",
+          "Output requires compatibility, decision, policy_id, evidence and version_bound_evidence.",
+          "decision is restricted to compatible, incompatible or migration_required.",
+          "Both schemas reject undeclared top-level properties and resolve local evidence/provenance definitions."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G01-COMP-SEM-01",
+            "severity": "HIGH",
+            "finding": "source_version and target_version are unrestricted non-empty strings; no version grammar, canonical registry or exact contract identity binding is defined.",
+            "required_disposition": "Bind both values to an explicit version grammar and authenticated canonical contract registry; reject ambiguous or unknown versions."
+          },
+          {
+            "gap_id": "G01-COMP-SEM-02",
+            "severity": "HIGH",
+            "finding": "policy_id is only a non-empty string and is not bound to an authenticated immutable policy, issuer, policy version, scope or validity interval.",
+            "required_disposition": "Resolve policy_id to authenticated, versioned, scope-bound policy evidence."
+          },
+          {
+            "gap_id": "G01-COMP-SEM-03",
+            "severity": "HIGH",
+            "finding": "declared_compatible is a caller-controlled boolean with no rule requiring independent evaluation or handling of disagreement.",
+            "required_disposition": "Treat it as an untrusted claim; derive the decision independently and record conflicts."
+          },
+          {
+            "gap_id": "G01-COMP-SEM-04",
+            "severity": "HIGH",
+            "finding": "migration_digest may be null or any non-empty string, with no migration artifact reference, integrity verification or source/target binding.",
+            "required_disposition": "Bind non-null digests to authenticated retrievable migration artifacts; allow null only when policy evidence proves no migration is needed."
+          },
+          {
+            "gap_id": "G01-COMP-SEM-05",
+            "severity": "HIGH",
+            "finding": "Output allows contradictory compatibility/decision pairs, such as compatibility=true with decision=incompatible or migration_required.",
+            "required_disposition": "Add schema and conformance constraints: compatibility=true only for compatible; false for incompatible or migration_required."
+          },
+          {
+            "gap_id": "G01-COMP-SEM-06",
+            "severity": "MEDIUM",
+            "finding": "Evidence only requires provenance and version-bound evidence; it does not explicitly require policy resolution, contract semantic comparison, declaration conflict or migration verification results.",
+            "required_disposition": "Define structured evidence sufficient to reproduce the compatibility decision."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g01.compatibility schemas and its positive/negative conformance vectors.",
+          "Define canonical version grammar and contract registry resolution without assuming semantic-versioning unless the governing policy explicitly selects it.",
+          "Authenticate and version-bind policy_id; independently evaluate declared_compatible.",
+          "Bind migration_digest to verified migration artifacts and define the evidence-backed null case.",
+          "Enforce consistency between compatibility and decision and record reproducible decision evidence.",
+          "Preserve 12 chromosomes, 36 genes and all unrelated contracts; no authority or execution expansion."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g02.authority-source",
