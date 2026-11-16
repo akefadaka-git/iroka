@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.1.0",
+  "title": "Rollback guard — A3 output",
+  "description": "A3 amended output. The decision envelope is canonicalized with RFC 8785 JCS and hashed with SHA-256.",
+  "type": "object",
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny"
+      ]
+    },
+    "effective_state": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "current",
+        "unresolved"
+      ]
+    },
+    "effective_epoch": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "effective_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "denial_code": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "EVIDENCE_INVALID",
+        "VERSION_EVIDENCE_INVALID",
+        "DIGEST_MISMATCH",
+        "REVOCATION_FLOOR",
+        "STALE_EPOCH",
+        "EPOCH_CONFLICT",
+        "AUTHORIZATION_INVALID"
+      ]
+    },
+    "denial_reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "guard_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "decision_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "envelope_version": {
+          "const": "1.1.0"
+        },
+        "hash_algorithm": {
+          "const": "SHA-256"
+        },
+        "canonicalization": {
+          "const": "RFC8785-JCS"
+        },
+        "input_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "policy_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision": {
+          "enum": [
+            "allow",
+            "deny"
+          ]
+        },
+        "effective_state": {
+          "enum": [
+            "candidate",
+            "current",
+            "unresolved"
+          ]
+        },
+        "effective_epoch": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "effective_digest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "denial_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_commitment": {
+          "$ref": "#/$defs/digest"
+        }
+      },
+      "required": [
+        "envelope_version",
+        "hash_algorithm",
+        "canonicalization",
+        "input_digest",
+        "policy_version",
+        "decision",
+        "effective_state",
+        "effective_epoch",
+        "effective_digest",
+        "denial_code",
+        "evidence_commitment"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance_status": {
+          "enum": [
+            "verified",
+            "invalid"
+          ]
+        },
+        "version_bound_status": {
+          "enum": [
+            "verified",
+            "invalid"
+          ]
+        },
+        "verified_subjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "provenance_status",
+        "version_bound_status",
+        "verified_subjects"
+      ]
+    },
+    "version_bound_evidence": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "required": [
+    "decision",
+    "effective_state",
+    "effective_epoch",
+    "effective_digest",
+    "denial_code",
+    "denial_reason",
+    "guard_digest",
+    "decision_envelope",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "allow"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "effective_state": {
+            "const": "candidate"
+          },
+          "effective_epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "effective_digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "denial_code": {
+            "const": "NONE"
+          },
+          "denial_reason": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "deny"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "effective_state": {
+            "enum": [
+              "current",
+              "unresolved"
+            ]
+          },
+          "denial_code": {
+            "not": {
+              "const": "NONE"
+            }
+          },
+          "denial_reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "effective_state": {
+            "const": "current"
+          }
+        },
+        "required": [
+          "effective_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "effective_epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "effective_digest": {
+            "$ref": "#/$defs/digest"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "effective_state": {
+            "const": "unresolved"
+          }
+        },
+        "required": [
+          "effective_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "effective_epoch": {
+            "type": "null"
+          },
+          "effective_digest": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
