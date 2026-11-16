@@ -550,9 +550,35 @@ mod tests {
             1,
         )
         .unwrap();
+        audit.persist_checkpoint_evidence(&evidence, 2_001).unwrap();
         assert_eq!(
-            verify_and_reconcile_head(&audit, &evidence),
+            audit.persist_checkpoint_evidence(&evidence, 2_002),
+            Ok(())
+        );
+        let (checkpoint_bytes, receipt_bytes) = audit
+            .latest_checkpoint_evidence_bytes("audit-stream:alpha")
+            .unwrap()
+            .unwrap();
+        let recovered_checkpoint: SignedCheckpoint =
+            serde_json::from_slice(&checkpoint_bytes).unwrap();
+        let recovered_receipts: Vec<WitnessReceipt> =
+            serde_json::from_slice(&receipt_bytes).unwrap();
+        let recovered = verify_checkpoint_evidence(
+            recovered_checkpoint,
+            recovered_receipts,
+            &trust(&s.id, &s.key),
+            &trust(&w.key_id, &w.key),
+            1,
+        )
+        .unwrap();
+        assert_eq!(
+            verify_and_reconcile_head(&audit, &recovered),
             Ok(Reconciliation::Exact)
+        );
+        let forked_store = audit_with_events(&["event:forked"]);
+        assert_eq!(
+            forked_store.persist_checkpoint_evidence(&evidence, 2_003),
+            Err(crate::AuditStoreError::IntegrityFailure)
         );
 
         let local_ahead = audit_with_events(&["event:one", "event:two"]);
