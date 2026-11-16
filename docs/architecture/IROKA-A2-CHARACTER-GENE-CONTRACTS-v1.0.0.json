@@ -6348,5 +6348,28 @@
     "proposal_blob_sha": "0dea137514313a2f59bec7be4df53bec05330b45",
     "existing_gene_contracts": 36,
     "existing_input_output_schemas": 72
+  },
+  "schema_reconciliation": {
+    "report_path": "docs/architecture/IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-v1.0.0.json",
+    "status": "PARTIAL_AUTOMATED_RESOLVER_AND_ADVERSARIAL_CHECKS_OPEN",
+    "genes": 36,
+    "input_schemas": 36,
+    "output_schemas": 36,
+    "files_inspected": 72,
+    "files_passed_checked_invariants": 72,
+    "files_failed_checked_invariants": 0,
+    "checks": [
+      "$id matches approved gene IO contract",
+      "required fields include version_bound_evidence and match the approved contract",
+      "additionalProperties is false",
+      "encountered local JSON Pointer references resolve"
+    ],
+    "not_run": [
+      "external reference scan",
+      "reference cycle detection",
+      "automated resolver",
+      "executable conformance",
+      "exact-head CI"
+    ]
   }
 }
