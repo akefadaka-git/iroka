@@ -900,6 +900,52 @@ mod tests {
         assert_eq!(result.denial_code, LineageDenialCode::EpochNonMonotonic);
     }
 
+
+    #[test]
+    fn ambiguous_version_registry_entry_fails_closed() {
+        let record = linear_record();
+        let candidate = record.ancestry.last().unwrap();
+        let provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        let input = VersionLineageInput {
+            artifact: &candidate.artifact,
+            artifact_digest: candidate.artifact_digest.clone(),
+            version: candidate.version.clone(),
+            parent_version: candidate.parent_version.clone(),
+            parent_digest: candidate.parent_digest.clone(),
+            mutation_ref: "mutation-ref-2".into(),
+            epoch: candidate.epoch,
+            provenance: &provenance,
+            version_bound_evidence: &version_bound,
+        };
+        let result = evaluate_version_lineage(
+            &input,
+            &StaticRegistry(Err(LineageRegistryError::AmbiguousVersion)),
+            &TestEvidence,
+            1_100,
+        )
+        .unwrap();
+        assert_eq!(result.denial_code, LineageDenialCode::AncestryInvalid);
+    }
+
+    #[test]
+    fn stale_ancestor_evidence_is_denied() {
+        let record = linear_record();
+        let candidate = record.ancestry.last().unwrap().artifact.clone();
+        let mut provenance = evidence(&record, "p");
+        let version_bound = evidence(&record, "v");
+        provenance[0].expires_at = 1_100;
+        let result = evaluate_record(
+            &record,
+            &candidate,
+            "mutation-ref-2",
+            &provenance,
+            &version_bound,
+        );
+        assert_eq!(result.denial_code, LineageDenialCode::EvidenceInvalid);
+        assert_eq!(result.evidence.status, "invalid");
+    }
+
     #[test]
     fn lineage_flags_are_derived_and_digest_is_reproducible() {
         let record = linear_record();
