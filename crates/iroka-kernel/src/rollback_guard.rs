@@ -996,7 +996,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn production_evidence_verifier_accepts_subject_scoped_lineage_patterns() {
         let (signer, _store, verifier) = production_evidence_verifier();
