@@ -1,0 +1,1282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "document_id": "IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-001",
+  "version": "1.0.0",
+  "status": "PARTIAL_AUTOMATED_RESOLVER_AND_ADVERSARIAL_CHECKS_OPEN",
+  "parent_contract": "IROKA-A2-CHARACTER-GENE-CONTRACTS-001",
+  "sources": {
+    "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+    "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+    "gene_io_proposal_path": "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
+    "gene_io_proposal_blob_sha": "0dea137514313a2f59bec7be4df53bec05330b45",
+    "character_a1_commit": "4ace04bed3a526939b22f0c9b41fdbf6286b2ed9"
+  },
+  "summary": {
+    "genes": 36,
+    "input_schemas": 36,
+    "output_schemas": 36,
+    "total_schema_files": 72,
+    "files_inspected": 72,
+    "files_passed_checked_invariants": 72,
+    "files_failed_checked_invariants": 0,
+    "character_schema_mutations": 0
+  },
+  "checks": {
+    "schema_id_matches_approved_contract": true,
+    "required_fields_match_including_version_bound_evidence": true,
+    "additional_properties_false": true,
+    "encountered_local_json_pointer_refs_resolve": true,
+    "external_reference_scan": "NOT_RUN",
+    "reference_cycle_detection": "NOT_RUN",
+    "automated_schema_resolver": "NOT_RUN",
+    "positive_negative_vectors": "DESIGNED_NOT_EXECUTED",
+    "exact_head_ci": "NOT_RUN"
+  },
+  "genes": [
+    {
+      "gene_id": "g01.identity-root",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/identity-root.input.schema.json",
+        "required_fields": [
+          "root_id",
+          "issuer_id",
+          "key_fingerprint",
+          "algorithm",
+          "activation_epoch",
+          "status",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/identity-root.output.schema.json",
+        "required_fields": [
+          "root_id",
+          "verified",
+          "trust_decision",
+          "evaluated_epoch",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g01.lineage",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.lineage/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/lineage.input.schema.json",
+        "required_fields": [
+          "subject_id",
+          "predecessor_id",
+          "relationship",
+          "proof_digest",
+          "epoch",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.lineage/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/lineage.output.schema.json",
+        "required_fields": [
+          "subject_id",
+          "lineage_valid",
+          "chain_digest",
+          "verified_depth",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g01.compatibility",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/compatibility.input.schema.json",
+        "required_fields": [
+          "source_version",
+          "target_version",
+          "policy_id",
+          "declared_compatible",
+          "migration_digest",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/compatibility.output.schema.json",
+        "required_fields": [
+          "compatibility",
+          "decision",
+          "policy_id",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g02.authority-source",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/authority-source.input.schema.json",
+        "required_fields": [
+          "authority_id",
+          "source_type",
+          "mandate_ref",
+          "valid_from",
+          "valid_until",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/authority-source.output.schema.json",
+        "required_fields": [
+          "authority_id",
+          "source_valid",
+          "scope",
+          "decision",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g02.owner-governance",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/owner-governance.input.schema.json",
+        "required_fields": [
+          "owner_id",
+          "decision_id",
+          "scope",
+          "approval_digest",
+          "signature",
+          "issued_at",
+          "expires_at",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/owner-governance.output.schema.json",
+        "required_fields": [
+          "decision_id",
+          "approval_valid",
+          "authorized_scope",
+          "decision",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g02.decision-register",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/decision-register.input.schema.json",
+        "required_fields": [
+          "decision_id",
+          "authority_id",
+          "decision_digest",
+          "status",
+          "effective_at",
+          "supersedes",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g02.decision-register/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/decision-register.output.schema.json",
+        "required_fields": [
+          "decision_id",
+          "recorded",
+          "canonical_digest",
+          "register_sequence",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g03.premise-model",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.premise-model/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.input.schema.json",
+        "required_fields": [
+          "premises",
+          "context_id",
+          "model_version",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.premise-model/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.output.schema.json",
+        "required_fields": [
+          "model_id",
+          "premise_set_digest",
+          "normalized_premises",
+          "unresolved_premises",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.inference-rules/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.input.schema.json",
+        "required_fields": [
+          "rules",
+          "premise_ids",
+          "query",
+          "rule_version",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json",
+        "required_fields": [
+          "inference_id",
+          "conclusion_set",
+          "applied_rule_ids",
+          "unsupported_steps",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.input.schema.json",
+        "required_fields": [
+          "hypotheses",
+          "evidence_items",
+          "calibration_id",
+          "method",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.output.schema.json",
+        "required_fields": [
+          "assessment_id",
+          "estimates",
+          "uncertainty_bounds",
+          "calibration_status",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g04.knowledge-schema",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.knowledge-schema/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.input.schema.json",
+        "required_fields": [
+          "knowledge_type",
+          "fields",
+          "constraints",
+          "schema_version",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.knowledge-schema/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.output.schema.json",
+        "required_fields": [
+          "schema_id",
+          "normalized_schema",
+          "schema_digest",
+          "validation_status",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.provenance-chain/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.input.schema.json",
+        "required_fields": [
+          "artifact_digest",
+          "events",
+          "actor_ids",
+          "previous_chain_digest",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.provenance-chain/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.output.schema.json",
+        "required_fields": [
+          "chain_digest",
+          "verified",
+          "event_count",
+          "broken_links",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.conflict-model/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json",
+        "required_fields": [
+          "claims",
+          "sources",
+          "relations",
+          "policy_id",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g04.conflict-model/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.output.schema.json",
+        "required_fields": [
+          "conflict_set_id",
+          "conflicts",
+          "resolution_state",
+          "policy_applied",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g05.memory-classification",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.memory-classification/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.input.schema.json",
+        "required_fields": [
+          "memory_id",
+          "content_digest",
+          "labels",
+          "purpose",
+          "owner_id",
+          "data_class",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.memory-classification/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.output.schema.json",
+        "required_fields": [
+          "memory_id",
+          "classification",
+          "handling_controls",
+          "classification_rationale",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g05.retention-control",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.retention-control/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/retention-control.input.schema.json",
+        "required_fields": [
+          "memory_id",
+          "retention_policy_id",
+          "created_at",
+          "legal_hold",
+          "hold_ref",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.retention-control/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/retention-control.output.schema.json",
+        "required_fields": [
+          "memory_id",
+          "retention_deadline",
+          "disposition",
+          "policy_digest",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g05.integrity-checkpoint",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/integrity-checkpoint.input.schema.json",
+        "required_fields": [
+          "snapshot_digest",
+          "sequence",
+          "previous_checkpoint",
+          "authority_ref",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/integrity-checkpoint.output.schema.json",
+        "required_fields": [
+          "checkpoint_digest",
+          "accepted",
+          "sequence",
+          "continuity_verified",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g06.input-envelope",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.input-envelope/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/input-envelope.input.schema.json",
+        "required_fields": [
+          "envelope_id",
+          "source_id",
+          "media_type",
+          "payload_digest",
+          "payload_length",
+          "captured_at",
+          "payload_ref",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.input-envelope/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/input-envelope.output.schema.json",
+        "required_fields": [
+          "envelope_id",
+          "accepted",
+          "normalized_media_type",
+          "integrity_verified",
+          "rejection_reason",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g06.source-trust",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/source-trust.input.schema.json",
+        "required_fields": [
+          "source_id",
+          "credential_ref",
+          "policy_id",
+          "signature",
+          "revocation_epoch",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.source-trust/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/source-trust.output.schema.json",
+        "required_fields": [
+          "source_id",
+          "trust_level",
+          "signature_valid",
+          "policy_digest",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g06.perception-transform",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/perception-transform.input.schema.json",
+        "required_fields": [
+          "envelope_id",
+          "transform_id",
+          "transform_version",
+          "modality",
+          "output_type",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/perception-transform.output.schema.json",
+        "required_fields": [
+          "transform_id",
+          "output_digest",
+          "output_type",
+          "source_envelope_digest",
+          "loss_annotations",
+          "transform_status",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g07.agent-principal",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/agent-principal.input.schema.json",
+        "required_fields": [
+          "agent_id",
+          "credential_ref",
+          "runtime_instance_id",
+          "principal_class",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.agent-principal/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/agent-principal.output.schema.json",
+        "required_fields": [
+          "agent_id",
+          "principal_valid",
+          "principal_digest",
+          "identity_status",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.input.schema.json",
+        "required_fields": [
+          "agent_id",
+          "requested_capabilities",
+          "resource_limits",
+          "policy_id",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.output.schema.json",
+        "required_fields": [
+          "profile_id",
+          "granted_capabilities",
+          "denied_capabilities",
+          "limits",
+          "authority_granted",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g07.delegation-boundary",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.delegation-boundary/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.input.schema.json",
+        "required_fields": [
+          "delegator_id",
+          "delegate_id",
+          "capability_subset",
+          "expires_at",
+          "delegation_proof",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g07.delegation-boundary/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.output.schema.json",
+        "required_fields": [
+          "delegation_id",
+          "accepted",
+          "effective_capabilities",
+          "expiry",
+          "chain_digest",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.input.schema.json",
+        "required_fields": [
+          "workflow_id",
+          "nodes",
+          "edges",
+          "graph_version",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.output.schema.json",
+        "required_fields": [
+          "workflow_id",
+          "graph_digest",
+          "topological_order",
+          "validation_status",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g08.scheduler-policy",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.input.schema.json",
+        "required_fields": [
+          "policy_id",
+          "task_classes",
+          "priorities",
+          "quotas",
+          "deadlines",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.scheduler-policy/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.output.schema.json",
+        "required_fields": [
+          "policy_id",
+          "normalized_policy",
+          "feasibility",
+          "violations",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.input.schema.json",
+        "required_fields": [
+          "run_id",
+          "participants",
+          "lease_epochs",
+          "checkpoint_refs",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.output.schema.json",
+        "required_fields": [
+          "run_id",
+          "canonical_state",
+          "state_digest",
+          "conflicts",
+          "stale_participants",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g09.effect-contract",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.effect-contract/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/effect-contract.input.schema.json",
+        "required_fields": [
+          "effect_id",
+          "effect_type",
+          "target",
+          "resource_scope",
+          "risk_class",
+          "operation_digest",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.effect-contract/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/effect-contract.output.schema.json",
+        "required_fields": [
+          "effect_id",
+          "contract_valid",
+          "required_authorization",
+          "effect_digest",
+          "decision",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g09.admission-gate",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.admission-gate/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/admission-gate.input.schema.json",
+        "required_fields": [
+          "effect_id",
+          "authorization_ref",
+          "authorization_signature",
+          "policy_digest",
+          "expires_at",
+          "nonce",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.admission-gate/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/admission-gate.output.schema.json",
+        "required_fields": [
+          "admission_id",
+          "admitted",
+          "denial_code",
+          "authorization_digest",
+          "consumed_nonce",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g09.execution-receipt",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/execution-receipt.input.schema.json",
+        "required_fields": [
+          "admission_id",
+          "executor_id",
+          "result_digest",
+          "started_at",
+          "completed_at",
+          "outcome",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/execution-receipt.output.schema.json",
+        "required_fields": [
+          "receipt_id",
+          "receipt_digest",
+          "admission_ref",
+          "executor_id",
+          "recorded_at",
+          "integrity_verified",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.input.schema.json",
+        "required_fields": [
+          "observations",
+          "source_refs",
+          "data_class",
+          "authorization_ref",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.output.schema.json",
+        "required_fields": [
+          "learning_batch_id",
+          "eligible_observations",
+          "excluded_observations",
+          "eligibility_digest",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g10.change-proposal",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.input.schema.json",
+        "required_fields": [
+          "target_id",
+          "base_version",
+          "proposed_version",
+          "diff_digest",
+          "rationale",
+          "expected_effects",
+          "proposer_id",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.output.schema.json",
+        "required_fields": [
+          "proposal_id",
+          "proposal_digest",
+          "change_class",
+          "required_evaluations",
+          "approval_required",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g10.evaluation-record",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.input.schema.json",
+        "required_fields": [
+          "proposal_id",
+          "suite_digest",
+          "baseline_metrics",
+          "candidate_metrics",
+          "evaluator_id",
+          "environment_digest",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.output.schema.json",
+        "required_fields": [
+          "evaluation_id",
+          "results",
+          "regressions",
+          "decision",
+          "evidence_digest",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g11.validator",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.validator/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/validator.input.schema.json",
+        "required_fields": [
+          "artifact_ref",
+          "contract_ids",
+          "validator_version",
+          "policy_digest",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/validator.output.schema.json",
+        "required_fields": [
+          "validation_id",
+          "valid",
+          "findings",
+          "validated_digest",
+          "validator_version",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g11.attestation",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/attestation.input.schema.json",
+        "required_fields": [
+          "subject_digest",
+          "validation_ref",
+          "attester_id",
+          "key_ref",
+          "challenge_nonce",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.attestation/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/attestation.output.schema.json",
+        "required_fields": [
+          "attestation_id",
+          "subject_digest",
+          "attester_id",
+          "signature",
+          "issued_at",
+          "verification_status",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g11.conformance-report",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/conformance-report.input.schema.json",
+        "required_fields": [
+          "suite_id",
+          "suite_version",
+          "test_results",
+          "tested_commit",
+          "environment_digest",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g11.conformance-report/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/conformance-report.output.schema.json",
+        "required_fields": [
+          "report_id",
+          "passed_count",
+          "failed_count",
+          "blocked_count",
+          "overall_status",
+          "report_digest",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.input.schema.json",
+        "required_fields": [
+          "mutation_id",
+          "target_gene",
+          "base_version",
+          "proposed_version",
+          "risk_class",
+          "protected_invariants",
+          "approval_ref",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.output.schema.json",
+        "required_fields": [
+          "mutation_id",
+          "permitted",
+          "required_gates",
+          "policy_digest",
+          "denial_reasons",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g12.version-lineage",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/version-lineage.input.schema.json",
+        "required_fields": [
+          "artifact_digest",
+          "version",
+          "parent_version",
+          "parent_digest",
+          "mutation_ref",
+          "epoch",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/version-lineage.output.schema.json",
+        "required_fields": [
+          "lineage_digest",
+          "linked",
+          "epoch_monotonic",
+          "ancestry",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    },
+    {
+      "gene_id": "g12.rollback-guard",
+      "input": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/rollback-guard.input.schema.json",
+        "required_fields": [
+          "current_epoch",
+          "current_digest",
+          "candidate_epoch",
+          "candidate_digest",
+          "revocation_floor",
+          "rollback_authorization",
+          "provenance",
+          "version_bound_evidence"
+        ]
+      },
+      "output": {
+        "schema_id": "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0",
+        "path": "crates/iroka-kernel/igacms/schemas/genes/rollback-guard.output.schema.json",
+        "required_fields": [
+          "decision",
+          "effective_epoch",
+          "effective_digest",
+          "denial_reason",
+          "guard_digest",
+          "evidence",
+          "version_bound_evidence"
+        ]
+      },
+      "checks": {
+        "schema_id_match": "PASS",
+        "required_field_coverage": "PASS",
+        "additional_properties_false": "PASS",
+        "local_json_pointer_refs": "PASS"
+      }
+    }
+  ]
+}
