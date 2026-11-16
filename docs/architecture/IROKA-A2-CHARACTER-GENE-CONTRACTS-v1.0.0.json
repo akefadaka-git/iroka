@@ -7579,56 +7579,176 @@
         {
           "field": "admission_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to the immutable admission record and verify exact effect, principal, executor scope, target, lifecycle, expiry and one-time consumption; reject orphan, revoked, expired, replayed or mismatched admission."
         },
         {
           "field": "executor_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated executor principal and runtime instance; verify its attestation and binding to the admitted executor identity and permitted execution scope."
         },
         {
           "field": "result_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute using a versioned digest algorithm over canonical observed result/artifact material; reject missing material, unsupported algorithms and digest mismatch."
         },
         {
           "field": "started_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse as canonical timezone-aware time and bind to trusted clock evidence; reject malformed, untrusted or implausible timestamps."
         },
         {
           "field": "completed_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse against the same trusted time basis; require completed_at >= started_at and enforce declared clock-skew and execution-duration bounds."
         },
         {
           "field": "outcome",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Derive only from observed execution evidence: success requires complete verified success, failure requires recorded failure, and partial requires explicit partial completion/effects; never infer success from request or receipt presence."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify issuer and source authenticity, integrity and freshness; bind evidence to exact admission, executor, operation, result digest, timestamps, outcome and contract version."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Record actual effect, result, actor, authority, time and verification status.",
+          "assertion": "Record the actual admitted effect, authenticated executor, observed result, execution interval, outcome and verification status without expanding authority.",
           "observable_fields": [
+            "admission_ref",
+            "executor_id",
+            "receipt_digest",
+            "recorded_at",
             "integrity_verified",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "A receipt is post-execution evidence only and never grants, extends or retroactively validates authorization or admission.",
           "observable_fields": [
+            "admission_ref",
             "integrity_verified",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Set integrity_verified=true only when canonical receipt integrity, admission binding, executor identity, result digest, timestamps and provenance/version evidence all verify; otherwise fail closed.",
+          "observable_fields": [
+            "receipt_digest",
+            "admission_ref",
+            "executor_id",
+            "integrity_verified",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Preserve the distinction between execution completion time and trusted receipt-recording time, and reject contradictory temporal ordering.",
+          "observable_fields": [
+            "recorded_at",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never claim success from intent, request or receipt existence alone. fail-closed"
+      "character_failure_rule": "Never claim success from intent, request or receipt existence alone. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G09-EXECUTION-RECEIPT-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "72d21c897bad4c3fed2c8ea4e73368e5c75ad1ed",
+          "a2_contract_blob_before_review": "3de4edc45229ceb19e200754ebac1e0260ae9f2c",
+          "a2_catalog_blob_before_review": "0db9cc1494e0977fff53b06f7e9eecac43f0efba",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "32efa353b978257f12f93fa709a20f2dacb46750",
+          "output_schema_blob": "bfc676abe35542f01739a927fba1805774da77ad"
+        },
+        "confirmed_sufficient": [
+          "The input schema requires admission_id, executor_id, result_digest, started_at, completed_at, outcome, provenance and version_bound_evidence; additional top-level properties are rejected.",
+          "The outcome field is constrained to success, failure or partial.",
+          "The output schema requires receipt_id, receipt_digest, admission_ref, executor_id, recorded_at, integrity_verified, evidence and version_bound_evidence; additional top-level properties are rejected.",
+          "Input and output evidence objects require provenance and version_bound_evidence objects, and output integrity_verified is boolean."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G09-ER-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "admission_id is an unconstrained string and does not prove a valid, consumed admission for this exact effect or execution instance.",
+            "required_disposition": "Resolve a canonical immutable admission record and bind receipt to its exact admission, effect, scope and lifecycle; reject orphan, expired, revoked or mismatched admissions."
+          },
+          {
+            "gap_id": "G09-ER-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "executor_id is an unconstrained string with no authenticated principal, executor instance or workload attestation binding.",
+            "required_disposition": "Authenticate executor identity and bind it to the admitted principal, authorized executor class, runtime instance and attestation evidence."
+          },
+          {
+            "gap_id": "G09-ER-SEM-03",
+            "severity": "HIGH",
+            "finding": "result_digest is only a string; algorithm, canonical result representation, recomputation and artifact binding are unspecified.",
+            "required_disposition": "Define a versioned digest algorithm and canonical result/artifact manifest; recompute and bind the digest to actual observed outputs, not claimed success."
+          },
+          {
+            "gap_id": "G09-ER-SEM-04",
+            "severity": "HIGH",
+            "finding": "started_at and completed_at are unconstrained strings; timestamp format, timezone, trusted clock, ordering and duration bounds are absent.",
+            "required_disposition": "Require canonical timezone-aware timestamps, trusted clock evidence, completed_at not earlier than started_at, and explicit clock-skew/duration policy."
+          },
+          {
+            "gap_id": "G09-ER-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "outcome enum is bounded but no semantic relationship connects success/failure/partial to observed operation results, errors or admission limits.",
+            "required_disposition": "Require outcome to be derived from observed execution evidence; success requires complete success evidence, failure requires failure evidence, and partial requires explicit incomplete/partial effects."
+          },
+          {
+            "gap_id": "G09-ER-SEM-06",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects, so issuer, source, integrity, freshness and binding to admission/executor/result/time are not enforceable.",
+            "required_disposition": "Define structured, verifiable evidence binding exact admission, executor, operation, result digest, timestamps, outcome and contract/schema versions."
+          },
+          {
+            "gap_id": "G09-ER-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "receipt_id, receipt_digest and admission_ref are unconstrained strings; uniqueness, canonical receipt serialization, digest recomputation and immutable admission reference semantics are absent.",
+            "required_disposition": "Define canonical receipt identity and serialization, recompute receipt_digest, enforce uniqueness/idempotency and resolve admission_ref to the exact admission record."
+          },
+          {
+            "gap_id": "G09-ER-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "integrity_verified is an unconstrained boolean with no schema-level consistency rule tying it to receipt digest, evidence verification or admission/executor binding.",
+            "required_disposition": "Enforce integrity_verified=true only after every required binding and cryptographic/integrity check succeeds; otherwise false or explicit unverifiable status with evidence."
+          },
+          {
+            "gap_id": "G09-ER-SEM-09",
+            "severity": "HIGH",
+            "finding": "recorded_at is an unconstrained string and is not tied to trusted receipt-ingestion time or the execution interval.",
+            "required_disposition": "Require timezone-aware trusted recording time, preserve distinction from execution timestamps and reject impossible or stale ordering."
+          },
+          {
+            "gap_id": "G09-ER-SEM-10",
+            "severity": "CRITICAL",
+            "finding": "The output has no explicit invariant preventing receipt existence or integrity_verified from being interpreted as authorization or proof that the effect was permitted.",
+            "required_disposition": "State and test that a receipt is post-execution evidence only; it cannot create, extend or retroactively validate authorization or admission."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g09.execution-receipt input/output schemas and its positive/negative conformance vectors to close G09-ER-SEM-01 through G09-ER-SEM-10.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not add genes or modify unrelated contracts.",
+          "Bind receipts to immutable admission, authenticated executor, canonical observed result, trusted execution/recording times and verifiable provenance.",
+          "Define canonical receipt serialization, digest recomputation, uniqueness/idempotency and integrity consistency invariants.",
+          "Explicitly prohibit interpreting receipt existence or integrity verification as authorization or retroactive admission.",
+          "After separate A3 authorization, run Draft 2020-12 validation and exact-head schema/conformance tests, including orphan admission, executor mismatch, forged digest, invalid timestamps, contradictory outcome and false integrity claims."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g10.learning-input",
