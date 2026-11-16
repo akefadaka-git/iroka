@@ -55,8 +55,8 @@ This verifies the imported baseline and existing Rust kernel tests only. It does
 
 ## G12 rollback-guard — A3 implementation increment
 
-**Implemented code head:** `72e7157ad3fcdc78628304861689a169319dca59`  
-**Workflow:** [Rust kernel verification run #1566](https://github.com/akefadaka-git/iroka/actions/runs/43855408317) — **PASS**
+**Implemented code head:** `829c565d6a4a124bb6db0a8aa86463f8bca0666f`  
+**Workflow:** [Rust kernel verification run #1600](https://github.com/akefadaka-git/iroka/actions/runs/43857693448) — **PASS**
 
 The original A2 v1.0.0 input/output schema files remain unchanged. Additive A3 v1.1.0 schemas and ten gene-specific conformance vectors are under `igacms/schemas/a3/genes/` and `docs/architecture/a3/`.
 
@@ -74,11 +74,11 @@ Implemented in this increment:
 
 ### Exact-head verification
 
-At tested code head `72e7157ad3fcdc78628304861689a169319dca59`:
+At tested code head `829c565d6a4a124bb6db0a8aa86463f8bca0666f`:
 - Formatting: PASS
 - Workspace compile: PASS
 - No-default-features compile: PASS
-- Rust unit tests: **76 passed, 0 failed**
+- Rust unit tests: **84 passed, 0 failed**
 - Integration/contract tests: **2 passed, 0 failed**
 - Static A2/A3 schema and traceability audit: PASS
   - 12 chromosome scope assertion
@@ -90,11 +90,11 @@ At tested code head `72e7157ad3fcdc78628304861689a169319dca59`:
   - G12 A3 v1.1.0 schema and ten-vector static audit PASS
 - Clippy: PASS
 
-The five new G12 Rust test functions exercise six of the ten catalog vectors: `RG-A3-P01`, `RG-A3-P02`, `RG-A3-N01`, `RG-A3-N03`, `RG-A3-N05`, and `RG-A3-N06`. The remaining four vectors are NOT RUN.
+All ten G12 catalog vectors have runtime coverage and PASS: `RG-A3-P01`, `RG-A3-P02`, `RG-A3-N01`, `RG-A3-N02`, `RG-A3-N03`, `RG-A3-N04`, `RG-A3-N05`, `RG-A3-N06`, `RG-A3-B01`, and `RG-A3-B02`.
 
-### Important implementation limitation
+### Production evidence verification
 
-The production `RollbackEvidenceVerifier` adapter is **not yet implemented**. The evaluator requires this verifier as an injected dependency and fails closed when it rejects evidence; tests use a test-only verifier. Production trust-root/key verification, durable evidence replay prevention and authoritative monotonic revocation-floor integration remain outstanding. Therefore this increment is **kernel logic implemented and CI-verified**, not production-ready rollback assurance.
+The production `Ed25519RollbackEvidenceVerifier` adapter is implemented. It verifies Ed25519 signatures against the credential verifier's signed trust snapshot, enforces subject-specific issuer allowlists, checks live key revocation, consumes evidence nonces durably in SQLite, and advances a persistent monotonic revocation-floor high-water mark. Tests cover signature acceptance, unauthorized issuer rejection, key revocation, nonce replay and floor rollback. Application-level provisioning of the signed trust snapshot and subject issuer policy, multi-node transactional storage, and independent security review remain deployment gates. This is **kernel implementation and CI verified**, not production deployment authorization.
 
 Independent external security review: NOT RECEIVED.  
 A3 overall: IN PROGRESS.  
