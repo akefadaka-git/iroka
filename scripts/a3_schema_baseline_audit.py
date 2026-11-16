@@ -98,6 +98,52 @@ for review in reviews:
         errors.append(f"{review.get('gene_id')}: A2 review is not closed")
     if set(review.get("case_ids", [])) - case_ids:
         errors.append(f"{review.get('gene_id')}: review references unknown case")
+
+# A3 G12 rollback-guard amendment audit. These v1.1.0 schemas are additive;
+# the frozen A2 v1.0.0 schema files above remain unchanged.
+A3_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g12.rollback-guard.input.schema.json"
+A3_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g12.rollback-guard.output.schema.json"
+A3_VECTORS = ROOT / "docs/architecture/a3/g12-rollback-guard-conformance-v1.1.0.json"
+a3_input = load(A3_INPUT)
+a3_output = load(A3_OUTPUT)
+a3_vectors = load(A3_VECTORS)
+for schema_path_obj, document in ((A3_INPUT, a3_input), (A3_OUTPUT, a3_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if a3_input.get("$id") != "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.1.0":
+    errors.append("G12 A3 input schema ID/version mismatch")
+if a3_output.get("$id") != "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.1.0":
+    errors.append("G12 A3 output schema ID/version mismatch")
+input_props = a3_input.get("properties", {})
+for field in ("current_epoch", "candidate_epoch", "revocation_floor", "revocation_floor_revision"):
+    if input_props.get(field, {}).get("minimum") != 0:
+        errors.append(f"G12 A3 input: {field} must have minimum 0")
+for field in ("current_digest", "candidate_digest"):
+    if input_props.get(field, {}).get("$ref") != "#/$defs/digest":
+        errors.append(f"G12 A3 input: {field} must use the SHA-256 digest definition")
+auth = input_props.get("rollback_authorization", {})
+if not any(option.get("type") == "null" for option in auth.get("oneOf", [])):
+    errors.append("G12 A3 input: null must explicitly represent absent rollback authorization")
+auth_objects = [o for o in auth.get("oneOf", []) if o.get("type") == "object"]
+if not auth_objects or auth_objects[0].get("properties", {}).get("payload", {}).get("properties", {}).get("capability", {}).get("const") != "system.rollback":
+    errors.append("G12 A3 input: Owner authorization must be scoped to system.rollback")
+if "allOf" not in a3_output or len(a3_output.get("allOf", [])) < 4:
+    errors.append("G12 A3 output: conditional allow/deny/effective-state invariants missing")
+if a3_vectors.get("gene_id") != "g12.rollback-guard" or a3_vectors.get("version") != "1.1.0":
+    errors.append("G12 A3 conformance catalog identity/version mismatch")
+a3_cases = a3_vectors.get("cases", [])
+a3_case_ids = {case.get("case_id") for case in a3_cases}
+if len(a3_cases) != 10 or len(a3_case_ids) != 10:
+    errors.append(f"G12 A3 expected 10 unique conformance cases, found {len(a3_cases)}")
+if "RG-A3-N01" not in a3_case_ids:
+    errors.append("G12 A3 absolute revocation-floor adversarial case missing")
+if a3_vectors.get("chromosome_count") != 12 or a3_vectors.get("gene_count") != 36:
+    errors.append("G12 A3 amendment changes the fixed 12-chromosome/36-gene genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -112,3 +158,5 @@ print(f"review_records={len(reviews)}")
 print("required_version_bound_evidence=72/72")
 print("local_refs=RESOLVED")
 print("case_mapping=PASS")
+print("g12_rollback_guard_v1_1_0=PASS")
+print(f"g12_a3_conformance_cases={len(a3_cases)}")
