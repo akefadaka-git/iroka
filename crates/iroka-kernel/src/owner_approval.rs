@@ -183,7 +183,7 @@ fn parse_sha256_hex(value: &str) -> Result<[u8; 32], OwnerApprovalError> {
         return Err(OwnerApprovalError::Malformed);
     }
     let mut digest = [0_u8; 32];
-    for (index, chunk) in value.as_bytes().chunks_exact(2).enumerate() {
+    for (index, chunk) in value.as_bytes().as_chunks::<2>().0.iter().enumerate() {
         let text = std::str::from_utf8(chunk).map_err(|_| OwnerApprovalError::Malformed)?;
         digest[index] = u8::from_str_radix(text, 16).map_err(|_| OwnerApprovalError::Malformed)?;
     }
