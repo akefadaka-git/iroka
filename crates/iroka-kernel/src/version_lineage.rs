@@ -194,9 +194,7 @@ fn verify_lineage_evidence(
     let mut subjects = std::collections::BTreeSet::new();
     let mut nonces = std::collections::BTreeSet::new();
     for receipt in receipts {
-        if !subjects.insert(receipt.subject.as_str())
-            || !nonces.insert(receipt.nonce.as_str())
-        {
+        if !subjects.insert(receipt.subject.as_str()) || !nonces.insert(receipt.nonce.as_str()) {
             return false;
         }
         let Some(binding) = expected
@@ -354,8 +352,10 @@ pub fn evaluate_version_lineage(
                     "ancestry parent pair does not resolve to the immediately preceding node",
                 ));
             }
-            let previous_version = parse_semver(&parent.version).ok_or(VersionLineageError::Commitment)?;
-            let current_version = parse_semver(&entry.version).ok_or(VersionLineageError::Commitment)?;
+            let previous_version =
+                parse_semver(&parent.version).ok_or(VersionLineageError::Commitment)?;
+            let current_version =
+                parse_semver(&entry.version).ok_or(VersionLineageError::Commitment)?;
             if current_version <= previous_version || entry.epoch <= parent.epoch {
                 return Ok(deny(
                     input,
@@ -366,7 +366,10 @@ pub fn evaluate_version_lineage(
         }
     }
 
-    let candidate = record.ancestry.last().ok_or(VersionLineageError::Commitment)?;
+    let candidate = record
+        .ancestry
+        .last()
+        .ok_or(VersionLineageError::Commitment)?;
     if candidate.version != input.version
         || candidate.artifact_digest != input.artifact_digest
         || candidate.epoch != input.epoch
@@ -416,7 +419,8 @@ pub fn evaluate_version_lineage(
         }
     }
 
-    let registry_value = serde_json::to_value(&record).map_err(|_| VersionLineageError::Commitment)?;
+    let registry_value =
+        serde_json::to_value(&record).map_err(|_| VersionLineageError::Commitment)?;
     let registry_digest = digest_value(&registry_value)?;
     let mut expected = Vec::new();
     for entry in &record.ancestry {
@@ -434,7 +438,9 @@ pub fn evaluate_version_lineage(
     if let Some(mutation) = record.mutation.as_ref() {
         expected.push(EvidenceBinding {
             subject: format!("lineage:mutation:{}", mutation.mutation_ref),
-            digest: digest_value(&serde_json::to_value(mutation).map_err(|_| VersionLineageError::Commitment)?)?,
+            digest: digest_value(
+                &serde_json::to_value(mutation).map_err(|_| VersionLineageError::Commitment)?,
+            )?,
             epoch: candidate.epoch,
             revision: record.registry_revision,
         });
@@ -470,8 +476,8 @@ pub fn evaluate_version_lineage(
     let mut evidence_subjects = Vec::new();
     for entry in &record.ancestry {
         let subject = format!("lineage:artifact:{}", entry.artifact_digest);
-        let provenance = receipt_for(input.provenance, &subject)
-            .ok_or(VersionLineageError::Commitment)?;
+        let provenance =
+            receipt_for(input.provenance, &subject).ok_or(VersionLineageError::Commitment)?;
         let version_bound = receipt_for(input.version_bound_evidence, &subject)
             .ok_or(VersionLineageError::Commitment)?;
         output_ancestry.push(LineageAncestryOutput {
@@ -483,8 +489,14 @@ pub fn evaluate_version_lineage(
             mutation_id: entry.mutation_id.clone(),
             epoch: entry.epoch,
             evidence_commitments: vec![
-                digest_value(&serde_json::to_value(provenance).map_err(|_| VersionLineageError::Commitment)?)?,
-                digest_value(&serde_json::to_value(version_bound).map_err(|_| VersionLineageError::Commitment)?)?,
+                digest_value(
+                    &serde_json::to_value(provenance)
+                        .map_err(|_| VersionLineageError::Commitment)?,
+                )?,
+                digest_value(
+                    &serde_json::to_value(version_bound)
+                        .map_err(|_| VersionLineageError::Commitment)?,
+                )?,
             ],
         });
         evidence_subjects.push(subject);
@@ -527,7 +539,6 @@ pub fn evaluate_version_lineage(
         denial_reason: None,
     })
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -706,7 +717,13 @@ mod tests {
         let root_artifact = record.ancestry[0].artifact.clone();
         let provenance = evidence(&record, "p");
         let version_bound = evidence(&record, "v");
-        let result = evaluate_record(&record, &root_artifact, "GENESIS", &provenance, &version_bound);
+        let result = evaluate_record(
+            &record,
+            &root_artifact,
+            "GENESIS",
+            &provenance,
+            &version_bound,
+        );
         assert_eq!(result.decision, "allow");
         assert_eq!(result.ancestry.len(), 1);
         assert!(result.linked && result.epoch_monotonic);
@@ -728,7 +745,10 @@ mod tests {
         );
         assert_eq!(result.decision, "allow");
         assert_eq!(result.ancestry.len(), 3);
-        assert_eq!(result.ancestry[2].parent_digest, Some(record.ancestry[1].artifact_digest.clone()));
+        assert_eq!(
+            result.ancestry[2].parent_digest,
+            Some(record.ancestry[1].artifact_digest.clone())
+        );
         assert!(result.linked && result.epoch_monotonic);
     }
 
@@ -793,13 +813,9 @@ mod tests {
             provenance: &provenance,
             version_bound_evidence: &version_bound,
         };
-        let result = evaluate_version_lineage(
-            &input,
-            &StaticRegistry(Ok(record)),
-            &TestEvidence,
-            1_100,
-        )
-        .unwrap();
+        let result =
+            evaluate_version_lineage(&input, &StaticRegistry(Ok(record)), &TestEvidence, 1_100)
+                .unwrap();
         assert_eq!(result.denial_code, LineageDenialCode::ParentMismatch);
     }
 
