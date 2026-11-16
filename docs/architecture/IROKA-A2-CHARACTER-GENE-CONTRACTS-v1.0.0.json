@@ -4621,53 +4621,162 @@
         {
           "field": "source_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to a canonical authenticated source principal; reject unknown, ambiguous, aliased or substituted identities and preserve the exact registry version."
         },
         {
           "field": "credential_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Retrieve immutable credential material and verify issuer chain, subject/source binding, key usage, scope, validity and revocation against authenticated trust roots."
         },
         {
           "field": "policy_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve an authenticated signed/versioned policy artifact; verify canonical bytes, digest, issuer, scope, effective interval and precedence before evaluation."
         },
         {
           "field": "signature",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse only the declared versioned signature encoding/profile and verify over canonical domain-separated bytes bound to the source, credential/key and relevant context."
         },
         {
           "field": "revocation_epoch",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-negative epoch backed by an authenticated fresh snapshot; reject stale, rolled-back, future, out-of-scope or unverifiable revocation state."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require resolvable evidence for source, credential, trust roots, policy, signature verification, revocation snapshot and evaluator versions; non-empty opaque objects are insufficient."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind every registry, trust-root, policy, signature-profile, revocation-snapshot and evaluator version used to the exact evaluation."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Assess source authority, freshness, reliability, bias and corroboration.",
+          "assertion": "A trusted result is permitted only when source identity, credential chain and scope, signature verification, policy applicability and fresh non-revoked status are all independently verified.",
           "observable_fields": [
+            "source_id",
+            "trust_level",
             "signature_valid",
             "policy_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Invalid, revoked, stale, unknown, conflicting or unverifiable trust inputs must produce an explicit non-trusted outcome; no unavailable evidence may be silently treated as valid.",
+          "observable_fields": [
+            "trust_level",
+            "signature_valid",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "The policy digest and evidence must identify the exact authenticated policy and reproducible verification inputs used for the result.",
           "observable_fields": [
-            "signature_valid",
             "policy_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Never trust a source solely for confidence, popularity or convenience; trust evaluation cannot create authority, authorization or permission to execute.",
+          "observable_fields": [
+            "trust_level",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never trust a source solely for confidence, popularity or convenience. fail-closed"
+      "character_failure_rule": "Never trust a source solely for confidence, popularity or convenience. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G06-SOURCE-TRUST-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "54dd587a6bcbe1229a8bf2ef457a36f3dd203463",
+          "a2_contract_blob_before_review": "32f89254327996c52ade2404ed2b415812602fb1",
+          "a2_catalog_blob_before_review": "5c6f2074c980a2e416521f7841512a9667986ac7",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "b047935f54bf306409dd06864474c1933fb0b7d7",
+          "output_schema_blob": "32946c02f0f7b0cc81c398ed0766f20c562f4b56"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires source_id, credential_ref, policy_id, signature, revocation_epoch, provenance and version_bound_evidence; top-level undeclared properties are rejected.",
+          "Input schema types source, credential, policy and signature references as strings and revocation_epoch as an integer; it does not impose the semantic validation needed to authenticate or resolve them.",
+          "Input provenance and version_bound_evidence are objects with minProperties 1, but their internal fields and evidentiary binding are unspecified.",
+          "Output schema constrains trust_level to trusted, untrusted, revoked or unknown and requires signature_valid, policy_digest, evidence and version_bound_evidence.",
+          "Output evidence requires provenance and version_bound_evidence objects, but those objects remain semantically opaque; the schema does not express cross-field trust invariants."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G06-ST-SEM-01",
+            "severity": "HIGH",
+            "finding": "source_id is an unrestricted string; the schema does not resolve it to an authenticated, canonical source registry or define alias, substitution, uniqueness and lifecycle rules.",
+            "required_disposition": "Resolve source_id against a versioned authenticated source registry; bind the result to the exact source principal and reject unknown, ambiguous, substituted or revoked identities."
+          },
+          {
+            "gap_id": "G06-ST-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "credential_ref is an unrestricted string; there is no credential retrieval, issuer-chain validation, subject/source binding, key-use constraint, validity interval, scope or credential-revocation proof.",
+            "required_disposition": "Resolve credential_ref to immutable credential material and validate its issuer chain, subject-to-source binding, permitted key use, scope, validity interval and revocation status against authenticated trust roots."
+          },
+          {
+            "gap_id": "G06-ST-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "policy_id is an unrestricted string and policy_digest is an unrestricted string; neither is bound to an authenticated, versioned policy artifact, issuer, effective interval, jurisdiction or evaluation scope.",
+            "required_disposition": "Resolve policy_id to a signed, versioned policy artifact; verify issuer, digest algorithm and canonical bytes, effective interval, scope and precedence, and bind the evaluated policy digest to that exact artifact."
+          },
+          {
+            "gap_id": "G06-ST-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "signature is only typed as a string; the schema does not define encoding, signature algorithm, signed message bytes, canonicalization, domain separation or binding to source, credential, policy and context.",
+            "required_disposition": "Define a versioned signature profile and encoding; verify the signature over canonical, domain-separated bytes that bind the source identity, credential/key, relevant content and security context."
+          },
+          {
+            "gap_id": "G06-ST-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "revocation_epoch is any integer; there are no non-negative bounds, authenticated snapshot issuer, snapshot digest, freshness interval, monotonicity or rollback/future-epoch rules.",
+            "required_disposition": "Require a non-negative epoch from an authenticated, versioned revocation snapshot; validate its signature, scope, freshness, sequence/rollback and clock policy, and fail closed when status is stale or unverifiable."
+          },
+          {
+            "gap_id": "G06-ST-SEM-06",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects; they need not identify the registry, credential, key, policy, signature verification operation, revocation snapshot or evaluator versions used.",
+            "required_disposition": "Define structured, resolvable evidence binding the exact source and credential artifacts, trust roots, policy bytes/digest, signed-message digest, revocation snapshot and verifier/evaluator versions."
+          },
+          {
+            "gap_id": "G06-ST-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "The output allows trust_level and signature_valid to vary independently; it does not prohibit trusted with signature_valid=false, trusted despite revoked/unknown status, or other contradictory combinations.",
+            "required_disposition": "Specify cross-field invariants: trusted requires a valid signature, authenticated in-scope credential and fresh non-revoked status under the applied policy; revoked, unknown, invalid or unverifiable outcomes must never be reported as trusted."
+          },
+          {
+            "gap_id": "G06-ST-SEM-08",
+            "severity": "HIGH",
+            "finding": "The schema does not define trust-level derivation, freshness thresholds, unknown/unavailable handling, evidence completeness or reproducibility; a policy_digest and non-empty evidence object can accompany an unsupported conclusion.",
+            "required_disposition": "Define deterministic, policy-version-bound trust evaluation with explicit unknown and stale states, complete decision trace and exclusion rationale; popularity, confidence or convenience must never substitute for verified trust evidence."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g06.source-trust input/output schemas and its conformance vectors to close G06-ST-SEM-01 through G06-ST-SEM-08.",
+          "Define authenticated source and credential resolution, signed/versioned policy resolution, a canonical signature verification profile, and authenticated fresh revocation snapshots.",
+          "Structure provenance and version-bound evidence to bind exact trust roots, source, credential, policy, signature context, revocation snapshot and evaluator versions.",
+          "Specify deterministic fail-closed trust derivation and output cross-field invariants so no invalid, revoked, stale, unknown or unverifiable source can be marked trusted.",
+          "Preserve the 12 chromosomes, 36 genes, existing authority boundaries and unrelated contracts; perform schema meta-validation and exact-head conformance tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g06.perception-transform",
