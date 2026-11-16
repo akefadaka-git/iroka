@@ -7,7 +7,10 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::security_store::{ApprovalConsumptionError, ApprovalReceipt, RevocationTarget};
+use crate::security_store::{
+    ApprovalConsumptionError, ApprovalReceipt, RevocationTarget, SecurityCommandError,
+    SignedSecurityCommand,
+};
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 
@@ -57,7 +60,7 @@ impl OwnerApprovalPayload {
 
     /// Deterministic struct-field-order JSON used as the Ed25519 signing input.
     pub fn signing_bytes(&self) -> Result<Vec<u8>, OwnerApprovalError> {
-        serde_json::to_vec(self).map_err(|_| OwnerApprovalError::Malformed)
+        canonical_domain_bytes(self, OWNER_APPROVAL_DOMAIN)
     }
 }
 
@@ -148,7 +151,7 @@ pub struct OwnerSecurityCommandPayload {
 
 impl OwnerSecurityCommandPayload {
     pub fn signing_bytes(&self) -> Result<Vec<u8>, OwnerApprovalError> {
-        serde_json::to_vec(self).map_err(|_| OwnerApprovalError::Malformed)
+        canonical_domain_bytes(self, OWNER_SECURITY_COMMAND_DOMAIN)
     }
 }
 
@@ -168,6 +171,20 @@ impl SignedOwnerSecurityCommand {
 /// Owner authority is established only by explicitly provisioned public keys.
 /// There is no default Owner, self-registration, model-issued authority or
 /// automatic privilege inheritance. Private keys remain in an offline signer/HSM.
+const OWNER_APPROVAL_DOMAIN: &[u8] = b"IROKA:G02:OWNER-APPROVAL:V1\0";
+const OWNER_SECURITY_COMMAND_DOMAIN: &[u8] = b"IROKA:G02:OWNER-SECURITY-COMMAND:V1\0";
+
+fn canonical_domain_bytes<T: Serialize>(
+    value: &T,
+    domain: &[u8],
+) -> Result<Vec<u8>, OwnerApprovalError> {
+    let value = serde_json::to_value(value).map_err(|_| OwnerApprovalError::Malformed)?;
+    let canonical = crate::canonical_json(&value).map_err(|_| OwnerApprovalError::Malformed)?;
+    let mut bytes = domain.to_vec();
+    bytes.extend_from_slice(&canonical);
+    Ok(bytes)
+}
+
 pub struct OwnerApprovalVerifier {
     keys: HashMap<String, OwnerKeyRecord>,
     store: Arc<SqliteSecurityStore>,
@@ -407,14 +424,21 @@ impl OwnerApprovalVerifier {
                 }
             }
         };
-        let applied = self.store.apply_signed_revocation(
-            &p.command_id,
-            &p.owner_subject,
-            &p.key_id,
-            digest.as_slice(),
-            now,
-            target,
-        )?;
+        let applied = self
+            .store
+            .apply_signed_revocation(SignedSecurityCommand {
+                command_id: &p.command_id,
+                owner_subject: &p.owner_subject,
+                signer_issuer: OWNER_ISSUER,
+                signer_key_id: &p.key_id,
+                digest: digest.as_slice(),
+                at: now,
+                target,
+            })
+            .map_err(|error| match error {
+                SecurityCommandError::SigningKeyRevoked => OwnerApprovalError::Revoked,
+                SecurityCommandError::Store(store_error) => store_error.into(),
+            })?;
         if applied {
             Ok(())
         } else {
@@ -469,6 +493,37 @@ mod tests {
             .to_bytes()
             .to_vec();
         SignedOwnerApproval::from_signature(payload, signature)
+    }
+
+    #[test]
+    fn owner_signatures_use_canonical_domain_separated_payloads() {
+        let approval = OwnerApprovalPayload::new(
+            "approval:canonical",
+            "owner:test",
+            "owner-key:test",
+            "principal:test",
+            "records.export",
+            "records:1",
+            "policy:v1",
+            1_000,
+            1_200,
+        );
+        let command = OwnerSecurityCommandPayload {
+            command_id: "command:canonical".into(),
+            owner_subject: "owner:test".into(),
+            key_id: "owner-key:test".into(),
+            issued_at: 1_000,
+            expires_at: 1_200,
+            action: OwnerSecurityAction::RevokeApproval {
+                approval_id: "approval:old".into(),
+                reason: "test".into(),
+            },
+        };
+        let approval_bytes = approval.signing_bytes().unwrap();
+        let command_bytes = command.signing_bytes().unwrap();
+        assert!(approval_bytes.starts_with(OWNER_APPROVAL_DOMAIN));
+        assert!(command_bytes.starts_with(OWNER_SECURITY_COMMAND_DOMAIN));
+        assert_ne!(approval_bytes, command_bytes);
     }
 
     #[test]
@@ -568,5 +623,43 @@ mod tests {
             Err(OwnerApprovalError::Replay)
         );
         assert_eq!(verifier.store.security_command_count(), Ok(1));
+    }
+    #[test]
+    fn security_command_rejects_owner_key_revoked_before_application() {
+        let (signer, verifier, _request) = fixture();
+        verifier
+            .store
+            .revoke_key(OWNER_ISSUER, "owner-key-01", 1_150, "key compromise")
+            .unwrap();
+
+        let payload = OwnerSecurityCommandPayload {
+            command_id: "command:revoked-owner-key".into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-01".into(),
+            issued_at: 1_100,
+            expires_at: 1_500,
+            action: OwnerSecurityAction::RevokeCredential {
+                issuer: "issuer:service".into(),
+                credential_id: "credential:must-not-revoke".into(),
+                reason: "test".into(),
+            },
+        };
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        let command = SignedOwnerSecurityCommand::from_signature(payload, signature);
+
+        assert_eq!(
+            verifier.apply_security_command(&command, 1_200),
+            Err(OwnerApprovalError::Revoked)
+        );
+        assert_eq!(verifier.store.security_command_count(), Ok(0));
+        assert_eq!(
+            verifier
+                .store
+                .credential_revoked("issuer:service", "credential:must-not-revoke"),
+            Ok(false)
+        );
     }
 }
