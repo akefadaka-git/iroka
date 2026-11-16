@@ -53,7 +53,7 @@ pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
 pub use rollback_guard::{
     evaluate_rollback_guard, Ed25519RollbackEvidenceVerifier, EffectiveState, EvidenceBinding,
-    EvidenceVerificationError, RollbackDenialCode, RollbackEvidenceReceipt,
+    EvidenceVerificationError, RollbackDenialCode, RollbackEvidenceReceipt, RollbackEvidenceTrustPolicy,
     RollbackEvidenceSummary, RollbackEvidenceVerifier, RollbackGuardDecision, RollbackGuardInput,
 };
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
@@ -62,12 +62,16 @@ pub use service::authorize_authenticated_with_owner_approval;
 pub(crate) use service::{authorize, authorize_authenticated};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
-    TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
+    restore_rollback_evidence_policy_with_roots, restore_version_lineage_snapshot_with_roots,
+    verify_and_install_rollback_evidence_policy, verify_and_install_version_lineage_snapshot,
+    RollbackEvidencePolicyPayload, SignedRollbackEvidencePolicy, TrustBundleError,
+    TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
 };
 pub use version_lineage::{
     evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
     LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord, VersionLineageError,
-    VersionLineageInput, VersionLineageRecord, VersionLineageRegistry, VersionLineageResult,
+    SignedVersionLineageRegistrySnapshot, VersionLineageInput, VersionLineageRecord,
+    VersionLineageRegistry, VersionLineageRegistrySnapshotPayload, VersionLineageResult,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
