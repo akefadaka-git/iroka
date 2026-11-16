@@ -15,7 +15,7 @@
   "invariants": [
     "A candidate below the authoritative revocation floor is denied before authorization is considered; Owner approval cannot override the floor.",
     "A candidate below current epoch but not below the revocation floor requires a valid, scoped, fresh, unrevoked, one-time Owner approval.",
-    "The Owner approval resource binds a canonical digest of current/candidate epochs and artifact digests, revocation floor and revision, policy version, and reason commitment.",
+    "The Owner approval resource binds a canonical digest of current/candidate epochs and artifact digests, revocation floor and revision, policy version, and explicit rollback reason.",
     "Current and candidate artifact digests are recomputed using SHA-256 over RFC 8785 JCS canonical bytes.",
     "Provenance and version-bound evidence must each authenticate exactly current_state, candidate_state, revocation_floor and policy_version; each proof is bound to the exact digest, epoch and revision.",
     "Evidence verification must enforce trusted issuer/key, signature, validity, replay resistance, revocation and monotonic revocation-floor revision.",
