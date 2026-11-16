@@ -52,7 +52,8 @@ pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
 pub use rollback_guard::{
     evaluate_rollback_guard, EffectiveState, EvidenceBinding, EvidenceVerificationError,
-    RollbackDenialCode, RollbackEvidenceReceipt, RollbackEvidenceVerifier, RollbackGuardDecision,
+    RollbackDenialCode, RollbackEvidenceReceipt, RollbackEvidenceSummary, RollbackEvidenceVerifier,
+    RollbackGuardDecision,
     RollbackGuardInput,
 };
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
