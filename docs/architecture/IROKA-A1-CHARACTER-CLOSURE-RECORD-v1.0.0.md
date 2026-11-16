@@ -5,7 +5,7 @@
 **Disposition:** VERIFIED-CLOSED — BOUNDED CHARACTER AMENDMENT ONLY  
 **Owner approval:** 2026-11-16  
 **Branch:** `architecture/a1-character-constitution-v1`  
-**Verified branch head:** `6d282ae600698047f19203a79986fd01a8cc8ee8`
+**Verified branch head:** `7800b45bdfd8a7a28d4b0982d9ebf9b0b81ed16b`
 
 ## 1. Approved scope
 
@@ -24,7 +24,7 @@ The Owner approved the Character Architecture as a normative A1 v1.0.0 amendment
 | Genome JSON changed | No | No; blob SHA unchanged | PASS |
 | Character constitution present | Yes | Verified at blob `b554620ab622baea4585184c527120524f3bc0dc` | PASS |
 | A1 PRD approval status recorded | Yes | Verified at blob `efca72e21374171a9b09e8a672ea87e255ecb4b4` | PASS |
-| Character reconciliation register present | Yes | Verified at blob `bc93ea299861006c186596482da78276ce94667f` | PASS |
+| Character reconciliation register present | Yes | Verified at blob `e4d7454bdf3b65e4d5af1a661236b191fa6a4beb` | PASS |
 
 Canonical genome blob SHA remains `1a37cb6432528371b372afc80df623790f16bae5`.
 
