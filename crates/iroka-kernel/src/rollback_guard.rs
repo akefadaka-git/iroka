@@ -995,21 +995,15 @@ mod tests {
             Err(EvidenceVerificationError::Replay)
         );
 
-        let expired = signed_evidence_receipt(
-            &signer,
-            &binding,
-            "nonce-production-expired-proof-0001",
-        );
+        let expired =
+            signed_evidence_receipt(&signer, &binding, "nonce-production-expired-proof-0001");
         assert_eq!(
             verifier.verify(&expired, &binding, 1_200),
             Err(EvidenceVerificationError::Expired)
         );
 
-        let mut invalid_signature = signed_evidence_receipt(
-            &signer,
-            &binding,
-            "nonce-production-invalid-signature-0001",
-        );
+        let mut invalid_signature =
+            signed_evidence_receipt(&signer, &binding, "nonce-production-invalid-signature-0001");
         invalid_signature.signature.fill(0);
         assert_eq!(
             verifier.verify(&invalid_signature, &binding, 1_100),
