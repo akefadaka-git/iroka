@@ -402,32 +402,32 @@
         {
           "field": "subject_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve subject_id to the canonical subject record and bind the lineage evaluation to that exact identity; reject aliases, collisions or identity substitution."
         },
         {
           "field": "predecessor_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve predecessor_id to an independently verified canonical predecessor; reject self-reference, unknown identities and predecessor substitution."
         },
         {
           "field": "relationship",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Interpret only the enumerated relationship values under explicit versioned semantics; do not treat 'merged' as adequately represented by a single predecessor without an explicit merge-parent model."
         },
         {
           "field": "proof_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify the digest against retrievable, authenticated succession proof material and its signature/issuer; a non-empty digest string alone does not prove ancestry."
         },
         {
           "field": "epoch",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-negative epoch and verify monotonicity/temporal validity against the predecessor and authoritative epoch source; reject stale, future-inconsistent or rollback lineage."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify provenance against trusted issuers and bind it to subject, predecessor(s), relationship, proof digest, epoch and contract version; missing, conflicting or unverifiable provenance fails closed."
         }
       ],
       "character_output_assertions": [
@@ -448,9 +448,91 @@
             "verified_depth",
             "evidence"
           ]
+        },
+        {
+          "assertion": "The returned lineage_valid, chain_digest and verified_depth must be derivable from the verified ancestry graph and proof evidence; do not report a valid chain or positive depth when any link is missing, cyclic, conflicting or unverified.",
+          "observable_fields": [
+            "lineage_valid",
+            "chain_digest",
+            "verified_depth",
+            "evidence"
+          ]
         }
       ],
-      "character_failure_rule": "Never invent ancestors, signatures or provenance. fail-closed"
+      "character_failure_rule": "Never invent ancestors, signatures or provenance. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G01-LINEAGE-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "994fd7fed65ccfc718616b9920666894ee292ad0",
+          "a2_contract_blob_before_review": "f26ad1e5b1e724b5f01cb37298ebdd385185aa85",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "198618a5ff81fef8222ba337c80c06b416057ec0",
+          "output_schema_blob": "50cb8f5026db29f2a3452a51ae6d7c21e20f3f12"
+        },
+        "confirmed_sufficient": [
+          "Input requires subject_id, predecessor_id, relationship, proof_digest, epoch, provenance and version_bound_evidence.",
+          "Relationship is restricted to derived, successor or merged; epoch is a non-negative integer.",
+          "Output requires subject_id, lineage_valid, chain_digest, verified_depth, evidence and version_bound_evidence.",
+          "lineage_valid is boolean and verified_depth is a non-negative integer.",
+          "Both schemas reject undeclared top-level properties and resolve local provenance/evidence definitions."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G01-LIN-SEM-01",
+            "severity": "HIGH",
+            "finding": "proof_digest is only a non-empty string; no proof material, signature, issuer or proof-reference is supplied for independent verification.",
+            "required_disposition": "Bind the digest to retrievable authenticated proof material, signature/issuer and proof verification policy."
+          },
+          {
+            "gap_id": "G01-LIN-SEM-02",
+            "severity": "HIGH",
+            "finding": "The schema models only one predecessor_id even though relationship includes 'merged', which may require multiple parent lineages.",
+            "required_disposition": "Define relationship-specific cardinality and an explicit multi-parent representation for merge lineage; otherwise disallow merged in this contract version."
+          },
+          {
+            "gap_id": "G01-LIN-SEM-03",
+            "severity": "HIGH",
+            "finding": "No explicit graph traversal, cycle detection, conflicting-parent detection or complete-chain evidence is required by the schema.",
+            "required_disposition": "Specify graph integrity and cycle/ambiguity checks and include verifiable chain evidence."
+          },
+          {
+            "gap_id": "G01-LIN-SEM-04",
+            "severity": "MEDIUM",
+            "finding": "epoch is constrained only to a non-negative integer; no monotonicity or authoritative temporal relation to predecessor is encoded.",
+            "required_disposition": "Bind epoch checks to authoritative time/version evidence and require valid succession ordering."
+          },
+          {
+            "gap_id": "G01-LIN-SEM-05",
+            "severity": "HIGH",
+            "finding": "Output permits lineage_valid=true with arbitrary chain_digest and verified_depth values without proving their consistency with a verified ancestry graph.",
+            "required_disposition": "Add output consistency constraints and require evidence binding chain_digest/depth to the verified graph and exact subject."
+          },
+          {
+            "gap_id": "G01-LIN-SEM-06",
+            "severity": "MEDIUM",
+            "finding": "Evidence object only requires provenance and version_bound_evidence, with no explicit proof verification, graph traversal, cycle-check or parent-resolution results.",
+            "required_disposition": "Define structured evidence fields sufficient to reproduce the lineage decision."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g01.lineage schemas and its positive/negative conformance vectors.",
+          "Resolve merge semantics explicitly: support multiple verified parents or reject 'merged' until a compatible schema version exists.",
+          "Add proof-reference/signature verification, graph traversal/cycle detection, parent resolution and monotonic epoch checks.",
+          "Constrain output consistency among lineage_valid, chain_digest, verified_depth and evidence.",
+          "Preserve 12 chromosomes, 36 genes and all unrelated contracts; no authority or execution expansion."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g01.compatibility",
