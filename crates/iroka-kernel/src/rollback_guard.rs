@@ -135,7 +135,9 @@ fn sha256(bytes: &[u8]) -> String {
 }
 
 fn digest_value(value: &Value) -> Result<String, ()> {
-    canonical_json(value).map(|bytes| sha256(&bytes)).map_err(|_| ())
+    canonical_json(value)
+        .map(|bytes| sha256(&bytes))
+        .map_err(|_| ())
 }
 
 fn expected_bindings(input: &RollbackGuardInput<'_>) -> Result<Vec<EvidenceBinding>, ()> {
@@ -319,8 +321,14 @@ pub fn evaluate_rollback_guard(
     if input.policy_version.trim().is_empty()
         || input.current_digest.len() != 64
         || input.candidate_digest.len() != 64
-        || !input.current_digest.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
-        || !input.candidate_digest.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        || !input
+            .current_digest
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        || !input
+            .candidate_digest
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
     {
         return Err(());
     }
@@ -328,45 +336,91 @@ pub fn evaluate_rollback_guard(
     let evidence_digest = evidence_commitment(input.provenance, input.version_bound_evidence)?;
     let expected = expected_bindings(input)?;
 
-    let provenance_ok = verify_evidence_set(input.provenance, &expected, evidence_verifier, now).is_ok();
-    let version_ok = verify_evidence_set(input.version_bound_evidence, &expected, evidence_verifier, now).is_ok();
+    let provenance_ok =
+        verify_evidence_set(input.provenance, &expected, evidence_verifier, now).is_ok();
+    let version_ok = verify_evidence_set(
+        input.version_bound_evidence,
+        &expected,
+        evidence_verifier,
+        now,
+    )
+    .is_ok();
     if !provenance_ok {
-        return finish(input, false, false, RollbackDenialCode::EvidenceInvalid,
+        return finish(
+            input,
+            false,
+            false,
+            RollbackDenialCode::EvidenceInvalid,
             Some("provenance evidence is missing, stale, replayed, untrusted or mismatched"),
-            &input_digest, &evidence_digest);
+            &input_digest,
+            &evidence_digest,
+        );
     }
     if !version_ok {
-        return finish(input, false, false, RollbackDenialCode::VersionEvidenceInvalid,
+        return finish(
+            input,
+            false,
+            false,
+            RollbackDenialCode::VersionEvidenceInvalid,
             Some("version-bound evidence is missing, stale, replayed, untrusted or mismatched"),
-            &input_digest, &evidence_digest);
+            &input_digest,
+            &evidence_digest,
+        );
     }
 
     let current_digest = digest_value(input.current_artifact)?;
     let candidate_digest = digest_value(input.candidate_artifact)?;
     if current_digest != input.current_digest || candidate_digest != input.candidate_digest {
-        return finish(input, false, current_digest == input.current_digest,
+        return finish(
+            input,
+            false,
+            current_digest == input.current_digest,
             RollbackDenialCode::DigestMismatch,
-            Some("current or candidate artifact digest does not match canonical SHA-256/JCS content"),
-            &input_digest, &evidence_digest);
+            Some(
+                "current or candidate artifact digest does not match canonical SHA-256/JCS content",
+            ),
+            &input_digest,
+            &evidence_digest,
+        );
     }
 
     // Absolute floor: no authorization is consulted or consumed below this line.
     if input.candidate_epoch < input.revocation_floor {
-        return finish(input, false, true, RollbackDenialCode::RevocationFloor,
+        return finish(
+            input,
+            false,
+            true,
+            RollbackDenialCode::RevocationFloor,
             Some("candidate epoch is below the authoritative revocation floor"),
-            &input_digest, &evidence_digest);
+            &input_digest,
+            &evidence_digest,
+        );
     }
-    if input.candidate_epoch == input.current_epoch && input.candidate_digest != input.current_digest {
-        return finish(input, false, true, RollbackDenialCode::EpochConflict,
+    if input.candidate_epoch == input.current_epoch
+        && input.candidate_digest != input.current_digest
+    {
+        return finish(
+            input,
+            false,
+            true,
+            RollbackDenialCode::EpochConflict,
             Some("same epoch cannot identify two different immutable artifacts"),
-            &input_digest, &evidence_digest);
+            &input_digest,
+            &evidence_digest,
+        );
     }
 
     if input.candidate_epoch < input.current_epoch {
         let Some(approval) = input.rollback_authorization else {
-            return finish(input, false, true, RollbackDenialCode::AuthorizationInvalid,
+            return finish(
+                input,
+                false,
+                true,
+                RollbackDenialCode::AuthorizationInvalid,
                 Some("rollback requires a scoped, signed, unexpired and unused Owner approval"),
-                &input_digest, &evidence_digest);
+                &input_digest,
+                &evidence_digest,
+            );
         };
         let resource = transition_resource(input)?;
         let request = AuthorizationRequest::new(
@@ -375,14 +429,31 @@ pub fn evaluate_rollback_guard(
             resource,
             RiskLevel::High,
         );
-        if owner_verifier.verify_and_consume(approval, &request, input.policy_version, now).is_err() {
-            return finish(input, false, true, RollbackDenialCode::AuthorizationInvalid,
+        if owner_verifier
+            .verify_and_consume(approval, &request, input.policy_version, now)
+            .is_err()
+        {
+            return finish(
+                input,
+                false,
+                true,
+                RollbackDenialCode::AuthorizationInvalid,
                 Some("Owner rollback approval is invalid, out of scope, expired, revoked or replayed"),
-                &input_digest, &evidence_digest);
+                &input_digest,
+                &evidence_digest,
+            );
         }
     }
 
-    finish(input, true, true, RollbackDenialCode::None, None, &input_digest, &evidence_digest)
+    finish(
+        input,
+        true,
+        true,
+        RollbackDenialCode::None,
+        None,
+        &input_digest,
+        &evidence_digest,
+    )
 }
 
 #[cfg(test)]
@@ -394,8 +465,12 @@ mod tests {
 
     struct TestEvidence;
     impl RollbackEvidenceVerifier for TestEvidence {
-        fn verify(&self, receipt: &RollbackEvidenceReceipt, expected: &EvidenceBinding, now: u64)
-            -> Result<(), EvidenceVerificationError> {
+        fn verify(
+            &self,
+            receipt: &RollbackEvidenceReceipt,
+            expected: &EvidenceBinding,
+            now: u64,
+        ) -> Result<(), EvidenceVerificationError> {
             if receipt.subject != expected.subject
                 || receipt.subject_digest != expected.digest
                 || receipt.subject_epoch != expected.epoch
@@ -413,17 +488,23 @@ mod tests {
     fn owner() -> (SigningKey, OwnerApprovalVerifier) {
         let signer = SigningKey::from_bytes(&[71u8; 32]);
         let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
-        let verifier = OwnerApprovalVerifier::new(vec![TrustedOwnerKey {
-            owner_subject: "owner:akefa".into(),
-            key_id: "owner-key-test".into(),
-            public_key: signer.verifying_key().to_bytes(),
-            not_before: 900,
-            not_after: 5_000,
-        }], store).unwrap();
+        let verifier = OwnerApprovalVerifier::new(
+            vec![TrustedOwnerKey {
+                owner_subject: "owner:akefa".into(),
+                key_id: "owner-key-test".into(),
+                public_key: signer.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 5_000,
+            }],
+            store,
+        )
+        .unwrap();
         (signer, verifier)
     }
 
-    fn make_receipts(input: &RollbackGuardInput<'_>) -> (Vec<RollbackEvidenceReceipt>, Vec<RollbackEvidenceReceipt>) {
+    fn make_receipts(
+        input: &RollbackGuardInput<'_>,
+    ) -> (Vec<RollbackEvidenceReceipt>, Vec<RollbackEvidenceReceipt>) {
         let expected = expected_bindings(input).unwrap();
         let make = |subject: &str, suffix: &str| {
             let binding = expected.iter().find(|x| x.subject == subject).unwrap();
@@ -440,8 +521,16 @@ mod tests {
                 signature: vec![7u8; 64],
             }
         };
-        let names = ["current_state", "candidate_state", "revocation_floor", "policy_version"];
-        (names.iter().map(|n| make(n, "p")).collect(), names.iter().map(|n| make(n, "v")).collect())
+        let names = [
+            "current_state",
+            "candidate_state",
+            "revocation_floor",
+            "policy_version",
+        ];
+        (
+            names.iter().map(|n| make(n, "p")).collect(),
+            names.iter().map(|n| make(n, "v")).collect(),
+        )
     }
 
     fn fixture<'a>(
@@ -470,13 +559,27 @@ mod tests {
         }
     }
 
-    fn signed_approval(signer: &SigningKey, input: &RollbackGuardInput<'_>, now: u64) -> SignedOwnerApproval {
+    fn signed_approval(
+        signer: &SigningKey,
+        input: &RollbackGuardInput<'_>,
+        now: u64,
+    ) -> SignedOwnerApproval {
         let resource = transition_resource(input).unwrap();
         let payload = OwnerApprovalPayload::new(
-            "approval:rollback-1", "owner:akefa", "owner-key-test",
-            ROLLBACK_SUBJECT, ROLLBACK_CAPABILITY, resource, "policy-v1", now - 10, now + 100
+            "approval:rollback-1",
+            "owner:akefa",
+            "owner-key-test",
+            ROLLBACK_SUBJECT,
+            ROLLBACK_CAPABILITY,
+            resource,
+            "policy-v1",
+            now - 10,
+            now + 100
         );
-        let signature = signer.sign(&payload.signing_bytes().unwrap()).to_bytes().to_vec();
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
         SignedOwnerApproval::from_signature(payload, signature)
     }
 
@@ -490,7 +593,8 @@ mod tests {
         input.provenance = &p;
         input.version_bound_evidence = &v;
         let (_, owner_verifier) = owner();
-        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let result =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert!(result.allowed);
         assert_eq!(result.effective_state, EffectiveState::Candidate);
         assert_eq!(result.denial_code, RollbackDenialCode::None);
@@ -529,7 +633,8 @@ mod tests {
         input.rollback_authorization = Some(&approval);
         let first = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert!(first.allowed);
-        let replay = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_101).unwrap();
+        let replay =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_101).unwrap();
         assert!(!replay.allowed);
         assert_eq!(replay.denial_code, RollbackDenialCode::AuthorizationInvalid);
     }
@@ -544,11 +649,13 @@ mod tests {
         input.provenance = &p;
         input.version_bound_evidence = &v;
         let (_, owner_verifier) = owner();
-        let conflict = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let conflict =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(conflict.denial_code, RollbackDenialCode::EpochConflict);
         let mut substituted = fixture(20, 21, 10, &current, &candidate, None, &p, &v);
         substituted.candidate_digest = "0".repeat(64);
-        let mismatch = evaluate_rollback_guard(&substituted, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let mismatch =
+            evaluate_rollback_guard(&substituted, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(mismatch.denial_code, RollbackDenialCode::DigestMismatch);
     }
 
