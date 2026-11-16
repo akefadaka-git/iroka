@@ -52,11 +52,15 @@ impl SignedTrustBundle {
             root_key_id: &'a str,
             payload: &'a TrustBundlePayload,
         }
-        serde_json::to_vec(&Envelope {
+        let value = serde_json::to_value(Envelope {
             root_key_id,
             payload,
         })
-        .map_err(|_| TrustBundleError::Malformed)
+        .map_err(|_| TrustBundleError::Malformed)?;
+        let canonical = crate::canonical_json(&value).map_err(|_| TrustBundleError::Malformed)?;
+        let mut signing_bytes = b"IROKA:G01:TRUST-BUNDLE:V1\\0".to_vec();
+        signing_bytes.extend_from_slice(&canonical);
+        Ok(signing_bytes)
     }
 
     pub fn signing_bytes(&self) -> Result<Vec<u8>, TrustBundleError> {
@@ -315,6 +319,17 @@ mod tests {
             root,
             SignedTrustBundle::from_signature(root_key_id, payload, signature),
         )
+    }
+
+    #[test]
+    fn trust_bundle_signing_bytes_are_canonical_and_domain_separated() {
+        let (_, root, bundle) = fixture(1);
+        let bytes = bundle.signing_bytes().unwrap();
+        assert!(bytes.starts_with(b"IROKA:G01:TRUST-BUNDLE:V1\\0"));
+        assert_eq!(
+            bytes,
+            SignedTrustBundle::signing_bytes_for(&root.key_id, &bundle.payload).unwrap()
+        );
     }
 
     #[test]
