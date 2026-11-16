@@ -112,7 +112,6 @@ pub trait RollbackEvidenceVerifier: Send + Sync {
     ) -> Result<(), EvidenceVerificationError>;
 }
 
-
 const MAX_ROLLBACK_EVIDENCE_TTL_SECS: u64 = 300;
 
 /// Production Ed25519 evidence verifier backed by the signed credential trust
@@ -180,11 +179,18 @@ impl<R: crate::RevocationChecker> RollbackEvidenceVerifier for Ed25519RollbackEv
             )
             .map_err(|error| match error {
                 crate::CredentialError::Malformed => EvidenceVerificationError::Malformed,
-                crate::CredentialError::UntrustedIssuer | crate::CredentialError::UnknownKey
-                | crate::CredentialError::KeyOutsideValidity => EvidenceVerificationError::UnknownIssuer,
-                crate::CredentialError::InvalidSignature => EvidenceVerificationError::InvalidSignature,
+                crate::CredentialError::UntrustedIssuer
+                | crate::CredentialError::UnknownKey
+                | crate::CredentialError::KeyOutsideValidity => {
+                    EvidenceVerificationError::UnknownIssuer
+                }
+                crate::CredentialError::InvalidSignature => {
+                    EvidenceVerificationError::InvalidSignature
+                }
                 crate::CredentialError::RevokedKey => EvidenceVerificationError::Revoked,
-                crate::CredentialError::RevocationUnavailable => EvidenceVerificationError::StoreUnavailable,
+                crate::CredentialError::RevocationUnavailable => {
+                    EvidenceVerificationError::StoreUnavailable
+                }
                 _ => EvidenceVerificationError::Malformed,
             })?;
         self.store
@@ -198,7 +204,9 @@ impl<R: crate::RevocationChecker> RollbackEvidenceVerifier for Ed25519RollbackEv
             .map_err(|error| match error {
                 crate::SecurityStoreError::EvidenceReplay => EvidenceVerificationError::Replay,
                 crate::SecurityStoreError::RevokedEvidenceKey => EvidenceVerificationError::Revoked,
-                crate::SecurityStoreError::Unavailable => EvidenceVerificationError::StoreUnavailable,
+                crate::SecurityStoreError::Unavailable => {
+                    EvidenceVerificationError::StoreUnavailable
+                }
                 _ => EvidenceVerificationError::Malformed,
             })?;
         if expected.subject == "revocation_floor" {
@@ -209,7 +217,9 @@ impl<R: crate::RevocationChecker> RollbackEvidenceVerifier for Ed25519RollbackEv
                     | crate::SecurityStoreError::ConflictingRevocationFloor => {
                         EvidenceVerificationError::ScopeMismatch
                     }
-                    crate::SecurityStoreError::Unavailable => EvidenceVerificationError::StoreUnavailable,
+                    crate::SecurityStoreError::Unavailable => {
+                        EvidenceVerificationError::StoreUnavailable
+                    }
                     _ => EvidenceVerificationError::Malformed,
                 })?;
         }
@@ -889,11 +899,7 @@ mod tests {
         let mismatch =
             evaluate_rollback_guard(&substituted, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(mismatch.denial_code, RollbackDenialCode::DigestMismatch);
-    }
-
-
-    #[test]
-    fn production_evidence_verifier_authenticates_and_consumes_nonce_once() {
+    }\n\n    #[test]\n    fn production_evidence_verifier_authenticates_and_consumes_nonce_once() {
         let (signer, _store, verifier) = production_evidence_verifier();
         let binding = EvidenceBinding {
             subject: "current_state".into(),
@@ -942,8 +948,7 @@ mod tests {
                 "test key compromise",
             )
             .unwrap();
-        let after_revoke =
-            signed_evidence_receipt(&signer, &binding, "nonce-floor-proof-0003");
+        let after_revoke = signed_evidence_receipt(&signer, &binding, "nonce-floor-proof-0003");
         assert_eq!(
             verifier.verify(&after_revoke, &binding, 1_102),
             Err(EvidenceVerificationError::Revoked)
