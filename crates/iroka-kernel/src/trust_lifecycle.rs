@@ -611,6 +611,7 @@ impl G12SecurityRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::VersionLineageRegistry;
     use ed25519_dalek::{Signer, SigningKey};
 
     fn fixture(version: u64) -> (SigningKey, TrustRoot, SignedTrustBundle) {
