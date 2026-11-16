@@ -341,6 +341,7 @@ impl SqliteSecurityStore {
 
     /// Persist the highest accepted, root-signed trust-bundle version.
     /// Same-version retries are idempotent only when the digest is identical.
+    #[rustfmt::skip]
     pub fn install_trust_bundle(
         &self,
         version: u64,
@@ -354,6 +355,7 @@ impl SqliteSecurityStore {
 
     /// Atomically persist the anti-rollback high-water mark and the complete
     /// root-signed bundle needed to reconstruct a trust snapshot after restart.
+    #[rustfmt::skip]
     pub(crate) fn install_trust_bundle_with_document(
         &self,
         version: u64,
@@ -447,6 +449,7 @@ impl SqliteSecurityStore {
 
     /// Atomically persist a root-signed, versioned issuer policy after its
     /// signature and semantic validation have succeeded.
+    #[rustfmt::skip]
     pub(crate) fn install_rollback_evidence_policy(
         &self,
         version: u64,
@@ -496,6 +499,7 @@ impl SqliteSecurityStore {
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
     }
 
+    #[rustfmt::skip]
     pub(crate) fn latest_rollback_evidence_policy_document(
         &self,
     ) -> Result<Option<String>, SecurityStoreError> {
@@ -837,6 +841,7 @@ impl SqliteSecurityStore {
     }
 }
 
+#[rustfmt::skip]
 impl SqliteSecurityStore {
     /// Replace the active lineage registry as one immutable, monotonic snapshot.
     /// Callers must verify the root signature and all snapshot invariants first.
