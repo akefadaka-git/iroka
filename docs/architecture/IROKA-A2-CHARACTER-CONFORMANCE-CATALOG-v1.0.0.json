@@ -1791,13 +1791,20 @@
       "case_id": "CHAR-G12.MUTATION-POLICY-P",
       "gene_id": "g12.mutation-policy",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (mutation_id, target_gene, base_version, proposed_version, risk_class, protected_invariants, approval_ref, provenance), valid provenance/version evidence and the baseline positive condition (policy classifies and gates change; unauthorized mutation denied), the gene must satisfy: Permit only explicitly approved, classified and testable mutation classes.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a registered target gene and immutable base/proposed versions, evidence-classified risk, complete authoritative protected-invariant set, explicit authenticated Owner approval when required bound to the exact mutation, complete unique blocking gates all passed, recomputable policy digest and verified provenance/version_bound_evidence, evaluate the policy decision.",
+      "expected": "Return permitted=true only when all required conditions and blocking gates are verified, no denial reasons remain and evidence is complete; this policy evaluation itself does not execute or authorize mutation.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all nine required input fields including version_bound_evidence validated",
+        "target gene resolves uniquely to registered immutable contract",
+        "base and proposed versions resolve to immutable artifacts with valid lineage",
+        "risk class is controlled and evidence-backed",
+        "protected invariant set is complete, authoritative and current",
+        "required Owner approval is authenticated and bound to exact mutation where needed",
+        "all mandatory gates are unique and passed with evidence",
+        "policy digest recomputes from canonical policy and decision inputs",
+        "permitted true only with zero denials and complete evidence",
+        "provenance and version-bound evidence resolve and match all decision inputs",
+        "no mutation side effect or execution authority"
       ],
       "existing_gene_io_case_id": "G12-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1805,19 +1812,27 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
         "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G12.MUTATION-POLICY-N",
       "gene_id": "g12.mutation-policy",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never allow mutation to weaken constitutional invariants without Owner approval.), and the baseline negative condition (unapproved protected mutation or invariant weakening), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given unknown target/version/risk, omitted or stale protected invariants, null/forged/expired/mismatched Owner approval for a protected change, duplicate or missing gates, failed/unknown blocking gate, non-recomputable policy digest, inconsistent permitted/denial output, or unverifiable provenance/version_bound_evidence, the policy must fail closed.",
+      "expected": "Return permitted=false with actionable evidence-backed denial reasons; unknown or failed blocking gates cannot permit mutation, and no mutation is executed.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown or ambiguous target gene rejected",
+        "unknown, malformed or incompatible versions rejected",
+        "unrecognized or unsupported risk class rejected",
+        "missing, substituted, duplicate or stale protected invariant rejected",
+        "null, forged, expired, revoked or scope-mismatched Owner approval rejected where required",
+        "duplicate or incomplete mandatory gate inventory rejected",
+        "failed or unknown blocking gate forces permitted=false",
+        "permitted=true with denial reasons or incomplete evidence rejected",
+        "policy digest mismatch or tampering rejected",
+        "missing, stale or unverifiable provenance/version-bound evidence rejected",
+        "assessment cannot mutate, approve, authorize, merge or deploy"
       ],
       "existing_gene_io_case_id": "G12-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1825,7 +1840,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
         "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G12.VERSION-LINEAGE-P",
@@ -2629,6 +2645,29 @@
         "G11-CR-SEM-08",
         "G11-CR-SEM-09",
         "G11-CR-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G12-MUTATION-POLICY-SEMANTIC-REVIEW-001",
+      "gene_id": "g12.mutation-policy",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G12.MUTATION-POLICY-P",
+        "CHAR-G12.MUTATION-POLICY-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G12-MP-SEM-01",
+        "G12-MP-SEM-02",
+        "G12-MP-SEM-03",
+        "G12-MP-SEM-04",
+        "G12-MP-SEM-05",
+        "G12-MP-SEM-06",
+        "G12-MP-SEM-07",
+        "G12-MP-SEM-08",
+        "G12-MP-SEM-09",
+        "G12-MP-SEM-10"
       ]
     }
   ]
