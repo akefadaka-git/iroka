@@ -503,6 +503,38 @@ mod tests {
         assert!(validate_endpoint("https://witness.example/#fragment").is_err());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn private_key_path_rejects_permissive_modes_and_symlinks() {
+        use std::os::unix::fs::{symlink, OpenOptionsExt, PermissionsExt};
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-witness-private-key-{}-{nonce}.pem",
+            std::process::id()
+        ));
+        let link = path.with_extension("link");
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&path)
+            .unwrap();
+        assert!(private_key_is_secure(&path));
+
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(!private_key_is_secure(&path));
+        symlink(&path, &link).unwrap();
+        assert!(!private_key_is_secure(&link));
+
+        let _ = std::fs::remove_file(&link);
+        let _ = std::fs::remove_file(&path);
+    }
+
     #[test]
     fn stream_path_encoding_prevents_path_injection() {
         assert_eq!(percent_encode(b"a/b c"), "a%2Fb%20c");
