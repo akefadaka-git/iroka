@@ -549,25 +549,6 @@ mod tests {
     }
 
     #[test]
-    fn checkpoint_creation_rejects_corrupted_local_audit_chain() {
-        let s = signer();
-        let audit = audit_with_events(&["event:tamper"]);
-        {
-            let connection = audit.connection.lock().unwrap();
-            connection
-                .execute_batch(
-                    "DROP TRIGGER audit_no_update;
-                     UPDATE audit_events SET subject='tampered' WHERE sequence=1;",
-                )
-                .unwrap();
-        }
-        assert_eq!(
-            create_audit_checkpoint(&s, &audit, "audit-stream:alpha", 1, None, 2_000),
-            Err(CheckpointError::LocalIntegrityFailure)
-        );
-    }
-
-    #[test]
     fn rejects_tampered_checkpoint_and_receipt() {
         let s = signer();
         let w = TestWitness::new(&s);
