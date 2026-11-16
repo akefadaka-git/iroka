@@ -14,6 +14,7 @@ mod igacms;
 mod owner_approval;
 mod policy;
 mod request;
+mod rollback_guard;
 mod security_store;
 mod service;
 mod trust_lifecycle;
@@ -49,6 +50,11 @@ pub use owner_approval::{
 };
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
+pub use rollback_guard::{
+    evaluate_rollback_guard, EffectiveState, EvidenceBinding, EvidenceVerificationError,
+    RollbackDenialCode, RollbackEvidenceReceipt, RollbackEvidenceVerifier,
+    RollbackGuardDecision, RollbackGuardInput,
+};
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
