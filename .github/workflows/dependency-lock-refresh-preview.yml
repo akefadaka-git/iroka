@@ -6,7 +6,7 @@ on:
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
-      - "crates/iroka-kernel/Cargo.toml"
+      - "crates/**"
 
 permissions:
   contents: read
@@ -39,6 +39,12 @@ jobs:
       - name: Validate locked dependency graph
         run: cargo metadata --locked --format-version 1 --no-deps
 
+      - name: Emit refreshed Cargo.lock for Owner-controlled commit
+        run: |
+          echo "LOCKFILE_BEGIN"
+          cat Cargo.lock
+          echo "LOCKFILE_END"
+
       - name: Compile and test refreshed dependency graph
         run: |
           cargo check --workspace --all-targets --locked
@@ -46,8 +52,3 @@ jobs:
           cargo build --workspace --release --locked
           cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -A clippy::pedantic
 
-      - name: Emit refreshed Cargo.lock for Owner-controlled commit
-        run: |
-          echo "LOCKFILE_BEGIN"
-          cat Cargo.lock
-          echo "LOCKFILE_END"
