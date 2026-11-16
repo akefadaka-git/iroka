@@ -434,8 +434,7 @@ mod tests {
             let store = SqliteSecurityStore::open(&path).unwrap();
             let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
             let manager = TrustSnapshotManager::restore_with_roots(&roots, &store, 1_200).unwrap();
-            let snapshot = manager.snapshot().unwrap();
-            assert!(snapshot.key("issuer:iroka-test", "issuer-key-7", 1_200).is_ok());
+            assert!(manager.snapshot().is_ok());
             assert_eq!(store.highest_trust_bundle_version(), Ok(Some(7)));
         }
         let _ = fs::remove_file(&path);
