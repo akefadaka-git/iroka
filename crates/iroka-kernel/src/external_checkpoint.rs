@@ -330,9 +330,9 @@ fn validate_payload(p: &CheckpointPayload) -> Result<(), CheckpointError> {
         || p.issued_at == 0
         || p.event_head_sha256.len() != 64
         || !p.event_head_sha256.bytes().all(|b| b.is_ascii_hexdigit())
-        || p.previous_checkpoint_sha256.as_ref().is_some_and(|v| {
-            v.len() != 64 || !v.bytes().all(|b| b.is_ascii_hexdigit())
-        })
+        || p.previous_checkpoint_sha256
+            .as_ref()
+            .is_some_and(|v| v.len() != 64 || !v.bytes().all(|b| b.is_ascii_hexdigit()))
     {
         return Err(CheckpointError::Malformed);
     }
@@ -500,8 +500,7 @@ mod tests {
         let s = signer();
         let w = TestWitness::new(&s);
         let audit = audit_with_events(&["event:one"]);
-        let cp = create_audit_checkpoint(&s, &audit, "audit-stream:alpha", 1, None, 2_000)
-            .unwrap();
+        let cp = create_audit_checkpoint(&s, &audit, "audit-stream:alpha", 1, None, 2_000).unwrap();
         let receipt = w.publish(&cp).unwrap();
         assert_eq!(
             verify_and_reconcile_head(
@@ -615,7 +614,10 @@ mod tests {
             1_901,
         )
         .unwrap();
-        assert_eq!(w.publish(&regressed), Err(CheckpointError::SequenceRegression));
+        assert_eq!(
+            w.publish(&regressed),
+            Err(CheckpointError::SequenceRegression)
+        );
     }
 
     #[test]
@@ -661,9 +663,16 @@ mod tests {
     fn quorum_rejects_reusing_one_witness_key_under_multiple_identities() {
         let s = signer();
         let w = TestWitness::new(&s);
-        let checkpoint =
-            create_checkpoint(&s, "audit-stream:key-uniqueness", 1, 1, [5; 32], None, 1_900)
-                .unwrap();
+        let checkpoint = create_checkpoint(
+            &s,
+            "audit-stream:key-uniqueness",
+            1,
+            1,
+            [5; 32],
+            None,
+            1_900,
+        )
+        .unwrap();
         let first = w.publish(&checkpoint).unwrap();
         let mut alias = first.clone();
         alias.payload.witness_id = "witness:aliased-identity".into();
@@ -694,11 +703,7 @@ mod tests {
         let ra = w.publish(&a).unwrap();
         w.publish(&b).unwrap();
         assert_eq!(
-            ra.verify(
-                &b,
-                &trust(&s.id, &s.key),
-                &trust(&w.key_id, &w.key),
-            ),
+            ra.verify(&b, &trust(&s.id, &s.key), &trust(&w.key_id, &w.key),),
             Err(CheckpointError::ReceiptMismatch)
         );
         assert_eq!(w.latest("audit-stream:a").unwrap().unwrap().0, a);
