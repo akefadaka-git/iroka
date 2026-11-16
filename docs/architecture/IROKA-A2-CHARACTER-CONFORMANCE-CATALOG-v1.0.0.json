@@ -269,13 +269,21 @@
       "case_id": "CHAR-G02.OWNER-GOVERNANCE-P",
       "gene_id": "g02.owner-governance",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (owner_id, decision_id, scope, approval_digest, signature, issued_at, expires_at, provenance), valid provenance/version evidence and the baseline positive condition (valid signed approval accepted; forged signature rejected), the gene must satisfy: Apply Owner decisions faithfully while reporting conflicts and respecting non-overridable safeguards.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "The submitted Owner approval resolves to the canonical Owner trust root; the signing key and algorithm are trusted and valid; the signature verifies over a canonical domain-separated payload binding decision_id, decision content, exact scope, issue/expiry times and contract version; the immutable decision register confirms it is current; trusted-time and scope checks pass.",
+      "expected": "Return approval_valid=true and decision=approved only after all identity, cryptographic, register, scope and temporal checks succeed. Report only the exact verified signed scope. Explicitly preserve non-overridable safeguards and do not execute the approved action.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "owner_id resolves to canonical Owner identity in configured trust root",
+        "signing key is trusted, active, unrevoked and valid at issuance and evaluation",
+        "signature algorithm is explicitly allowed and signature verifies over canonical approval digest",
+        "digest binds owner, decision id/content, exact scope, timestamps and contract version",
+        "decision_id resolves to unique current immutable decision-register entry",
+        "replayed, superseded or conflicting decisions are not accepted",
+        "scope is canonical, exact and has no wildcard or inferred expansion",
+        "timestamps are timezone-aware, correctly ordered and valid under trusted clock",
+        "approval_valid=true iff decision=approved",
+        "authorized_scope does not exceed exact signed scope",
+        "non-overridable safeguards remain effective and approval validation does not execute actions",
+        "evidence is sufficient to reproduce all verification checks"
       ],
       "existing_gene_io_case_id": "G02-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -283,19 +291,35 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
         "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-OWNER-SEM-01",
+        "G02-OWNER-SEM-02",
+        "G02-OWNER-SEM-03",
+        "G02-OWNER-SEM-04",
+        "G02-OWNER-SEM-05",
+        "G02-OWNER-SEM-06",
+        "G02-OWNER-SEM-07",
+        "G02-OWNER-SEM-08"
       ]
     },
     {
       "case_id": "CHAR-G02.OWNER-GOVERNANCE-N",
       "gene_id": "g02.owner-governance",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never equate loyalty with blind obedience or concealment.), and the baseline negative condition (unsigned or scope-mismatched Owner approval), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Owner identity is unknown or key revoked; signature or digest is forged/mismatched; algorithm is disallowed; decision_id is replayed, superseded or conflicting; scope is ambiguous or exceeds signed scope; timestamps are malformed, future-dated or expired; output status contradicts decision; or approval conflicts with a non-overridable safeguard.",
+      "expected": "Reject or fail closed, record the reason and evidence, expose safeguard conflicts, and never treat loyalty as blind obedience, expand authority, conceal a conflict or execute an action.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown Owner identity or untrusted/revoked key fails closed",
+        "forged signature, digest mismatch or disallowed algorithm fails closed",
+        "decision register replay, supersession or conflict fails closed",
+        "ambiguous, wildcard-expanded or excessive scope fails closed",
+        "malformed, future-dated, inverted or expired timestamps fail closed",
+        "approval_valid=true with rejected/expired decision is rejected",
+        "authorized_scope cannot exceed signed scope",
+        "non-overridable safeguard conflict is reported and not bypassed",
+        "no fabricated cryptographic or provenance evidence",
+        "no action execution or authority expansion occurs"
       ],
       "existing_gene_io_case_id": "G02-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -303,6 +327,16 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
         "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-OWNER-SEM-01",
+        "G02-OWNER-SEM-02",
+        "G02-OWNER-SEM-03",
+        "G02-OWNER-SEM-04",
+        "G02-OWNER-SEM-05",
+        "G02-OWNER-SEM-06",
+        "G02-OWNER-SEM-07",
+        "G02-OWNER-SEM-08"
       ]
     },
     {
@@ -1638,6 +1672,27 @@
         "G02-AUTH-SRC-SEM-05",
         "G02-AUTH-SRC-SEM-06",
         "G02-AUTH-SRC-SEM-07"
+      ]
+    },
+    {
+      "review_id": "A2-G02-OWNER-GOVERNANCE-SEMANTIC-REVIEW-001",
+      "gene_id": "g02.owner-governance",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G02.OWNER-GOVERNANCE-P",
+        "CHAR-G02.OWNER-GOVERNANCE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G02-OWNER-SEM-01",
+        "G02-OWNER-SEM-02",
+        "G02-OWNER-SEM-03",
+        "G02-OWNER-SEM-04",
+        "G02-OWNER-SEM-05",
+        "G02-OWNER-SEM-06",
+        "G02-OWNER-SEM-07",
+        "G02-OWNER-SEM-08"
       ]
     }
   ]
