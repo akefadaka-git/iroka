@@ -5,7 +5,7 @@
   "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
-  "genes_covered": 23,
+  "genes_covered": 24,
   "cases": [
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
@@ -1271,13 +1271,20 @@
       "case_id": "CHAR-G08.COORDINATION-STATE-P",
       "gene_id": "g08.coordination-state",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (run_id, participants, lease_epochs, checkpoint_refs, provenance), valid provenance/version evidence and the baseline positive condition (newer epoch wins; stale writer rejected), the gene must satisfy: Share only necessary context and reconcile agent disagreements transparently.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an authenticated workflow run with unique active participants, valid registered states, authoritative monotonic lease epochs, immutable run-bound checkpoints and trusted time/provenance evidence, reconcile a deterministic canonical state while preserving each owner's state and all dissenting/conflicting observations.",
+      "expected": "Return canonical_state and reproducible state_digest bound to the run revision; classify stale participants using explicit lease/checkpoint freshness rules; report every unresolved conflict with unique ID and known participant references; reject stale writes and duplicate effects without granting execution authority.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "run identity resolves to immutable workflow revision",
+        "participants authenticated and membership/ownership verified",
+        "participant IDs unique and states follow registered transition graph",
+        "lease map exactly corresponds to participants",
+        "lease epochs monotonic and stale writers fenced atomically",
+        "checkpoint references immutable and bound to run/participant/epoch",
+        "timestamps evaluated with trusted clock and explicit freshness policy",
+        "canonical state preserves ownership and dissent",
+        "state digest reproducible from canonical state and evidence",
+        "conflict IDs unique and participant references valid",
+        "no authority or execution permission inferred"
       ],
       "existing_gene_io_case_id": "G08-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -1285,19 +1292,26 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
         "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G08.COORDINATION-STATE-N",
       "gene_id": "g08.coordination-state",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never hide dissent, duplicate effects or erase ownership.), and the baseline negative condition (stale lease epoch overwrites newer state), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unauthenticated or duplicate participant, stale/non-monotonic lease epoch, stale writer, invalid state transition, missing or mutable checkpoint, untrusted timestamp, conflicting ownership, duplicate effect or attempted silent conflict overwrite, reconciliation must fail closed and preserve the conflicting evidence.",
+      "expected": "Reject stale or invalid updates; expose unresolved conflicts and stale participants using the declared policy; never erase ownership, hide dissent, accept duplicate effects or fabricate canonical state/digest.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown/duplicate participants rejected",
+        "stale lease epoch cannot overwrite newer state",
+        "lease-map mismatch rejected",
+        "invalid state transition rejected",
+        "missing/mutable/misbound checkpoint rejected",
+        "untrusted or stale time evidence yields indeterminate/fail-closed",
+        "ownership conflicts remain visible",
+        "duplicate effects rejected",
+        "no silent conflict overwrite or dissent erasure",
+        "digest not asserted when canonical state is indeterminate"
       ],
       "existing_gene_io_case_id": "G08-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1305,7 +1319,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
         "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G09.EFFECT-CONTRACT-P",
@@ -2279,6 +2294,27 @@
         "G08-SP-SEM-06",
         "G08-SP-SEM-07",
         "G08-SP-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G08-COORDINATION-STATE-SEMANTIC-REVIEW-001",
+      "gene_id": "g08.coordination-state",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G08.COORDINATION-STATE-P",
+        "CHAR-G08.COORDINATION-STATE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G08-CS-SEM-01",
+        "G08-CS-SEM-02",
+        "G08-CS-SEM-03",
+        "G08-CS-SEM-04",
+        "G08-CS-SEM-05",
+        "G08-CS-SEM-06",
+        "G08-CS-SEM-07",
+        "G08-CS-SEM-08"
       ]
     }
   ]
