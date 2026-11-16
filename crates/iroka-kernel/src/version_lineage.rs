@@ -1,7 +1,7 @@
 //! A3 G12 version-lineage evaluator. Registry access and evidence verification
 //! are injected; this gene is read-only and never grants execution authority.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
@@ -31,7 +31,8 @@ pub enum LineageRegistryError {
     IntegrityFailure,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct RegisteredLineageArtifact {
     pub gene_id: String,
     pub version: String,
@@ -43,7 +44,8 @@ pub struct RegisteredLineageArtifact {
     pub epoch: u64,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct RegisteredMutationRecord {
     pub mutation_ref: String,
     pub mutation_id: String,
@@ -63,6 +65,44 @@ pub struct VersionLineageRecord {
     /// None only for the canonical GENESIS root.
     pub mutation: Option<RegisteredMutationRecord>,
     pub registry_revision: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct VersionLineageRegistrySnapshotPayload {
+    pub revision: u64,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub artifacts: Vec<RegisteredLineageArtifact>,
+    pub mutations: Vec<RegisteredMutationRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedVersionLineageRegistrySnapshot {
+    pub root_key_id: String,
+    pub payload: VersionLineageRegistrySnapshotPayload,
+    pub signature: Vec<u8>,
+}
+
+impl SignedVersionLineageRegistrySnapshot {
+    pub fn from_signature(
+        root_key_id: impl Into<String>,
+        payload: VersionLineageRegistrySnapshotPayload,
+        signature: Vec<u8>,
+    ) -> Self {
+        Self { root_key_id: root_key_id.into(), payload, signature }
+    }
+
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, VersionLineageError> {
+        #[derive(Serialize)]
+        struct Envelope<'a> {
+            root_key_id: &'a str,
+            payload: &'a VersionLineageRegistrySnapshotPayload,
+        }
+        serde_json::to_vec(&Envelope { root_key_id: &self.root_key_id, payload: &self.payload })
+            .map_err(|_| VersionLineageError::Commitment)
+    }
 }
 
 /// Production implementations must resolve one authoritative, immutable registry
