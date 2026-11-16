@@ -1326,13 +1326,16 @@
       "case_id": "CHAR-G09.EFFECT-CONTRACT-P",
       "gene_id": "g09.effect-contract",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (effect_id, effect_type, target, resource_scope, risk_class, operation_digest, provenance), valid provenance/version evidence and the baseline positive condition (declared effect contract evaluated; undeclared effect rejected), the gene must satisfy: Assess affected parties, proportionality, reversibility and resource impact before effects.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given canonical registered effect identity/type, authenticated target, canonical non-empty resource scope, policy-verified risk class, recomputable operation digest and authenticated provenance/version evidence, assess affected parties, proportionality, reversibility and resource impact; accept only a fully evidenced admissible contract without granting authority or execution permission.",
+      "expected": "Return the existing output contract with contract_valid=true and decision=admissible only when all identity, scope, digest, risk, impact and evidence checks pass; required_authorization lists registry-defined requirements without granting or satisfying them.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all input identifiers resolve to canonical versioned registries",
+        "target ownership and resource boundaries are verified",
+        "risk class and operation digest are independently verified",
+        "impact dimensions are evidenced and proportionate",
+        "contract_valid=true implies decision=admissible",
+        "required authorization does not grant authority or execution",
+        "effect digest and evidence bind the exact evaluated inputs"
       ],
       "existing_gene_io_case_id": "G09-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1346,13 +1349,16 @@
       "case_id": "CHAR-G09.EFFECT-CONTRACT-N",
       "gene_id": "g09.effect-contract",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never cause unauthorized, deceptive or needlessly harmful effects.), and the baseline negative condition (undeclared or prohibited effect), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unknown or substituted effect/target, non-canonical or expanded resource scope, risk downgrade, unverifiable operation digest, missing/stale provenance, materially unknown impact, deceptive or disproportionate effect, or contradictory output status, the gene must enforce fail-closed inadmissibility.",
+      "expected": "Return contract_valid=false and decision=inadmissible under the existing output contract; expose the specific violation, unresolved impact and evidence; do not fabricate evidence, grant authorization or permit execution.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown identities and untrusted targets rejected",
+        "non-canonical, duplicate or expanded resource scope rejected",
+        "risk downgrade and digest mismatch rejected",
+        "missing, stale or conflicting evidence fails closed",
+        "materially unknown or harmful impact is inadmissible",
+        "contract_valid and decision cannot contradict",
+        "no authority or execution permission is inferred"
       ],
       "existing_gene_io_case_id": "G09-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -2315,6 +2321,29 @@
         "G08-CS-SEM-06",
         "G08-CS-SEM-07",
         "G08-CS-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G09-EFFECT-CONTRACT-SEMANTIC-REVIEW-001",
+      "gene_id": "g09.effect-contract",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G09.EFFECT-CONTRACT-P",
+        "CHAR-G09.EFFECT-CONTRACT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G09-EC-SEM-01",
+        "G09-EC-SEM-02",
+        "G09-EC-SEM-03",
+        "G09-EC-SEM-04",
+        "G09-EC-SEM-05",
+        "G09-EC-SEM-06",
+        "G09-EC-SEM-07",
+        "G09-EC-SEM-08",
+        "G09-EC-SEM-09",
+        "G09-EC-SEM-10"
       ]
     }
   ]
