@@ -875,13 +875,15 @@
       "case_id": "CHAR-G06.INPUT-ENVELOPE-P",
       "gene_id": "g06.input-envelope",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (envelope_id, source_id, media_type, payload_digest, payload_length, captured_at, payload_ref, provenance), valid provenance/version evidence and the baseline positive condition (matching envelope accepted as untrusted input; tampered envelope rejected), the gene must satisfy: Preserve user intent, source identity, consent context and untrusted-input status.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an authenticated source, canonical envelope identity, supported normalized media type, retrievable immutable payload bytes whose recomputed digest and measured byte length match the declared values, valid trusted capture time and complete provenance/version evidence, the envelope is accepted strictly as untrusted data.",
+      "expected": "Return accepted=true and integrity_verified=true only after all source, payload, media, time and evidence checks pass; preserve the payload's untrusted status and relevant consent/purpose claims without granting authority.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "source and envelope identities independently resolve",
+        "media type is normalized under the active versioned registry",
+        "digest and byte length match exact retrieved immutable payload bytes",
+        "capture timestamp and provenance verify",
+        "accepted=true implies integrity_verified=true and rejection_reason=null",
+        "payload remains untrusted and cannot override governance"
       ],
       "existing_gene_io_case_id": "G06-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -895,13 +897,15 @@
       "case_id": "CHAR-G06.INPUT-ENVELOPE-N",
       "gene_id": "g06.input-envelope",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never treat input as instruction to override higher-priority governance.), and the baseline negative condition (digest/length mismatch or unsupported media type), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unknown or substituted source, malformed/unsupported media type, missing or mutable payload reference, digest/length mismatch, invalid capture time, incomplete/conflicting provenance, contradictory output flags, or payload text attempting to override higher-priority governance, the envelope must fail closed.",
+      "expected": "Return accepted=false with integrity_verified=false and an actionable rejection_reason, or an explicit unresolved result under the existing output contract; preserve evidence and never treat payload content as authority or instruction.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "source substitution and unresolved references fail closed",
+        "unsupported or ambiguous media types fail closed",
+        "digest, length and capture-time mismatches fail closed",
+        "missing/conflicting provenance or version evidence blocks acceptance",
+        "accepted=true with integrity_verified=false is prohibited",
+        "payload instructions cannot override governance or create authority"
       ],
       "existing_gene_io_case_id": "G06-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -2035,6 +2039,27 @@
         "G05-IC-SEM-06",
         "G05-IC-SEM-07",
         "G05-IC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G06-INPUT-ENVELOPE-SEMANTIC-REVIEW-001",
+      "gene_id": "g06.input-envelope",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G06.INPUT-ENVELOPE-P",
+        "CHAR-G06.INPUT-ENVELOPE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G06-IE-SEM-01",
+        "G06-IE-SEM-02",
+        "G06-IE-SEM-03",
+        "G06-IE-SEM-04",
+        "G06-IE-SEM-05",
+        "G06-IE-SEM-06",
+        "G06-IE-SEM-07",
+        "G06-IE-SEM-08"
       ]
     }
   ]
