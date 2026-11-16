@@ -50,6 +50,16 @@ pub(crate) enum RevocationTarget {
     },
 }
 
+pub(crate) struct SignedSecurityCommand<'a> {
+    pub command_id: &'a str,
+    pub owner_subject: &'a str,
+    pub signer_issuer: &'a str,
+    pub signer_key_id: &'a str,
+    pub digest: &'a [u8],
+    pub at: u64,
+    pub target: RevocationTarget,
+}
+
 pub(crate) struct ApprovalReceipt<'a> {
     pub approval_id: &'a str,
     pub payload_digest: &'a [u8],
@@ -334,14 +344,17 @@ impl SqliteSecurityStore {
     /// Atomically records a signed control command and its revocation effect.
     pub(crate) fn apply_signed_revocation(
         &self,
-        command_id: &str,
-        owner_subject: &str,
-        signer_issuer: &str,
-        signer_key_id: &str,
-        digest: &[u8],
-        at: u64,
-        target: RevocationTarget,
+        command: SignedSecurityCommand<'_>,
     ) -> Result<bool, SecurityCommandError> {
+        let SignedSecurityCommand {
+            command_id,
+            owner_subject,
+            signer_issuer,
+            signer_key_id,
+            digest,
+            at,
+            target,
+        } = command;
         if command_id.trim().is_empty()
             || signer_issuer.trim().is_empty()
             || signer_key_id.trim().is_empty()
@@ -1024,19 +1037,19 @@ mod tests {
             .revoke_key("iroka:owner-authority", "owner-key-race", 19, "compromised")
             .unwrap();
 
-        let result = store.apply_signed_revocation(
-            "command:after-revocation",
-            "owner:test",
-            "iroka:owner-authority",
-            "owner-key-race",
-            &[7; 32],
-            20,
-            RevocationTarget::Credential {
+        let result = store.apply_signed_revocation(SignedSecurityCommand {
+            command_id: "command:after-revocation",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key-race",
+            digest: &[7; 32],
+            at: 20,
+            target: RevocationTarget::Credential {
                 issuer: "issuer:test".into(),
                 credential_id: "credential:test".into(),
                 reason: "test".into(),
             },
-        );
+        });
 
         assert_eq!(result, Err(SecurityCommandError::SigningKeyRevoked));
         assert_eq!(store.security_command_count(), Ok(0));
@@ -1050,19 +1063,19 @@ mod tests {
     fn signed_security_command_serializes_before_later_signer_revocation() {
         let store = SqliteSecurityStore::open_in_memory().unwrap();
 
-        let result = store.apply_signed_revocation(
-            "command:before-revocation",
-            "owner:test",
-            "iroka:owner-authority",
-            "owner-key-race",
-            &[8; 32],
-            20,
-            RevocationTarget::Credential {
+        let result = store.apply_signed_revocation(SignedSecurityCommand {
+            command_id: "command:before-revocation",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key-race",
+            digest: &[8; 32],
+            at: 20,
+            target: RevocationTarget::Credential {
                 issuer: "issuer:test".into(),
                 credential_id: "credential:before".into(),
                 reason: "test".into(),
             },
-        );
+        });
         assert_eq!(result, Ok(true));
 
         store
@@ -1104,19 +1117,19 @@ mod tests {
         let command_barrier = Arc::clone(&barrier);
         let command_thread = thread::spawn(move || {
             command_barrier.wait();
-            commander.apply_signed_revocation(
-                "command:concurrent",
-                "owner:test",
-                "iroka:owner-authority",
-                "owner-key-concurrent",
-                &[9; 32],
-                20,
-                RevocationTarget::Credential {
+            commander.apply_signed_revocation(SignedSecurityCommand {
+                command_id: "command:concurrent",
+                owner_subject: "owner:test",
+                signer_issuer: "iroka:owner-authority",
+                signer_key_id: "owner-key-concurrent",
+                digest: &[9; 32],
+                at: 20,
+                target: RevocationTarget::Credential {
                     issuer: "issuer:test".into(),
                     credential_id: "credential:concurrent".into(),
                     reason: "test".into(),
                 },
-            )
+            })
         });
 
         barrier.wait();
