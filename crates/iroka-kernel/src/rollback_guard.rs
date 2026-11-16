@@ -14,7 +14,8 @@ const ROLLBACK_SUBJECT: &str = "iroka:rollback-guard";
 const ROLLBACK_CAPABILITY: &str = "system.rollback";
 const CLOCK_SKEW_SECS: u64 = 30;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RollbackDenialCode {
     None,
     EvidenceInvalid,
@@ -48,7 +49,8 @@ pub enum RollbackGuardError {
     EvidenceCommitment,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum EffectiveState {
     Candidate,
     Current,
@@ -126,9 +128,17 @@ pub struct RollbackGuardInput<'a> {
     pub version_bound_evidence: &'a [RollbackEvidenceReceipt],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct RollbackEvidenceSummary {
+    pub status: String,
+    pub verified_subjects: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RollbackGuardDecision {
+    #[serde(skip)]
     pub allowed: bool,
+    pub decision: String,
     pub effective_state: EffectiveState,
     pub effective_epoch: Option<u64>,
     pub effective_digest: Option<String>,
@@ -136,6 +146,8 @@ pub struct RollbackGuardDecision {
     pub denial_reason: Option<String>,
     pub guard_digest: String,
     pub decision_envelope: Value,
+    pub evidence: RollbackEvidenceSummary,
+    pub version_bound_evidence: Vec<RollbackEvidenceReceipt>,
 }
 
 fn sha256(bytes: &[u8]) -> String {
@@ -310,8 +322,26 @@ fn finish(
         "evidence_commitment": evidence_digest
     });
     let guard_digest = digest_value(&envelope)?;
+    let evidence_valid = !matches!(
+        code,
+        RollbackDenialCode::EvidenceInvalid | RollbackDenialCode::VersionEvidenceInvalid
+    );
+    let evidence = RollbackEvidenceSummary {
+        status: if evidence_valid { "verified" } else { "invalid" }.into(),
+        verified_subjects: if evidence_valid {
+            vec![
+                "current_state".into(),
+                "candidate_state".into(),
+                "revocation_floor".into(),
+                "policy_version".into(),
+            ]
+        } else {
+            Vec::new()
+        },
+    };
     Ok(RollbackGuardDecision {
         allowed,
+        decision: if allowed { "allow" } else { "deny" }.into(),
         effective_state,
         effective_epoch,
         effective_digest,
@@ -319,6 +349,8 @@ fn finish(
         denial_reason: reason.map(str::to_owned),
         guard_digest,
         decision_envelope: envelope,
+        evidence,
+        version_bound_evidence: input.version_bound_evidence.to_vec(),
     })
 }
 
