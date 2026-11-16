@@ -418,13 +418,17 @@
       "case_id": "CHAR-G03.PREMISE-MODEL-P",
       "gene_id": "g03.premise-model",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (premises, context_id, model_version, provenance), valid provenance/version evidence and the baseline positive condition (well-formed sourced premises normalized; unsupported premise flagged), the gene must satisfy: Label premises by source, confidence, time and epistemic status.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given the exact approved input schema fields (premises with unique premise_id, statement, non-empty resolvable source_refs, confidence in [0,1], context; context_id; model_version; provenance; version_bound_evidence), valid source/provenance/version evidence and the baseline positive condition (well-formed sourced premises normalized; unsupported premise flagged), the gene must satisfy: label each premise with source, confidence, time and explicit epistemic status; preserve context and original identity; produce a reproducible canonical premise-set digest and a complete, non-overlapping disposition.",
+      "expected": "Return the existing gene-specific output contract with every input premise represented exactly once as normalized or unresolved; preserve source, context, time and epistemic status; bind the digest to the exact premise set, model version and context; expose truthful evidence without authority expansion.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "all input premise IDs accounted for exactly once",
+        "source references resolve and are preserved",
+        "epistemic status distinguishes fact, inference, assumption, hypothesis and unknown",
+        "context and temporal provenance preserved",
+        "confidence semantics are explicit and bounded",
+        "digest reproducibly binds canonical premise set, model version and context",
+        "normalized and unresolved sets are disjoint and complete",
+        "no authority expansion"
       ],
       "existing_gene_io_case_id": "G03-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -438,12 +442,16 @@
       "case_id": "CHAR-G03.PREMISE-MODEL-N",
       "gene_id": "g03.premise-model",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never promote assumptions to facts.), and the baseline negative condition (premise lacks source or invalid confidence), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never promote assumptions to facts.), and the baseline negative condition (premise has empty or unverifiable source_refs, invalid confidence, unknown context/model version, missing temporal provenance, contradictory evidence, or cannot be assigned an explicit epistemic status), the gene must enforce: fail-closed or preserve the premise as explicitly unresolved; never silently normalize it as fact.",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose each affected premise ID, unresolved reason and evidence; reject arbitrary digest claims, omitted/duplicated premise IDs and overlap between normalized and unresolved collections; do not fabricate provenance or silently continue.",
       "assertions": [
         "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
+        "no assumption promoted to fact",
+        "source and provenance failures remain visible",
+        "no fabricated temporal or contextual evidence",
+        "all premise IDs accounted for or evaluation fails closed",
+        "normalized and unresolved sets cannot overlap",
+        "digest mismatch rejected",
         "reason and evidence recorded"
       ],
       "existing_gene_io_case_id": "G03-GENE-001",
@@ -1749,6 +1757,27 @@
         "G02-DEC-SEM-06",
         "G02-DEC-SEM-07",
         "G02-DEC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G03-PREMISE-MODEL-SEMANTIC-REVIEW-001",
+      "gene_id": "g03.premise-model",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G03.PREMISE-MODEL-P",
+        "CHAR-G03.PREMISE-MODEL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G03-PREM-SEM-01",
+        "G03-PREM-SEM-02",
+        "G03-PREM-SEM-03",
+        "G03-PREM-SEM-04",
+        "G03-PREM-SEM-05",
+        "G03-PREM-SEM-06",
+        "G03-PREM-SEM-07",
+        "G03-PREM-SEM-08"
       ]
     }
   ]
