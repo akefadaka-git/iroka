@@ -6632,46 +6632,168 @@
         {
           "field": "run_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to a canonical authenticated run record bound to an immutable workflow revision and explicit scope/lifecycle; reject unknown or reused identities."
         },
         {
           "field": "participants",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Authenticate each participant principal and verify active run membership, role and ownership; enforce unique participant IDs, registered states and valid transition preconditions."
         },
         {
           "field": "lease_epochs",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate a strict participant-to-epoch map against authoritative monotonic lease records; enforce atomic fencing, expiry and compare-and-swap; reject stale writers."
         },
         {
           "field": "checkpoint_refs",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve each reference to an authenticated immutable checkpoint bound to this run, participant, workflow revision and lease epoch; require every non-null participant reference to resolve."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Record authenticated state owners, participant updates, lease issuers/epochs, checkpoint lineage, transition causes and conflict observations."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind the state model/transition graph, lease service and clock policy, checkpoint format, canonicalization algorithm and conflict resolver version."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Share only necessary context and reconcile agent disagreements transparently.",
+          "assertion": "canonical_state is deterministic and preserves every participant's ownership, state, lease epoch and checkpoint lineage without erasing dissent.",
           "observable_fields": [
+            "canonical_state",
             "conflicts",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "state_digest is reproducible from canonical run state, participant records, leases, checkpoints and unresolved conflicts.",
+          "observable_fields": [
+            "state_digest",
+            "canonical_state",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Stale participants are classified only by explicit lease/checkpoint freshness policy and trusted clock evidence.",
+          "observable_fields": [
+            "stale_participants",
+            "canonical_state",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Every conflict has a unique ID, references known participants and remains visible until an evidenced resolution transition occurs.",
           "observable_fields": [
             "conflicts",
+            "canonical_state",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Reconciliation rejects stale writes and duplicate effects and never implies authority or permission to execute.",
+          "observable_fields": [
+            "canonical_state",
+            "conflicts",
+            "stale_participants",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never hide dissent, duplicate effects or erase ownership. fail-closed"
+      "character_failure_rule": "Never hide dissent, duplicate effects or erase ownership. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G08-COORDINATION-STATE-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "5b4ff8000bc63758d31968d253682c1aaf940554",
+          "a2_contract_blob_before_review": "492378e97952e64ff62faf8f33008cbadd464e29",
+          "a2_catalog_blob_before_review": "a32a3f72e8bc445838762c6b8143b7fa801a9d43",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "3773bad179ae4d77659ce7d334fd4f40df2050ff",
+          "output_schema_blob": "75b58f5b776e1d2d6dba7f7a96205c66a8e325a2"
+        },
+        "confirmed_sufficient": [
+          "Input requires run_id, participants, lease_epochs, checkpoint_refs, provenance and version_bound_evidence; undeclared top-level properties are rejected.",
+          "Participant records require participant_id, state, non-negative integer lease_epoch, nullable checkpoint_ref and updated_at; participant IDs are unique only through non-standard x-genesis metadata.",
+          "Participant state is an arbitrary non-empty string; timestamp format is date-time but no explicit timezone or trusted-clock policy is defined.",
+          "lease_epochs is an unconstrained object; no schema ties its entries to participant IDs or enforces monotonicity and fencing.",
+          "checkpoint_refs items are unique non-empty strings; participant-reference membership and checkpoint immutability/binding rely on non-standard metadata.",
+          "Output conflict records require conflict_id, participant_ids, resource_ref, conflict_type and description; conflict IDs and participant-reference integrity are only metadata rules.",
+          "stale_participants are unique non-empty strings, but freshness policy is not structurally defined; canonical_state is opaque and state_digest is an unrestricted string.",
+          "Provenance and version_bound_evidence are non-empty opaque objects without defined state reconciliation or digest bindings."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G08-CS-SEM-01",
+            "severity": "HIGH",
+            "finding": "run_id is an unrestricted string; no canonical run identity, workflow/revision binding, tenant scope, lifecycle or uniqueness semantics are defined.",
+            "required_disposition": "Resolve run_id to a canonical authenticated run record bound to one immutable workflow revision, scope and lifecycle; reject unknown, reused or ambiguous run identifiers."
+          },
+          {
+            "gap_id": "G08-CS-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "participant_id is only a non-empty string; participant identity, active membership, role, ownership and run-scoped eligibility are not authenticated or registry-bound.",
+            "required_disposition": "Resolve participant IDs to authenticated principals and run-scoped membership records; preserve owner identity and distinguish identity from authority and execution permission."
+          },
+          {
+            "gap_id": "G08-CS-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "participant lease_epoch is a non-negative integer, but lease_epochs is an unconstrained object; mapping, monotonicity, issuer, atomic compare-and-swap, expiry and stale-writer fencing are not schema-enforced.",
+            "required_disposition": "Define a strict participant-to-epoch map and enforce authoritative monotonic lease epochs with atomic fencing, expiry and compare-and-swap semantics; reject stale or conflicting writes."
+          },
+          {
+            "gap_id": "G08-CS-SEM-04",
+            "severity": "HIGH",
+            "finding": "participant state is any non-empty string; valid states, transitions, terminal states, transition guards and state ownership are undefined.",
+            "required_disposition": "Define a versioned state enum and transition graph with preconditions, terminal-state rules, authorized transition provenance and explicit conflict handling."
+          },
+          {
+            "gap_id": "G08-CS-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "checkpoint references are arbitrary strings; immutability, authenticity, run/participant binding, completeness and consistency between checkpoint_refs and participant checkpoint_ref rely on non-standard metadata.",
+            "required_disposition": "Resolve checkpoint references to authenticated immutable checkpoint records bound to run, participant, graph revision and lease epoch; enforce all non-null references resolve and are present."
+          },
+          {
+            "gap_id": "G08-CS-SEM-06",
+            "severity": "HIGH",
+            "finding": "updated_at uses format=date-time without explicit timezone/trusted-clock policy; stale_participants classification has no defined freshness threshold, clock-skew allowance or lease/checkpoint precedence.",
+            "required_disposition": "Require timezone-qualified timestamps and trusted clock evidence; define lease expiry, freshness thresholds, clock skew and deterministic stale classification."
+          },
+          {
+            "gap_id": "G08-CS-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "canonical_state is opaque and state_digest is unrestricted; no deterministic merge, conflict-resolution policy, canonical serialization, digest algorithm or preservation of dissent/ownership is specified.",
+            "required_disposition": "Define deterministic state canonicalization and digest over all participants, leases, checkpoints and conflicts; preserve dissent and ownership, and never silently overwrite unresolved conflicts."
+          },
+          {
+            "gap_id": "G08-CS-SEM-08",
+            "severity": "HIGH",
+            "finding": "Conflict IDs are not schema-unique; participant references are not cross-validated; conflict types and severity/resolution states are unrestricted; provenance/evidence objects are opaque.",
+            "required_disposition": "Enforce unique conflict IDs and known participant references; define conflict taxonomy and resolution lifecycle; require structured reproducible evidence for every accepted/rejected reconciliation."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g08.coordination-state schemas and its conformance vectors to close G08-CS-SEM-01 through G08-CS-SEM-08.",
+          "Define authenticated run and participant identity/membership, a strict lease map with monotonic atomic fencing, and versioned participant-state transitions.",
+          "Define immutable run/participant/epoch-bound checkpoints and trusted-clock freshness classification.",
+          "Specify deterministic canonical-state reconciliation and digest semantics; preserve ownership, dissent and unresolved conflicts.",
+          "Enforce unique conflict IDs and participant references with structured resolution evidence.",
+          "Preserve the no-authority-expansion boundary and the 12-chromosome/36-gene architecture; schema/runtime tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g09.effect-contract",
