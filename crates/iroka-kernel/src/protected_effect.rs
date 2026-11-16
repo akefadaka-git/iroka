@@ -78,12 +78,14 @@ impl ProtectedEffectRequest {
 
     pub fn operation_digest(
         &self,
-        subject: &str,
+        principal: &VerifiedPrincipal,
         policy_version: &str,
         genome_digest: &str,
     ) -> Result<[u8; 32], ProtectedEffectError> {
         self.validate()?;
-        if subject.trim().is_empty()
+        if principal.subject().trim().is_empty()
+            || principal.issuer().trim().is_empty()
+            || principal.credential_id().trim().is_empty()
             || policy_version.trim().is_empty()
             || !is_sha256_hex(genome_digest)
         {
@@ -92,7 +94,9 @@ impl ProtectedEffectRequest {
         let envelope = serde_json::json!({
             "protocol": "iroka.g09.protected-effect",
             "version": 1,
-            "subject": subject,
+            "subject": principal.subject(),
+            "issuer": principal.issuer(),
+            "credential_id": principal.credential_id(),
             "executor_subject": self.executor_subject,
             "capability": self.capability,
             "resource": self.resource,
@@ -104,6 +108,9 @@ impl ProtectedEffectRequest {
         });
         let canonical =
             crate::canonical_json(&envelope).map_err(|_| ProtectedEffectError::Malformed)?;
+        if canonical.len() > 1_048_576 {
+            return Err(ProtectedEffectError::Malformed);
+        }
         Ok(Sha256::digest(canonical).into())
     }
 
@@ -905,7 +912,7 @@ mod tests {
             policy_version: "policy-v1".into(),
             genome_digest: parse_sha256_hex(genesis.digest()).unwrap(),
             operation_digest: effect
-                .operation_digest(principal.subject(), "policy-v1", genesis.digest())
+                .operation_digest(principal, "policy-v1", genesis.digest())
                 .unwrap(),
             issued_at: 1_100,
             expires_at: 1_400,
