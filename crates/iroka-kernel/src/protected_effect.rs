@@ -116,9 +116,13 @@ impl ProtectedEffectRequest {
 
     fn validate(&self) -> Result<(), ProtectedEffectError> {
         if self.executor_subject.trim().is_empty()
+            || self.executor_subject.len() > 256
             || self.capability.trim().is_empty()
+            || self.capability.len() > 256
             || self.resource.trim().is_empty()
+            || self.resource.len() > 256
             || self.effect_type.trim().is_empty()
+            || self.effect_type.len() > 256
             || !self.operation.is_object()
         {
             return Err(ProtectedEffectError::Malformed);
