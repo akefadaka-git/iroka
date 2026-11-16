@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.1.0",
+  "title": "Version lineage — A3 output",
+  "description": "A3 output. linked and epoch_monotonic are derived from verified ancestry; lineage_digest is SHA-256 over RFC 8785 JCS canonical lineage envelope.",
+  "type": "object",
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "evidence_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "subject_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issued_at": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "nonce": {
+          "type": "string",
+          "minLength": 16
+        },
+        "signature": {
+          "type": "array",
+          "minItems": 64,
+          "maxItems": 64,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        }
+      },
+      "required": [
+        "subject",
+        "subject_digest",
+        "subject_epoch",
+        "revision",
+        "issuer",
+        "key_id",
+        "issued_at",
+        "expires_at",
+        "nonce",
+        "signature"
+      ]
+    }
+  },
+  "properties": {
+    "decision": {
+      "enum": [
+        "allow",
+        "deny"
+      ]
+    },
+    "lineage_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "linked": {
+      "type": "boolean"
+    },
+    "epoch_monotonic": {
+      "type": "boolean"
+    },
+    "ancestry": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "gene_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "$ref": "#/$defs/semver"
+          },
+          "artifact_digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "parent_version": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/semver"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parent_digest": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/digest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mutation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "evidence_commitments": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "$ref": "#/$defs/digest"
+            }
+          }
+        },
+        "required": [
+          "gene_id",
+          "version",
+          "artifact_digest",
+          "parent_version",
+          "parent_digest",
+          "mutation_id",
+          "epoch",
+          "evidence_commitments"
+        ]
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "verified",
+            "invalid"
+          ]
+        },
+        "verified_subjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "status",
+        "verified_subjects"
+      ]
+    },
+    "version_bound_evidence": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 128,
+      "items": {
+        "$ref": "#/$defs/evidence_receipt"
+      }
+    },
+    "denial_code": {
+      "enum": [
+        "NONE",
+        "INVALID_INPUT",
+        "REGISTRY_UNAVAILABLE",
+        "UNKNOWN_VERSION",
+        "DIGEST_MISMATCH",
+        "PARENT_MISMATCH",
+        "MUTATION_INVALID",
+        "ANCESTRY_INVALID",
+        "EPOCH_NON_MONOTONIC",
+        "EVIDENCE_INVALID",
+        "VERSION_EVIDENCE_INVALID"
+      ]
+    },
+    "denial_reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  },
+  "required": [
+    "decision",
+    "lineage_digest",
+    "linked",
+    "epoch_monotonic",
+    "ancestry",
+    "evidence",
+    "version_bound_evidence",
+    "denial_code",
+    "denial_reason"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "allow"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "lineage_digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "linked": {
+            "const": true
+          },
+          "epoch_monotonic": {
+            "const": true
+          },
+          "denial_code": {
+            "const": "NONE"
+          },
+          "denial_reason": {
+            "type": "null"
+          },
+          "evidence": {
+            "properties": {
+              "status": {
+                "const": "verified"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "deny"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "lineage_digest": {
+            "type": "null"
+          },
+          "linked": {
+            "const": false
+          },
+          "epoch_monotonic": {
+            "const": false
+          },
+          "denial_code": {
+            "not": {
+              "const": "NONE"
+            }
+          },
+          "denial_reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "properties": {
+              "status": {
+                "const": "invalid"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
