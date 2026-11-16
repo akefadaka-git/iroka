@@ -813,9 +813,13 @@ mod tests {
             provenance: &provenance,
             version_bound_evidence: &version_bound,
         };
-        let result =
-            evaluate_version_lineage(&input, &StaticRegistry(Ok(record.clone())), &TestEvidence, 1_100)
-                .unwrap();
+        let result = evaluate_version_lineage(
+            &input,
+            &StaticRegistry(Ok(record.clone())),
+            &TestEvidence,
+            1_100,
+        )
+        .unwrap();
         assert_eq!(result.denial_code, LineageDenialCode::ParentMismatch);
     }
 
