@@ -11,6 +11,7 @@ on:
       - "rust-toolchain.toml"
       - ".github/workflows/**"
       - ".gitleaks.toml"
+      - "docs/security/**"
   push:
     branches: [main, architecture/genesis-gene-contract-amendment-proposal]
     paths:
@@ -21,6 +22,7 @@ on:
       - "rust-toolchain.toml"
       - ".github/workflows/**"
       - ".gitleaks.toml"
+      - "docs/security/**"
   workflow_dispatch:
 
 permissions:
