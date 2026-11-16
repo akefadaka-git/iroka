@@ -5,7 +5,7 @@
   "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
-  "genes_covered": 17,
+  "genes_covered": 18,
   "cases": [
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
@@ -967,13 +967,17 @@
       "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-P",
       "gene_id": "g06.perception-transform",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (envelope_id, transform_id, transform_version, modality, output_type, provenance), valid provenance/version evidence and the baseline positive condition (declared transform yields traceable output; mismatched version rejected), the gene must satisfy: Preserve originals and label OCR, translation, transcription and normalization uncertainty.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an authenticated immutable source envelope, a signed and immutable transform implementation/version, supported canonical modality/output type, verified dependencies/runtime and reproducible execution evidence, the gene produces output whose digest is recomputed and whose relationship to the original is traceable; all losses and uncertainty are disclosed.",
+      "expected": "Return success only for a complete, supported transformation with verified source/output digests and no undisclosed loss; otherwise return degraded with complete loss/uncertainty annotations or reject. Preserve the original and distinguish transformed, normalized and inferred content.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "source envelope resolves and exact original bytes/digest are verified",
+        "transform artifact/version and execution profile authenticate",
+        "modality and output type are canonical and compatible",
+        "output digest recomputes over immutable output bytes",
+        "all lossy or uncertain segments are annotated and traceable",
+        "status matches output completeness and loss annotations",
+        "original remains unchanged and retrievable",
+        "evidence binds exact source, transform and execution versions"
       ],
       "existing_gene_io_case_id": "G06-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -981,19 +985,24 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
         "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-N",
       "gene_id": "g06.perception-transform",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never present lossy transformation as exact source content.), and the baseline negative condition (transform version mismatch or undeclared output type), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given a substituted or unverifiable source envelope, unknown or mutable transform/version, incompatible modality/output type, digest mismatch, missing or incomplete loss annotation, or a result that claims success despite material loss/uncertainty, the gene must reject or report degraded and must never claim exact source fidelity.",
+      "expected": "Fail closed or return degraded with explicit segment-level loss/uncertainty evidence as appropriate; never silently omit losses, fabricate source fidelity or overwrite the original.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown or altered source/transform fails closed",
+        "incompatible modality/output type is rejected",
+        "digest mismatch is rejected",
+        "loss annotation completeness is checked rather than trusting array presence",
+        "success cannot coexist with undisclosed material loss",
+        "degraded status carries explicit loss and uncertainty evidence",
+        "original source is retained unchanged",
+        "no fabricated fidelity or authority expansion"
       ],
       "existing_gene_io_case_id": "G06-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1001,7 +1010,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
         "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G07.AGENT-PRINCIPAL-P",
@@ -2089,6 +2099,27 @@
         "G06-ST-SEM-06",
         "G06-ST-SEM-07",
         "G06-ST-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G06-PERCEPTION-TRANSFORM-SEMANTIC-REVIEW-001",
+      "gene_id": "g06.perception-transform",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G06.PERCEPTION-TRANSFORM-P",
+        "CHAR-G06.PERCEPTION-TRANSFORM-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G06-PT-SEM-01",
+        "G06-PT-SEM-02",
+        "G06-PT-SEM-03",
+        "G06-PT-SEM-04",
+        "G06-PT-SEM-05",
+        "G06-PT-SEM-06",
+        "G06-PT-SEM-07",
+        "G06-PT-SEM-08"
       ]
     }
   ]
