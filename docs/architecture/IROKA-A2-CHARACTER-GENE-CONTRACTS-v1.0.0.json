@@ -1780,39 +1780,161 @@
         {
           "field": "premises",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-empty premise collection with unique premise_id values. For every item, require at least one resolvable source reference; validate source identity, accessibility, integrity and provenance. Treat confidence as a calibrated estimate with an explicitly documented interpretation; do not treat a numeric value alone as proof. Preserve the original statement and input order."
         },
         {
           "field": "context_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve context_id to an immutable or versioned context record; bind every premise and its interpretation to that exact context. Reject unknown, substituted or ambiguous contexts."
         },
         {
           "field": "model_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve model_version against the canonical model/version registry and bind normalization behavior and digest computation to that exact version; reject unknown or ambiguous versions."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require structured, independently resolvable provenance identifying source origin and acquisition/observation time. A non-empty arbitrary object is insufficient; preserve missing, conflicting and unverifiable provenance as unresolved."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind the evaluation to exact input, schema, model and context versions; evidence must be sufficient to reproduce which premise records were evaluated and which rules were applied."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Label premises by source, confidence, time and epistemic status.",
+          "assertion": "Every normalized or unresolved premise retains its original premise_id and source references; no premise may silently disappear, duplicate or be invented.",
           "observable_fields": [
+            "normalized_premises",
+            "unresolved_premises",
+            "premise_set_digest",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Label each premise with an explicit epistemic status and preserve source, observation time, context and confidence semantics; assumptions and hypotheses must never be represented as established facts.",
           "observable_fields": [
+            "normalized_premises",
+            "unresolved_premises",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "The normalized and unresolved collections form a complete, non-overlapping disposition of the input premise set; a premise cannot appear in both collections or neither.",
+          "observable_fields": [
+            "normalized_premises",
+            "unresolved_premises",
+            "premise_set_digest",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "premise_set_digest is reproducibly computed from a canonical representation of the exact input premise set and bound to model_version and context_id; it is not an arbitrary non-empty string.",
+          "observable_fields": [
+            "model_id",
+            "premise_set_digest",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Unverifiable source, missing temporal context, contradictory evidence or unknown epistemic status remains explicitly unresolved and fails closed where integrity cannot be established.",
+          "observable_fields": [
+            "normalized_premises",
+            "unresolved_premises",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never promote assumptions to facts. fail-closed"
+      "character_failure_rule": "Never promote assumptions to facts. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G03-PREMISE-MODEL-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "ec9def04fc1de19d7497d442207825a12b9b9c24",
+          "a2_contract_blob_before_review": "bacc95d392d2f7b73d02c4944e433754766fd115",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "c638e92f71321d438fc906fa59d45b683fe8dfb9",
+          "output_schema_blob": "e6781df8df05990ef2f961baf2b6cddc58d30190"
+        },
+        "confirmed_sufficient": [
+          "Input requires a non-empty premises array, unique premise_id values through collection metadata, and per-item premise_id, statement, source_refs, confidence and context.",
+          "Each premise confidence is constrained to the inclusive numeric range 0 through 1.",
+          "Input context_id, model_version, provenance and version_bound_evidence are required; undeclared top-level and premise-item properties are rejected.",
+          "Output requires model_id, premise_set_digest, normalized_premises, unresolved_premises, evidence and version_bound_evidence.",
+          "Output normalized and unresolved entries require premise_id and source_refs; confidence is range-constrained for normalized entries, and unresolved_reason is required for unresolved entries.",
+          "Output collection metadata declares unique premise IDs and deterministic ordering."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G03-PREM-SEM-01",
+            "severity": "HIGH",
+            "finding": "Input premise source_refs is an array of non-empty strings with uniqueItems, but has no minItems constraint; an empty source list can therefore pass schema validation despite the character obligation to label premises by source.",
+            "required_disposition": "Require at least one source reference for source-backed premises, or an explicit typed source-unavailable state with a reason and fail-closed disposition."
+          },
+          {
+            "gap_id": "G03-PREM-SEM-02",
+            "severity": "HIGH",
+            "finding": "The premise item has no explicit epistemic-status field. A statement and confidence number cannot distinguish observed fact, inference, assumption, hypothesis, opinion or unknown.",
+            "required_disposition": "Add a controlled epistemic-status vocabulary and rules preventing assumptions or hypotheses from being promoted to facts."
+          },
+          {
+            "gap_id": "G03-PREM-SEM-03",
+            "severity": "HIGH",
+            "finding": "The input item has context text but no structured observation/effective timestamp or source-time semantics; the output normalized item omits context and temporal metadata.",
+            "required_disposition": "Preserve source observation time, temporal validity and relevant context in normalized output, with explicit unknown-time handling."
+          },
+          {
+            "gap_id": "G03-PREM-SEM-04",
+            "severity": "HIGH",
+            "finding": "provenance is only constrained as a non-empty object. The schema does not require source identity, acquisition method, timestamp, integrity reference or verifiable origin fields.",
+            "required_disposition": "Define structured provenance and source-resolution evidence sufficient to reproduce the premise's origin and integrity."
+          },
+          {
+            "gap_id": "G03-PREM-SEM-05",
+            "severity": "HIGH",
+            "finding": "premise_set_digest is only a non-empty string and is not schema-bound to a canonical premise representation, context_id or model_version.",
+            "required_disposition": "Specify canonical serialization, digest algorithm/policy version and binding to exact premise set, context and model version."
+          },
+          {
+            "gap_id": "G03-PREM-SEM-06",
+            "severity": "HIGH",
+            "finding": "The output schema independently permits normalized_premises and unresolved_premises without enforcing that they are disjoint and together cover every input premise exactly once.",
+            "required_disposition": "Enforce complete, non-overlapping disposition of every input premise ID and reject omission, duplication or cross-list overlap."
+          },
+          {
+            "gap_id": "G03-PREM-SEM-07",
+            "severity": "MEDIUM",
+            "finding": "The output normalized item retains premise_id, normalized_statement, source_refs and confidence but drops the input context and has no epistemic status or temporal provenance fields.",
+            "required_disposition": "Preserve source, context, time and epistemic classification in each normalized premise; keep uncertainty visible."
+          },
+          {
+            "gap_id": "G03-PREM-SEM-08",
+            "severity": "MEDIUM",
+            "finding": "The schema's deterministic ordering annotations do not define the canonical ordering or normalization rules, while model_version is only a non-empty string.",
+            "required_disposition": "Bind normalization and deterministic ordering to a resolvable model version and versioned normalization policy."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g03.premise-model input/output schemas and its positive/negative conformance vectors to close G03-PREM-SEM-01 through G03-PREM-SEM-08.",
+          "Preserve the existing 12 chromosomes, 36 genes, gene identity, and all unrelated contracts.",
+          "Add explicit epistemic status, source/time provenance and context preservation; define verifiable source handling and confidence semantics.",
+          "Define canonical premise-set digest computation and complete, non-overlapping input-to-output disposition.",
+          "Do not grant authority, permit execution or turn an epistemic classification into authorization.",
+          "Run Draft 2020-12 meta-validation and exact-head positive/negative conformance tests only after A3 implementation is separately authorized."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g03.inference-rules",
