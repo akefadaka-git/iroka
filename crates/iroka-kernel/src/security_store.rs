@@ -152,6 +152,10 @@ impl SqliteSecurityStore {
                resource TEXT NOT NULL, policy_version TEXT NOT NULL, issued_at INTEGER NOT NULL,
                expires_at INTEGER NOT NULL, consumed_at INTEGER NOT NULL
              );
+             CREATE TABLE IF NOT EXISTS trust_bundle_documents (
+               version INTEGER PRIMARY KEY,
+               bundle_json TEXT NOT NULL
+             );
              CREATE TABLE IF NOT EXISTS trust_bundle_state (
                singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
                version INTEGER NOT NULL,
@@ -330,6 +334,20 @@ impl SqliteSecurityStore {
         expires_at: u64,
         installed_at: u64,
     ) -> Result<(), SecurityStoreError> {
+        self.install_trust_bundle_with_document(version, digest, issued_at, expires_at, installed_at, None)
+    }
+
+    /// Atomically persist the anti-rollback high-water mark and the complete
+    /// root-signed bundle needed to reconstruct a trust snapshot after restart.
+    pub(crate) fn install_trust_bundle_with_document(
+        &self,
+        version: u64,
+        digest: &[u8],
+        issued_at: u64,
+        expires_at: u64,
+        installed_at: u64,
+        bundle_json: Option<&str>,
+    ) -> Result<(), SecurityStoreError> {
         if version == 0 || issued_at >= expires_at || digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
         }
@@ -362,6 +380,20 @@ impl SqliteSecurityStore {
                 if current_digest != digest {
                     return Err(SecurityStoreError::ConflictingVersion);
                 }
+                if let Some(document) = bundle_json {
+                    tx.execute(
+                        "INSERT OR IGNORE INTO trust_bundle_documents(version, bundle_json) VALUES(?1, ?2)",
+                        params![version_i, document],
+                    ).map_err(|_| SecurityStoreError::Unavailable)?;
+                    let stored: String = tx.query_row(
+                        "SELECT bundle_json FROM trust_bundle_documents WHERE version=?1",
+                        params![version_i],
+                        |row| row.get(0),
+                    ).map_err(|_| SecurityStoreError::Unavailable)?;
+                    if stored != document {
+                        return Err(SecurityStoreError::ConflictingVersion);
+                    }
+                }
                 tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
@@ -378,7 +410,24 @@ impl SqliteSecurityStore {
             "INSERT INTO trust_bundle_history(version, digest, issued_at, expires_at, installed_at) VALUES(?1, ?2, ?3, ?4, ?5)",
             params![version_i, digest, issued_i, expires_i, installed_i]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if let Some(document) = bundle_json {
+            tx.execute(
+                "INSERT INTO trust_bundle_documents(version, bundle_json) VALUES(?1, ?2)",
+                params![version_i, document],
+            ).map_err(|_| SecurityStoreError::Unavailable)?;
+        }
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub(crate) fn latest_trust_bundle_document(&self) -> Result<Option<String>, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        connection.query_row(
+            "SELECT d.bundle_json FROM trust_bundle_documents d
+             JOIN trust_bundle_state s ON s.version=d.version
+             WHERE s.singleton=1",
+            [],
+            |row| row.get(0),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)
     }
 
     pub fn trust_bundle_history_count(&self) -> Result<u64, SecurityStoreError> {
