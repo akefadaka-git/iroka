@@ -1468,13 +1468,17 @@
       "case_id": "CHAR-G10.LEARNING-INPUT-P",
       "gene_id": "g10.learning-input",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (observations, source_refs, data_class, authorization_ref, provenance), valid provenance/version evidence and the baseline positive condition (eligible data isolated; prohibited input excluded), the gene must satisfy: Admit only provenance-tracked, rights-checked and purpose-authorized learning data.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given observations with independently verified canonical content digests, authenticated source and rights records, trusted timestamps, recognized data classifications and current item-level purpose authorization, produce an evidence-backed eligibility partition without granting downstream training permission.",
+      "expected": "Return a batch whose eligible and excluded sets exactly and disjointly partition all input observation IDs; every decision is policy-backed, reproducible and limited to screening eligibility.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "each observation content digest recomputes and source reference resolves",
+        "source rights and provenance are verified",
+        "timestamps are trusted, normalized and within freshness policy",
+        "classification resolves and is compatible at item and batch level",
+        "each eligible item has current purpose-specific authorization and no withdrawal/revocation",
+        "eligible/excluded IDs are unique, disjoint and complete",
+        "eligibility digest recomputes over canonical decisions and versioned evidence",
+        "eligibility does not authorize training, retention or model mutation"
       ],
       "existing_gene_io_case_id": "G10-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1482,19 +1486,25 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
         "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G10.LEARNING-INPUT-N",
       "gene_id": "g10.learning-input",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never learn from untrusted data as authoritative ground truth.), and the baseline negative condition (untrusted, unauthorized or prohibited data class), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given duplicate or unknown observation IDs, untrusted or mismatched source references, digest mismatch, stale/future timestamps, unknown/conflicting data classes, null/expired/revoked/withdrawn or purpose-mismatched authorization, or an incomplete/overlapping output partition, the gene must exclude affected data or fail closed.",
+      "expected": "Return explicit exclusions or fail-closed status with policy and provenance evidence; never promote untrusted or unauthorized data to eligible ground truth or imply permission for downstream learning.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "duplicate or unresolvable observation IDs rejected",
+        "source reference outside authenticated declared source set rejected",
+        "content digest mismatch rejected",
+        "stale, future or untrusted timestamp rejected",
+        "unknown or conflicting classification rejected",
+        "null, revoked, expired, withdrawn or purpose-mismatched authorization cannot be eligible",
+        "eligible/excluded sets cannot overlap, omit or invent IDs",
+        "digest mismatch or missing policy evidence fails closed",
+        "eligibility cannot grant downstream training/model-update permission"
       ],
       "existing_gene_io_case_id": "G10-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1502,7 +1512,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
         "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G10.CHANGE-PROPOSAL-P",
@@ -2406,6 +2417,31 @@
         "G09-ER-SEM-08",
         "G09-ER-SEM-09",
         "G09-ER-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G10-LEARNING-INPUT-SEMANTIC-REVIEW-001",
+      "gene_id": "g10.learning-input",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G10.LEARNING-INPUT-P",
+        "CHAR-G10.LEARNING-INPUT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G10-LI-SEM-01",
+        "G10-LI-SEM-02",
+        "G10-LI-SEM-03",
+        "G10-LI-SEM-04",
+        "G10-LI-SEM-05",
+        "G10-LI-SEM-06",
+        "G10-LI-SEM-07",
+        "G10-LI-SEM-08",
+        "G10-LI-SEM-09",
+        "G10-LI-SEM-10",
+        "G10-LI-SEM-11",
+        "G10-LI-SEM-12"
       ]
     }
   ]
