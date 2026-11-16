@@ -37,7 +37,7 @@
         "no_authority_created"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-P02",
@@ -51,7 +51,7 @@
         "candidate_epoch_gte_revocation_floor"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-N01",
@@ -64,7 +64,7 @@
         "effective_state_is_current"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-N02",
@@ -77,7 +77,7 @@
         "denial_code_authorization_invalid"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-N03",
@@ -89,7 +89,7 @@
         "candidate_never_effective"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-N04",
@@ -101,7 +101,7 @@
         "no_evidence_fabricated"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-N05",
@@ -113,7 +113,7 @@
         "authorization_cannot_override_conflict"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-N06",
@@ -125,7 +125,7 @@
         "second_use_rejected"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-B01",
@@ -137,7 +137,7 @@
         "all_other_gates_still_apply"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     },
     {
       "case_id": "RG-A3-B02",
@@ -150,7 +150,7 @@
         "no_integer_wraparound"
       ],
       "execution_status": "PASS",
-      "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f"
+      "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1"
     }
   ],
   "execution_status": "FULLY_EXECUTED",
@@ -169,13 +169,14 @@
   ],
   "not_run_case_ids": [],
   "execution_evidence": {
-    "workflow_run": "https://github.com/akefadaka-git/iroka/actions/runs/43857693448",
-    "tested_sha": "829c565d6a4a124bb6db0a8aa86463f8bca0666f",
-    "unit_tests": "84 passed, 0 failed",
+    "workflow_run": "https://github.com/akefadaka-git/iroka/actions/runs/43901502640",
+    "tested_sha": "7256107e81e2697f478f9af1a98998f8db6944a1",
+    "unit_tests": "102 passed, 0 failed",
     "integration_tests": "2 passed, 0 failed",
     "production_evidence_verifier": "IMPLEMENTED_AND_TESTED",
     "issuer_policy": "SUBJECT_SPECIFIC_ALLOWLISTS_TESTED",
-    "durable_replay_store": "TESTED",
-    "monotonic_revocation_floor_store": "TESTED"
+    "durable_replay_store": "CONCURRENT_NONCE_SINGLE_USE_AND_EXPIRY_TESTED",
+    "monotonic_revocation_floor_store": "MONOTONICITY_AND_REVISION_CONFLICT_TESTED",
+    "strict_clippy": "PASS"
   }
 }
