@@ -171,8 +171,8 @@ impl SignedOwnerSecurityCommand {
 /// Owner authority is established only by explicitly provisioned public keys.
 /// There is no default Owner, self-registration, model-issued authority or
 /// automatic privilege inheritance. Private keys remain in an offline signer/HSM.
-const OWNER_APPROVAL_DOMAIN: &[u8] = b"IROKA:G02:OWNER-APPROVAL:V1\\0";
-const OWNER_SECURITY_COMMAND_DOMAIN: &[u8] = b"IROKA:G02:OWNER-SECURITY-COMMAND:V1\\0";
+const OWNER_APPROVAL_DOMAIN: &[u8] = b"IROKA:G02:OWNER-APPROVAL:V1\0";
+const OWNER_SECURITY_COMMAND_DOMAIN: &[u8] = b"IROKA:G02:OWNER-SECURITY-COMMAND:V1\0";
 
 fn canonical_domain_bytes<T: Serialize>(
     value: &T,
