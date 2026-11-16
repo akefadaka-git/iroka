@@ -308,12 +308,34 @@ fn validate_lineage_snapshot(
     {
         return Err(TrustBundleError::Malformed);
     }
+    fn parse_version(value: &str) -> Option<(u64, u64, u64)> {
+        let mut parts = value.split('.');
+        let parse = |part: &str| {
+            if part.is_empty()
+                || (part.len() > 1 && part.starts_with('0'))
+                || !part.bytes().all(|byte| byte.is_ascii_digit())
+            {
+                return None;
+            }
+            part.parse::<u64>().ok()
+        };
+        let major = parse(parts.next()?)?;
+        let minor = parse(parts.next()?)?;
+        let patch = parse(parts.next()?)?;
+        if parts.next().is_some() { return None; }
+        Some((major, minor, patch))
+    }
+    fn valid_digest(value: &str) -> bool {
+        value.len() == 64
+            && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    }
     let mut by_version = BTreeMap::<String, &RegisteredLineageArtifact>::new();
     let mut roots = 0usize;
     let mut referenced_mutations = BTreeSet::new();
     for artifact in &payload.artifacts {
-        if artifact.gene_id != "g12.version-lineage" || artifact.version.trim().is_empty()
-            || artifact.artifact_digest.len() != 64
+        if artifact.gene_id != "g12.version-lineage"
+            || parse_version(&artifact.version).is_none()
+            || !valid_digest(&artifact.artifact_digest)
         {
             return Err(TrustBundleError::Malformed);
         }
@@ -328,7 +350,9 @@ fn validate_lineage_snapshot(
         match (&artifact.parent_version, &artifact.parent_digest, &artifact.mutation_id) {
             (None, None, None) if artifact.epoch == 0 => roots += 1,
             (Some(parent_version), Some(parent_digest), Some(mutation_id))
-                if !parent_version.is_empty() && parent_digest.len() == 64 && !mutation_id.is_empty() =>
+                if parse_version(parent_version).is_some()
+                    && valid_digest(parent_digest)
+                    && !mutation_id.is_empty() =>
             {
                 referenced_mutations.insert(mutation_id.clone());
             }
@@ -339,11 +363,13 @@ fn validate_lineage_snapshot(
     let mut mutation_by_id = BTreeMap::<String, &RegisteredMutationRecord>::new();
     for mutation in &payload.mutations {
         if !mutation.approved || !mutation.gates_passed
-            || mutation.source_version.as_deref().unwrap_or("").is_empty()
-            || mutation.source_digest.as_deref().unwrap_or("").len() != 64
-            || mutation.target_version.is_empty() || mutation.target_digest.len() != 64
-            || mutation.approval_commitment.len() != 64
-            || !mutation.approval_commitment.bytes().all(|b| b.is_ascii_hexdigit())
+            || mutation.mutation_ref.trim().is_empty()
+            || mutation.mutation_id.trim().is_empty()
+            || parse_version(mutation.source_version.as_deref().unwrap_or("")).is_none()
+            || !valid_digest(mutation.source_digest.as_deref().unwrap_or(""))
+            || parse_version(&mutation.target_version).is_none()
+            || !valid_digest(&mutation.target_digest)
+            || !valid_digest(&mutation.approval_commitment)
             || mutation_by_id.insert(mutation.mutation_id.clone(), mutation).is_some()
         {
             return Err(TrustBundleError::Malformed);
@@ -359,7 +385,10 @@ fn validate_lineage_snapshot(
             (&artifact.parent_version, &artifact.parent_digest, &artifact.mutation_id)
         {
             let parent = by_version.get(parent_version).ok_or(TrustBundleError::Malformed)?;
-            if parent.artifact_digest != *parent_digest || artifact.epoch <= parent.epoch {
+            if parent.artifact_digest != *parent_digest
+                || artifact.epoch <= parent.epoch
+                || parse_version(&artifact.version) <= parse_version(&parent.version)
+            {
                 return Err(TrustBundleError::Malformed);
             }
             let mutation = mutation_by_id.get(mutation_id).ok_or(TrustBundleError::Malformed)?;
