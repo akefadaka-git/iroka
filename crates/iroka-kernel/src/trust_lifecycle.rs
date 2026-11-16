@@ -379,10 +379,10 @@ mod tests {
             ..root
         };
         let store = SqliteSecurityStore::open_in_memory().unwrap();
-        assert_eq!(
+        assert!(matches!(
             verify_and_install_trust_bundle(&bundle, &expired_root, &store, 1_200),
             Err(TrustBundleError::RootOutsideValidity)
-        );
+        ));
         assert_eq!(store.highest_trust_bundle_version(), Ok(None));
     }
 
