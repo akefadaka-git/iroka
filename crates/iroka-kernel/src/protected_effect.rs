@@ -272,6 +272,7 @@ pub struct TrustedExecutorKey {
     pub public_key: [u8; 32],
     pub not_before: u64,
     pub not_after: u64,
+    pub revoked_at: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -420,6 +421,7 @@ impl ExecutionReceipt {
         if key.executor_subject != self.executor_subject
             || self.completed_at < key.not_before
             || self.completed_at >= key.not_after
+            || key.revoked_at.is_some_and(|revoked_at| self.completed_at >= revoked_at)
         {
             return Err(ProtectedEffectError::UnknownExecutorKey);
         }
@@ -492,6 +494,7 @@ pub enum ProtectedEffectError {
     OwnerApproval(OwnerApprovalError),
     AuditUnavailable,
     InvalidExecutorAttestation,
+    InvalidExecutorKeySet,
     UnknownExecutorKey,
     ReceiptIntegrityFailure,
     StoreUnavailable,
@@ -520,10 +523,28 @@ pub struct ProtectedExecutionContext<'a> {
     pub correlation_id: &'a str,
 }
 
+fn validate_executor_keys(keys: &[TrustedExecutorKey]) -> Result<(), ProtectedEffectError> {
+    let mut key_ids = std::collections::HashSet::new();
+    let mut public_keys = std::collections::HashSet::new();
+    for key in keys {
+        if key.executor_subject.trim().is_empty()
+            || key.key_id.trim().is_empty()
+            || key.not_before >= key.not_after
+            || VerifyingKey::from_bytes(&key.public_key).is_err()
+            || !key_ids.insert(key.key_id.as_str())
+            || !public_keys.insert(key.public_key)
+        {
+            return Err(ProtectedEffectError::InvalidExecutorKeySet);
+        }
+    }
+    Ok(())
+}
+
 pub fn execute_protected_effect(
     context: ProtectedExecutionContext<'_>,
 ) -> Result<ExecutionReceipt, ProtectedEffectError> {
     context.effect.validate()?;
+    validate_executor_keys(context.executor_keys)?;
     if context.principal.subject().trim().is_empty()
         || context.policy.version().trim().is_empty()
         || context.genesis.epoch() != 0
@@ -704,6 +725,7 @@ fn verify_execution_result(
     if key.executor_subject != p.executor_subject
         || p.completed_at < key.not_before
         || p.completed_at >= key.not_after
+        || key.revoked_at.is_some_and(|revoked_at| p.completed_at >= revoked_at)
     {
         return Err(ProtectedEffectError::UnknownExecutorKey);
     }
@@ -761,6 +783,7 @@ mod tests {
                 public_key: self.key.verifying_key().to_bytes(),
                 not_before: 900,
                 not_after: 5_000,
+                revoked_at: None,
             }
         }
 
