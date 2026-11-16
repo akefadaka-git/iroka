@@ -884,6 +884,97 @@ mod tests {
     }
 
     #[test]
+    fn g12_runtime_recovers_and_wires_all_governed_security_components() {
+        use std::fs;
+        use std::sync::Arc;
+        let (root_signer, root, trust_bundle) = fixture(1);
+        let roots = TrustRootSet::new(vec![root.clone()]).unwrap();
+        let signed_policy = signed_policy_fixture(&root_signer, &root, 2);
+        let signed_registry = signed_lineage_fixture(&root_signer, &root, 3);
+        let candidate_digest = signed_registry.payload.artifacts[2].artifact_digest.clone();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-g12-runtime-recovery-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            verify_and_install_trust_bundle(&trust_bundle, &root, &store, 1_100).unwrap();
+            verify_and_install_rollback_evidence_policy(&signed_policy, &roots, &store, 1_100).unwrap();
+            verify_and_install_version_lineage_snapshot(&signed_registry, &roots, &store, 1_100).unwrap();
+            store.integrity_check().unwrap();
+        }
+        let store = Arc::new(SqliteSecurityStore::open(&path).unwrap());
+        let runtime = G12SecurityRuntime::restore(&roots, Arc::clone(&store), 1_200).unwrap();
+        assert!(runtime.trust_snapshots().snapshot().is_ok());
+
+        let issuer_signer = SigningKey::from_bytes(&[41u8; 32]);
+        let mut receipt = crate::RollbackEvidenceReceipt {
+            subject: "current_state".into(),
+            subject_digest: "a".repeat(64),
+            subject_epoch: 1,
+            revision: 1,
+            issuer: "issuer:iroka-test".into(),
+            key_id: "issuer-key-1".into(),
+            issued_at: 1_100,
+            expires_at: 1_200,
+            nonce: "runtime-nonce-single-use-000001".into(),
+            signature: Vec::new(),
+        };
+        let binding = crate::EvidenceBinding {
+            subject: "current_state".into(),
+            digest: "a".repeat(64),
+            epoch: 1,
+            revision: 1,
+        };
+        let payload = serde_json::json!({
+            "subject": receipt.subject,
+            "subject_digest": receipt.subject_digest,
+            "subject_epoch": receipt.subject_epoch,
+            "revision": receipt.revision,
+            "issuer": receipt.issuer,
+            "key_id": receipt.key_id,
+            "issued_at": receipt.issued_at,
+            "expires_at": receipt.expires_at,
+            "nonce": receipt.nonce
+        });
+        receipt.signature = issuer_signer
+            .sign(&crate::canonical_json(&payload).unwrap())
+            .to_bytes()
+            .to_vec();
+        assert_eq!(runtime.evidence_verifier().verify(&receipt, &binding, 1_150), Ok(()));
+        assert_eq!(
+            runtime.evidence_verifier().verify(&receipt, &binding, 1_150),
+            Err(crate::EvidenceVerificationError::Replay)
+        );
+
+        let lineage = runtime.lineage_registry().resolve_lineage("1.2.0", &candidate_digest).unwrap();
+        assert_eq!(lineage.registry_revision, 3);
+        assert_eq!(lineage.ancestry.len(), 3);
+        assert_eq!(
+            lineage.mutation.as_ref().map(|mutation| mutation.mutation_ref.as_str()),
+            Some("mutation-ref-2")
+        );
+        drop(runtime);
+        drop(store);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
+    fn g12_runtime_fails_closed_when_any_governed_document_is_missing() {
+        use std::sync::Arc;
+        let (_, root, _) = fixture(1);
+        let roots = TrustRootSet::new(vec![root]).unwrap();
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        assert!(matches!(
+            G12SecurityRuntime::restore(&roots, store, 1_200),
+            Err(TrustBundleError::StoreUnavailable)
+        ));
+    }
+
+    #[test]
     fn signed_lineage_registry_is_atomically_provisioned_and_recovered() {
         use std::fs;
         let (signer, root, _) = fixture(1);
