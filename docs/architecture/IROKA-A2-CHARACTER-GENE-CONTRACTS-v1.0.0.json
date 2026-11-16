@@ -5481,32 +5481,37 @@
         {
           "field": "agent_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to a canonical authenticated principal; verify credential and lifecycle state and bind the request to that principal's current authenticated session."
         },
         {
           "field": "requested_capabilities",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve every identifier against an authenticated versioned capability registry; validate canonical semantics, scope and resource class. Treat the list as requests only."
         },
         {
           "field": "resource_limits",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate typed resource dimensions, canonical units, bounded values, platform ceilings, aggregation and inheritance; reject ambiguity or escalation."
         },
         {
           "field": "policy_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve and authenticate the exact immutable policy artifact; verify issuer, version, digest, scope, effective interval, precedence and revocation."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require resolvable provenance for principal/session, requested capability set, resource constraints, policy artifact and evaluator decision."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind the exact principal/session, capability registry, resource-limit model, policy digest/version and evaluator version to the result."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Declare least-privilege capabilities and known limits.",
+          "assertion": "Granted and denied capabilities are exact, disjoint subsets of the request and collectively account for every requested capability; no unrequested capability is emitted.",
           "observable_fields": [
             "granted_capabilities",
             "denied_capabilities",
@@ -5514,13 +5519,127 @@
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Every grant is independently justified by the authenticated principal, capability registry and effective policy; capability presence or profile membership never itself creates permission.",
           "observable_fields": [
+            "granted_capabilities",
+            "authority_granted",
             "evidence"
+          ]
+        },
+        {
+          "assertion": "Resource limits are typed, bounded and no broader than platform and policy ceilings; output limits cannot exceed validated input constraints.",
+          "observable_fields": [
+            "limits",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "authority_granted remains false unless a distinct authenticated authorization decision is explicitly supplied and bound; this gene alone cannot authorize or execute an action.",
+          "observable_fields": [
+            "authority_granted",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Profile identity and evidence reproduce the exact principal, request, policy, registry and evaluator versions; stale, unavailable or contradictory evidence fails closed.",
+          "observable_fields": [
+            "profile_id",
+            "evidence",
+            "version_bound_evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never infer permission from capability. fail-closed"
+      "character_failure_rule": "Never infer permission from capability. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G07-CAPABILITY-PROFILE-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "79d2dd72f496673c515adc991ec59b9906e55a86",
+          "a2_contract_blob_before_review": "03e3c2d4616b1174475bb4589ada0b63465d92fa",
+          "a2_catalog_blob_before_review": "cdf37ba86fbc30fbd6a9cbcf9f003bd0af8f934a",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "2e207ec7a69cf90b3e049d5ada5947bebb53de9e",
+          "output_schema_blob": "94a2a9ea832b5fecfed4d75554f39c7c07ebf606"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires agent_id, requested_capabilities, resource_limits, policy_id, provenance and version_bound_evidence; undeclared top-level fields are rejected.",
+          "requested_capabilities is an array of non-empty unique strings with at least one item; capability identifiers are not registry-bound by the schema.",
+          "resource_limits is an unconstrained object and policy_id is an unrestricted string.",
+          "Output schema requires profile_id, granted_capabilities, denied_capabilities, limits, authority_granted, evidence and version_bound_evidence.",
+          "Output capability items are non-empty unique strings, but subset/disjoint semantics are only described in x-genesis-collection-rules, a non-standard JSON Schema extension.",
+          "authority_granted is an unconstrained boolean; limits and profile_id have no semantic constraints.",
+          "provenance and version_bound_evidence are required non-empty opaque objects and do not enforce bindings to principal, request, policy or evaluator."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G07-CP-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "agent_id is an unrestricted string; no canonical authenticated principal lookup, credential validity, principal lifecycle or binding to the requesting session is required.",
+            "required_disposition": "Resolve agent_id to the authenticated canonical principal and bind the capability request to the verified principal identity, credential status and current session; reject unknown, revoked or mismatched principals."
+          },
+          {
+            "gap_id": "G07-CP-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "requested_capabilities are non-empty unique strings, but identifiers are not registry-bound, versioned, typed or scoped; the x-genesis-collection-rules extension is not a standard JSON Schema assertion.",
+            "required_disposition": "Resolve every requested capability against an authenticated, versioned capability registry defining canonical identifier, semantics, scope, resource class and lifecycle; treat all requests as untrusted claims, never grants."
+          },
+          {
+            "gap_id": "G07-CP-SEM-03",
+            "severity": "HIGH",
+            "finding": "resource_limits and output limits are unconstrained objects; units, dimensions, numeric bounds, aggregation, inheritance, hard ceilings and conflict handling are undefined.",
+            "required_disposition": "Define typed resource dimensions, canonical units, positive/bounded values, hard platform ceilings, aggregation and inheritance rules; reject unknown dimensions, ambiguous units and limit escalation."
+          },
+          {
+            "gap_id": "G07-CP-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "policy_id is an unrestricted string; policy issuer, authenticity, immutable version/digest, effective interval, jurisdiction, precedence and revocation are not verified.",
+            "required_disposition": "Resolve policy_id to an authenticated immutable policy artifact and verify issuer, version, digest, scope, effective interval, precedence and revocation; fail closed for missing or conflicting policy."
+          },
+          {
+            "gap_id": "G07-CP-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "Output granted/denied lists have unique non-empty strings, but subset/disjoint constraints exist only as non-standard x-genesis metadata and are not enforced by standard JSON Schema; omissions and unrequested capabilities are not addressed.",
+            "required_disposition": "Require granted and denied sets to be exact subsets of the request, mutually disjoint and collectively account for every request; reject unrequested, duplicate, omitted or contradictory entries."
+          },
+          {
+            "gap_id": "G07-CP-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "authority_granted is an unconstrained boolean and can be true without a separately authenticated authorization decision; the field risks conflating a capability profile with authority or permission to execute.",
+            "required_disposition": "Define this gene as profile evaluation only; authority_granted must not be inferred from requested or granted capabilities and must remain false absent a separately authenticated, scope-bound authorization decision from the authority system."
+          },
+          {
+            "gap_id": "G07-CP-SEM-07",
+            "severity": "HIGH",
+            "finding": "profile_id and evidence are insufficiently specified; provenance and version_bound_evidence are opaque non-empty objects that need not bind the principal, exact request, policy, capability registry, resource limits or evaluation result.",
+            "required_disposition": "Define deterministic profile identity and structured reproducible evidence binding principal/session, canonical request, capability registry, resource-limit model, exact policy artifact, evaluator version and per-capability decisions."
+          },
+          {
+            "gap_id": "G07-CP-SEM-08",
+            "severity": "HIGH",
+            "finding": "No cross-field or temporal semantics define least privilege, policy changes, expiry, revocation propagation, resource-limit monotonicity or deterministic treatment of stale/unavailable/contradictory inputs.",
+            "required_disposition": "Specify least-privilege decision rules, effective/expiry times, policy and capability revocation propagation, limit monotonicity and fail-closed outcomes for stale, unavailable or contradictory evidence."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g07.capability-profile schemas and its conformance vectors to close G07-CP-SEM-01 through G07-CP-SEM-08.",
+          "Define authenticated principal/session resolution, a versioned capability registry, typed resource limits and authenticated immutable policy resolution.",
+          "Enforce exact request/grant/deny set invariants and resource ceilings with executable standard schema constraints where expressible and semantic validation for cross-field rules.",
+          "Prevent capability/profile evaluation from creating authority or execution permission; require a separate authenticated authorization decision.",
+          "Bind deterministic profile identity and reproducible evidence to exact principal, request, registry, limits, policy and evaluator versions.",
+          "Preserve 12 chromosomes, 36 genes and unrelated contracts; validate schemas and conformance only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g07.delegation-boundary",
