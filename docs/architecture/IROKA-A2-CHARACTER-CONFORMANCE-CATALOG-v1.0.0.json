@@ -1372,13 +1372,17 @@
       "case_id": "CHAR-G09.ADMISSION-GATE-P",
       "gene_id": "g09.admission-gate",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (effect_id, authorization_ref, authorization_signature, policy_digest, expires_at, nonce, provenance), valid provenance/version evidence and the baseline positive condition (valid scoped authorization admits; invalid/replayed authorization denied), the gene must satisfy: Require exact, current, scoped authorization and all mandatory safety gates.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given a canonical admissible effect contract and a current signed authorization whose issuer, subject, audience, tenant, exact effect and resource scope are verified; trusted policy snapshot and clock evidence resolve; signature and revocation checks pass; and a fresh nonce is atomically consumed once, admit the request without executing the effect.",
+      "expected": "Return the existing output contract with admitted=true, denial_code=null, a verified authorization_digest and consumed_nonce equal to the successfully consumed nonce; provide reproducible evidence and no authority or execution expansion.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "effect contract identity and immutable digest match",
+        "authorization issuer, subject, audience, tenant and exact scope verified",
+        "signature and signing-key trust/revocation verified",
+        "policy digest resolves to current immutable policy",
+        "validity interval checked using trusted clock",
+        "nonce atomically consumed exactly once",
+        "admitted and denial_code are consistent",
+        "admission does not execute the effect"
       ],
       "existing_gene_io_case_id": "G09-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1392,13 +1396,17 @@
       "case_id": "CHAR-G09.ADMISSION-GATE-N",
       "gene_id": "g09.admission-gate",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Fail closed on missing, expired, conflicting or unverifiable approval.), and the baseline negative condition (missing, invalid, expired or replayed authorization), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given a missing, unknown, substituted, out-of-scope, unsigned or invalidly signed authorization; revoked signer/key or authorization; stale policy; expired/not-yet-valid authorization; replayed/concurrently reused nonce; unavailable revocation/clock evidence; or contradictory admission output, the gene must fail closed.",
+      "expected": "Return admitted=false with a stable denial_code, truthful consumed_nonce semantics and evidence identifying the failed or unresolved check; do not fabricate verification, silently admit or execute the effect.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown or mismatched effect/authorization rejected",
+        "signature and signer/key trust failures rejected",
+        "revoked or suspended authorization denied",
+        "stale policy and invalid time interval denied",
+        "nonce replay and concurrent duplicate consumption denied",
+        "missing or conflicting evidence fails closed",
+        "admitted/denial_code/consumed_nonce consistency enforced",
+        "no execution or authority is inferred from admission"
       ],
       "existing_gene_io_case_id": "G09-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -2344,6 +2352,29 @@
         "G09-EC-SEM-08",
         "G09-EC-SEM-09",
         "G09-EC-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G09-ADMISSION-GATE-SEMANTIC-REVIEW-001",
+      "gene_id": "g09.admission-gate",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G09.ADMISSION-GATE-P",
+        "CHAR-G09.ADMISSION-GATE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G09-AG-SEM-01",
+        "G09-AG-SEM-02",
+        "G09-AG-SEM-03",
+        "G09-AG-SEM-04",
+        "G09-AG-SEM-05",
+        "G09-AG-SEM-06",
+        "G09-AG-SEM-07",
+        "G09-AG-SEM-08",
+        "G09-AG-SEM-09",
+        "G09-AG-SEM-10"
       ]
     }
   ]
