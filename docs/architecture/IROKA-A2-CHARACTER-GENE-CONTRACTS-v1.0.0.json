@@ -2339,32 +2339,37 @@
         {
           "field": "hypotheses",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require non-empty hypotheses with unique IDs. Validate prior_probability semantics against a declared prior model and avoid treating a prior as observed evidence. Require the complete hypothesis space or explicitly mark omitted alternatives and open-world uncertainty."
         },
         {
           "field": "evidence_items",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve each unique evidence_id and source_ref to verifiable evidence; require each hypothesis_id to resolve. Define weight semantics per method and source reliability, independence and correlation; do not treat a generic [0,1] weight as a calibrated probability. Preserve supports/refutes/neutral polarity and detect duplicate or dependent evidence."
         },
         {
           "field": "calibration_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve calibration_id to an immutable, versioned calibration profile applicable to the selected method, domain and population; reject unknown, stale, mismatched or unsupported profiles."
         },
         {
           "field": "method",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Use only the declared method enum and require method-specific input validation and calculation semantics. Do not silently switch methods; expose limitations and assumptions for Bayesian, interval and qualitative calculations."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require structured provenance for hypotheses, evidence sources, weights, calibration profile and evaluator; a non-empty arbitrary object is insufficient."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind the assessment to exact hypothesis set, evidence set, calibration profile, method, schema and evaluator versions for reproducibility."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Propagate uncertainty and calibrate confidence to evidence.",
+          "assertion": "Every hypothesis receives an estimate or an explicit unresolved/insufficient disposition; estimates are not fabricated and are bound to the exact input hypothesis set.",
           "observable_fields": [
             "estimates",
             "uncertainty_bounds",
@@ -2373,14 +2378,132 @@
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Every estimate and bound is finite, lies in [0,1], and satisfies lower_bound <= estimate <= upper_bound; the bounds express the selected method's uncertainty semantics.",
           "observable_fields": [
+            "estimates",
+            "uncertainty_bounds",
+            "calibration_status"
+          ]
+        },
+        {
+          "assertion": "Calibration status truthfully distinguishes valid, insufficient and invalid calibration; insufficient or invalid calibration cannot be represented as a fully calibrated estimate.",
+          "observable_fields": [
+            "calibration_status",
+            "estimates",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "The output exposes the calculation method, calibration profile/version, assumptions, evidence contribution and limitations for every hypothesis.",
+          "observable_fields": [
+            "estimates",
+            "uncertainty_bounds",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Evidence weights and estimates account for refuting and neutral evidence, source reliability, dependence and missing evidence; no selective suppression is permitted.",
+          "observable_fields": [
+            "estimates",
+            "uncertainty_bounds",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Uncertainty bounds are structurally defined, method-consistent and reproducible; no arbitrary additional properties or hidden uncertainty suppression.",
+          "observable_fields": [
+            "uncertainty_bounds",
             "calibration_status",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never suppress uncertainty to appear decisive. fail-closed"
+      "character_failure_rule": "Never suppress uncertainty to appear decisive. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G03-UNCERTAINTY-CALCULUS-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "514d5059d22b26fb42399d0d2fa95a1b1ea53c3c",
+          "a2_contract_blob_before_review": "4fcbb316937a18ea6661f23035988873dec290d5",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "3baae4e605525c3d14450b4cc043e21a58554e30",
+          "output_schema_blob": "a5e8f00e72ebed0bc20059707c7aacaabffbb77e"
+        },
+        "confirmed_sufficient": [
+          "Input requires at least one hypothesis with unique hypothesis IDs, non-empty statement and prior_probability constrained to [0,1].",
+          "Evidence items require unique evidence IDs, hypothesis references, non-empty source references, weights constrained to [0,1], and supports/refutes/neutral polarity.",
+          "Method is restricted to bayesian, interval or qualitative; calibration_id and provenance are required.",
+          "Output requires estimates, uncertainty_bounds, calibration_status and evidence; calibration_status is restricted to valid, insufficient or invalid.",
+          "Estimate items require hypothesis ID, estimate, lower/upper bounds and method; numeric estimate and bounds are constrained to [0,1]."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G03-UNC-SEM-01",
+            "severity": "HIGH",
+            "finding": "evidence_items has no minItems constraint; an assessment with hypotheses but no evidence can pass schema validation without explicit evidence-insufficiency handling.",
+            "required_disposition": "Require evidence or an explicit no-evidence/insufficient-calibration path that cannot emit a misleading calibrated estimate."
+          },
+          {
+            "gap_id": "G03-UNC-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "prior_probability and evidence weight are bounded [0,1] but their statistical meanings, calibration, likelihood interpretation and aggregation are undefined.",
+            "required_disposition": "Define method-specific semantics for priors, evidence weights and likelihood/interval/qualitative aggregation; reject incompatible or uncalibrated values."
+          },
+          {
+            "gap_id": "G03-UNC-SEM-03",
+            "severity": "HIGH",
+            "finding": "calibration_id is only a non-empty string and is not bound to a versioned calibration profile, domain, population or method.",
+            "required_disposition": "Resolve calibration ID against immutable profile metadata and validate applicability to the selected method and domain."
+          },
+          {
+            "gap_id": "G03-UNC-SEM-04",
+            "severity": "HIGH",
+            "finding": "Evidence source_ref is a non-empty string and provenance is a non-empty object; neither requires source integrity, origin, time, reliability or verifiable provenance.",
+            "required_disposition": "Require structured, resolvable evidence-source metadata, integrity and temporal provenance."
+          },
+          {
+            "gap_id": "G03-UNC-SEM-05",
+            "severity": "HIGH",
+            "finding": "Output uncertainty_bounds is an object with additionalProperties:true and no required shape, so arbitrary or incomplete bounds can pass.",
+            "required_disposition": "Define strict method-specific uncertainty-bound structures and reject undeclared fields or missing required uncertainty dimensions."
+          },
+          {
+            "gap_id": "G03-UNC-SEM-06",
+            "severity": "HIGH",
+            "finding": "Schema annotations state lower_bound <= estimate <= upper_bound, but JSON Schema does not enforce the cross-field relation or finite-number semantics.",
+            "required_disposition": "Add executable conformance assertions for ordering, finite values and [0,1] constraints; ensure runtime rejects NaN/infinity and invalid ordering."
+          },
+          {
+            "gap_id": "G03-UNC-SEM-07",
+            "severity": "HIGH",
+            "finding": "The output does not require a one-to-one complete mapping between input hypotheses and estimates, nor explicit per-hypothesis insufficient/unresolved results.",
+            "required_disposition": "Require complete hypothesis disposition with unique IDs and explicit unresolved states; prevent omitted or fabricated hypotheses."
+          },
+          {
+            "gap_id": "G03-UNC-SEM-08",
+            "severity": "MEDIUM",
+            "finding": "The output estimate method is any non-empty string and is not required to match the input method; no explicit contribution, correlation, assumption or limitation trace is required.",
+            "required_disposition": "Bind each output method to the selected input method and expose evidence contributions, dependencies, assumptions and limitations."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g03.uncertainty-calculus input/output schemas and its positive/negative conformance vectors to close G03-UNC-SEM-01 through G03-UNC-SEM-08.",
+          "Define method-specific semantics and calibration binding for Bayesian, interval and qualitative approaches; preserve the distinction between confidence, probability and qualitative judgment.",
+          "Define strict uncertainty-bound output, cross-field numerical checks, complete hypothesis disposition and evidence provenance.",
+          "Keep uncertainty visible; do not let an estimate or confidence value create authority, approval or execution permission.",
+          "Run Draft 2020-12 meta-validation and exact-head conformance tests only after separately authorized A3 implementation."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g04.knowledge-schema",
