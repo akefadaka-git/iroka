@@ -551,10 +551,7 @@ mod tests {
         )
         .unwrap();
         audit.persist_checkpoint_evidence(&evidence, 2_001).unwrap();
-        assert_eq!(
-            audit.persist_checkpoint_evidence(&evidence, 2_002),
-            Ok(())
-        );
+        assert_eq!(audit.persist_checkpoint_evidence(&evidence, 2_002), Ok(()));
         let (checkpoint_bytes, receipt_bytes) = audit
             .latest_checkpoint_evidence_bytes("audit-stream:alpha")
             .unwrap()
