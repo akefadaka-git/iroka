@@ -672,7 +672,8 @@ mod tests {
         let empty = Vec::new();
         let input = fixture(2, 3, 4, &current, &candidate, None, &empty, &empty);
         let (_, owner_verifier) = owner();
-        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let result =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(result.denial_code, RollbackDenialCode::EvidenceInvalid);
         assert_eq!(result.effective_state, EffectiveState::Unresolved);
         assert_eq!(result.effective_epoch, None);
