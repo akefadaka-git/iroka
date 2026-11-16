@@ -1,6 +1,6 @@
 //! Root-signed trust-bundle lifecycle: verification, expiry and rollback protection.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -52,11 +52,15 @@ impl SignedTrustBundle {
             root_key_id: &'a str,
             payload: &'a TrustBundlePayload,
         }
-        serde_json::to_vec(&Envelope {
+        let value = serde_json::to_value(Envelope {
             root_key_id,
             payload,
         })
-        .map_err(|_| TrustBundleError::Malformed)
+        .map_err(|_| TrustBundleError::Malformed)?;
+        let canonical = crate::canonical_json(&value).map_err(|_| TrustBundleError::Malformed)?;
+        let mut signing_bytes = b"IROKA:G01:TRUST-BUNDLE:V1\0".to_vec();
+        signing_bytes.extend_from_slice(&canonical);
+        Ok(signing_bytes)
     }
 
     pub fn signing_bytes(&self) -> Result<Vec<u8>, TrustBundleError> {
@@ -115,11 +119,14 @@ impl TrustRootSet {
             return Err(TrustBundleError::InvalidRoot);
         }
         let mut indexed = HashMap::new();
+        let mut public_keys = HashSet::new();
         for root in roots {
+            let public_key = root.public_key;
             if root.key_id.trim().is_empty()
                 || root.not_before >= root.not_after
                 || root.provenance_ref.trim().is_empty()
-                || VerifyingKey::from_bytes(&root.public_key).is_err()
+                || VerifyingKey::from_bytes(&public_key).is_err()
+                || !public_keys.insert(public_key)
                 || indexed.insert(root.key_id.clone(), root).is_some()
             {
                 return Err(TrustBundleError::InvalidRoot);
@@ -318,6 +325,17 @@ mod tests {
     }
 
     #[test]
+    fn trust_bundle_signing_bytes_are_canonical_and_domain_separated() {
+        let (_, root, bundle) = fixture(1);
+        let bytes = bundle.signing_bytes().unwrap();
+        assert!(bytes.starts_with(b"IROKA:G01:TRUST-BUNDLE:V1\0"));
+        assert_eq!(
+            bytes,
+            SignedTrustBundle::signing_bytes_for(&root.key_id, &bundle.payload).unwrap()
+        );
+    }
+
+    #[test]
     fn accepts_root_signed_bundle_and_persists_version() {
         let (_, root, bundle) = fixture(1);
         let store = SqliteSecurityStore::open_in_memory().unwrap();
@@ -351,6 +369,21 @@ mod tests {
             TrustBundleError::Expired
         );
         let _ = signer;
+    }
+
+    #[test]
+    fn rejects_root_outside_its_validity_window() {
+        let (_, root, bundle) = fixture(1);
+        let expired_root = TrustRoot {
+            not_after: 1_100,
+            ..root
+        };
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            verify_and_install_trust_bundle(&bundle, &expired_root, &store, 1_200),
+            Err(TrustBundleError::RootOutsideValidity)
+        );
+        assert_eq!(store.highest_trust_bundle_version(), Ok(None));
     }
 
     #[test]
@@ -580,6 +613,29 @@ mod tests {
             ),
             Err(crate::CredentialError::UnknownKey)
         );
+    }
+
+    #[test]
+    fn rejects_duplicate_trust_root_public_keys_under_different_ids() {
+        let signer = SigningKey::from_bytes(&[31u8; 32]);
+        let public_key = signer.verifying_key().to_bytes();
+        let roots = TrustRootSet::new(vec![
+            TrustRoot {
+                key_id: "root:one".into(),
+                public_key,
+                not_before: 900,
+                not_after: 10_000,
+                provenance_ref: "root-one".into(),
+            },
+            TrustRoot {
+                key_id: "root:two".into(),
+                public_key,
+                not_before: 900,
+                not_after: 10_000,
+                provenance_ref: "root-two".into(),
+            },
+        ]);
+        assert!(matches!(roots, Err(TrustBundleError::InvalidRoot)));
     }
 
     #[test]
