@@ -6931,42 +6931,42 @@
         {
           "field": "effect_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to a canonical, active, versioned effect registry entry; bind the exact revision to this evaluation and reject unknown, duplicate, retired, aliased or substituted identifiers. Identifier presence grants no authority."
         },
         {
           "field": "effect_type",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve against a versioned controlled effect-type taxonomy; reject unknown or deprecated types and bind the selected type to the registered operation semantics and risk policy."
         },
         {
           "field": "target",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated canonical target identity; verify tenant/resource ownership, target status and permitted target class. A target label is not proof of ownership or authorization."
         },
         {
           "field": "resource_scope",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-empty set of canonical, registry-resolved resource identifiers with explicit tenant and boundary binding; reject duplicates, aliases, ambiguous scope and any attempted scope expansion. Scope is descriptive and never grants access."
         },
         {
           "field": "risk_class",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Derive or verify risk_class using a versioned risk taxonomy and policy against the effect type, target, resource scope and impact evidence; reject caller-supplied downgrades, unknown classes or policy conflicts."
         },
         {
           "field": "operation_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute from a canonical, unambiguous operation representation using an approved versioned digest algorithm; bind it to effect_id, effect_type, target, resource_scope and risk_class. The current input has no operation payload/reference, so independent recomputation is not possible from this schema alone."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Authenticate issuer/source and freshness; bind provenance and version_bound_evidence to every decision-relevant input, registry entry, risk policy and evaluated contract revision. Non-empty objects alone are insufficient; missing, stale or conflicting evidence fails closed."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Assess affected parties, proportionality, reversibility and resource impact before effects.",
+          "assertion": "Assess affected parties, proportionality, reversibility and resource impact before effects; each dimension must be evidenced or explicitly marked unknown/not assessed, and material unknowns cannot produce admissibility.",
           "observable_fields": [
             "contract_valid",
             "decision",
@@ -6974,15 +6974,147 @@
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Never cause unauthorized, deceptive or needlessly harmful effects; prohibited, deceptive, disproportionate or materially harmful effects are inadmissible and their rationale is evidenced.",
           "observable_fields": [
             "contract_valid",
             "decision",
             "evidence"
           ]
+        },
+        {
+          "assertion": "Keep contract_valid and decision logically consistent: contract_valid=true is permitted only with decision=admissible and all required checks satisfied; false, unresolved or failed checks require decision=inadmissible.",
+          "observable_fields": [
+            "contract_valid",
+            "decision",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "required_authorization enumerates requirements from a trusted versioned registry only; it neither grants nor proves approval, authorization or permission to execute.",
+          "observable_fields": [
+            "required_authorization",
+            "decision",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "effect_digest deterministically binds the exact canonical effect definition, target, resource scope, risk classification and operation digest; mismatch or unverifiable binding is inadmissible.",
+          "observable_fields": [
+            "effect_id",
+            "effect_digest",
+            "decision",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Evidence permits independent reproduction of provenance, policy/risk classification, impact assessment and decision rationale; unknown, missing, stale or conflicting evidence is disclosed, never fabricated or silently downgraded.",
+          "observable_fields": [
+            "evidence",
+            "contract_valid",
+            "decision"
+          ]
         }
       ],
-      "character_failure_rule": "Never cause unauthorized, deceptive or needlessly harmful effects. fail-closed"
+      "character_failure_rule": "Never cause unauthorized, deceptive or needlessly harmful effects. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G09-EFFECT-CONTRACT-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "891a3fc6aff42c8be3d50c690caee193e86b11e5",
+          "a2_contract_blob_before_review": "86db991ebcb90892d858ac4b69634590005d8c09",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "5dad381b35a897f3a74ed9e481ea7e6debea3be1",
+          "output_schema_blob": "6a753ebfdfacfbd0b3f9492b675d8a475b703c45"
+        },
+        "confirmed_sufficient": [
+          "Input requires effect_id, effect_type, target, resource_scope, risk_class, operation_digest, provenance and version_bound_evidence; undeclared top-level properties are rejected.",
+          "resource_scope is a non-empty array of unique non-empty strings; the schema includes a non-standard x-genesis note that scope is descriptive and does not itself authorize execution.",
+          "Output requires effect_id, contract_valid, required_authorization, effect_digest, decision, evidence and version_bound_evidence; decision is limited to admissible or inadmissible.",
+          "Output contract_valid is boolean and required_authorization is a unique array of strings; top-level undeclared output properties are rejected.",
+          "Evidence definitions require provenance and version_bound_evidence objects, each with at least one property."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G09-EC-SEM-01",
+            "severity": "HIGH",
+            "finding": "effect_id is an unconstrained string; no canonical effect registry, uniqueness, lifecycle or immutable revision binding is enforced.",
+            "required_disposition": "Bind effect_id to a canonical versioned effect registry and immutable effect-contract revision; reject unknown, duplicate, retired or substituted identifiers."
+          },
+          {
+            "gap_id": "G09-EC-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "effect_type, target and risk_class are unrestricted strings; schemas do not establish controlled vocabularies, target identity, target ownership or authoritative risk classification.",
+            "required_disposition": "Use versioned registries for effect types, targets and risk classes; authenticate target identity/ownership and reject unknown or mismatched classifications."
+          },
+          {
+            "gap_id": "G09-EC-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "resource_scope items are non-empty strings and unique, while canonical resource identifiers and no-authorization semantics exist only in non-standard x-genesis metadata.",
+            "required_disposition": "Define canonical resource identifier syntax/registry, tenant and boundary binding, and enforce that descriptive scope cannot grant access or expand authority."
+          },
+          {
+            "gap_id": "G09-EC-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "operation_digest is an unrestricted string; canonical serialization, digest algorithm, operation payload binding and recomputation are unspecified.",
+            "required_disposition": "Bind the digest to a canonical operation representation, approved algorithm/version and exact effect, target and resource scope; require independent recomputation."
+          },
+          {
+            "gap_id": "G09-EC-SEM-05",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects; source authenticity, freshness, issuer, policy version and exact field binding are not structurally required.",
+            "required_disposition": "Define typed, authenticated provenance and version evidence bound to every decision-relevant input and the evaluated contract/policy revisions."
+          },
+          {
+            "gap_id": "G09-EC-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "The contract has no explicit structured fields or rules for affected parties, proportionality, reversibility, resource impact or harm assessment, despite the character obligation requiring these assessments.",
+            "required_disposition": "Specify evidence-backed impact assessment dimensions and explicit unknown/not-assessed states; unresolved material impact must fail closed for inadmissible effects."
+          },
+          {
+            "gap_id": "G09-EC-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "required_authorization is only an array of strings; the schema does not bind requirements to an authority registry or distinguish identifying required approvals from granting or satisfying them.",
+            "required_disposition": "Resolve each required authorization to a versioned authority/approval requirement registry; make clear this output is descriptive and never itself an authorization or execution permit."
+          },
+          {
+            "gap_id": "G09-EC-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "contract_valid and decision can contradict one another; no conditional schema rule requires a valid contract to be admissible or an invalid/prohibited contract to be inadmissible.",
+            "required_disposition": "Enforce consistency between contract_valid and decision, with explicit treatment of unresolved evidence and fail-closed inadmissibility."
+          },
+          {
+            "gap_id": "G09-EC-SEM-09",
+            "severity": "HIGH",
+            "finding": "effect_digest is an unrestricted string and is not required to match the canonical operation digest or the evaluated effect-contract inputs.",
+            "required_disposition": "Define deterministic effect-digest construction and bind it to effect identity, type, target, canonical resource scope, risk classification and operation digest."
+          },
+          {
+            "gap_id": "G09-EC-SEM-10",
+            "severity": "HIGH",
+            "finding": "Output evidence requires only provenance and version_bound_evidence objects; it does not require reproducible impact, risk, policy, authorization-requirement or decision-rationale evidence.",
+            "required_disposition": "Require structured evidence sufficient to reproduce the admissibility decision and expose missing, conflicting or unverifiable assessments."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g09.effect-contract input/output schemas and its conformance vectors to address G09-EC-SEM-01 through G09-EC-SEM-10.",
+          "Introduce canonical registries and typed references for effect identity/type, target, resource scope, risk class and required authorization requirements.",
+          "Add a verifiable operation representation/reference and deterministic digest rules; bind effect_digest to the canonical evaluated inputs.",
+          "Add structured, evidence-backed affected-party, proportionality, reversibility and resource-impact assessment with explicit unknown states and fail-closed handling.",
+          "Add schema-level conditional constraints and conformance vectors for contract_valid/decision consistency and authorization non-escalation.",
+          "Preserve the existing 12 chromosomes, 36 genes, all unrelated gene contracts and the separation between contract admissibility, authorization and execution.",
+          "Run Draft 2020-12 meta-validation and exact-head schema/conformance tests only after A3 implementation is separately authorized."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g09.admission-gate",
