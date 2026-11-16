@@ -53,8 +53,7 @@ pub use request::AuthorizationRequest;
 pub use rollback_guard::{
     evaluate_rollback_guard, EffectiveState, EvidenceBinding, EvidenceVerificationError,
     RollbackDenialCode, RollbackEvidenceReceipt, RollbackEvidenceSummary, RollbackEvidenceVerifier,
-    RollbackGuardDecision,
-    RollbackGuardInput,
+    RollbackGuardDecision, RollbackGuardInput,
 };
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
