@@ -102,8 +102,8 @@ Merge: NOT AUTHORIZED. Deployment: NOT AUTHORIZED.
 
 ## G12 version-lineage — A3 runtime evaluator increment
 
-**Tested code head:** `59dd1ee0f15c4b34620d62cdc08699786c8d9994`  
-**Workflow:** [Rust kernel verification run #1638](https://github.com/akefadaka-git/iroka/actions/runs/43860553147) — **PASS**
+**Tested code head:** `0d630178807ceabc3e189a5d935395020b2da349`  
+**Workflow:** [Rust kernel verification run #1665](https://github.com/akefadaka-git/iroka/actions/runs/43902351760) — **PASS**
 
 Implemented:
 - Read-only `evaluate_version_lineage` with canonical MAJOR.MINOR.PATCH parsing and SHA-256/RFC 8785 JCS artifact digest recomputation.
@@ -116,12 +116,12 @@ Implemented:
 - Derived `linked`/`epoch_monotonic` flags and deterministic versioned lineage digest; no mutation or authority effects.
 
 ### Exact-head verification
-- Rust unit tests: **98 passed, 0 failed**
+- Rust unit tests: **102 passed, 0 failed**
 - Integration/contract tests: **2 passed, 0 failed**
 - Formatting, workspace compile, no-default-features check, static schema/traceability audit and Clippy: PASS
 - Static audit: 12 chromosomes, 36 genes, 72 frozen A2 schemas, 72 A2 cases, 36 closed reviews, version-bound evidence 72/72, G12 rollback-guard 10 vectors, G12 version-lineage 12 vectors.
 
-All 12 version-lineage vectors have unit-test coverage and PASS using a static test registry and test evidence verifier. Production Ed25519 evidence verification is separately implemented and tested, including dynamic subject issuer patterns. The **production VersionLineageRegistry adapter is NOT IMPLEMENTED**; authoritative registry persistence, signed registry snapshot provisioning and production integration remain outstanding. Therefore the evaluator is unit-tested against its registry contract, not yet production-integrated.
+All 12 version-lineage vectors have unit-test coverage and PASS using a static test registry and test evidence verifier. Production Ed25519 evidence verification is separately implemented and tested, including dynamic subject issuer patterns. A read-only SQLite-backed `VersionLineageRegistry` adapter is implemented in `SqliteSecurityStore`. It resolves the candidate, ancestry, immutable mutation record and registry revision from one deferred read transaction, so the evaluator sees a consistent database snapshot; unknown versions, cycles, malformed ancestry, missing mutation records and storage failures fail closed. Adapter tests cover valid immutable ancestry/mutation resolution, registry revision, unknown versions and cyclic ancestry. The evaluator's 12 conformance vectors remain unit-tested and PASS. However, a governed registry provisioning/write pipeline, signed registry snapshot publication, operational persistence/recovery tests and production application wiring remain outstanding. The adapter is implemented; operational provisioning and deployment integration are not yet complete.
 
 G12 version-lineage A3 status: **IMPLEMENTED / UNIT-TESTED / PRODUCTION-ADAPTER-PENDING**.  
 Independent external security review: NOT RECEIVED.  
