@@ -833,13 +833,14 @@
       "case_id": "CHAR-G05.INTEGRITY-CHECKPOINT-P",
       "gene_id": "g05.integrity-checkpoint",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (snapshot_digest, sequence, previous_checkpoint, authority_ref, provenance), valid provenance/version evidence and the baseline positive condition (monotonic checkpoint accepted; rollback rejected), the gene must satisfy: Detect unauthorized memory alteration and preserve verifiable checkpoints.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given canonical snapshot material matching snapshot_digest, a registered digest policy, a valid genesis or authenticated prior checkpoint, a strictly valid sequence transition, authenticated in-scope authority, and provenance/version evidence bound to the exact checkpoint, the gene must detect unauthorized alteration and preserve verifiable continuity.",
+      "expected": "Return accepted=true only when the snapshot and checkpoint digests recompute correctly, the predecessor and sequence transition verify, and authority/evidence are valid; return the existing output contract with a reproducible trace and no authority expansion.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "snapshot digest independently recomputed from canonical material",
+        "genesis/prior checkpoint and sequence continuity verified",
+        "authority and version-bound evidence resolve and match exact checkpoint",
+        "accepted=true implies continuity_verified=true and every required check passes",
+        "no authority or execution capability expansion"
       ],
       "existing_gene_io_case_id": "G05-GENE-003",
       "existing_gene_io_expected": "ACCEPT",
@@ -853,13 +854,14 @@
       "case_id": "CHAR-G05.INTEGRITY-CHECKPOINT-N",
       "gene_id": "g05.integrity-checkpoint",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never silently repair or rewrite evidence without an audit trail.), and the baseline negative condition (sequence rollback or digest mismatch), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given any digest mismatch or unavailable snapshot material, negative/duplicate/regressed sequence, unresolved or invalid predecessor, unauthorized/revoked authority, stale/conflicting evidence, or contradictory accepted/continuity_verified result, the gene must fail closed and never silently repair or rewrite evidence.",
+      "expected": "Reject or report unresolved/unknown under the existing output contract; accepted must be false, evidence must identify the failed or unresolved checks, and no checkpoint history may be silently changed.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "digest and checkpoint-record mismatches fail closed",
+        "rollback, duplicate sequence and invalid genesis/predecessor fail closed",
+        "untrusted or revoked authority cannot be accepted",
+        "accepted=true with continuity_verified=false is prohibited",
+        "complete reason and verification trace recorded; no silent repair"
       ],
       "existing_gene_io_case_id": "G05-GENE-003",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -2012,6 +2014,27 @@
         "G05-RC-SEM-06",
         "G05-RC-SEM-07",
         "G05-RC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G05-INTEGRITY-CHECKPOINT-SEMANTIC-REVIEW-001",
+      "gene_id": "g05.integrity-checkpoint",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G05.INTEGRITY-CHECKPOINT-P",
+        "CHAR-G05.INTEGRITY-CHECKPOINT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G05-IC-SEM-01",
+        "G05-IC-SEM-02",
+        "G05-IC-SEM-03",
+        "G05-IC-SEM-04",
+        "G05-IC-SEM-05",
+        "G05-IC-SEM-06",
+        "G05-IC-SEM-07",
+        "G05-IC-SEM-08"
       ]
     }
   ]
