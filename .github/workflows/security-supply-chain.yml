@@ -52,8 +52,6 @@ jobs:
           rustc --version
           cargo --version
 
-      - name: Refresh lockfile for patched rusqlite (temporary remediation step)
-        run: cargo update -p rusqlite --precise 0.42.0
 
       - name: Validate locked dependency graph
         run: |
@@ -86,9 +84,3 @@ jobs:
           gitleaks version
           gitleaks git --redact --exit-code 1 .
 
-      - name: Emit refreshed Cargo.lock for Owner-controlled commit
-        if: always()
-        run: |
-          echo "LOCKFILE_BEGIN"
-          cat Cargo.lock
-          echo "LOCKFILE_END"
