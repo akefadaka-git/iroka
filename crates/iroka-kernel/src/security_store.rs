@@ -1394,7 +1394,10 @@ mod tests {
             .into_iter()
             .map(|worker| worker.join().unwrap())
             .collect::<Vec<_>>();
-        assert_eq!(results.iter().filter(|result| **result == Ok(())).count(), 1);
+        assert_eq!(
+            results.iter().filter(|result| **result == Ok(())).count(),
+            1
+        );
         assert_eq!(
             results
                 .iter()
