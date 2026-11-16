@@ -1195,42 +1195,42 @@
         {
           "field": "owner_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve owner_id to the canonical Owner principal in the configured trust root; verify identity proof, active key status and revocation. Do not infer Owner authority from a name or caller assertion."
         },
         {
           "field": "decision_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve decision_id against the authoritative decision register; require uniqueness, immutable content binding and explicit supersession/revocation status. Reject replayed, superseded or conflicting decision identifiers."
         },
         {
           "field": "scope",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Canonicalize each requested scope item and compare it against the exact scope approved by the Owner; reject wildcard expansion, ambiguous aliases, undeclared resources and any request exceeding the signed scope."
         },
         {
           "field": "approval_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute the digest over a canonical, domain-separated approval payload binding owner_id, decision_id, scope, decision content, issue/expiry times and contract version; compare in constant time and reject mismatch."
         },
         {
           "field": "signature",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify the signature against the trusted, currently valid Owner key and explicitly allowed algorithm; bind signature to the canonical approval digest and key identity, and check key validity/revocation at issuance and evaluation."
         },
         {
           "field": "issued_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse as a canonical timezone-aware timestamp; verify trusted issuance chronology, key validity at issuance, and that the approval was not issued in the future relative to trusted time."
         },
         {
           "field": "expires_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse as a canonical timezone-aware timestamp strictly later than issued_at; evaluate expiry against a trusted clock and reject expired or ambiguous intervals."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify provenance and version-bound evidence; bind it to the trusted Owner identity, signing key, canonical approval payload, decision register record, exact scope and temporal/revocation checks."
         }
       ],
       "character_output_assertions": [
@@ -1253,9 +1253,123 @@
             "decision",
             "evidence"
           ]
+        },
+        {
+          "assertion": "approval_valid=true is permitted only with decision=approved and complete cryptographic, identity, scope, temporal and decision-register verification; rejected or expired approvals must have approval_valid=false.",
+          "observable_fields": [
+            "decision_id",
+            "approval_valid",
+            "authorized_scope",
+            "decision",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "authorized_scope must be a subset of the exact scope in the verified signed approval; no wildcard, alias or inferred expansion is permitted.",
+          "observable_fields": [
+            "decision_id",
+            "authorized_scope",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "A valid Owner approval is faithfully reported but does not override constitutional, legal, safety or other explicitly non-overridable safeguards, and does not itself execute an action.",
+          "observable_fields": [
+            "decision_id",
+            "approval_valid",
+            "decision",
+            "evidence"
+          ]
         }
       ],
-      "character_failure_rule": "Never equate loyalty with blind obedience or concealment. fail-closed"
+      "character_failure_rule": "Never equate loyalty with blind obedience or concealment. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G02-OWNER-GOVERNANCE-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "89455c3e0fc974cc4375837ddde5c597a0256509",
+          "a2_contract_blob_before_review": "d7b5ddc10a35134a93f9f5185c2356dd0b3154fc",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "6740749eb5ba5179dd9800196dfaf50bd7748888",
+          "output_schema_blob": "7151e2d13f912ddecd33bccd4a4921037f32c8ee"
+        },
+        "confirmed_sufficient": [
+          "Input requires owner_id, decision_id, scope, approval_digest, signature, issued_at, expires_at, provenance and version-bound evidence.",
+          "Scope is represented as an array of non-empty strings.",
+          "Output requires decision_id, approval_valid, authorized_scope, decision, evidence and version-bound evidence.",
+          "Decision is restricted to approved, rejected or expired.",
+          "Both schemas reject undeclared top-level properties."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G02-OWNER-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "owner_id is only a non-empty string; no binding to the canonical Owner trust root, identity proof or current key/revocation state is defined.",
+            "required_disposition": "Resolve Owner identity and signing authority through the configured trust root; verify key status and revocation."
+          },
+          {
+            "gap_id": "G02-OWNER-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "approval_digest and signature are arbitrary non-empty strings; no canonical payload, digest algorithm, signature algorithm, key identity or cryptographic verification semantics are specified.",
+            "required_disposition": "Define canonical domain-separated approval payload binding all decision fields and verify signature using a trusted, algorithm-governed Owner key."
+          },
+          {
+            "gap_id": "G02-OWNER-SEM-03",
+            "severity": "HIGH",
+            "finding": "decision_id is not tied to an authoritative immutable decision register; replay, supersession and conflicting identifiers are not addressed.",
+            "required_disposition": "Resolve decision_id to unique immutable register entry and reject replayed, superseded or conflicting decisions."
+          },
+          {
+            "gap_id": "G02-OWNER-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "scope is only an array of strings; canonicalization, exact signed scope binding, wildcard semantics and scope non-expansion are undefined.",
+            "required_disposition": "Canonicalize and bind exact scope into signed payload; reject ambiguous scope, wildcard expansion and requests exceeding signed scope."
+          },
+          {
+            "gap_id": "G02-OWNER-SEM-05",
+            "severity": "HIGH",
+            "finding": "issued_at and expires_at are unconstrained strings; timezone, ordering, trusted-clock evaluation and signing-key validity at issuance are unspecified.",
+            "required_disposition": "Require canonical timezone-aware timestamps, strict interval ordering and trusted-time/key-validity checks."
+          },
+          {
+            "gap_id": "G02-OWNER-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "Output permits approval_valid=true with decision=rejected or expired and does not constrain authorized_scope to the signed approval scope.",
+            "required_disposition": "Enforce status consistency and ensure authorized_scope is a strict subset/equal of verified signed scope."
+          },
+          {
+            "gap_id": "G02-OWNER-SEM-07",
+            "severity": "HIGH",
+            "finding": "Evidence only requires provenance and version-bound evidence; it does not prove Owner identity, cryptographic verification, decision-register status, exact scope, key status or temporal validity.",
+            "required_disposition": "Require reproducible cryptographic, identity, register, scope and temporal verification evidence."
+          },
+          {
+            "gap_id": "G02-OWNER-SEM-08",
+            "severity": "HIGH",
+            "finding": "The contract states non-overridable safeguards and no-execution boundary in prose but output/evidence semantics do not explicitly record safeguard conflicts or distinguish approval validation from execution authorization.",
+            "required_disposition": "Represent safeguard conflict/limitations explicitly and ensure this gene validates approvals only; it must not authorize execution or override higher-order safeguards."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g02.owner-governance schemas and its positive/negative conformance vectors.",
+          "Bind owner_id and signature verification to configured trust roots, approved algorithms and current key status; do not introduce new Owner identities or authority.",
+          "Canonicalize and cryptographically bind decision_id, decision content, exact scope, timestamps and contract version into the approval payload.",
+          "Resolve decision_id through the immutable decision register and reject replay, supersession and conflict.",
+          "Enforce trusted-time validity, output status consistency and scope non-expansion.",
+          "Record safeguard conflicts and preserve the separation between approval validation and execution.",
+          "Preserve 12 chromosomes, 36 genes and all unrelated contracts; no implementation, merge or deployment."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g02.decision-register",
