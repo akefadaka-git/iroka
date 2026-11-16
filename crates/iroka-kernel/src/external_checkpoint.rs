@@ -481,7 +481,7 @@ mod tests {
         for (index, id) in ids.iter().enumerate() {
             audit
                 .append_event(&crate::AuditEvent::new(
-                    id,
+                    *id,
                     "trace:checkpoint-test",
                     "principal:checkpoint-test",
                     "audit.checkpoint",
