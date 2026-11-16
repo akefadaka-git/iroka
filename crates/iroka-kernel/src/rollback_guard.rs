@@ -203,10 +203,12 @@ impl<R: crate::RevocationChecker> RollbackEvidenceVerifier for Ed25519RollbackEv
             || receipt.signature.len() != 64
             || receipt.issued_at >= receipt.expires_at
             || receipt.issued_at > now.saturating_add(CLOCK_SKEW_SECS)
-            || receipt.expires_at <= now
             || receipt.expires_at - receipt.issued_at > MAX_ROLLBACK_EVIDENCE_TTL_SECS
         {
             return Err(EvidenceVerificationError::Malformed);
+        }
+        if receipt.expires_at <= now {
+            return Err(EvidenceVerificationError::Expired);
         }
         let payload = json!({
             "subject": receipt.subject,
