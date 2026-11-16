@@ -58,6 +58,28 @@ pub struct SignedCheckpoint {
     pub signature: Vec<u8>,
 }
 
+/// Proof object created only after checkpoint signature and witness quorum verification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedCheckpointEvidence {
+    checkpoint: SignedCheckpoint,
+    receipts: Vec<WitnessReceipt>,
+    required_quorum: usize,
+}
+
+impl VerifiedCheckpointEvidence {
+    pub fn checkpoint(&self) -> &SignedCheckpoint {
+        &self.checkpoint
+    }
+
+    pub fn receipts(&self) -> &[WitnessReceipt] {
+        &self.receipts
+    }
+
+    pub fn required_quorum(&self) -> usize {
+        self.required_quorum
+    }
+}
+
 impl SignedCheckpoint {
     pub fn digest(&self) -> Result<[u8; 32], CheckpointError> {
         let bytes = canonical(self)?;
@@ -234,6 +256,29 @@ pub fn verify_witness_quorum(
     Ok(identities.len())
 }
 
+/// Verify a checkpoint signature and a quorum of distinct witness identities
+/// and keys. The returned evidence cannot be constructed directly by callers.
+pub fn verify_checkpoint_evidence(
+    checkpoint: SignedCheckpoint,
+    receipts: Vec<WitnessReceipt>,
+    trusted_checkpoint_signers: &BTreeMap<String, VerifyingKey>,
+    trusted_witnesses: &BTreeMap<String, VerifyingKey>,
+    required: usize,
+) -> Result<VerifiedCheckpointEvidence, CheckpointError> {
+    verify_witness_quorum(
+        &checkpoint,
+        &receipts,
+        trusted_checkpoint_signers,
+        trusted_witnesses,
+        required,
+    )?;
+    Ok(VerifiedCheckpointEvidence {
+        checkpoint,
+        receipts,
+        required_quorum: required,
+    })
+}
+
 /// Compare a locally verified head with a witness-verified external checkpoint.
 /// Local state behind the anchor or a same-position hash mismatch is a hard failure.
 /// Create a signed checkpoint from a locally verified audit head.
@@ -265,19 +310,9 @@ pub fn create_audit_checkpoint(
 /// complete local audit chain before reconciling their sequence and digest.
 pub fn verify_and_reconcile_head(
     audit: &crate::SqliteAuditSink,
-    checkpoint: &SignedCheckpoint,
-    trusted_checkpoint_signers: &BTreeMap<String, VerifyingKey>,
-    receipts: &[WitnessReceipt],
-    trusted_witnesses: &BTreeMap<String, VerifyingKey>,
-    required: usize,
+    evidence: &VerifiedCheckpointEvidence,
 ) -> Result<Reconciliation, CheckpointError> {
-    verify_witness_quorum(
-        checkpoint,
-        receipts,
-        trusted_checkpoint_signers,
-        trusted_witnesses,
-        required,
-    )?;
+    let checkpoint = evidence.checkpoint();
     let verified = audit
         .verified_head_and_prefix(checkpoint.payload.event_sequence)
         .map_err(map_audit_error)?;
