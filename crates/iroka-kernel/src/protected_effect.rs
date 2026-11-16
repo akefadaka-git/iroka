@@ -6,8 +6,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     evaluate, AuditEvent, AuditSink, AuthorizationRequest, DecisionCode, OwnerApprovalError,
-    OwnerApprovalVerifier, Policy, RiskLevel, SignedOwnerEffectGrant, VerifiedGenesis,
-    VerifiedPrincipal,
+    OwnerApprovalVerifier, Policy, RiskLevel, VerifiedGenesis, VerifiedPrincipal,
 };
 
 const EFFECT_DOMAIN: &[u8] = b"IROKA:G09:PROTECTED-EFFECT:V1\0";
@@ -933,6 +932,15 @@ mod tests {
         (signer, verifier)
     }
 
+    fn decode_sha256_hex(value: &str) -> [u8; 32] {
+        let mut digest = [0_u8; 32];
+        for (index, chunk) in value.as_bytes().chunks_exact(2).enumerate() {
+            let text = std::str::from_utf8(chunk).unwrap();
+            digest[index] = u8::from_str_radix(text, 16).unwrap();
+        }
+        digest
+    }
+
     fn signed_grant(
         signer: &SigningKey,
         effect: &ProtectedEffectRequest,
@@ -951,7 +959,7 @@ mod tests {
             effect_type: effect.effect_type().into(),
             risk_class: effect.risk_class().into(),
             policy_version: "policy-v1".into(),
-            genome_digest: parse_sha256_hex(genesis.digest()).unwrap(),
+            genome_digest: decode_sha256_hex(genesis.digest()),
             operation_digest: effect
                 .operation_digest(principal, "policy-v1", genesis.digest())
                 .unwrap(),
