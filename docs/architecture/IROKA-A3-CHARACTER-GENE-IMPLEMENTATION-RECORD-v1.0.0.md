@@ -99,3 +99,30 @@ The production `Ed25519RollbackEvidenceVerifier` adapter is implemented. It veri
 Independent external security review: NOT RECEIVED.  
 A3 overall: IN PROGRESS.  
 Merge: NOT AUTHORIZED. Deployment: NOT AUTHORIZED.
+
+## G12 version-lineage — A3 runtime evaluator increment
+
+**Tested code head:** `59dd1ee0f15c4b34620d62cdc08699786c8d9994`  
+**Workflow:** [Rust kernel verification run #1638](https://github.com/akefadaka-git/iroka/actions/runs/43860553147) — **PASS**
+
+Implemented:
+- Read-only `evaluate_version_lineage` with canonical MAJOR.MINOR.PATCH parsing and SHA-256/RFC 8785 JCS artifact digest recomputation.
+- One canonical GENESIS tuple and strict non-root parent version/digest pairing.
+- Registry resolution contract that rejects unknown, ambiguous, unavailable and inconsistent results.
+- Oldest-to-candidate ancestry verification, exact parent links, duplicate/cycle detection and strictly increasing SemVer/epoch progression.
+- Immutable mutation record checks for exact source/target versions and digests, approval, gates and approval commitment.
+- Candidate, every ancestor, mutation record and registry snapshot evidence bindings; version, digest, epoch and registry revision are committed.
+- Subject-specific issuer policy supports constrained dynamic lineage evidence subjects.
+- Derived `linked`/`epoch_monotonic` flags and deterministic versioned lineage digest; no mutation or authority effects.
+
+### Exact-head verification
+- Rust unit tests: **98 passed, 0 failed**
+- Integration/contract tests: **2 passed, 0 failed**
+- Formatting, workspace compile, no-default-features check, static schema/traceability audit and Clippy: PASS
+- Static audit: 12 chromosomes, 36 genes, 72 frozen A2 schemas, 72 A2 cases, 36 closed reviews, version-bound evidence 72/72, G12 rollback-guard 10 vectors, G12 version-lineage 12 vectors.
+
+All 12 version-lineage vectors have unit-test coverage and PASS using a static test registry and test evidence verifier. Production Ed25519 evidence verification is separately implemented and tested, including dynamic subject issuer patterns. The **production VersionLineageRegistry adapter is NOT IMPLEMENTED**; authoritative registry persistence, signed registry snapshot provisioning and production integration remain outstanding. Therefore the evaluator is unit-tested against its registry contract, not yet production-integrated.
+
+G12 version-lineage A3 status: **IMPLEMENTED / UNIT-TESTED / PRODUCTION-ADAPTER-PENDING**.  
+Independent external security review: NOT RECEIVED.  
+Merge and deployment: NOT AUTHORIZED.
