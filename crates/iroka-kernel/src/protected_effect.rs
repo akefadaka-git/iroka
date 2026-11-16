@@ -9,7 +9,6 @@ use crate::{
     OwnerApprovalVerifier, Policy, RiskLevel, VerifiedGenesis, VerifiedPrincipal,
 };
 
-const EFFECT_DOMAIN: &[u8] = b"IROKA:G09:PROTECTED-EFFECT:V1\0";
 const EXECUTION_RESULT_DOMAIN: &[u8] = b"IROKA:G09:EXECUTION-RESULT:V1\0";
 const EXECUTION_RECEIPT_DOMAIN: &[u8] = b"IROKA:G09:EXECUTION-RECEIPT:V1\0";
 
