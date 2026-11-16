@@ -56,6 +56,11 @@ pub use rollback_guard::{
     EvidenceVerificationError, RollbackDenialCode, RollbackEvidenceReceipt,
     RollbackEvidenceSummary, RollbackEvidenceVerifier, RollbackGuardDecision, RollbackGuardInput,
 };
+pub use version_lineage::{
+    evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
+    LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord, VersionLineageError,
+    VersionLineageInput, VersionLineageRecord, VersionLineageRegistry, VersionLineageResult,
+};
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
@@ -463,9 +468,3 @@ mod tests {
         assert_eq!(replay.reason(), DecisionReason::ApprovalRevokedOrUnknown);
     }
 }
-
-pub use version_lineage::{
-    evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
-    LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord, VersionLineageError,
-    VersionLineageInput, VersionLineageRecord, VersionLineageRegistry, VersionLineageResult,
-};
