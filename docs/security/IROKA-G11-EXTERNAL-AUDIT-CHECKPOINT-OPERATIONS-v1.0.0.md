@@ -50,7 +50,7 @@ Checkpoint creation uses `SqliteAuditSink::verified_head()`, which verifies the 
 4. Verifies the local audit chain and terminal head in one consistent snapshot.
 5. Distinguishes exact match, local-ahead unanchored tail, local-behind-anchor rollback, and same-sequence fork.
 
-The low-level comparison helper is private; callers use the verification-and-reconciliation entry point.
+The low-level comparison helper is private; callers use the verification-and-reconciliation entry point. A `VerifiedCheckpointEvidence` value can only be created after checkpoint signature and witness-quorum verification. The local sink persists that evidence in a separate append-only SQLite table, verifies the referenced local audit prefix in the same immediate transaction, and permits only exact idempotent re-persistence. Recovery reads return canonical bytes that must be parsed and signature/quorum-verified again before use.
 
 ## 4. Witness monotonicity and quorum
 
