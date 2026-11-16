@@ -5,7 +5,7 @@
   "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
-  "genes_covered": 19,
+  "genes_covered": 20,
   "cases": [
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
@@ -1065,13 +1065,17 @@
       "case_id": "CHAR-G07.CAPABILITY-PROFILE-P",
       "gene_id": "g07.capability-profile",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (agent_id, requested_capabilities, resource_limits, policy_id, provenance), valid provenance/version evidence and the baseline positive condition (only policy-allowed capabilities listed; escalation denied), the gene must satisfy: Declare least-privilege capabilities and known limits.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an authenticated canonical agent principal and session, registered versioned requested capabilities, typed resource limits within platform ceilings, and a verified effective policy artifact, evaluate least-privilege outcomes and account for every request without creating execution authority.",
+      "expected": "Return only independently policy-authorized capabilities as granted; classify every other requested capability as denied; enforce exact disjoint and complete set accounting and bounded limits. authority_granted remains false absent a separate authenticated authorization decision.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "agent principal and session authenticated",
+        "all capability identifiers resolve to canonical registry entries",
+        "resource limits have typed units and remain within hard ceilings",
+        "policy artifact authenticity, scope, version and validity verified",
+        "granted and denied sets are disjoint and exactly cover the request",
+        "no unrequested capability is granted",
+        "capability profile does not itself authorize execution",
+        "evidence binds exact request and policy/evaluator versions"
       ],
       "existing_gene_io_case_id": "G07-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1079,19 +1083,24 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
         "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G07.CAPABILITY-PROFILE-N",
       "gene_id": "g07.capability-profile",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never infer permission from capability.), and the baseline negative condition (capability exceeds policy or attempts privilege escalation), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unknown principal or capability, missing/revoked/stale policy, resource limit ambiguity or escalation, contradictory grant/deny sets, omitted request entries, or an attempt to infer permission from capability membership, the gene must fail closed.",
+      "expected": "Do not issue unsupported grants; deny or mark unresolved every unverified request, enforce validated ceilings, keep authority_granted=false and expose reproducible evidence for the failure.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown principal or capability fails closed",
+        "missing, stale or revoked policy fails closed",
+        "resource-limit ambiguity or escalation rejected",
+        "granted and denied sets contain no unrequested items and never overlap",
+        "all requested items are accounted for",
+        "authority_granted cannot be inferred from capability membership",
+        "no permission or execution authorization fabricated",
+        "evidence and version bindings explain the result"
       ],
       "existing_gene_io_case_id": "G07-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1099,7 +1108,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
         "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G07.DELEGATION-BOUNDARY-P",
@@ -2149,6 +2159,27 @@
         "G07-AP-SEM-06",
         "G07-AP-SEM-07",
         "G07-AP-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G07-CAPABILITY-PROFILE-SEMANTIC-REVIEW-001",
+      "gene_id": "g07.capability-profile",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G07.CAPABILITY-PROFILE-P",
+        "CHAR-G07.CAPABILITY-PROFILE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G07-CP-SEM-01",
+        "G07-CP-SEM-02",
+        "G07-CP-SEM-03",
+        "G07-CP-SEM-04",
+        "G07-CP-SEM-05",
+        "G07-CP-SEM-06",
+        "G07-CP-SEM-07",
+        "G07-CP-SEM-08"
       ]
     }
   ]
