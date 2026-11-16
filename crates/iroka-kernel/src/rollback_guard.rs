@@ -968,6 +968,12 @@ mod tests {
             revision: 5,
         };
         let receipt = signed_evidence_receipt(&signer, &binding, "nonce-production-proof-0001");
+        let mut wrong_issuer = receipt.clone();
+        wrong_issuer.issuer = "issuer:unassigned".into();
+        assert_eq!(
+            verifier.verify(&wrong_issuer, &binding, 1_100),
+            Err(EvidenceVerificationError::UnknownIssuer)
+        );
         assert_eq!(verifier.verify(&receipt, &binding, 1_100), Ok(()));
         assert_eq!(
             verifier.verify(&receipt, &binding, 1_101),
@@ -1013,6 +1019,71 @@ mod tests {
             verifier.verify(&after_revoke, &binding, 1_102),
             Err(EvidenceVerificationError::Revoked)
         );
+    }
+
+
+    #[test]
+    fn rollback_without_owner_approval_is_denied() {
+        let current = json!({"version":"2.0.0","state":"current"});
+        let candidate = json!({"version":"1.5.0","state":"candidate"});
+        let empty = Vec::new();
+        let mut input = fixture(20, 15, 10, &current, &candidate, None, &empty, &empty);
+        let (provenance, version_bound) = make_receipts(&input);
+        input.provenance = &provenance;
+        input.version_bound_evidence = &version_bound;
+        let (_, owner_verifier) = owner();
+        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        assert!(!result.allowed);
+        assert_eq!(result.denial_code, RollbackDenialCode::AuthorizationInvalid);
+        assert_eq!(result.effective_state, EffectiveState::Current);
+    }
+
+    #[test]
+    fn stale_evidence_is_rejected() {
+        let current = json!({"version":"1.0.0","state":"current"});
+        let candidate = json!({"version":"1.1.0","state":"candidate"});
+        let empty = Vec::new();
+        let mut input = fixture(10, 11, 8, &current, &candidate, None, &empty, &empty);
+        let (mut provenance, version_bound) = make_receipts(&input);
+        provenance[1].expires_at = 1_100;
+        input.provenance = &provenance;
+        input.version_bound_evidence = &version_bound;
+        let (_, owner_verifier) = owner();
+        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        assert!(!result.allowed);
+        assert_eq!(result.denial_code, RollbackDenialCode::EvidenceInvalid);
+    }
+
+    #[test]
+    fn candidate_exactly_at_revocation_floor_requires_and_accepts_valid_approval() {
+        let current = json!({"version":"2.0.0","state":"current"});
+        let candidate = json!({"version":"1.0.0","state":"candidate"});
+        let empty = Vec::new();
+        let mut input = fixture(20, 10, 10, &current, &candidate, None, &empty, &empty);
+        let (provenance, version_bound) = make_receipts(&input);
+        input.provenance = &provenance;
+        input.version_bound_evidence = &version_bound;
+        let (signer, owner_verifier) = owner();
+        let approval = signed_approval(&signer, &input, 1_100);
+        input.rollback_authorization = Some(&approval);
+        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        assert!(result.allowed);
+        assert_eq!(result.effective_epoch, Some(10));
+    }
+
+    #[test]
+    fn epoch_zero_and_u64_max_are_handled_without_wraparound() {
+        let current = json!({"version":"0.0.0","state":"current"});
+        let candidate = json!({"version":"max","state":"candidate"});
+        let empty = Vec::new();
+        let mut input = fixture(0, u64::MAX, 0, &current, &candidate, None, &empty, &empty);
+        let (provenance, version_bound) = make_receipts(&input);
+        input.provenance = &provenance;
+        input.version_bound_evidence = &version_bound;
+        let (_, owner_verifier) = owner();
+        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        assert!(result.allowed);
+        assert_eq!(result.effective_epoch, Some(u64::MAX));
     }
 
     #[test]
