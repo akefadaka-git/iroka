@@ -449,6 +449,25 @@ impl ExecutionReceipt {
     }
 }
 
+/// Opaque receipt evidence that has passed the kernel's result/receipt checks.
+/// Its constructor is crate-private so untrusted deserialized receipts cannot be
+/// inserted into the security store as verified execution evidence.
+#[derive(Debug, Clone)]
+pub struct VerifiedExecutionReceipt {
+    receipt: ExecutionReceipt,
+}
+
+impl VerifiedExecutionReceipt {
+    pub(crate) fn new(receipt: ExecutionReceipt) -> Result<Self, ProtectedEffectError> {
+        receipt.verify_integrity()?;
+        Ok(Self { receipt })
+    }
+
+    pub fn receipt(&self) -> &ExecutionReceipt {
+        &self.receipt
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProtectedEffectError {
     Malformed,
@@ -604,9 +623,10 @@ pub fn execute_protected_effect(
         context.now,
         completed_at,
     )?;
+    let verified_receipt = VerifiedExecutionReceipt::new(receipt.clone())?;
     context
         .owner_verifier
-        .record_execution_receipt(&receipt, context.now)
+        .record_execution_receipt(&verified_receipt, context.now)
         .map_err(|_| ProtectedEffectError::StoreUnavailable)?;
 
     let result_decision = if status == ExecutionStatus::Succeeded {
