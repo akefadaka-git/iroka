@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.1.0",
+  "title": "Version lineage — A3 input",
+  "description": "A3 amended input. Registry resolution and evidence verification are mandatory; the gene is read-only and grants no authority.",
+  "type": "object",
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "evidence_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "subject_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issued_at": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "nonce": {
+          "type": "string",
+          "minLength": 16
+        },
+        "signature": {
+          "type": "array",
+          "minItems": 64,
+          "maxItems": 64,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        }
+      },
+      "required": [
+        "subject",
+        "subject_digest",
+        "subject_epoch",
+        "revision",
+        "issuer",
+        "key_id",
+        "issued_at",
+        "expires_at",
+        "nonce",
+        "signature"
+      ]
+    },
+    "evidence_set": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "$ref": "#/$defs/evidence_receipt"
+      }
+    }
+  },
+  "properties": {
+    "artifact": {
+      "type": "object"
+    },
+    "artifact_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "version": {
+      "$ref": "#/$defs/semver"
+    },
+    "parent_version": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/semver"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "parent_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mutation_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "provenance": {
+      "$ref": "#/$defs/evidence_set"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/evidence_set"
+    }
+  },
+  "required": [
+    "artifact",
+    "artifact_digest",
+    "version",
+    "parent_version",
+    "parent_digest",
+    "mutation_ref",
+    "epoch",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "parent_version": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "parent_version"
+        ]
+      },
+      "then": {
+        "properties": {
+          "parent_digest": {
+            "type": "null"
+          },
+          "mutation_ref": {
+            "const": "GENESIS"
+          },
+          "epoch": {
+            "const": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "parent_version": {
+            "$ref": "#/$defs/semver"
+          }
+        },
+        "required": [
+          "parent_version"
+        ]
+      },
+      "then": {
+        "properties": {
+          "parent_digest": {
+            "$ref": "#/$defs/digest"
+          },
+          "mutation_ref": {
+            "not": {
+              "const": "GENESIS"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
