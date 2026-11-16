@@ -13,7 +13,7 @@ use crate::security_store::{
 };
 use crate::protected_effect::{
     ExecutionReceipt, OwnerEffectGrantPayload, ProtectedEffectRequest, SignedOwnerEffectGrant,
-    VerifiedEffectGrant,
+    VerifiedEffectGrant, VerifiedExecutionReceipt,
 };
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
@@ -453,7 +453,7 @@ impl OwnerApprovalVerifier {
 
     pub(crate) fn record_execution_receipt(
         &self,
-        receipt: &ExecutionReceipt,
+        receipt: &VerifiedExecutionReceipt,
         now: u64,
     ) -> Result<(), OwnerApprovalError> {
         self.store
