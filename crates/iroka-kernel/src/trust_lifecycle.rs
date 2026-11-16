@@ -334,6 +334,7 @@ fn validate_lineage_snapshot(
             && value.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
     }
     let mut by_version = BTreeMap::<String, &RegisteredLineageArtifact>::new();
+    let mut artifact_digests = BTreeSet::new();
     let mut roots = 0usize;
     let mut referenced_mutations = BTreeSet::new();
     for artifact in &payload.artifacts {
@@ -345,7 +346,9 @@ fn validate_lineage_snapshot(
         }
         let canonical = canonical_json(&artifact.artifact).map_err(|_| TrustBundleError::Malformed)?;
         let digest = Sha256::digest(canonical);
-        if format!("{digest:x}") != artifact.artifact_digest {
+        if format!("{digest:x}") != artifact.artifact_digest
+            || !artifact_digests.insert(artifact.artifact_digest.clone())
+        {
             return Err(TrustBundleError::Malformed);
         }
         if by_version.insert(artifact.version.clone(), artifact).is_some() {
