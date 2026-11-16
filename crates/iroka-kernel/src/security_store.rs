@@ -436,6 +436,7 @@ impl SqliteSecurityStore {
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
     }
 
+    #[rustfmt::skip]
     pub(crate) fn latest_trust_bundle_document(&self) -> Result<Option<String>, SecurityStoreError> {
         let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
         connection.query_row(
