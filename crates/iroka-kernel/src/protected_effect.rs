@@ -295,10 +295,7 @@ pub trait ProtectedEffectExecutor: Send + Sync {
 
     /// Resolve an ambiguous execute outcome by nonce. A durable executor should
     /// return the same signed result after a process or network interruption.
-    fn lookup(
-        &self,
-        nonce: &str,
-    ) -> Result<Option<SignedExecutionResult>, EffectExecutionError>;
+    fn lookup(&self, nonce: &str) -> Result<Option<SignedExecutionResult>, EffectExecutionError>;
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -406,9 +403,10 @@ impl ExecutionReceipt {
         trusted_keys: &[TrustedExecutorKey],
     ) -> Result<(), ProtectedEffectError> {
         self.verify_integrity()?;
-        let (Some(key_id), Some(signature)) =
-            (self.executor_key_id.as_deref(), self.executor_signature.as_deref())
-        else {
+        let (Some(key_id), Some(signature)) = (
+            self.executor_key_id.as_deref(),
+            self.executor_signature.as_deref(),
+        ) else {
             return if self.status == ExecutionStatus::Failed
                 || self.status == ExecutionStatus::Indeterminate
             {
@@ -544,11 +542,7 @@ pub fn execute_protected_effect(
         context.effect.resource(),
         context.effect.risk(),
     );
-    let decision = evaluate(
-        &request,
-        context.policy,
-        context.emergency_stop_active,
-    );
+    let decision = evaluate(&request, context.policy, context.emergency_stop_active);
     match decision.code() {
         DecisionCode::RequireApproval => {}
         DecisionCode::Deny => return Err(ProtectedEffectError::PolicyDenied),
@@ -579,57 +573,62 @@ pub fn execute_protected_effect(
         .append(&admission_event)
         .map_err(|_| ProtectedEffectError::AuditUnavailable)?;
 
-    let (status, signed_result, failure_code) = match context.executor.execute(
-        context.effect,
-        grant.nonce(),
-        grant.operation_digest(),
-    ) {
-        Ok(result) => match verify_execution_result(
-            &result,
-            &grant,
-            context.executor_keys,
-            context.now,
-        ) {
-            Ok(()) => (status_from_outcome(result.payload.outcome), Some(result), None),
-            Err(_) => (
-                ExecutionStatus::Indeterminate,
-                None,
-                Some("executor_attestation_invalid".into()),
-            ),
-        },
-        Err(EffectExecutionError::RejectedBeforeEffect) => (
-            ExecutionStatus::Failed,
-            None,
-            Some("rejected_before_effect".into()),
-        ),
-        Err(EffectExecutionError::OutcomeUnknown | EffectExecutionError::Unavailable) => {
-            match context.executor.lookup(grant.nonce()) {
-                Ok(Some(result)) => match verify_execution_result(
-                    &result,
-                    &grant,
-                    context.executor_keys,
-                    context.now,
-                ) {
-                    Ok(()) => (status_from_outcome(result.payload.outcome), Some(result), None),
+    let (status, signed_result, failure_code) =
+        match context
+            .executor
+            .execute(context.effect, grant.nonce(), grant.operation_digest())
+        {
+            Ok(result) => {
+                match verify_execution_result(&result, &grant, context.executor_keys, context.now) {
+                    Ok(()) => (
+                        status_from_outcome(result.payload.outcome),
+                        Some(result),
+                        None,
+                    ),
                     Err(_) => (
                         ExecutionStatus::Indeterminate,
                         None,
-                        Some("executor_reconciliation_attestation_invalid".into()),
+                        Some("executor_attestation_invalid".into()),
                     ),
-                },
-                Ok(None) => (
-                    ExecutionStatus::Indeterminate,
-                    None,
-                    Some("execution_outcome_unknown".into()),
-                ),
-                Err(_) => (
-                    ExecutionStatus::Indeterminate,
-                    None,
-                    Some("execution_reconciliation_unavailable".into()),
-                ),
+                }
             }
-        }
-    };
+            Err(EffectExecutionError::RejectedBeforeEffect) => (
+                ExecutionStatus::Failed,
+                None,
+                Some("rejected_before_effect".into()),
+            ),
+            Err(EffectExecutionError::OutcomeUnknown | EffectExecutionError::Unavailable) => {
+                match context.executor.lookup(grant.nonce()) {
+                    Ok(Some(result)) => match verify_execution_result(
+                        &result,
+                        &grant,
+                        context.executor_keys,
+                        context.now,
+                    ) {
+                        Ok(()) => (
+                            status_from_outcome(result.payload.outcome),
+                            Some(result),
+                            None,
+                        ),
+                        Err(_) => (
+                            ExecutionStatus::Indeterminate,
+                            None,
+                            Some("executor_reconciliation_attestation_invalid".into()),
+                        ),
+                    },
+                    Ok(None) => (
+                        ExecutionStatus::Indeterminate,
+                        None,
+                        Some("execution_outcome_unknown".into()),
+                    ),
+                    Err(_) => (
+                        ExecutionStatus::Indeterminate,
+                        None,
+                        Some("execution_reconciliation_unavailable".into()),
+                    ),
+                }
+            }
+        };
 
     let completed_at = signed_result
         .as_ref()
@@ -691,9 +690,12 @@ fn verify_execution_result(
         || p.operation_digest != grant.operation_digest
         || p.executor_subject != grant.executor_subject
         || p.executor_key_id.trim().is_empty()
-        || p.completed_at < now || p.completed_at > now.saturating_add(30)
-        || matches!(p.outcome, ExecutionOutcome::Succeeded | ExecutionOutcome::Partial)
-            && p.result_digest.is_none()
+        || p.completed_at < now
+        || p.completed_at > now.saturating_add(30)
+        || matches!(
+            p.outcome,
+            ExecutionOutcome::Succeeded | ExecutionOutcome::Partial
+        ) && p.result_digest.is_none()
     {
         return Err(ProtectedEffectError::InvalidExecutorAttestation);
     }
