@@ -8,6 +8,91 @@
     "digest": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "evidence_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "subject_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "subject_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issued_at": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "nonce": {
+          "type": "string",
+          "minLength": 16
+        },
+        "signature": {
+          "type": "array",
+          "minItems": 64,
+          "maxItems": 64,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        }
+      },
+      "required": [
+        "subject",
+        "subject_digest",
+        "subject_epoch",
+        "revision",
+        "issuer",
+        "key_id",
+        "issued_at",
+        "expires_at",
+        "nonce",
+        "signature"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "issued_at": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "issued_at"
+            ]
+          },
+          "then": {
+            "properties": {
+              "expires_at": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "properties": {
@@ -170,9 +255,10 @@
     },
     "version_bound_evidence": {
       "type": "array",
-      "minItems": 0,
+      "minItems": 4,
+      "maxItems": 4,
       "items": {
-        "type": "object"
+        "$ref": "#/$defs/evidence_receipt"
       }
     }
   },
