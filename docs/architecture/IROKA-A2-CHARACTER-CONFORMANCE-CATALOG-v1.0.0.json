@@ -71,13 +71,17 @@
       "case_id": "CHAR-G01.LINEAGE-P",
       "gene_id": "g01.lineage",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (subject_id, predecessor_id, relationship, proof_digest, epoch, provenance), valid provenance/version evidence and the baseline positive condition (valid acyclic chain accepted; cycle rejected), the gene must satisfy: Maintain verifiable ancestry and disclose missing or conflicting lineage evidence.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "For a single-parent lineage with a canonical subject and predecessor, authenticated retrievable succession proof, valid provenance/version evidence, acyclic graph and valid monotonic epoch ordering, evaluate whether the chain is complete and verifiable.",
+      "expected": "Accept only when each ancestry link and proof is independently verifiable; return lineage_valid=true with chain_digest and verified_depth derived from the exact verified graph and evidence.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "subject and predecessor resolve to canonical identities",
+        "proof_digest matches retrievable authenticated proof material",
+        "relationship semantics and parent cardinality are valid",
+        "graph traversal detects cycles and conflicting ancestry",
+        "epoch ordering is valid against authoritative version/time evidence",
+        "chain_digest and verified_depth are reproducible from the verified graph",
+        "provenance and version-bound evidence bind the exact lineage decision",
+        "no invented ancestors, signatures or provenance"
       ],
       "existing_gene_io_case_id": "G01-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -85,19 +89,31 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g01.lineage/input/1.0.0",
         "https://iroka.dev/schemas/genes/g01.lineage/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-LIN-SEM-01",
+        "G01-LIN-SEM-02",
+        "G01-LIN-SEM-03",
+        "G01-LIN-SEM-04",
+        "G01-LIN-SEM-05",
+        "G01-LIN-SEM-06"
       ]
     },
     {
       "case_id": "CHAR-G01.LINEAGE-N",
       "gene_id": "g01.lineage",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never invent ancestors, signatures or provenance.), and the baseline negative condition (cycle or missing succession proof), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "A lineage input contains a missing/unresolvable predecessor, self-reference or cycle, conflicting parent history, unavailable or invalid succession proof, unsupported merged-parent representation, invalid epoch ordering, or provenance mismatch; alternatively, output claims lineage_valid=true with inconsistent chain_digest/depth.",
+      "expected": "Reject or fail closed; do not invent missing ancestry or proof, and do not emit a valid lineage result or unverifiable depth/digest. Record the precise failure and available evidence.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown or substituted subject/predecessor fails closed",
+        "missing or invalid proof fails closed",
+        "self-reference, cycle or conflicting ancestry fails closed",
+        "merged relationship cannot bypass parent-cardinality requirements",
+        "invalid/stale epoch ordering fails closed",
+        "lineage_valid, chain_digest and verified_depth contradictions are rejected",
+        "no fabricated ancestors, signatures or provenance",
+        "failure reason and evidence are recorded"
       ],
       "existing_gene_io_case_id": "G01-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -105,6 +121,14 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g01.lineage/input/1.0.0",
         "https://iroka.dev/schemas/genes/g01.lineage/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-LIN-SEM-01",
+        "G01-LIN-SEM-02",
+        "G01-LIN-SEM-03",
+        "G01-LIN-SEM-04",
+        "G01-LIN-SEM-05",
+        "G01-LIN-SEM-06"
       ]
     },
     {
@@ -1502,6 +1526,25 @@
         "G01-SEM-02",
         "G01-SEM-03",
         "G01-SEM-04"
+      ]
+    },
+    {
+      "review_id": "A2-G01-LINEAGE-SEMANTIC-REVIEW-001",
+      "gene_id": "g01.lineage",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G01.LINEAGE-P",
+        "CHAR-G01.LINEAGE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G01-LIN-SEM-01",
+        "G01-LIN-SEM-02",
+        "G01-LIN-SEM-03",
+        "G01-LIN-SEM-04",
+        "G01-LIN-SEM-05",
+        "G01-LIN-SEM-06"
       ]
     }
   ]
