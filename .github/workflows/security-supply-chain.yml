@@ -2,7 +2,7 @@ name: Security supply-chain verification
 
 on:
   pull_request:
-    branches: [main, architecture/genesis-gene-contract-amendment-proposal]
+    branches: [main, architecture/genesis-gene-contract-amendment-proposal, feat/a3-security-workstreams]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
