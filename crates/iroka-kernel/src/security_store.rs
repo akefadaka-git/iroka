@@ -517,7 +517,8 @@ impl SqliteSecurityStore {
         let persisted_at =
             i64::try_from(persisted_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let digest = receipt.receipt_digest();
-        let value = serde_json::to_value(receipt).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let value =
+            serde_json::to_value(receipt).map_err(|_| SecurityStoreError::InvalidVersion)?;
         let receipt_json =
             crate::canonical_json(&value).map_err(|_| SecurityStoreError::InvalidVersion)?;
 
