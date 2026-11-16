@@ -658,7 +658,11 @@ mod tests {
         let conflict =
             evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(conflict.denial_code, RollbackDenialCode::EpochConflict);
-        let mut substituted = fixture(20, 21, 10, &current, &candidate, None, &p, &v);
+        let empty = Vec::new();
+        let mut substituted = fixture(20, 21, 10, &current, &candidate, None, &empty, &empty);
+        let (substituted_provenance, substituted_version_evidence) = make_receipts(&substituted);
+        substituted.provenance = &substituted_provenance;
+        substituted.version_bound_evidence = &substituted_version_evidence;
         let substituted_artifact = json!({"version":"2.1.0","state":"substituted"});
         substituted.candidate_artifact = &substituted_artifact;
         let mismatch =
