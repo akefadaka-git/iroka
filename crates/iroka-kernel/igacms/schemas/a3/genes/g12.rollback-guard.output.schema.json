@@ -227,13 +227,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "provenance_status": {
-          "enum": [
-            "verified",
-            "invalid"
-          ]
-        },
-        "version_bound_status": {
+        "status": {
           "enum": [
             "verified",
             "invalid"
@@ -248,14 +242,13 @@
         }
       },
       "required": [
-        "provenance_status",
-        "version_bound_status",
+        "status",
         "verified_subjects"
       ]
     },
     "version_bound_evidence": {
       "type": "array",
-      "minItems": 4,
+      "minItems": 0,
       "maxItems": 4,
       "items": {
         "$ref": "#/$defs/evidence_receipt"
