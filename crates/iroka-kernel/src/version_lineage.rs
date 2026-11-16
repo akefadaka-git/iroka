@@ -900,7 +900,6 @@ mod tests {
         assert_eq!(result.denial_code, LineageDenialCode::EpochNonMonotonic);
     }
 
-
     #[test]
     fn ambiguous_version_registry_entry_fails_closed() {
         let record = linear_record();
