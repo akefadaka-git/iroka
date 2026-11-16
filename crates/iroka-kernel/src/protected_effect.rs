@@ -402,6 +402,7 @@ impl ExecutionReceipt {
         trusted_keys: &[TrustedExecutorKey],
     ) -> Result<(), ProtectedEffectError> {
         self.verify_integrity()?;
+        validate_executor_keys(trusted_keys)?;
         let (Some(key_id), Some(signature)) = (
             self.executor_key_id.as_deref(),
             self.executor_signature.as_deref(),
@@ -528,8 +529,11 @@ fn validate_executor_keys(keys: &[TrustedExecutorKey]) -> Result<(), ProtectedEf
     let mut public_keys = std::collections::HashSet::new();
     for key in keys {
         if key.executor_subject.trim().is_empty()
+            || key.executor_subject.len() > 256
             || key.key_id.trim().is_empty()
+            || key.key_id.len() > 256
             || key.not_before >= key.not_after
+            || key.revoked_at.is_some_and(|revoked_at| revoked_at < key.not_before)
             || VerifyingKey::from_bytes(&key.public_key).is_err()
             || !key_ids.insert(key.key_id.as_str())
             || !public_keys.insert(key.public_key)
