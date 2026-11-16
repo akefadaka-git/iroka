@@ -15,10 +15,10 @@ mod owner_approval;
 mod policy;
 mod request;
 mod rollback_guard;
-mod version_lineage;
 mod security_store;
 mod service;
 mod trust_lifecycle;
+mod version_lineage;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
@@ -466,7 +466,6 @@ mod tests {
 
 pub use version_lineage::{
     evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
-    LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord,
-    VersionLineageError, VersionLineageInput, VersionLineageRecord, VersionLineageRegistry,
-    VersionLineageResult,
+    LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord, VersionLineageError,
+    VersionLineageInput, VersionLineageRecord, VersionLineageRegistry, VersionLineageResult,
 };
