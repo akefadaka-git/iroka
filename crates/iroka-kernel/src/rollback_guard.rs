@@ -136,6 +136,22 @@ impl RollbackEvidenceTrustPolicy {
                 return Err(EvidenceVerificationError::UnknownIssuer);
             }
         }
+        for (subject, issuers) in &allowed_issuers {
+            if subject.trim().is_empty()
+                || issuers.is_empty()
+                || issuers.iter().any(|issuer| issuer.trim().is_empty())
+            {
+                return Err(EvidenceVerificationError::UnknownIssuer);
+            }
+            if subject.contains('*') {
+                let Some(prefix) = subject.strip_suffix('*') else {
+                    return Err(EvidenceVerificationError::UnknownIssuer);
+                };
+                if prefix.len() < 16 || !prefix.ends_with(':') || prefix.contains('*') {
+                    return Err(EvidenceVerificationError::UnknownIssuer);
+                }
+            }
+        }
         Ok(Self { allowed_issuers })
     }
 
