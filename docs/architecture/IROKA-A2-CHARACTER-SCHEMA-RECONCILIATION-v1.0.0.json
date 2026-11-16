@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "document_id": "IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-001",
   "version": "1.0.0",
-  "status": "PARTIAL_AUTOMATED_RESOLVER_AND_ADVERSARIAL_CHECKS_OPEN",
+  "status": "PARTIAL_AUTOMATED_RESOLVER_AND_CYCLE_CHECKS_OPEN",
   "parent_contract": "IROKA-A2-CHARACTER-GENE-CONTRACTS-001",
   "sources": {
     "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
@@ -19,18 +19,21 @@
     "files_inspected": 72,
     "files_passed_checked_invariants": 72,
     "files_failed_checked_invariants": 0,
-    "character_schema_mutations": 0
+    "character_schema_mutations": 0,
+    "external_references_found": 0,
+    "local_reference_scan_files": 72
   },
   "checks": {
     "schema_id_matches_approved_contract": true,
     "required_fields_match_including_version_bound_evidence": true,
     "additional_properties_false": true,
     "encountered_local_json_pointer_refs_resolve": true,
-    "external_reference_scan": "NOT_RUN",
-    "reference_cycle_detection": "NOT_RUN",
-    "automated_schema_resolver": "NOT_RUN",
+    "external_reference_scan": "PASS — all 72 schema files scanned; no external $ref values found.",
+    "reference_cycle_detection": "NOT RUN — recursion/cycle semantics require a dedicated graph-level resolver check.",
+    "automated_schema_resolver": "NOT RUN",
     "positive_negative_vectors": "DESIGNED_NOT_EXECUTED",
-    "exact_head_ci": "NOT_RUN"
+    "exact_head_ci": "NOT_RUN",
+    "local_json_pointer_targets": "PASS — all encountered local #/ JSON Pointer targets resolved in the per-file structural audit."
   },
   "genes": [
     {
