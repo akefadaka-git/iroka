@@ -5,7 +5,7 @@
   "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
-  "genes_covered": 18,
+  "genes_covered": 19,
   "cases": [
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
@@ -1017,13 +1017,16 @@
       "case_id": "CHAR-G07.AGENT-PRINCIPAL-P",
       "gene_id": "g07.agent-principal",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (agent_id, credential_ref, runtime_instance_id, principal_class, provenance), valid provenance/version evidence and the baseline positive condition (bound principal accepted; revoked identity rejected), the gene must satisfy: Bind each agent to authenticated identity, role and accountable principal.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an agent identity resolving to one canonical authenticated registry record, a valid credential chain bound to that agent, and a fresh attested runtime instance matching the credential and declared principal class, the gene verifies all bindings and produces reproducible identity evidence without inferring permissions.",
+      "expected": "Return principal_valid=true and identity_status=valid only when canonical identity, credential, revocation and runtime attestation all verify and match; bind principal_digest to canonical principal evidence. Identity validation grants no authority or human status.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "agent_id resolves to one canonical authenticated principal",
+        "credential issuer, subject, key use, scope, validity and revocation are verified",
+        "runtime attestation matches agent and credential and is fresh",
+        "principal_class matches authoritative class registry and policy",
+        "principal_digest binds canonical principal and verification evidence",
+        "identity validity creates no authority or human status",
+        "evidence and versions reproduce the decision"
       ],
       "existing_gene_io_case_id": "G07-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -1031,19 +1034,23 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
         "https://iroka.dev/schemas/genes/g07.agent-principal/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G07.AGENT-PRINCIPAL-N",
       "gene_id": "g07.agent-principal",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never impersonate another agent or claim human status.), and the baseline negative condition (revoked or unbound agent identity), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given an unknown, ambiguous, substituted or revoked agent identity; credential mismatch/revocation; untrusted, stale or replayed runtime instance; conflicting principal class; or incomplete identity evidence, the gene must not validate the principal or infer authority/human status.",
+      "expected": "Fail closed with identity_status invalid or revoked as supported by evidence and principal_valid=false; expose the reason and exact evidence. Never impersonate another agent or claim human status.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown or substituted agent identity fails closed",
+        "invalid or revoked credential cannot validate principal",
+        "runtime mismatch, stale attestation or replay fails closed",
+        "principal-class mismatch is rejected",
+        "principal_valid cannot contradict identity_status",
+        "no authority, authorization or human status inferred",
+        "no fabricated or incomplete evidence"
       ],
       "existing_gene_io_case_id": "G07-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1051,7 +1058,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
         "https://iroka.dev/schemas/genes/g07.agent-principal/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G07.CAPABILITY-PROFILE-P",
@@ -2120,6 +2128,27 @@
         "G06-PT-SEM-06",
         "G06-PT-SEM-07",
         "G06-PT-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G07-AGENT-PRINCIPAL-SEMANTIC-REVIEW-001",
+      "gene_id": "g07.agent-principal",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G07.AGENT-PRINCIPAL-P",
+        "CHAR-G07.AGENT-PRINCIPAL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G07-AP-SEM-01",
+        "G07-AP-SEM-02",
+        "G07-AP-SEM-03",
+        "G07-AP-SEM-04",
+        "G07-AP-SEM-05",
+        "G07-AP-SEM-06",
+        "G07-AP-SEM-07",
+        "G07-AP-SEM-08"
       ]
     }
   ]
