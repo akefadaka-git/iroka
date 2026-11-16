@@ -432,11 +432,11 @@ pub fn verify_and_install_version_lineage_snapshot(
     {
         return Err(TrustBundleError::Malformed);
     }
-    validate_lineage_snapshot(payload)?;
     let root_key = VerifyingKey::from_bytes(&root.public_key).map_err(|_| TrustBundleError::InvalidRoot)?;
     let signature = Signature::from_slice(&signed.signature).map_err(|_| TrustBundleError::Malformed)?;
     let signing_bytes = signed.signing_bytes().map_err(|_| TrustBundleError::Malformed)?;
     root_key.verify(&signing_bytes, &signature).map_err(|_| TrustBundleError::InvalidSignature)?;
+    validate_lineage_snapshot(payload)?;
     let digest = Sha256::digest(&signing_bytes);
     let document = serde_json::to_string(signed).map_err(|_| TrustBundleError::Malformed)?;
     store.install_version_lineage_snapshot(
@@ -734,10 +734,10 @@ mod tests {
     ) -> SignedRollbackEvidencePolicy {
         use ed25519_dalek::Signer;
         let allowed_issuers = BTreeMap::from([
-            ("current_state".into(), BTreeSet::from(["issuer:state".into()])),
-            ("candidate_state".into(), BTreeSet::from(["issuer:candidate".into()])),
-            ("revocation_floor".into(), BTreeSet::from(["issuer:revocation".into()])),
-            ("policy_version".into(), BTreeSet::from(["issuer:policy".into()])),
+            ("current_state".into(), BTreeSet::from(["issuer:iroka-test".into()])),
+            ("candidate_state".into(), BTreeSet::from(["issuer:iroka-test".into()])),
+            ("revocation_floor".into(), BTreeSet::from(["issuer:iroka-test".into()])),
+            ("policy_version".into(), BTreeSet::from(["issuer:iroka-test".into()])),
             ("lineage:artifact:*".into(), BTreeSet::from(["issuer:lineage".into()])),
             ("lineage:mutation:*".into(), BTreeSet::from(["issuer:lineage".into()])),
             ("lineage:registry".into(), BTreeSet::from(["issuer:registry".into()])),
