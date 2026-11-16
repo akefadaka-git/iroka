@@ -10,6 +10,10 @@ use std::time::Duration;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 use crate::identity_crypto::{RevocationChecker, RevocationError};
+use crate::version_lineage::{
+    LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord,
+    VersionLineageRecord, VersionLineageRegistry,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecurityStoreError {
@@ -157,6 +161,31 @@ impl SqliteSecurityStore {
              CREATE TABLE IF NOT EXISTS rollback_revocation_floor (
                singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
                floor INTEGER NOT NULL, revision INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS version_lineage_registry_meta (
+               singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+               revision INTEGER NOT NULL CHECK(revision >= 0)
+             );
+             INSERT OR IGNORE INTO version_lineage_registry_meta(singleton, revision) VALUES(1, 0);
+             CREATE TABLE IF NOT EXISTS version_lineage_artifacts (
+               gene_id TEXT NOT NULL, version TEXT NOT NULL, artifact_digest TEXT NOT NULL,
+               artifact_json TEXT NOT NULL, parent_version TEXT, parent_digest TEXT,
+               mutation_id TEXT, epoch INTEGER NOT NULL CHECK(epoch >= 0),
+               PRIMARY KEY(gene_id, version, artifact_digest), UNIQUE(gene_id, version),
+               CHECK(
+                 (parent_version IS NULL AND parent_digest IS NULL AND mutation_id IS NULL AND epoch = 0)
+                 OR
+                 (parent_version IS NOT NULL AND parent_digest IS NOT NULL AND mutation_id IS NOT NULL)
+               )
+             );
+             CREATE TABLE IF NOT EXISTS version_lineage_mutations (
+               mutation_ref TEXT PRIMARY KEY, mutation_id TEXT NOT NULL UNIQUE,
+               source_version TEXT NOT NULL, source_digest TEXT NOT NULL,
+               target_version TEXT NOT NULL, target_digest TEXT NOT NULL,
+               approved INTEGER NOT NULL CHECK(approved IN (0, 1)),
+               gates_passed INTEGER NOT NULL CHECK(gates_passed IN (0, 1)),
+               approval_commitment TEXT NOT NULL,
+               UNIQUE(target_version, target_digest)
              );"
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(Self {
@@ -655,6 +684,176 @@ impl SqliteSecurityStore {
         tx.commit()
             .map_err(|_| ApprovalConsumptionError::Store(SecurityStoreError::Unavailable))?;
         Ok(true)
+    }
+}
+
+
+impl VersionLineageRegistry for SqliteSecurityStore {
+    fn resolve_lineage(
+        &self,
+        candidate_version: &str,
+        candidate_digest: &str,
+    ) -> Result<VersionLineageRecord, LineageRegistryError> {
+        const GENE_ID: &str = "g12.version-lineage";
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| LineageRegistryError::Unavailable)?;
+        let revision: i64 = connection
+            .query_row(
+                "SELECT revision FROM version_lineage_registry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| LineageRegistryError::Unavailable)?;
+        if revision < 0 {
+            return Err(LineageRegistryError::IntegrityFailure);
+        }
+
+        fn load_artifact(
+            connection: &Connection,
+            gene_id: &str,
+            version: &str,
+            digest: &str,
+        ) -> Result<RegisteredLineageArtifact, LineageRegistryError> {
+            let row: Option<(
+                String,
+                String,
+                String,
+                String,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                i64,
+            )> = connection
+                .query_row(
+                    "SELECT gene_id, version, artifact_digest, artifact_json,
+                            parent_version, parent_digest, mutation_id, epoch
+                     FROM version_lineage_artifacts
+                     WHERE gene_id=?1 AND version=?2 AND artifact_digest=?3",
+                    params![gene_id, version, digest],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                            row.get(6)?,
+                            row.get(7)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|_| LineageRegistryError::Unavailable)?;
+            let Some((gene_id, version, artifact_digest, artifact_json, parent_version,
+                parent_digest, mutation_id, epoch)) = row else {
+                return Err(LineageRegistryError::UnknownVersion);
+            };
+            let artifact = serde_json::from_str(&artifact_json)
+                .map_err(|_| LineageRegistryError::IntegrityFailure)?;
+            let epoch = u64::try_from(epoch).map_err(|_| LineageRegistryError::IntegrityFailure)?;
+            Ok(RegisteredLineageArtifact {
+                gene_id,
+                version,
+                artifact_digest,
+                artifact,
+                parent_version,
+                parent_digest,
+                mutation_id,
+                epoch,
+            })
+        }
+
+        let mut current = load_artifact(
+            &connection,
+            GENE_ID,
+            candidate_version,
+            candidate_digest,
+        )?;
+        let mut ancestry = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        loop {
+            if !seen.insert(current.artifact_digest.clone()) || ancestry.len() >= 128 {
+                return Err(LineageRegistryError::IntegrityFailure);
+            }
+            let parent_version = current.parent_version.clone();
+            let parent_digest = current.parent_digest.clone();
+            ancestry.push(current);
+            match (parent_version, parent_digest) {
+                (None, None) => break,
+                (Some(version), Some(digest)) => {
+                    current = load_artifact(&connection, GENE_ID, &version, &digest)?;
+                }
+                _ => return Err(LineageRegistryError::IntegrityFailure),
+            }
+        }
+        ancestry.reverse();
+
+        let candidate = ancestry
+            .last()
+            .ok_or(LineageRegistryError::IntegrityFailure)?;
+        let mutation = if let Some(mutation_id) = candidate.mutation_id.as_deref() {
+            let row: Option<(
+                String,
+                String,
+                String,
+                String,
+                String,
+                String,
+                i64,
+                i64,
+                String,
+            )> = connection
+                .query_row(
+                    "SELECT mutation_ref, mutation_id, source_version, source_digest,
+                            target_version, target_digest, approved, gates_passed,
+                            approval_commitment
+                     FROM version_lineage_mutations
+                     WHERE mutation_id=?1 AND target_version=?2 AND target_digest=?3",
+                    params![mutation_id, candidate.version, candidate.artifact_digest],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                            row.get(6)?,
+                            row.get(7)?,
+                            row.get(8)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|_| LineageRegistryError::Unavailable)?;
+            let Some((mutation_ref, mutation_id, source_version, source_digest, target_version,
+                target_digest, approved, gates_passed, approval_commitment)) = row else {
+                return Err(LineageRegistryError::IntegrityFailure);
+            };
+            Some(RegisteredMutationRecord {
+                mutation_ref,
+                mutation_id,
+                source_version: Some(source_version),
+                source_digest: Some(source_digest),
+                target_version,
+                target_digest,
+                approved: approved == 1,
+                gates_passed: gates_passed == 1,
+                approval_commitment,
+            })
+        } else {
+            None
+        };
+
+        Ok(VersionLineageRecord {
+            ancestry,
+            mutation,
+            registry_revision: u64::try_from(revision)
+                .map_err(|_| LineageRegistryError::IntegrityFailure)?,
+        })
     }
 }
 
