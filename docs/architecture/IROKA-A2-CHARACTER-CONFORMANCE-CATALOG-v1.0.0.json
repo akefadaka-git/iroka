@@ -5,7 +5,7 @@
   "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
   "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
   "case_count": 72,
-  "genes_covered": 22,
+  "genes_covered": 23,
   "cases": [
     {
       "case_id": "CHAR-G01.IDENTITY-ROOT-P",
@@ -1217,13 +1217,19 @@
       "case_id": "CHAR-G08.SCHEDULER-POLICY-P",
       "gene_id": "g08.scheduler-policy",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (policy_id, task_classes, priorities, quotas, deadlines, provenance), valid provenance/version evidence and the baseline positive condition (valid constraints normalized; impossible schedule reported), the gene must satisfy: Schedule fairly under priority, deadline, resource and safety constraints.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "Given an authenticated immutable scheduler policy and registered task classes, fully typed priority/quota/deadline constraints, trusted clock/resource evidence and valid fairness rules, normalize the policy deterministically without changing protected-work status or silently reprioritizing tasks.",
+      "expected": "Return feasibility=feasible only when all hard constraints are satisfied; produce a deterministic semantics-preserving normalized_policy, unique class-bound violations (if any), auditable fairness/protected-work evidence and no execution authority.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "policy issuer and immutable revision verified",
+        "task-class IDs unique and registry-bound",
+        "priority/quota/deadline keys resolve to known classes",
+        "priority ordering and tie-break rules deterministic",
+        "quota units/windows and resource ceilings enforced",
+        "deadlines timezone-qualified and evaluated against trusted clock",
+        "normalization preserves policy semantics and protected work",
+        "feasibility agrees with constraints and violations",
+        "fairness and starvation protections are evidenced",
+        "no execution authority inferred"
       ],
       "existing_gene_io_case_id": "G08-GENE-002",
       "existing_gene_io_expected": "ACCEPT",
@@ -1231,19 +1237,26 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
         "https://iroka.dev/schemas/genes/g08.scheduler-policy/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G08.SCHEDULER-POLICY-N",
       "gene_id": "g08.scheduler-policy",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never sacrifice protected work or fairness through hidden priority changes.), and the baseline negative condition (negative quota or impossible deadline silently accepted), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "Given duplicate or unknown task classes, malformed or conflicting priority/quota/deadline maps, negative quota, impossible deadline, hidden priority rewrite, protected-work starvation, untrusted policy revision or insufficient resource/clock evidence, reject or report infeasibility/indeterminacy without silent normalization.",
+      "expected": "Return infeasible or indeterminate as evidence requires; identify every violation with unique IDs and valid class references; never silently change priorities, sacrifice protected work or imply permission to execute.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "duplicate and unknown class IDs rejected",
+        "unknown/conflicting policy map keys rejected",
+        "negative or out-of-bound quotas rejected",
+        "impossible/expired deadlines reported",
+        "untrusted policy or stale revision rejected",
+        "normalization cannot hide a priority change",
+        "protected work cannot be silently starved",
+        "violations uniquely identified and class-bound",
+        "insufficient evidence yields indeterminate",
+        "no execution authority inferred"
       ],
       "existing_gene_io_case_id": "G08-GENE-002",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -1251,7 +1264,8 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
         "https://iroka.dev/schemas/genes/g08.scheduler-policy/output/1.0.0"
-      ]
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
     },
     {
       "case_id": "CHAR-G08.COORDINATION-STATE-P",
@@ -2244,6 +2258,27 @@
         "G08-WG-SEM-06",
         "G08-WG-SEM-07",
         "G08-WG-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G08-SCHEDULER-POLICY-SEMANTIC-REVIEW-001",
+      "gene_id": "g08.scheduler-policy",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G08.SCHEDULER-POLICY-P",
+        "CHAR-G08.SCHEDULER-POLICY-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G08-SP-SEM-01",
+        "G08-SP-SEM-02",
+        "G08-SP-SEM-03",
+        "G08-SP-SEM-04",
+        "G08-SP-SEM-05",
+        "G08-SP-SEM-06",
+        "G08-SP-SEM-07",
+        "G08-SP-SEM-08"
       ]
     }
   ]
