@@ -112,6 +112,111 @@ pub trait RollbackEvidenceVerifier: Send + Sync {
     ) -> Result<(), EvidenceVerificationError>;
 }
 
+
+const MAX_ROLLBACK_EVIDENCE_TTL_SECS: u64 = 300;
+
+/// Production Ed25519 evidence verifier backed by the signed credential trust
+/// snapshot, live key revocation checks, durable nonce consumption and a
+/// persistent monotonic revocation-floor high-water mark.
+pub struct Ed25519RollbackEvidenceVerifier<R> {
+    credentials: crate::Ed25519CredentialVerifier<R>,
+    store: std::sync::Arc<crate::SqliteSecurityStore>,
+}
+
+impl<R: crate::RevocationChecker> Ed25519RollbackEvidenceVerifier<R> {
+    pub fn new(
+        credentials: crate::Ed25519CredentialVerifier<R>,
+        store: std::sync::Arc<crate::SqliteSecurityStore>,
+    ) -> Self {
+        Self { credentials, store }
+    }
+}
+
+impl<R: crate::RevocationChecker> RollbackEvidenceVerifier for Ed25519RollbackEvidenceVerifier<R> {
+    fn verify(
+        &self,
+        receipt: &RollbackEvidenceReceipt,
+        expected: &EvidenceBinding,
+        now: u64,
+    ) -> Result<(), EvidenceVerificationError> {
+        if receipt.subject != expected.subject
+            || receipt.subject_digest != expected.digest
+            || receipt.subject_epoch != expected.epoch
+            || receipt.revision != expected.revision
+        {
+            return Err(EvidenceVerificationError::ScopeMismatch);
+        }
+        if receipt.issuer.trim().is_empty()
+            || receipt.key_id.trim().is_empty()
+            || receipt.nonce.trim().len() < 16
+            || receipt.signature.len() != 64
+            || receipt.issued_at >= receipt.expires_at
+            || receipt.issued_at > now.saturating_add(CLOCK_SKEW_SECS)
+            || receipt.expires_at <= now
+            || receipt.expires_at - receipt.issued_at > MAX_ROLLBACK_EVIDENCE_TTL_SECS
+        {
+            return Err(EvidenceVerificationError::Malformed);
+        }
+        let payload = json!({
+            "subject": receipt.subject,
+            "subject_digest": receipt.subject_digest,
+            "subject_epoch": receipt.subject_epoch,
+            "revision": receipt.revision,
+            "issuer": receipt.issuer,
+            "key_id": receipt.key_id,
+            "issued_at": receipt.issued_at,
+            "expires_at": receipt.expires_at,
+            "nonce": receipt.nonce
+        });
+        let signing_bytes =
+            canonical_json(&payload).map_err(|_| EvidenceVerificationError::Malformed)?;
+        self.credentials
+            .verify_detached_payload(
+                &receipt.issuer,
+                &receipt.key_id,
+                &signing_bytes,
+                &receipt.signature,
+                now,
+            )
+            .map_err(|error| match error {
+                crate::CredentialError::Malformed => EvidenceVerificationError::Malformed,
+                crate::CredentialError::UntrustedIssuer | crate::CredentialError::UnknownKey
+                | crate::CredentialError::KeyOutsideValidity => EvidenceVerificationError::UnknownIssuer,
+                crate::CredentialError::InvalidSignature => EvidenceVerificationError::InvalidSignature,
+                crate::CredentialError::RevokedKey => EvidenceVerificationError::Revoked,
+                crate::CredentialError::RevocationUnavailable => EvidenceVerificationError::StoreUnavailable,
+                _ => EvidenceVerificationError::Malformed,
+            })?;
+        self.store
+            .consume_rollback_evidence_nonce(
+                &receipt.issuer,
+                &receipt.key_id,
+                &receipt.nonce,
+                receipt.expires_at,
+                now,
+            )
+            .map_err(|error| match error {
+                crate::SecurityStoreError::EvidenceReplay => EvidenceVerificationError::Replay,
+                crate::SecurityStoreError::RevokedEvidenceKey => EvidenceVerificationError::Revoked,
+                crate::SecurityStoreError::Unavailable => EvidenceVerificationError::StoreUnavailable,
+                _ => EvidenceVerificationError::Malformed,
+            })?;
+        if expected.subject == "revocation_floor" {
+            self.store
+                .advance_rollback_revocation_floor(expected.epoch, expected.revision)
+                .map_err(|error| match error {
+                    crate::SecurityStoreError::RevocationFloorRollback
+                    | crate::SecurityStoreError::ConflictingRevocationFloor => {
+                        EvidenceVerificationError::ScopeMismatch
+                    }
+                    crate::SecurityStoreError::Unavailable => EvidenceVerificationError::StoreUnavailable,
+                    _ => EvidenceVerificationError::Malformed,
+                })?;
+        }
+        Ok(())
+    }
+}
+
 pub struct RollbackGuardInput<'a> {
     pub current_epoch: u64,
     pub current_digest: String,
