@@ -1,0 +1,3328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "document_id": "IROKA-A2-CHARACTER-GENE-CONTRACTS-001",
+  "version": "1.0.0",
+  "status": "A2_NORMATIVE_LOGICAL_CONTRACT_PROPOSAL",
+  "parent_a1": {
+    "branch": "architecture/a1-character-constitution-v1",
+    "commit": "4ace04bed3a526939b22f0c9b41fdbf6286b2ed9",
+    "constitution": "docs/constitutional/IROKA-CHARACTER-CONSTITUTION-v1.0.0.md",
+    "reconciliation": "docs/architecture/IROKA-A1-CHARACTER-RECONCILIATION-v1.0.0.json"
+  },
+  "scope": {
+    "chromosomes": 12,
+    "genes": 36,
+    "new_chromosomes": 0,
+    "new_genes": 0,
+    "runtime_code_changes": 0
+  },
+  "contract_rules": [
+    "Contracts are gene-specific and derived from the frozen A1 constitution and canonical gene responsibilities.",
+    "Common provenance and version-bound evidence requirements supplement, but do not replace, gene-specific fields.",
+    "No contract grants authority or permission to execute protected effects.",
+    "Unknown, missing, stale or conflicting evidence must be represented explicitly.",
+    "A character decision cannot override identity, authorization, safety, privacy or legal gates.",
+    "All character changes require Owner-approved versioning and conformance regression."
+  ],
+  "gene_contracts": [
+    {
+      "gene_id": "g01.identity-root",
+      "chromosome_id": "01.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "identity_claim",
+          "issuer_ref",
+          "root_fingerprint",
+          "verification_time",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "identity_claim",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for identity claim."
+          },
+          {
+            "field": "issuer_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for issuer ref."
+          },
+          {
+            "field": "root_fingerprint",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for root fingerprint."
+          },
+          {
+            "field": "verification_time",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for verification time."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "identity_status",
+          "canonical_subject",
+          "authority_separation_result",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "identity_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for identity status."
+          },
+          {
+            "field": "canonical_subject",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for canonical subject."
+          },
+          {
+            "field": "authority_separation_result",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for authority separation result."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject identity claims without verifiable root binding.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G01.IDENTITY-ROOT-P",
+        "CHAR-G01.IDENTITY-ROOT-N"
+      ]
+    },
+    {
+      "gene_id": "g01.lineage",
+      "chromosome_id": "01.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "subject_id",
+          "parent_version_refs",
+          "transition_events",
+          "source_receipts",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "subject_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for subject id."
+          },
+          {
+            "field": "parent_version_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for parent version refs."
+          },
+          {
+            "field": "transition_events",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for transition events."
+          },
+          {
+            "field": "source_receipts",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for source receipts."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "lineage_graph",
+          "continuity_status",
+          "unresolved_links",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "lineage_graph",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for lineage graph."
+          },
+          {
+            "field": "continuity_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for continuity status."
+          },
+          {
+            "field": "unresolved_links",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for unresolved links."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Fail closed on broken, cyclic or unverifiable ancestry.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G01.LINEAGE-P",
+        "CHAR-G01.LINEAGE-N"
+      ]
+    },
+    {
+      "gene_id": "g01.compatibility",
+      "chromosome_id": "01.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "source_contract_version",
+          "target_contract_version",
+          "required_semantics",
+          "compatibility_policy",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "source_contract_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for source contract version."
+          },
+          {
+            "field": "target_contract_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for target contract version."
+          },
+          {
+            "field": "required_semantics",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for required semantics."
+          },
+          {
+            "field": "compatibility_policy",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for compatibility policy."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "compatibility_decision",
+          "unsupported_semantics",
+          "migration_requirements",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "compatibility_decision",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for compatibility decision."
+          },
+          {
+            "field": "unsupported_semantics",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for unsupported semantics."
+          },
+          {
+            "field": "migration_requirements",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for migration requirements."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject implicit coercion or unreviewed semantic downgrade.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G01.COMPATIBILITY-P",
+        "CHAR-G01.COMPATIBILITY-N"
+      ]
+    },
+    {
+      "gene_id": "g02.authority-source",
+      "chromosome_id": "02.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "principal_id",
+          "authority_source_ref",
+          "scope",
+          "validity_window",
+          "revocation_snapshot",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "principal_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for principal id."
+          },
+          {
+            "field": "authority_source_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for authority source ref."
+          },
+          {
+            "field": "scope",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for scope."
+          },
+          {
+            "field": "validity_window",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for validity window."
+          },
+          {
+            "field": "revocation_snapshot",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for revocation snapshot."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "authority_resolution",
+          "verified_scope",
+          "authority_evidence",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "authority_resolution",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for authority resolution."
+          },
+          {
+            "field": "verified_scope",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for verified scope."
+          },
+          {
+            "field": "authority_evidence",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for authority evidence."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Deny unknown, revoked, expired or self-issued authority.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G02.AUTHORITY-SOURCE-P",
+        "CHAR-G02.AUTHORITY-SOURCE-N"
+      ]
+    },
+    {
+      "gene_id": "g02.owner-governance",
+      "chromosome_id": "02.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "owner_decision_ref",
+          "requested_operation",
+          "requested_scope",
+          "conflict_set",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "owner_decision_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for owner decision ref."
+          },
+          {
+            "field": "requested_operation",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for requested operation."
+          },
+          {
+            "field": "requested_scope",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for requested scope."
+          },
+          {
+            "field": "conflict_set",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for conflict set."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "governance_decision",
+          "approved_scope",
+          "conflicts",
+          "escalation_route",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "governance_decision",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for governance decision."
+          },
+          {
+            "field": "approved_scope",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for approved scope."
+          },
+          {
+            "field": "conflicts",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for conflicts."
+          },
+          {
+            "field": "escalation_route",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for escalation route."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Never reinterpret approval beyond its signed scope.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G02.OWNER-GOVERNANCE-P",
+        "CHAR-G02.OWNER-GOVERNANCE-N"
+      ]
+    },
+    {
+      "gene_id": "g02.decision-register",
+      "chromosome_id": "02.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "decision_id",
+          "decision_authority",
+          "decision_payload",
+          "issued_at",
+          "expires_at",
+          "amendment_ref",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "decision_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for decision id."
+          },
+          {
+            "field": "decision_authority",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for decision authority."
+          },
+          {
+            "field": "decision_payload",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for decision payload."
+          },
+          {
+            "field": "issued_at",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for issued at."
+          },
+          {
+            "field": "expires_at",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for expires at."
+          },
+          {
+            "field": "amendment_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for amendment ref."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "immutable_decision_record",
+          "decision_status",
+          "record_digest",
+          "history_link",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "immutable_decision_record",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for immutable decision record."
+          },
+          {
+            "field": "decision_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for decision status."
+          },
+          {
+            "field": "record_digest",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for record digest."
+          },
+          {
+            "field": "history_link",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for history link."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject missing provenance; preserve append-only history.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G02.DECISION-REGISTER-P",
+        "CHAR-G02.DECISION-REGISTER-N"
+      ]
+    },
+    {
+      "gene_id": "g03.premise-model",
+      "chromosome_id": "03.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "claim_id",
+          "premise_text",
+          "source_refs",
+          "epistemic_type",
+          "observed_at",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "claim_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for claim id."
+          },
+          {
+            "field": "premise_text",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for premise text."
+          },
+          {
+            "field": "source_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for source refs."
+          },
+          {
+            "field": "epistemic_type",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for epistemic type."
+          },
+          {
+            "field": "observed_at",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for observed at."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "typed_premises",
+          "assumption_flags",
+          "unsupported_premises",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "typed_premises",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for typed premises."
+          },
+          {
+            "field": "assumption_flags",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for assumption flags."
+          },
+          {
+            "field": "unsupported_premises",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for unsupported premises."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Do not promote assumption, opinion or stale claim to fact.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G03.PREMISE-MODEL-P",
+        "CHAR-G03.PREMISE-MODEL-N"
+      ]
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "chromosome_id": "03.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "premise_ids",
+          "rule_set_version",
+          "query",
+          "allowed_inference_types",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "premise_ids",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for premise ids."
+          },
+          {
+            "field": "rule_set_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for rule set version."
+          },
+          {
+            "field": "query",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for query."
+          },
+          {
+            "field": "allowed_inference_types",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for allowed inference types."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "derived_conclusions",
+          "applied_rule_ids",
+          "unsupported_steps",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "derived_conclusions",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for derived conclusions."
+          },
+          {
+            "field": "applied_rule_ids",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for applied rule ids."
+          },
+          {
+            "field": "unsupported_steps",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for unsupported steps."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject invalid inference and disclose unsupported steps.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G03.INFERENCE-RULES-P",
+        "CHAR-G03.INFERENCE-RULES-N"
+      ]
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "chromosome_id": "03.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "claim_refs",
+          "uncertainty_sources",
+          "calibration_profile",
+          "decision_threshold",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "claim_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for claim refs."
+          },
+          {
+            "field": "uncertainty_sources",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for uncertainty sources."
+          },
+          {
+            "field": "calibration_profile",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for calibration profile."
+          },
+          {
+            "field": "decision_threshold",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for decision threshold."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "calibrated_confidence",
+          "uncertainty_components",
+          "abstention_recommendation",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "calibrated_confidence",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for calibrated confidence."
+          },
+          {
+            "field": "uncertainty_components",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for uncertainty components."
+          },
+          {
+            "field": "abstention_recommendation",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for abstention recommendation."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Do not emit false precision or hide material uncertainty.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G03.UNCERTAINTY-CALCULUS-P",
+        "CHAR-G03.UNCERTAINTY-CALCULUS-N"
+      ]
+    },
+    {
+      "gene_id": "g04.knowledge-schema",
+      "chromosome_id": "04.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "knowledge_item",
+          "source_identity",
+          "license_ref",
+          "context",
+          "validity_interval",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "knowledge_item",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for knowledge item."
+          },
+          {
+            "field": "source_identity",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for source identity."
+          },
+          {
+            "field": "license_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for license ref."
+          },
+          {
+            "field": "context",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for context."
+          },
+          {
+            "field": "validity_interval",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for validity interval."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "normalized_knowledge_record",
+          "source_binding",
+          "rights_status",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "normalized_knowledge_record",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for normalized knowledge record."
+          },
+          {
+            "field": "source_binding",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for source binding."
+          },
+          {
+            "field": "rights_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for rights status."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject unlicensed or context-stripped authoritative publication.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G04.KNOWLEDGE-SCHEMA-P",
+        "CHAR-G04.KNOWLEDGE-SCHEMA-N"
+      ]
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "chromosome_id": "04.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "source_digest",
+          "transformation_steps",
+          "actor_refs",
+          "tool_versions",
+          "output_digest",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "source_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for source digest."
+          },
+          {
+            "field": "transformation_steps",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for transformation steps."
+          },
+          {
+            "field": "actor_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for actor refs."
+          },
+          {
+            "field": "tool_versions",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for tool versions."
+          },
+          {
+            "field": "output_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for output digest."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "provenance_graph",
+          "integrity_result",
+          "missing_edges",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "provenance_graph",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for provenance graph."
+          },
+          {
+            "field": "integrity_result",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for integrity result."
+          },
+          {
+            "field": "missing_edges",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for missing edges."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Fail closed when required provenance edges are absent or invalid.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G04.PROVENANCE-CHAIN-P",
+        "CHAR-G04.PROVENANCE-CHAIN-N"
+      ]
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "chromosome_id": "04.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "claim_set",
+          "source_quality",
+          "temporal_context",
+          "conflict_scope",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "claim_set",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for claim set."
+          },
+          {
+            "field": "source_quality",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for source quality."
+          },
+          {
+            "field": "temporal_context",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for temporal context."
+          },
+          {
+            "field": "conflict_scope",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for conflict scope."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "conflict_set",
+          "position_summaries",
+          "unresolved_questions",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "conflict_set",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for conflict set."
+          },
+          {
+            "field": "position_summaries",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for position summaries."
+          },
+          {
+            "field": "unresolved_questions",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for unresolved questions."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Preserve material disagreement; never manufacture consensus.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G04.CONFLICT-MODEL-P",
+        "CHAR-G04.CONFLICT-MODEL-N"
+      ]
+    },
+    {
+      "gene_id": "g05.memory-classification",
+      "chromosome_id": "05.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "memory_candidate",
+          "purpose",
+          "consent_basis",
+          "sensitivity_labels",
+          "subject_scope",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "memory_candidate",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for memory candidate."
+          },
+          {
+            "field": "purpose",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for purpose."
+          },
+          {
+            "field": "consent_basis",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for consent basis."
+          },
+          {
+            "field": "sensitivity_labels",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for sensitivity labels."
+          },
+          {
+            "field": "subject_scope",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for subject scope."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "classification",
+          "permitted_uses",
+          "access_constraints",
+          "review_due",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "classification",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for classification."
+          },
+          {
+            "field": "permitted_uses",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for permitted uses."
+          },
+          {
+            "field": "access_constraints",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for access constraints."
+          },
+          {
+            "field": "review_due",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for review due."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Deny unsupported sensitive inference or purpose expansion.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G05.MEMORY-CLASSIFICATION-P",
+        "CHAR-G05.MEMORY-CLASSIFICATION-N"
+      ]
+    },
+    {
+      "gene_id": "g05.retention-control",
+      "chromosome_id": "05.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "memory_ref",
+          "retention_policy",
+          "expiry_at",
+          "deletion_request",
+          "legal_hold_ref",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "memory_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for memory ref."
+          },
+          {
+            "field": "retention_policy",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for retention policy."
+          },
+          {
+            "field": "expiry_at",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for expiry at."
+          },
+          {
+            "field": "deletion_request",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for deletion request."
+          },
+          {
+            "field": "legal_hold_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for legal hold ref."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "retention_decision",
+          "scheduled_disposition",
+          "completion_receipt",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "retention_decision",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for retention decision."
+          },
+          {
+            "field": "scheduled_disposition",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for scheduled disposition."
+          },
+          {
+            "field": "completion_receipt",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for completion receipt."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Do not retain beyond policy; legal hold requires explicit verified basis.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G05.RETENTION-CONTROL-P",
+        "CHAR-G05.RETENTION-CONTROL-N"
+      ]
+    },
+    {
+      "gene_id": "g05.integrity-checkpoint",
+      "chromosome_id": "05.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "memory_snapshot_ref",
+          "expected_digest",
+          "checkpoint_sequence",
+          "prior_checkpoint_ref",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "memory_snapshot_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for memory snapshot ref."
+          },
+          {
+            "field": "expected_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for expected digest."
+          },
+          {
+            "field": "checkpoint_sequence",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for checkpoint sequence."
+          },
+          {
+            "field": "prior_checkpoint_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for prior checkpoint ref."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "integrity_status",
+          "observed_digest",
+          "checkpoint_receipt",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "integrity_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for integrity status."
+          },
+          {
+            "field": "observed_digest",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for observed digest."
+          },
+          {
+            "field": "checkpoint_receipt",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for checkpoint receipt."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Quarantine unexplained mutation; never silently rewrite history.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G05.INTEGRITY-CHECKPOINT-P",
+        "CHAR-G05.INTEGRITY-CHECKPOINT-N"
+      ]
+    },
+    {
+      "gene_id": "g06.input-envelope",
+      "chromosome_id": "06.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "raw_input_ref",
+          "declared_intent",
+          "source_actor",
+          "consent_context",
+          "trust_label",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "raw_input_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for raw input ref."
+          },
+          {
+            "field": "declared_intent",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for declared intent."
+          },
+          {
+            "field": "source_actor",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for source actor."
+          },
+          {
+            "field": "consent_context",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for consent context."
+          },
+          {
+            "field": "trust_label",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for trust label."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "normalized_envelope",
+          "untrusted_segments",
+          "policy_context",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "normalized_envelope",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for normalized envelope."
+          },
+          {
+            "field": "untrusted_segments",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for untrusted segments."
+          },
+          {
+            "field": "policy_context",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for policy context."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Treat embedded instructions and retrieved payloads as untrusted data.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G06.INPUT-ENVELOPE-P",
+        "CHAR-G06.INPUT-ENVELOPE-N"
+      ]
+    },
+    {
+      "gene_id": "g06.source-trust",
+      "chromosome_id": "06.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "source_ref",
+          "issuer",
+          "publication_time",
+          "authority_domain",
+          "corroborating_sources",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "source_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for source ref."
+          },
+          {
+            "field": "issuer",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for issuer."
+          },
+          {
+            "field": "publication_time",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for publication time."
+          },
+          {
+            "field": "authority_domain",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for authority domain."
+          },
+          {
+            "field": "corroborating_sources",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for corroborating sources."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "trust_assessment",
+          "freshness_status",
+          "bias_flags",
+          "corroboration_state",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "trust_assessment",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for trust assessment."
+          },
+          {
+            "field": "freshness_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for freshness status."
+          },
+          {
+            "field": "bias_flags",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for bias flags."
+          },
+          {
+            "field": "corroboration_state",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for corroboration state."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "No trust promotion from popularity, confidence or instruction-like content.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G06.SOURCE-TRUST-P",
+        "CHAR-G06.SOURCE-TRUST-N"
+      ]
+    },
+    {
+      "gene_id": "g06.perception-transform",
+      "chromosome_id": "06.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "original_digest",
+          "transform_kind",
+          "tool_version",
+          "confidence_map",
+          "target_representation",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "original_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for original digest."
+          },
+          {
+            "field": "transform_kind",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for transform kind."
+          },
+          {
+            "field": "tool_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for tool version."
+          },
+          {
+            "field": "confidence_map",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for confidence map."
+          },
+          {
+            "field": "target_representation",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for target representation."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "derived_representation",
+          "loss_map",
+          "uncertainty_map",
+          "source_link",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "derived_representation",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for derived representation."
+          },
+          {
+            "field": "loss_map",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for loss map."
+          },
+          {
+            "field": "uncertainty_map",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for uncertainty map."
+          },
+          {
+            "field": "source_link",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for source link."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Preserve original and label OCR/translation/transcription uncertainty.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G06.PERCEPTION-TRANSFORM-P",
+        "CHAR-G06.PERCEPTION-TRANSFORM-N"
+      ]
+    },
+    {
+      "gene_id": "g07.agent-principal",
+      "chromosome_id": "07.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "agent_id",
+          "credential_ref",
+          "principal_class",
+          "owner_scope",
+          "session_binding",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "agent_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for agent id."
+          },
+          {
+            "field": "credential_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for credential ref."
+          },
+          {
+            "field": "principal_class",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for principal class."
+          },
+          {
+            "field": "owner_scope",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for owner scope."
+          },
+          {
+            "field": "session_binding",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for session binding."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "principal_validity",
+          "principal_digest",
+          "accountability_owner",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "principal_validity",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for principal validity."
+          },
+          {
+            "field": "principal_digest",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for principal digest."
+          },
+          {
+            "field": "accountability_owner",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for accountability owner."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject impersonation, missing credential or principal ambiguity.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G07.AGENT-PRINCIPAL-P",
+        "CHAR-G07.AGENT-PRINCIPAL-N"
+      ]
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "chromosome_id": "07.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "agent_id",
+          "requested_capabilities",
+          "task_context",
+          "least_privilege_policy",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "agent_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for agent id."
+          },
+          {
+            "field": "requested_capabilities",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for requested capabilities."
+          },
+          {
+            "field": "task_context",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for task context."
+          },
+          {
+            "field": "least_privilege_policy",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for least privilege policy."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "granted_capabilities",
+          "denied_capabilities",
+          "capability_expiry",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "granted_capabilities",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for granted capabilities."
+          },
+          {
+            "field": "denied_capabilities",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for denied capabilities."
+          },
+          {
+            "field": "capability_expiry",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for capability expiry."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Capability is not authorization; grant only minimum required ability.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G07.CAPABILITY-PROFILE-P",
+        "CHAR-G07.CAPABILITY-PROFILE-N"
+      ]
+    },
+    {
+      "gene_id": "g07.delegation-boundary",
+      "chromosome_id": "07.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "delegator",
+          "delegate",
+          "delegated_scope",
+          "max_depth",
+          "expiry",
+          "revocation_ref",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "delegator",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for delegator."
+          },
+          {
+            "field": "delegate",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for delegate."
+          },
+          {
+            "field": "delegated_scope",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for delegated scope."
+          },
+          {
+            "field": "max_depth",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for max depth."
+          },
+          {
+            "field": "expiry",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for expiry."
+          },
+          {
+            "field": "revocation_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for revocation ref."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "delegation_decision",
+          "effective_scope",
+          "remaining_depth",
+          "revocation_state",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "delegation_decision",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for delegation decision."
+          },
+          {
+            "field": "effective_scope",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for effective scope."
+          },
+          {
+            "field": "remaining_depth",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for remaining depth."
+          },
+          {
+            "field": "revocation_state",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for revocation state."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Deny scope expansion, onward delegation beyond depth or expired delegation.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G07.DELEGATION-BOUNDARY-P",
+        "CHAR-G07.DELEGATION-BOUNDARY-N"
+      ]
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "chromosome_id": "08.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "workflow_id",
+          "task_nodes",
+          "dependency_edges",
+          "approval_gates",
+          "recovery_plan",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "workflow_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for workflow id."
+          },
+          {
+            "field": "task_nodes",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for task nodes."
+          },
+          {
+            "field": "dependency_edges",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for dependency edges."
+          },
+          {
+            "field": "approval_gates",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for approval gates."
+          },
+          {
+            "field": "recovery_plan",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for recovery plan."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "validated_graph",
+          "blocked_nodes",
+          "checkpoint_plan",
+          "cycle_findings",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "validated_graph",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for validated graph."
+          },
+          {
+            "field": "blocked_nodes",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for blocked nodes."
+          },
+          {
+            "field": "checkpoint_plan",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for checkpoint plan."
+          },
+          {
+            "field": "cycle_findings",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for cycle findings."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Do not skip dependencies, required approval gates or recovery checkpoints.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G08.WORKFLOW-GRAPH-P",
+        "CHAR-G08.WORKFLOW-GRAPH-N"
+      ]
+    },
+    {
+      "gene_id": "g08.scheduler-policy",
+      "chromosome_id": "08.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "work_items",
+          "priority_basis",
+          "deadlines",
+          "resource_budget",
+          "fairness_policy",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "work_items",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for work items."
+          },
+          {
+            "field": "priority_basis",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for priority basis."
+          },
+          {
+            "field": "deadlines",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for deadlines."
+          },
+          {
+            "field": "resource_budget",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for resource budget."
+          },
+          {
+            "field": "fairness_policy",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for fairness policy."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "schedule",
+          "priority_explanations",
+          "resource_reservations",
+          "deferred_items",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "schedule",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for schedule."
+          },
+          {
+            "field": "priority_explanations",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for priority explanations."
+          },
+          {
+            "field": "resource_reservations",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for resource reservations."
+          },
+          {
+            "field": "deferred_items",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for deferred items."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject hidden priority manipulation and unsafe resource starvation.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G08.SCHEDULER-POLICY-P",
+        "CHAR-G08.SCHEDULER-POLICY-N"
+      ]
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "chromosome_id": "08.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "workflow_id",
+          "agent_states",
+          "shared_context_refs",
+          "conflict_events",
+          "ownership_map",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "workflow_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for workflow id."
+          },
+          {
+            "field": "agent_states",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for agent states."
+          },
+          {
+            "field": "shared_context_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for shared context refs."
+          },
+          {
+            "field": "conflict_events",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for conflict events."
+          },
+          {
+            "field": "ownership_map",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for ownership map."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "reconciled_state",
+          "agent_disagreements",
+          "context_access_log",
+          "next_safe_transition",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "reconciled_state",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for reconciled state."
+          },
+          {
+            "field": "agent_disagreements",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for agent disagreements."
+          },
+          {
+            "field": "context_access_log",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for context access log."
+          },
+          {
+            "field": "next_safe_transition",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for next safe transition."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Preserve dissent and ownership; prevent duplicate protected effects.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G08.COORDINATION-STATE-P",
+        "CHAR-G08.COORDINATION-STATE-N"
+      ]
+    },
+    {
+      "gene_id": "g09.effect-contract",
+      "chromosome_id": "09.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "effect_type",
+          "affected_subjects",
+          "resource_delta",
+          "reversibility",
+          "impact_assessment",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "effect_type",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for effect type."
+          },
+          {
+            "field": "affected_subjects",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for affected subjects."
+          },
+          {
+            "field": "resource_delta",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for resource delta."
+          },
+          {
+            "field": "reversibility",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for reversibility."
+          },
+          {
+            "field": "impact_assessment",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for impact assessment."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "effect_risk",
+          "proportionality_result",
+          "required_safeguards",
+          "compensation_plan",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "effect_risk",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for effect risk."
+          },
+          {
+            "field": "proportionality_result",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for proportionality result."
+          },
+          {
+            "field": "required_safeguards",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for required safeguards."
+          },
+          {
+            "field": "compensation_plan",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for compensation plan."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Block deceptive, disproportionate or unauthorized harmful effects.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G09.EFFECT-CONTRACT-P",
+        "CHAR-G09.EFFECT-CONTRACT-N"
+      ]
+    },
+    {
+      "gene_id": "g09.admission-gate",
+      "chromosome_id": "09.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "operation_digest",
+          "principal_ref",
+          "approval_ref",
+          "policy_digest",
+          "expiry_check",
+          "revocation_check",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "operation_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for operation digest."
+          },
+          {
+            "field": "principal_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for principal ref."
+          },
+          {
+            "field": "approval_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for approval ref."
+          },
+          {
+            "field": "policy_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for policy digest."
+          },
+          {
+            "field": "expiry_check",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for expiry check."
+          },
+          {
+            "field": "revocation_check",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for revocation check."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "admission_decision",
+          "authorized_scope",
+          "denial_reasons",
+          "gate_evidence",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "admission_decision",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for admission decision."
+          },
+          {
+            "field": "authorized_scope",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for authorized scope."
+          },
+          {
+            "field": "denial_reasons",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for denial reasons."
+          },
+          {
+            "field": "gate_evidence",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for gate evidence."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Fail closed unless exact current authorization and every required gate pass.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G09.ADMISSION-GATE-P",
+        "CHAR-G09.ADMISSION-GATE-N"
+      ]
+    },
+    {
+      "gene_id": "g09.execution-receipt",
+      "chromosome_id": "09.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "operation_digest",
+          "admission_receipt",
+          "executor_ref",
+          "execution_result",
+          "observed_effects",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "operation_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for operation digest."
+          },
+          {
+            "field": "admission_receipt",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for admission receipt."
+          },
+          {
+            "field": "executor_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for executor ref."
+          },
+          {
+            "field": "execution_result",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for execution result."
+          },
+          {
+            "field": "observed_effects",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for observed effects."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "execution_receipt",
+          "effect_status",
+          "verification_status",
+          "correlation_id",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "execution_receipt",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for execution receipt."
+          },
+          {
+            "field": "effect_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for effect status."
+          },
+          {
+            "field": "verification_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for verification status."
+          },
+          {
+            "field": "correlation_id",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for correlation id."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Never claim success without observed effect and independent verification.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G09.EXECUTION-RECEIPT-P",
+        "CHAR-G09.EXECUTION-RECEIPT-N"
+      ]
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "chromosome_id": "10.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "dataset_ref",
+          "license_ref",
+          "consent_basis",
+          "provenance_manifest",
+          "quality_report",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "dataset_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for dataset ref."
+          },
+          {
+            "field": "license_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for license ref."
+          },
+          {
+            "field": "consent_basis",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for consent basis."
+          },
+          {
+            "field": "provenance_manifest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for provenance manifest."
+          },
+          {
+            "field": "quality_report",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for quality report."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "admission_status",
+          "permitted_training_scope",
+          "excluded_records",
+          "quality_findings",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "admission_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for admission status."
+          },
+          {
+            "field": "permitted_training_scope",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for permitted training scope."
+          },
+          {
+            "field": "excluded_records",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for excluded records."
+          },
+          {
+            "field": "quality_findings",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for quality findings."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject unauthorized, poisoned or provenance-deficient learning data.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G10.LEARNING-INPUT-P",
+        "CHAR-G10.LEARNING-INPUT-N"
+      ]
+    },
+    {
+      "gene_id": "g10.change-proposal",
+      "chromosome_id": "10.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "change_id",
+          "base_version",
+          "proposed_diff",
+          "affected_invariants",
+          "risk_assessment",
+          "rollback_plan",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "change_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for change id."
+          },
+          {
+            "field": "base_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for base version."
+          },
+          {
+            "field": "proposed_diff",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for proposed diff."
+          },
+          {
+            "field": "affected_invariants",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for affected invariants."
+          },
+          {
+            "field": "risk_assessment",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for risk assessment."
+          },
+          {
+            "field": "rollback_plan",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for rollback plan."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "proposal_assessment",
+          "required_approvals",
+          "blocked_conditions",
+          "validation_plan",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "proposal_assessment",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for proposal assessment."
+          },
+          {
+            "field": "required_approvals",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for required approvals."
+          },
+          {
+            "field": "blocked_conditions",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for blocked conditions."
+          },
+          {
+            "field": "validation_plan",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for validation plan."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Proposal cannot self-approve, mutate or bypass Owner-controlled invariants.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G10.CHANGE-PROPOSAL-P",
+        "CHAR-G10.CHANGE-PROPOSAL-N"
+      ]
+    },
+    {
+      "gene_id": "g10.evaluation-record",
+      "chromosome_id": "10.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "candidate_version",
+          "dataset_versions",
+          "protocol_version",
+          "metrics",
+          "subgroup_results",
+          "baseline_version",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "candidate_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for candidate version."
+          },
+          {
+            "field": "dataset_versions",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for dataset versions."
+          },
+          {
+            "field": "protocol_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for protocol version."
+          },
+          {
+            "field": "metrics",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for metrics."
+          },
+          {
+            "field": "subgroup_results",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for subgroup results."
+          },
+          {
+            "field": "baseline_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for baseline version."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "evaluation_outcome",
+          "regressions",
+          "limitations",
+          "confidence_intervals",
+          "release_recommendation",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "evaluation_outcome",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for evaluation outcome."
+          },
+          {
+            "field": "regressions",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for regressions."
+          },
+          {
+            "field": "limitations",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for limitations."
+          },
+          {
+            "field": "confidence_intervals",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for confidence intervals."
+          },
+          {
+            "field": "release_recommendation",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for release recommendation."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject cherry-picked, irreproducible or materially incomplete evaluation.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G10.EVALUATION-RECORD-P",
+        "CHAR-G10.EVALUATION-RECORD-N"
+      ]
+    },
+    {
+      "gene_id": "g11.validator",
+      "chromosome_id": "11.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "artifact_digest",
+          "contract_refs",
+          "policy_version",
+          "validation_scope",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "artifact_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for artifact digest."
+          },
+          {
+            "field": "contract_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for contract refs."
+          },
+          {
+            "field": "policy_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for policy version."
+          },
+          {
+            "field": "validation_scope",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for validation scope."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "validation_result",
+          "findings",
+          "blocking_violations",
+          "validated_digest",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "validation_result",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for validation result."
+          },
+          {
+            "field": "findings",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for findings."
+          },
+          {
+            "field": "blocking_violations",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for blocking violations."
+          },
+          {
+            "field": "validated_digest",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for validated digest."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Validator cannot waive critical failures or self-certify its own trust.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G11.VALIDATOR-P",
+        "CHAR-G11.VALIDATOR-N"
+      ]
+    },
+    {
+      "gene_id": "g11.attestation",
+      "chromosome_id": "11.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "artifact_digest",
+          "attester_identity",
+          "attester_role",
+          "observation_window",
+          "evidence_refs",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "artifact_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for artifact digest."
+          },
+          {
+            "field": "attester_identity",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for attester identity."
+          },
+          {
+            "field": "attester_role",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for attester role."
+          },
+          {
+            "field": "observation_window",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for observation window."
+          },
+          {
+            "field": "evidence_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for evidence refs."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "attestation_statement",
+          "scope",
+          "limitations",
+          "signature_binding",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "attestation_statement",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for attestation statement."
+          },
+          {
+            "field": "scope",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for scope."
+          },
+          {
+            "field": "limitations",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for limitations."
+          },
+          {
+            "field": "signature_binding",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for signature binding."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Do not attest to unobserved claims or evidence outside scope.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G11.ATTESTATION-P",
+        "CHAR-G11.ATTESTATION-N"
+      ]
+    },
+    {
+      "gene_id": "g11.conformance-report",
+      "chromosome_id": "11.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "suite_version",
+          "case_results",
+          "environment_digest",
+          "artifact_digest",
+          "reviewer_ref",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "suite_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for suite version."
+          },
+          {
+            "field": "case_results",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for case results."
+          },
+          {
+            "field": "environment_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for environment digest."
+          },
+          {
+            "field": "artifact_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for artifact digest."
+          },
+          {
+            "field": "reviewer_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for reviewer ref."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "conformance_status",
+          "pass_fail_counts",
+          "unknowns",
+          "waivers",
+          "closure_disposition",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "conformance_status",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for conformance status."
+          },
+          {
+            "field": "pass_fail_counts",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for pass fail counts."
+          },
+          {
+            "field": "unknowns",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for unknowns."
+          },
+          {
+            "field": "waivers",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for waivers."
+          },
+          {
+            "field": "closure_disposition",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for closure disposition."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Partial, unknown and not-run must never be reported as pass or closure.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G11.CONFORMANCE-REPORT-P",
+        "CHAR-G11.CONFORMANCE-REPORT-N"
+      ]
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "chromosome_id": "12.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "mutation_id",
+          "target_gene",
+          "base_version",
+          "proposed_version",
+          "risk_class",
+          "protected_invariants",
+          "approval_ref",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "mutation_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for mutation id."
+          },
+          {
+            "field": "target_gene",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for target gene."
+          },
+          {
+            "field": "base_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for base version."
+          },
+          {
+            "field": "proposed_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for proposed version."
+          },
+          {
+            "field": "risk_class",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for risk class."
+          },
+          {
+            "field": "protected_invariants",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for protected invariants."
+          },
+          {
+            "field": "approval_ref",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for approval ref."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "mutation_decision",
+          "required_gates",
+          "denial_reasons",
+          "policy_digest",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "mutation_decision",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for mutation decision."
+          },
+          {
+            "field": "required_gates",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for required gates."
+          },
+          {
+            "field": "denial_reasons",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for denial reasons."
+          },
+          {
+            "field": "policy_digest",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for policy digest."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Deny constitutional weakening without explicit Owner approval and complete gates.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G12.MUTATION-POLICY-P",
+        "CHAR-G12.MUTATION-POLICY-N"
+      ]
+    },
+    {
+      "gene_id": "g12.version-lineage",
+      "chromosome_id": "12.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "artifact_id",
+          "prior_version",
+          "new_version",
+          "change_digest",
+          "approval_refs",
+          "compatibility_report",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "artifact_id",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for artifact id."
+          },
+          {
+            "field": "prior_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for prior version."
+          },
+          {
+            "field": "new_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for new version."
+          },
+          {
+            "field": "change_digest",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for change digest."
+          },
+          {
+            "field": "approval_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for approval refs."
+          },
+          {
+            "field": "compatibility_report",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for compatibility report."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "version_chain",
+          "semantic_change_class",
+          "compatibility_state",
+          "integrity_proof",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "version_chain",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for version chain."
+          },
+          {
+            "field": "semantic_change_class",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for semantic change class."
+          },
+          {
+            "field": "compatibility_state",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for compatibility state."
+          },
+          {
+            "field": "integrity_proof",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for integrity proof."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Never rewrite ancestry or conceal breaking/constitutional changes.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G12.VERSION-LINEAGE-P",
+        "CHAR-G12.VERSION-LINEAGE-N"
+      ]
+    },
+    {
+      "gene_id": "g12.rollback-guard",
+      "chromosome_id": "12.",
+      "contract_version": "1.0.0",
+      "normative_source": "IROKA-CHARACTER-CONSTITUTION-001",
+      "character_inputs": {
+        "required_fields": [
+          "current_version",
+          "requested_target",
+          "protected_floor",
+          "trust_status",
+          "checkpoint_refs",
+          "request_id",
+          "policy_version",
+          "provenance",
+          "version_bound_evidence"
+        ],
+        "field_semantics": [
+          {
+            "field": "current_version",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for current version."
+          },
+          {
+            "field": "requested_target",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for requested target."
+          },
+          {
+            "field": "protected_floor",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for protected floor."
+          },
+          {
+            "field": "trust_status",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for trust status."
+          },
+          {
+            "field": "checkpoint_refs",
+            "required": true,
+            "meaning": "Gene-specific evidence-bearing input for checkpoint refs."
+          }
+        ],
+        "common_requirements": [
+          "provenance identifies source and transformation chain",
+          "version_bound_evidence binds evaluated artifact and policy version"
+        ]
+      },
+      "character_outputs": {
+        "required_fields": [
+          "rollback_decision",
+          "blocked_reasons",
+          "recovery_target",
+          "anti_rollback_evidence",
+          "decision_status",
+          "evidence_refs",
+          "evaluated_at",
+          "contract_version"
+        ],
+        "field_semantics": [
+          {
+            "field": "rollback_decision",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for rollback decision."
+          },
+          {
+            "field": "blocked_reasons",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for blocked reasons."
+          },
+          {
+            "field": "recovery_target",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for recovery target."
+          },
+          {
+            "field": "anti_rollback_evidence",
+            "required": true,
+            "meaning": "Gene-specific character evaluation output for anti rollback evidence."
+          }
+        ],
+        "common_requirements": [
+          "decision_status distinguishes pass, deny, defer, partial, unknown and not_run",
+          "evidence_refs resolve to inspectable evidence"
+        ]
+      },
+      "failure_semantics": "Reject rollback below protected floor or to untrusted/constitutionally weaker state.",
+      "authority_boundary": "This contract evaluates or constrains character behavior; it does not create authority, approval or permission to execute.",
+      "conformance_case_ids": [
+        "CHAR-G12.ROLLBACK-GUARD-P",
+        "CHAR-G12.ROLLBACK-GUARD-N"
+      ]
+    }
+  ],
+  "a2_boundary": {
+    "this_artifact_defines": "logical character input/output contracts and gene-specific failure semantics",
+    "not_yet_defined": "machine JSON Schema files, executable validator integration, runtime enforcement and production evaluation thresholds",
+    "next_required": "reconcile each gene contract with its existing normative IO schema and exact gene-specific schema references before generating schema deltas"
+  }
+}
