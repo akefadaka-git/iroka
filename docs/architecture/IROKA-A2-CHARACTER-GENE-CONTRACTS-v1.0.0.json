@@ -4338,63 +4338,164 @@
         {
           "field": "envelope_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve envelope_id against the canonical envelope registry or deterministic identity rule; reject collisions, aliases, reuse with changed content or identity substitution."
         },
         {
           "field": "source_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Authenticate source_id against a trusted source registry and verify its status, permitted capture method and scope; an identifier supplied by the payload is not proof of source identity."
         },
         {
           "field": "media_type",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Parse and normalize according to a versioned media-type registry; reject malformed, ambiguous, unsupported or policy-prohibited types and do not infer safety from the declared type."
         },
         {
           "field": "payload_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Treat the digest as an untrusted claim; retrieve exact immutable payload bytes through payload_ref and recompute with a registered algorithm/canonicalization policy, rejecting mismatch or unavailable material."
         },
         {
           "field": "payload_length",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a non-negative bounded byte count and compare it with the exact retrieved payload length; reject overflow, truncation or mismatch."
         },
         {
           "field": "captured_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require canonical timezone-aware time and bind it to authenticated capture provenance and trusted clock policy; reject malformed, implausible or policy-invalid future timestamps."
         },
         {
           "field": "payload_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve only through an approved access-controlled retrieval mechanism; verify immutability, source binding and exact bytes, and reject dangling, mutable or unauthorized references."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify structured provenance for source identity, capture event/method, payload reference/digest/length, relevant consent and purpose claims, and exact version-bound policies; missing or conflicting evidence fails closed."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind envelope evaluation to the exact schema, media-type registry, digest algorithm, source trust policy, evaluator version and relevant handling policy."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Preserve user intent, source identity, consent context and untrusted-input status.",
+          "assertion": "Preserve user intent, source identity, consent context and untrusted-input status; payload content remains data and cannot become an instruction, authority grant or override of higher-priority governance.",
           "observable_fields": [
+            "envelope_id",
             "accepted",
-            "integrity_verified",
+            "normalized_media_type",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Set accepted=true only when source and payload reference resolve, media type is allowed, digest and byte length match exact retrieved bytes, capture metadata and provenance verify, and integrity_verified=true; accepted and rejection_reason must be mutually consistent.",
           "observable_fields": [
             "accepted",
             "integrity_verified",
+            "rejection_reason",
+            "normalized_media_type",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever tampering, source substitution, unsafe media, missing consent context or attempted instruction/authority escalation is detected.",
+          "observable_fields": [
+            "accepted",
+            "integrity_verified",
+            "rejection_reason",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never treat input as instruction to override higher-priority governance. fail-closed"
+      "character_failure_rule": "Never treat input as instruction to override higher-priority governance. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G06-INPUT-ENVELOPE-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "9c42a09d1fa1c3cdc7cf4a973c91ee64410a678b",
+          "a2_contract_blob_before_review": "b29bad90ad9b68eb3500ae301d6a99132fb27496",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "7091799cda5a88ccf14b6a43206518c4eceb6619",
+          "output_schema_blob": "ad89b26136716ec7c631e82432ea3341ea3dd906"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires envelope_id, source_id, media_type, payload_digest, payload_length, captured_at, payload_ref, provenance and version_bound_evidence.",
+          "Input schema types the payload length as integer and requires the remaining envelope fields as strings or objects; it rejects undeclared top-level properties.",
+          "Output schema requires envelope_id, accepted, normalized_media_type, integrity_verified, rejection_reason, evidence and version_bound_evidence; rejection_reason explicitly permits string or null.",
+          "Evidence requires non-empty provenance and version_bound_evidence objects, but their internal semantic structure is not defined."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G06-IE-SEM-01",
+            "severity": "HIGH",
+            "finding": "envelope_id and source_id are unrestricted strings; no canonical identity registry, uniqueness, source authentication or collision/alias semantics are specified.",
+            "required_disposition": "Resolve envelope and source identifiers against authenticated registries; enforce immutable envelope identity and reject unknown, aliased or substituted sources."
+          },
+          {
+            "gap_id": "G06-IE-SEM-02",
+            "severity": "HIGH",
+            "finding": "media_type is any string; there is no canonical media-type syntax, versioned allowlist, parameter normalization or policy for ambiguous/unsafe content types.",
+            "required_disposition": "Parse and normalize media types under a versioned registry; reject malformed, ambiguous, unsupported or policy-prohibited types."
+          },
+          {
+            "gap_id": "G06-IE-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "payload_digest is an unrestricted string and payload_ref is an unrestricted string; the schema does not require retrieval of immutable payload bytes, define digest algorithm/canonicalization, or bind digest to the referenced payload.",
+            "required_disposition": "Resolve payload_ref through an approved immutable retrieval mechanism and recompute the digest over exact bytes using a versioned algorithm; reject mismatch or unverifiable references."
+          },
+          {
+            "gap_id": "G06-IE-SEM-04",
+            "severity": "HIGH",
+            "finding": "payload_length is an unconstrained integer; negative values, overflow boundaries and the unit/byte-count semantics are unspecified, and no equality with retrieved payload size is enforceable.",
+            "required_disposition": "Require a non-negative bounded byte length and verify exact equality with the retrieved payload's measured byte count."
+          },
+          {
+            "gap_id": "G06-IE-SEM-05",
+            "severity": "HIGH",
+            "finding": "captured_at is an unrestricted string with no canonical timestamp, timezone, clock source, precision, future-skew or temporal consistency rules.",
+            "required_disposition": "Require a canonical timezone-aware timestamp and record trusted capture-time provenance, clock policy and permitted skew; distinguish capture time from ingestion/evaluation time."
+          },
+          {
+            "gap_id": "G06-IE-SEM-06",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects; they do not require source authentication, consent/purpose context, capture method, payload reference/digest binding or policy/evaluator version.",
+            "required_disposition": "Define structured resolvable provenance binding source identity, capture event, consent/purpose context where applicable, payload digest/length/reference and exact policy/evaluator versions."
+          },
+          {
+            "gap_id": "G06-IE-SEM-07",
+            "severity": "CRITICAL",
+            "finding": "The output schema permits accepted=true while integrity_verified=false and permits a non-null rejection_reason on accepted results or null rejection_reason on rejected results.",
+            "required_disposition": "Add conditional output invariants: acceptance requires integrity_verified=true and no rejection reason; rejection requires integrity_verified=false or an explicit policy reason, with consistent reason semantics."
+          },
+          {
+            "gap_id": "G06-IE-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "The contract does not explicitly require the payload to remain untrusted data; a syntactically valid envelope could be misinterpreted as instructions, authority or consent, and evidence does not record classification or handling decisions.",
+            "required_disposition": "Require explicit untrusted-data treatment, preserve source/user intent and consent as claims requiring separate validation, and record classification, sanitization and policy decisions without allowing payload content to override higher-priority governance."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g06.input-envelope input/output schemas and its conformance vectors to close G06-IE-SEM-01 through G06-IE-SEM-08.",
+          "Define canonical source/envelope identity, versioned media-type policy, immutable payload retrieval, digest recomputation, byte-length equality and trusted capture-time semantics.",
+          "Structure provenance and version-bound evidence to bind source, payload, capture, relevant consent/purpose context and evaluation policies.",
+          "Enforce output invariants and preserve payloads as untrusted data that cannot override higher-priority governance or create authority.",
+          "Preserve the existing 12 chromosomes, 36 genes and all unrelated contracts; run Draft 2020-12 meta-validation and exact-head conformance tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g06.source-trust",
