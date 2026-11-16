@@ -162,7 +162,9 @@ impl SqliteSecurityStore {
         Ok(Self {
             connection: Mutex::new(connection),
         })
-    }\n\n    /// Atomically consume a signed rollback-evidence nonce after signature
+    }
+
+    /// Atomically consume a signed rollback-evidence nonce after signature
     /// verification. Key revocation is rechecked inside the same transaction.
     pub(crate) fn consume_rollback_evidence_nonce(
         &self,
