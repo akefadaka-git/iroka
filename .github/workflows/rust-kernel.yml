@@ -8,6 +8,7 @@ on:
       - "Cargo.lock"
       - "crates/**"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - "rust-toolchain.toml"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
     branches: [main, architecture/igacms-a2-ci-base, architecture/genesis-gene-contract-amendment-proposal]
@@ -40,7 +41,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Install stable Rust toolchain
+      - name: Install pinned Rust toolchain
         run: |
           rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
           rustup default 1.100.0
@@ -55,7 +56,7 @@ jobs:
         run: cargo check --workspace --all-targets --locked
 
       - name: Verify production feature set excludes development bypasses
-        run: cargo check --workspace --all-targets --no-default-features
+        run: cargo check --workspace --all-targets --no-default-features --locked
 
       - name: Run complete unit and contract test suite
         run: cargo test --workspace --all-targets --locked
