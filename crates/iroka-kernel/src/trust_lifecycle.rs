@@ -58,7 +58,7 @@ impl SignedTrustBundle {
         })
         .map_err(|_| TrustBundleError::Malformed)?;
         let canonical = crate::canonical_json(&value).map_err(|_| TrustBundleError::Malformed)?;
-        let mut signing_bytes = b"IROKA:G01:TRUST-BUNDLE:V1\\0".to_vec();
+        let mut signing_bytes = b"IROKA:G01:TRUST-BUNDLE:V1\0".to_vec();
         signing_bytes.extend_from_slice(&canonical);
         Ok(signing_bytes)
     }
@@ -325,7 +325,7 @@ mod tests {
     fn trust_bundle_signing_bytes_are_canonical_and_domain_separated() {
         let (_, root, bundle) = fixture(1);
         let bytes = bundle.signing_bytes().unwrap();
-        assert!(bytes.starts_with(b"IROKA:G01:TRUST-BUNDLE:V1\\0"));
+        assert!(bytes.starts_with(b"IROKA:G01:TRUST-BUNDLE:V1\0"));
         assert_eq!(
             bytes,
             SignedTrustBundle::signing_bytes_for(&root.key_id, &bundle.payload).unwrap()
