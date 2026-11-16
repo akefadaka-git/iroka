@@ -8489,60 +8489,191 @@
         {
           "field": "proposal_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an immutable canonical proposal; verify exact proposal digest, target/revision and lifecycle. Evaluation does not approve or authorize the proposal."
         },
         {
           "field": "suite_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute against the canonical versioned test-suite artifact and bind to the exact suite revision."
         },
         {
           "field": "baseline_metrics",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate every metric against versioned metric definitions, units, cohort, sampling window and aggregation semantics."
         },
         {
           "field": "candidate_metrics",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate comparability with baseline metrics; reject unknown metrics, mismatched units/windows/cohorts and unsupported transformations."
         },
         {
           "field": "evaluator_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Authenticate evaluator identity, qualification and independence; record conflict-of-interest and separation-of-duty checks."
         },
         {
           "field": "environment_digest",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Recompute over canonical environment/toolchain/runtime evidence and bind to the exact evaluation run."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify issuer, integrity, freshness, ownership and exact source correspondence; non-empty object presence alone is insufficient."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require verifiable version-bound evidence binding proposal, suite, metric definitions, baseline/candidate sources, evaluator and environment."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Report reproducible results, limitations, subgroup impacts and regressions.",
+          "assertion": "Report reproducible results, limitations, subgroup impacts and regressions using registry-defined metric semantics and complete source provenance.",
+          "observable_fields": [
+            "results",
+            "regressions",
+            "decision",
+            "evidence_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Every test result is unique and aggregate decision is consistent with all passed, failed, skipped, error and inconclusive outcomes.",
           "observable_fields": [
             "results",
             "decision",
-            "evidence_digest",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "Every regression is uniquely identified, registry-resolved and has a recomputed delta consistent with declared units and metric semantics.",
           "observable_fields": [
+            "regressions",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Decision is derived from versioned policy; missing, incomparable, conflicting or insufficient evidence cannot produce pass.",
+          "observable_fields": [
+            "decision",
             "results",
+            "regressions",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Evidence digest recomputes over canonical complete output and source evidence; evaluation cannot approve, authorize, merge, deploy or execute.",
+          "observable_fields": [
+            "evaluation_id",
             "decision",
             "evidence_digest",
-            "evidence"
+            "evidence",
+            "version_bound_evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never cherry-pick metrics or suppress failed evaluations. fail-closed"
+      "character_failure_rule": "Never cherry-pick metrics, suppress failed evaluations, infer a pass from incomplete evidence, or treat evaluation as approval or execution authority. Fail closed; use inconclusive when evidence is missing, incomparable, conflicting or unverifiable.",
+      "semantic_reconciliation": {
+        "review_id": "A2-G10-EVALUATION-RECORD-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "57689e1102ccacdab46eff34a3ef9b8e8d2ffbb9",
+          "a2_contract_blob_before_review": "b7535ee3238092550033c0cab2233d9d84745e66",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "3e21dfc6ca1d5490953de06b3e798cb73eda1e8b",
+          "output_schema_blob": "12d2c8c4f45c987b8ba4d5b7bee7f6e708b9eb8b"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires proposal_id, suite_digest, baseline_metrics, candidate_metrics, evaluator_id, environment_digest, provenance and version_bound_evidence; top-level additional properties are rejected.",
+          "Output schema constrains decision to pass, fail or inconclusive and requires results, regressions, evidence, evidence_digest and version_bound_evidence.",
+          "Result items constrain status values and require test_id, baseline/candidate values, unit and evidence_ref; regression items require baseline/candidate values, delta, severity and evidence_ref.",
+          "Both schemas are Draft 2020-12 and reject additional top-level properties."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G10-ERD-SEM-01",
+            "severity": "HIGH",
+            "finding": "proposal_id is an unconstrained string and is not resolved to an immutable, authorized change-proposal record.",
+            "required_disposition": "Resolve proposal_id against the canonical proposal registry; verify proposal digest, target, version, approval state and lifecycle, without treating evaluation as approval."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "suite_digest and environment_digest are arbitrary strings; digest algorithm, canonicalization, recomputation and binding to the exact test suite and execution environment are unspecified.",
+            "required_disposition": "Recompute versioned digests over canonical suite and environment artifacts; bind them to immutable artifact references, toolchain/runtime versions and the evaluation run."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "baseline_metrics and candidate_metrics are open-ended objects with no metric registry, schema, units, aggregation, sampling window, cohort definition or comparability rules.",
+            "required_disposition": "Resolve metric identifiers and definitions through a versioned registry; validate units, populations, windows, aggregation and comparability before computing deltas."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-04",
+            "severity": "HIGH",
+            "finding": "evaluator_id is an arbitrary string and does not establish authenticated evaluator identity, qualification, independence or conflict-of-interest separation.",
+            "required_disposition": "Authenticate evaluator principal and qualification; bind identity, role, session and independence/conflict checks to the evaluation evidence."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-05",
+            "severity": "HIGH",
+            "finding": "Input provenance and version_bound_evidence are only non-empty objects; issuer, signature/integrity, freshness, source ownership and exact binding to proposal, suite, metrics and environment are not defined.",
+            "required_disposition": "Require verifiable, fresh provenance and version-bound evidence binding all inputs, source revisions and evaluation context; reject unresolved or contradictory evidence."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-06",
+            "severity": "HIGH",
+            "finding": "The output results array enforces minItems and item shape, but unique test_id and status/aggregate-decision consistency exist only in non-standard x-genesis metadata.",
+            "required_disposition": "Promote uniqueness and aggregate-consistency rules to normative validation: one result per test ID, with skipped/error/inconclusive outcomes preventing an unsupported pass."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-07",
+            "severity": "HIGH",
+            "finding": "Regression records require numeric values but do not enforce unique metric identity, canonical metric semantics, or recomputation of delta; uniqueness and arithmetic are only extension metadata.",
+            "required_disposition": "Resolve each metric and severity through registries; enforce uniqueness and recompute delta as candidate minus baseline under the declared metric/unit semantics."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-08",
+            "severity": "CRITICAL",
+            "finding": "The decision enum is structurally constrained but no deterministic policy defines pass/fail/inconclusive thresholds, regression severity, uncertainty, missing-data treatment or conflicting metrics.",
+            "required_disposition": "Derive decision from a versioned evaluation policy and complete results; fail closed to inconclusive for missing, incomparable, conflicting or insufficient evidence."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-09",
+            "severity": "CRITICAL",
+            "finding": "evidence_digest is an unconstrained string and is not specified as a recomputable digest over canonical results, regressions, decision, provenance and version-bound evidence.",
+            "required_disposition": "Recompute a canonical evidence digest and bind it to the complete immutable evaluation output and source artifacts; reject tampering or omitted evidence."
+          },
+          {
+            "gap_id": "G10-ERD-SEM-10",
+            "severity": "CRITICAL",
+            "finding": "The contract summary omits version_bound_evidence from its required-field inventory for both schemas, while the actual schemas require it; the conformance cases also omit this requirement. Evaluation identity, idempotency and lifecycle are undefined.",
+            "required_disposition": "Align the contract and conformance vectors with the actual required schema fields; require version-bound evidence on both input and output, and define immutable evaluation identity, idempotency and lifecycle without granting approval or execution authority."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g10.evaluation-record input/output schemas and its positive/negative conformance vectors to address G10-ERD-SEM-01 through G10-ERD-SEM-10.",
+          "Preserve exactly 12 chromosomes and 36 genes; do not add genes or alter unrelated contracts.",
+          "Bind proposal, test suite, metric definitions, baseline/candidate data, evaluator and environment to authenticated immutable versioned records and recomputable digests.",
+          "Promote result uniqueness, regression uniqueness, delta arithmetic and aggregate decision consistency to normative enforceable constraints rather than relying solely on x-genesis metadata.",
+          "Define versioned decision thresholds, severity rules, uncertainty and missing/incomparable-data behavior; fail closed or return inconclusive where evidence is insufficient.",
+          "Recompute a canonical evidence digest over the complete immutable evaluation and source evidence; define evaluation identity/idempotency/lifecycle.",
+          "Keep evaluation strictly evidentiary: it cannot approve, authorize, merge, deploy or execute a proposal.",
+          "After separate A3 authorization, run Draft 2020-12 validation and exact-head conformance tests for digest tampering, stale proposal, unknown metrics, incomparable units/cohorts, evaluator conflicts, duplicate results/regressions, inconsistent deltas, hidden failures and unsupported pass decisions."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g11.validator",
