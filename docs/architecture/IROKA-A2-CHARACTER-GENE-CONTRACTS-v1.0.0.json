@@ -3772,53 +3772,168 @@
         {
           "field": "memory_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to the canonical immutable memory record and bind retention evaluation to its exact identity, data scope and lifecycle; reject aliases or identity substitution."
         },
         {
           "field": "retention_policy_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated, signed and versioned policy registry; verify issuer, jurisdiction, scope, effective interval, precedence and revocation before calculating retention."
         },
         {
           "field": "created_at",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require a canonical RFC 3339 timestamp with explicit offset, verify it against trusted creation-event provenance and apply defined clock-skew rules; never trust an unverified caller timestamp."
         },
         {
           "field": "legal_hold",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Treat this boolean only as an untrusted hint; independently query authoritative legal-hold records and fail closed to hold when authoritative status is unavailable, stale or conflicting."
         },
         {
           "field": "hold_ref",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "When a hold exists, resolve hold_ref to an authenticated, scoped and effective legal-hold record; verify issuer, matter, covered data, start/end and release event. Null is not proof that no hold exists."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Verify source and creation-event provenance, memory identity, policy selection, trusted timestamps and authoritative hold checks; bind evidence to the exact memory and evaluation."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Require exact versions and digests for the retention policy, hold registry/source, time source, evaluation rules and gene contract; reject stale, unresolvable or revoked evidence."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Enforce retention, expiry, deletion and access policy.",
+          "assertion": "Compute the retention deadline deterministically from the authenticated policy version and verified creation/trigger events using canonical trusted timestamps.",
           "observable_fields": [
+            "retention_deadline",
+            "policy_digest",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "An independently verified active legal hold always yields disposition hold; absent, stale, unavailable or conflicting hold evidence must never be interpreted as no hold.",
+          "observable_fields": [
+            "disposition",
+            "retention_deadline",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Disposition and deadline obey the policy state machine: retain before expiry; hold while a hold or applicable suspension applies; eligible_for_deletion only after deadline and all holds, exceptions and mandatory retention duties are checked.",
+          "observable_fields": [
+            "retention_deadline",
+            "disposition",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "eligible_for_deletion is an eligibility finding only; this gene never authorizes, schedules or executes destructive deletion and cannot bypass separate approval and execution controls.",
+          "observable_fields": [
+            "disposition",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Bind the result to the exact memory, signed/versioned policy and verified hold checks with reproducible calculation evidence; unknown or contradictory facts fail closed.",
+          "observable_fields": [
+            "memory_id",
             "retention_deadline",
             "disposition",
             "policy_digest",
             "evidence"
           ]
-        },
-        {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
-          "observable_fields": [
-            "policy_digest",
-            "evidence"
-          ]
         }
       ],
-      "character_failure_rule": "Never retain data merely because it may be useful later. fail-closed"
+      "character_failure_rule": "Never retain data merely because it may be useful later. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G05-RETENTION-CONTROL-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "f1c343603629dcaf85019cd671634ee242efe8d2",
+          "a2_contract_blob_before_review": "e0a3b4c9071abd614e0f5f6405478ebbc8a51fc2",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "1831ac7bf5ddf451e24797c296f2fe88c3c82554",
+          "output_schema_blob": "feb14b7c0238f755e3538aea429661c12994831a"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires memory_id, retention_policy_id, created_at, legal_hold, hold_ref, provenance and version_bound_evidence; additional top-level properties are rejected.",
+          "legal_hold is boolean and hold_ref explicitly permits string or null, preserving a representation for hold references and absence.",
+          "Output disposition is constrained to retain, eligible_for_deletion or hold.",
+          "Output requires memory_id, retention_deadline, disposition, policy_digest, evidence and version_bound_evidence; additional top-level properties are rejected.",
+          "Evidence requires provenance and version_bound_evidence objects."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G05-RC-SEM-01",
+            "severity": "CRITICAL",
+            "finding": "retention_policy_id is an unrestricted string; no authenticated, versioned policy registry, jurisdiction/scope, effective interval, precedence or issuer authenticity is defined.",
+            "required_disposition": "Resolve policy IDs to signed/versioned authoritative policies; verify scope, jurisdiction, issuer, effective dates, precedence and revocation; unknown or conflicting policies fail closed."
+          },
+          {
+            "gap_id": "G05-RC-SEM-02",
+            "severity": "HIGH",
+            "finding": "created_at and retention_deadline are unconstrained strings, so timezone, canonical timestamp format, trusted source, immutability and clock-skew handling are undefined.",
+            "required_disposition": "Require canonical RFC 3339 timestamps with explicit offsets, trusted creation-time provenance and defined trusted-clock/skew rules; compute deadlines deterministically from verified timestamps."
+          },
+          {
+            "gap_id": "G05-RC-SEM-03",
+            "severity": "CRITICAL",
+            "finding": "legal_hold is a caller-supplied boolean and hold_ref may be null or arbitrary text; no authoritative hold registry, authenticity, scope, issuer, effective interval or release verification exists.",
+            "required_disposition": "Treat hold status as an independently verified legal-state lookup; bind hold reference to authenticated authority, matter, subject/data scope, effective interval and verified release event; uncertainty preserves hold."
+          },
+          {
+            "gap_id": "G05-RC-SEM-04",
+            "severity": "HIGH",
+            "finding": "The contract lacks explicit retention start-event, duration, trigger, pause/suspension, renewal and calculation semantics; a policy ID alone cannot make the deadline reproducible.",
+            "required_disposition": "Define deterministic policy calculation inputs and rules, including triggering event, duration, pauses, renewals, exceptions and inclusive/exclusive boundary semantics."
+          },
+          {
+            "gap_id": "G05-RC-SEM-05",
+            "severity": "HIGH",
+            "finding": "Output disposition enum allows retain, eligible_for_deletion or hold, but no schema-level cross-field invariant binds hold to legal_hold, deadline or disposition, or prevents eligible_for_deletion before deadline.",
+            "required_disposition": "Define and enforce cross-field invariants: verified active hold yields hold; pre-deadline data cannot be deletion-eligible; deadline expiry alone yields eligibility only after all holds/exceptions are checked."
+          },
+          {
+            "gap_id": "G05-RC-SEM-06",
+            "severity": "CRITICAL",
+            "finding": "eligible_for_deletion is ambiguous and could be mistaken for authorization or execution of deletion; no explicit separation between eligibility determination, approval and destructive execution is stated in output semantics.",
+            "required_disposition": "Specify that this gene only determines eligibility and never authorizes or executes deletion; require separate authorized workflow, legal review where required, and auditable approval before destructive action."
+          },
+          {
+            "gap_id": "G05-RC-SEM-07",
+            "severity": "HIGH",
+            "finding": "policy_digest is an unconstrained string with no algorithm, canonical policy bytes, signature, registry resolution or binding between digest and policy_id/version/calculation.",
+            "required_disposition": "Define digest algorithm and canonicalization; verify digest and policy signature, and bind the exact policy version and evaluated rule set to the result."
+          },
+          {
+            "gap_id": "G05-RC-SEM-08",
+            "severity": "HIGH",
+            "finding": "Provenance and version_bound_evidence are only non-empty objects; evidence does not require verified memory identity, source/creation event, hold search, clock, policy calculation, exceptions or decision trace.",
+            "required_disposition": "Require structured, reproducible evidence for exact memory identity, creation event, policy version/digest, trusted time, authoritative hold checks, exception checks, deadline calculation and disposition rationale."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g05.retention-control schemas, its gene-specific contract and its positive/negative conformance vectors to close G05-RC-SEM-01 through G05-RC-SEM-08.",
+          "Introduce authenticated versioned retention-policy and legal-hold registries, trusted timestamp semantics, deterministic deadline calculation and explicit exceptions/suspension rules.",
+          "Enforce disposition/deadline/hold cross-field invariants and make eligible_for_deletion explicitly non-authorizing and non-executing.",
+          "Bind policy digest and output evidence to canonical policy bytes, exact memory identity, trusted time, authoritative hold checks and reproducible calculation trace.",
+          "Run Draft 2020-12 schema meta-validation and exact-head positive/negative conformance tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g05.integrity-checkpoint",
