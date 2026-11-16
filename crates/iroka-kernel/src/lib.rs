@@ -15,6 +15,7 @@ mod identity_crypto;
 mod igacms;
 mod owner_approval;
 mod policy;
+mod protected_effect;
 mod request;
 mod security_store;
 mod service;
@@ -61,6 +62,13 @@ pub use owner_approval::{
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
+pub use protected_effect::{
+    execute_protected_effect, EffectExecutionError, ExecutionOutcome, ExecutionReceipt,
+    ExecutionResultPayload, ExecutionStatus, OwnerEffectGrantPayload, ProtectedEffectError,
+    ProtectedEffectExecutor, ProtectedEffectRequest, ProtectedExecutionContext,
+    SignedExecutionResult, SignedOwnerEffectGrant, TrustedExecutorKey, VerifiedEffectGrant,
+    VerifiedExecutionReceipt,
+};
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
