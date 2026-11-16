@@ -139,7 +139,7 @@ impl RollbackEvidenceTrustPolicy {
         Ok(Self { allowed_issuers })
     }
 
-    fn allows(&self, subject: &str, issuer: &str) -> bool {
+    pub(crate) fn allows(&self, subject: &str, issuer: &str) -> bool {
         if self
             .allowed_issuers
             .get(subject)
