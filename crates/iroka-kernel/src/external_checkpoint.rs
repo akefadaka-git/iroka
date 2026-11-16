@@ -541,7 +541,7 @@ mod tests {
             Err(CheckpointError::LocalBehindAnchor)
         );
 
-        let forked = audit_with_events(&["event:forked"]);
+        let forked = audit_with_events(&["event:forked", "event:forked-tail"]);
         assert_eq!(
             verify_and_reconcile_head(
                 &forked,
