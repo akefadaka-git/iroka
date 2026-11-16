@@ -716,11 +716,14 @@ impl VersionLineageRegistry for SqliteSecurityStore {
         candidate_digest: &str,
     ) -> Result<VersionLineageRecord, LineageRegistryError> {
         const GENE_ID: &str = "g12.version-lineage";
-        let connection = self
+        let mut connection = self
             .connection
             .lock()
             .map_err(|_| LineageRegistryError::Unavailable)?;
-        let revision: i64 = connection
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Deferred)
+            .map_err(|_| LineageRegistryError::Unavailable)?;
+        let revision: i64 = transaction
             .query_row(
                 "SELECT revision FROM version_lineage_registry_meta WHERE singleton=1",
                 [],
@@ -787,7 +790,7 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             })
         }
 
-        let mut current = load_artifact(&connection, GENE_ID, candidate_version, candidate_digest)?;
+        let mut current = load_artifact(&transaction, GENE_ID, candidate_version, candidate_digest)?;
         let mut ancestry = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
         loop {
@@ -800,7 +803,7 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             match (parent_version, parent_digest) {
                 (None, None) => break,
                 (Some(version), Some(digest)) => {
-                    current = load_artifact(&connection, GENE_ID, &version, &digest)?;
+                    current = load_artifact(&transaction, GENE_ID, &version, &digest)?;
                 }
                 _ => return Err(LineageRegistryError::IntegrityFailure),
             }
@@ -811,7 +814,7 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             .last()
             .ok_or(LineageRegistryError::IntegrityFailure)?;
         let mutation = if let Some(mutation_id) = candidate.mutation_id.as_deref() {
-            let row: Option<LineageMutationRow> = connection
+            let row: Option<LineageMutationRow> = transaction
                 .query_row(
                     "SELECT mutation_ref, mutation_id, source_version, source_digest,
                             target_version, target_digest, approved, gates_passed,
@@ -864,12 +867,16 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             None
         };
 
-        Ok(VersionLineageRecord {
+        let record = VersionLineageRecord {
             ancestry,
             mutation,
             registry_revision: u64::try_from(revision)
                 .map_err(|_| LineageRegistryError::IntegrityFailure)?,
-        })
+        };
+        transaction
+            .commit()
+            .map_err(|_| LineageRegistryError::Unavailable)?;
+        Ok(record)
     }
 }
 
