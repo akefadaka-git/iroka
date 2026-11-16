@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "document_id": "IROKA-A2-CHARACTER-GENE-CONTRACTS-001",
   "version": "1.0.0",
-  "status": "A2_CHARACTER_OVERLAYS_RECONCILED_TO_APPROVED_GENE_IO_CONTRACT_PROPOSAL",
+  "status": "A2_STATIC_SCHEMA_REFERENCE_RECONCILIATION_PASS",
   "parent_a1": {
     "branch": "architecture/a1-character-constitution-v1",
     "commit": "4ace04bed3a526939b22f0c9b41fdbf6286b2ed9",
@@ -6337,9 +6337,9 @@
     }
   ],
   "a2_boundary": {
-    "this_artifact_defines": "character overlays reconciled to the exact existing gene-specific input/output contract fields, schema IDs and schema paths",
-    "not_yet_defined": "new machine JSON Schema changes; the existing 72 schema files remain unchanged and reside on the separately maintained gene-contract proposal branch",
-    "next_required": "bring the approved 72-schema baseline into one reconciled A2 workstream, validate all schema references and add character-specific schema assertions only where justified; no generic schema fields"
+    "this_artifact_defines": "36 gene-specific character overlays reconciled to the approved gene-specific IO proposal and static structural checks over all 72 referenced schema files",
+    "not_yet_defined": "formal JSON Schema meta-validation, exhaustive property-constraint semantic review, executable runtime enforcement and production evaluation thresholds",
+    "next_required": "Run formal JSON Schema dialect validation, semantic field-level review, positive/negative conformance tests and exact-head CI; obtain independent A2 review before closure."
   },
   "gene_io_baseline": {
     "branch": "architecture/genesis-gene-contract-amendment-proposal",
@@ -6370,6 +6370,27 @@
       "automated resolver",
       "executable conformance",
       "exact-head CI"
+    ]
+  },
+  "gene_io_schema_reconciliation": {
+    "audit_path": "docs/architecture/IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-v1.0.0.json",
+    "baseline_branch": "architecture/genesis-gene-contract-amendment-proposal",
+    "baseline_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+    "schemas_checked": 72,
+    "schemas_passed": 72,
+    "schemas_failed": 0,
+    "checks": [
+      "JSON parsed successfully",
+      "schema $id matched exact gene IO contract schema_id",
+      "required fields matched baseline required fields plus version_bound_evidence",
+      "additionalProperties was false",
+      "all local JSON Pointer $ref targets resolved"
+    ],
+    "limitations": [
+      "Static structural reconciliation only; no Draft 2020-12 meta-schema validator or runtime validator was executed.",
+      "No semantic subsumption proof was performed for every property constraint; only $id, required field equality, additionalProperties and local JSON Pointer resolution were checked.",
+      "The 72 baseline schema files are on the separate approved gene-contract baseline branch; they were not modified by this A2 character workstream.",
+      "Positive/negative test catalogue contains 72 designs and has not been executed."
     ]
   }
 }
