@@ -70,14 +70,16 @@
           "algorithm",
           "activation_epoch",
           "status",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "root_id",
           "verified",
           "trust_decision",
           "evaluated_epoch",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -114,6 +116,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -139,6 +146,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -322,14 +334,16 @@
           "relationship",
           "proof_digest",
           "epoch",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "subject_id",
           "lineage_valid",
           "chain_digest",
           "verified_depth",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -361,6 +375,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -386,6 +405,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -578,13 +602,15 @@
           "policy_id",
           "declared_compatible",
           "migration_digest",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "compatibility",
           "decision",
           "policy_id",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -616,6 +642,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -636,6 +667,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -827,14 +863,16 @@
           "mandate_ref",
           "valid_from",
           "valid_until",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "authority_id",
           "source_valid",
           "scope",
           "decision",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -866,6 +904,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -891,6 +934,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -1104,14 +1152,16 @@
           "signature",
           "issued_at",
           "expires_at",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "decision_id",
           "approval_valid",
           "authorized_scope",
           "decision",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -1153,6 +1203,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -1178,6 +1233,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -1416,14 +1476,16 @@
           "status",
           "effective_at",
           "supersedes",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "decision_id",
           "recorded",
           "canonical_digest",
           "register_sequence",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -1460,6 +1522,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -1485,6 +1552,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -1710,14 +1782,16 @@
           "premises",
           "context_id",
           "model_version",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "model_id",
           "premise_set_digest",
           "normalized_premises",
           "unresolved_premises",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -1737,6 +1811,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -1764,6 +1843,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -1979,14 +2063,16 @@
           "premise_ids",
           "query",
           "rule_version",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "inference_id",
           "conclusion_set",
           "applied_rule_ids",
           "unsupported_steps",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -2011,6 +2097,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -2038,6 +2129,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -2264,14 +2360,16 @@
           "evidence_items",
           "calibration_id",
           "method",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "assessment_id",
           "estimates",
           "uncertainty_bounds",
           "calibration_status",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -2296,6 +2394,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -2323,6 +2426,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -2548,14 +2656,16 @@
           "fields",
           "constraints",
           "schema_version",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "schema_id",
           "normalized_schema",
           "schema_digest",
           "validation_status",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -2580,6 +2690,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -2607,6 +2722,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -2828,14 +2948,16 @@
           "events",
           "actor_ids",
           "previous_chain_digest",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "chain_digest",
           "verified",
           "event_count",
           "broken_links",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -2860,6 +2982,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -2887,6 +3014,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -3109,14 +3241,16 @@
           "sources",
           "relations",
           "policy_id",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "conflict_set_id",
           "conflicts",
           "resolution_state",
           "policy_applied",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -3141,6 +3275,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -3168,6 +3307,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -3394,14 +3538,16 @@
           "purpose",
           "owner_id",
           "data_class",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "memory_id",
           "classification",
           "handling_controls",
           "classification_rationale",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -3438,6 +3584,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -3463,6 +3614,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -3692,14 +3848,16 @@
           "created_at",
           "legal_hold",
           "hold_ref",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "memory_id",
           "retention_deadline",
           "disposition",
           "policy_digest",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -3731,6 +3889,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -3756,6 +3919,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -3978,14 +4146,16 @@
           "sequence",
           "previous_checkpoint",
           "authority_ref",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "checkpoint_digest",
           "accepted",
           "sequence",
           "continuity_verified",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -4010,6 +4180,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -4037,6 +4212,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -4242,7 +4422,8 @@
           "payload_length",
           "captured_at",
           "payload_ref",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "envelope_id",
@@ -4250,7 +4431,8 @@
           "normalized_media_type",
           "integrity_verified",
           "rejection_reason",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -4292,6 +4474,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -4322,6 +4509,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -4541,14 +4733,16 @@
           "policy_id",
           "signature",
           "revocation_epoch",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "source_id",
           "trust_level",
           "signature_valid",
           "policy_digest",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -4580,6 +4774,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -4605,6 +4804,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -4822,7 +5026,8 @@
           "transform_version",
           "modality",
           "output_type",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "transform_id",
@@ -4831,7 +5036,8 @@
           "source_envelope_digest",
           "loss_annotations",
           "transform_status",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -4861,6 +5067,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -4898,6 +5109,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -5127,14 +5343,16 @@
           "credential_ref",
           "runtime_instance_id",
           "principal_class",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "agent_id",
           "principal_valid",
           "principal_digest",
           "identity_status",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -5159,6 +5377,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -5186,6 +5409,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -5400,7 +5628,8 @@
           "requested_capabilities",
           "resource_limits",
           "policy_id",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "profile_id",
@@ -5408,7 +5637,8 @@
           "denied_capabilities",
           "limits",
           "authority_granted",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -5433,6 +5663,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -5465,6 +5700,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -5685,7 +5925,8 @@
           "capability_subset",
           "expires_at",
           "delegation_proof",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "delegation_id",
@@ -5693,7 +5934,8 @@
           "effective_capabilities",
           "expiry",
           "chain_digest",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -5723,6 +5965,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -5755,6 +6002,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -5985,14 +6237,16 @@
           "nodes",
           "edges",
           "graph_version",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "workflow_id",
           "graph_digest",
           "topological_order",
           "validation_status",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -6017,6 +6271,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -6044,6 +6303,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -6265,14 +6529,16 @@
           "priorities",
           "quotas",
           "deadlines",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "policy_id",
           "normalized_policy",
           "feasibility",
           "violations",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -6304,6 +6570,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -6329,6 +6600,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -6551,7 +6827,8 @@
           "participants",
           "lease_epochs",
           "checkpoint_refs",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "run_id",
@@ -6559,7 +6836,8 @@
           "state_digest",
           "conflicts",
           "stale_participants",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -6584,6 +6862,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -6616,6 +6899,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -6840,7 +7128,8 @@
           "resource_scope",
           "risk_class",
           "operation_digest",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "effect_id",
@@ -6848,7 +7137,8 @@
           "required_authorization",
           "effect_digest",
           "decision",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -6885,6 +7175,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -6915,6 +7210,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -7161,7 +7461,8 @@
           "policy_digest",
           "expires_at",
           "nonce",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "admission_id",
@@ -7169,7 +7470,8 @@
           "denial_code",
           "authorization_digest",
           "consumed_nonce",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -7206,6 +7508,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -7236,6 +7543,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -7483,7 +7795,8 @@
           "started_at",
           "completed_at",
           "outcome",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "receipt_id",
@@ -7492,7 +7805,8 @@
           "executor_id",
           "recorded_at",
           "integrity_verified",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -7527,6 +7841,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -7564,6 +7883,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -7793,14 +8117,16 @@
           "source_refs",
           "data_class",
           "authorization_ref",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "learning_batch_id",
           "eligible_observations",
           "excluded_observations",
           "eligibility_digest",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -7825,6 +8151,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -7852,6 +8183,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -8084,7 +8420,8 @@
           "rationale",
           "expected_effects",
           "proposer_id",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "proposal_id",
@@ -8092,7 +8429,8 @@
           "change_class",
           "required_evaluations",
           "approval_required",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -8134,6 +8472,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -8164,6 +8507,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -8398,7 +8746,8 @@
           "candidate_metrics",
           "evaluator_id",
           "environment_digest",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "evaluation_id",
@@ -8406,7 +8755,8 @@
           "regressions",
           "decision",
           "evidence_digest",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -8443,6 +8793,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -8473,6 +8828,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -8718,7 +9078,8 @@
           "contract_ids",
           "validator_version",
           "policy_digest",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "validation_id",
@@ -8726,7 +9087,8 @@
           "findings",
           "validated_digest",
           "validator_version",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -8751,6 +9113,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -8783,6 +9150,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -9017,7 +9389,8 @@
           "attester_id",
           "key_ref",
           "challenge_nonce",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "attestation_id",
@@ -9026,7 +9399,8 @@
           "signature",
           "issued_at",
           "verification_status",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -9056,6 +9430,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -9093,6 +9472,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -9347,7 +9731,8 @@
           "test_results",
           "tested_commit",
           "environment_digest",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "report_id",
@@ -9356,7 +9741,8 @@
           "blocked_count",
           "overall_status",
           "report_digest",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -9386,6 +9772,11 @@
           },
           {
             "name": "provenance",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -9423,6 +9814,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -9682,7 +10078,8 @@
           "risk_class",
           "protected_invariants",
           "approval_ref",
-          "provenance"
+          "provenance",
+          "version_bound_evidence"
         ],
         "output_required_fields": [
           "mutation_id",
@@ -9690,7 +10087,8 @@
           "required_gates",
           "policy_digest",
           "denial_reasons",
-          "evidence"
+          "evidence",
+          "version_bound_evidence"
         ],
         "input_properties": [
           {
@@ -9732,6 +10130,11 @@
             "name": "provenance",
             "type": "object",
             "required": true
+          },
+          {
+            "name": "version_bound_evidence",
+            "type": "object",
+            "required": true
           }
         ],
         "output_properties": [
@@ -9762,6 +10165,11 @@
           },
           {
             "name": "evidence",
+            "type": "object",
+            "required": true
+          },
+          {
+            "name": "version_bound_evidence",
             "type": "object",
             "required": true
           }
@@ -10705,5 +11113,57 @@
       "The 72 baseline schema files are on the separate approved gene-contract baseline branch; they were not modified by this A2 character workstream.",
       "Positive/negative test catalogue contains 72 designs and has not been executed."
     ]
+  },
+  "schema_inventory_reconciliation": {
+    "audit_id": "A2-CROSS-GENE-VERSION-BOUND-EVIDENCE-INVENTORY-AUDIT-001",
+    "status": "VERIFIED_CORRECTED",
+    "baseline_branch": "architecture/genesis-gene-contract-amendment-proposal",
+    "baseline_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+    "audited_schema_count": 72,
+    "affected_gene_count": 34,
+    "affected_schema_count": 68,
+    "unaffected_genes": [
+      "g12.version-lineage",
+      "g12.rollback-guard"
+    ],
+    "finding": "The exact frozen input and output schemas for the first 34 genes require a top-level version_bound_evidence object, but the A2 gene_io_baseline required-field and property inventories omitted it. The last two genes already included it.",
+    "correction": "Added version_bound_evidence as a required object to input_required_fields, output_required_fields, input_properties and output_properties for every affected gene. Frozen baseline schemas were not modified.",
+    "affected_gene_ids": [
+      "g01.identity-root",
+      "g01.lineage",
+      "g01.compatibility",
+      "g02.authority-source",
+      "g02.owner-governance",
+      "g02.decision-register",
+      "g03.premise-model",
+      "g03.inference-rules",
+      "g03.uncertainty-calculus",
+      "g04.knowledge-schema",
+      "g04.provenance-chain",
+      "g04.conflict-model",
+      "g05.memory-classification",
+      "g05.retention-control",
+      "g05.integrity-checkpoint",
+      "g06.input-envelope",
+      "g06.source-trust",
+      "g06.perception-transform",
+      "g07.agent-principal",
+      "g07.capability-profile",
+      "g07.delegation-boundary",
+      "g08.workflow-graph",
+      "g08.scheduler-policy",
+      "g08.coordination-state",
+      "g09.effect-contract",
+      "g09.admission-gate",
+      "g09.execution-receipt",
+      "g10.learning-input",
+      "g10.change-proposal",
+      "g10.evaluation-record",
+      "g11.validator",
+      "g11.attestation",
+      "g11.conformance-report",
+      "g12.mutation-policy"
+    ],
+    "runtime_or_schema_mutation": "NOT RUN"
   }
 }
