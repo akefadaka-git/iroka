@@ -1,0 +1,137 @@
+{
+  "specification": "IROKA-A3-G12-ROLLBACK-GUARD-CONFORMANCE",
+  "version": "1.1.0",
+  "gene_id": "g12.rollback-guard",
+  "chromosome_count": 12,
+  "gene_count": 36,
+  "baseline_schema_ids": {
+    "input": "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
+    "output": "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0"
+  },
+  "amended_schema_ids": {
+    "input": "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.1.0",
+    "output": "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.1.0"
+  },
+  "invariants": [
+    "A candidate below the authoritative revocation floor is denied before authorization is considered; Owner approval cannot override the floor.",
+    "A candidate below current epoch but not below the revocation floor requires a valid, scoped, fresh, unrevoked, one-time Owner approval.",
+    "The Owner approval resource binds a canonical digest of current/candidate epochs and artifact digests, revocation floor and revision, policy version, and reason commitment.",
+    "Current and candidate artifact digests are recomputed using SHA-256 over RFC 8785 JCS canonical bytes.",
+    "Provenance and version-bound evidence must each authenticate exactly current_state, candidate_state, revocation_floor and policy_version; each proof is bound to the exact digest, epoch and revision.",
+    "Evidence verification must enforce trusted issuer/key, signature, validity, replay resistance, revocation and monotonic revocation-floor revision.",
+    "On denial, effective state remains the verified current state; if current state cannot be verified, effective state is unresolved and no digest/epoch is asserted.",
+    "Allow and deny output fields are mutually consistent; guard_digest commits to the canonical versioned decision envelope."
+  ],
+  "cases": [
+    {
+      "case_id": "RG-A3-P01",
+      "class": "positive",
+      "title": "verified forward transition",
+      "expected": "allow_candidate",
+      "asserts": [
+        "canonical_sha256_digests_match",
+        "all_evidence_subjects_verified",
+        "candidate_epoch_gte_current_epoch",
+        "candidate_epoch_gte_revocation_floor",
+        "no_authority_created"
+      ]
+    },
+    {
+      "case_id": "RG-A3-P02",
+      "class": "positive",
+      "title": "approved rollback above revocation floor",
+      "expected": "allow_candidate",
+      "asserts": [
+        "valid_owner_signature",
+        "exact_transition_scope",
+        "approval_unexpired_unrevoked_and_unconsumed",
+        "candidate_epoch_gte_revocation_floor"
+      ]
+    },
+    {
+      "case_id": "RG-A3-N01",
+      "class": "adversarial",
+      "title": "Owner approval cannot bypass revocation floor",
+      "expected": "deny_current",
+      "asserts": [
+        "candidate_epoch_below_floor",
+        "authorization_not_consumed",
+        "effective_state_is_current"
+      ]
+    },
+    {
+      "case_id": "RG-A3-N02",
+      "class": "negative",
+      "title": "rollback without Owner approval",
+      "expected": "deny_current",
+      "asserts": [
+        "candidate_epoch_below_current",
+        "authorization_null",
+        "denial_code_authorization_invalid"
+      ]
+    },
+    {
+      "case_id": "RG-A3-N03",
+      "class": "adversarial",
+      "title": "candidate digest substitution",
+      "expected": "deny_current",
+      "asserts": [
+        "recomputed_candidate_digest_mismatch",
+        "candidate_never_effective"
+      ]
+    },
+    {
+      "case_id": "RG-A3-N04",
+      "class": "adversarial",
+      "title": "stale or replayed evidence",
+      "expected": "deny_current_or_unresolved",
+      "asserts": [
+        "evidence_verifier_rejects_stale_or_replayed_proof",
+        "no_evidence_fabricated"
+      ]
+    },
+    {
+      "case_id": "RG-A3-N05",
+      "class": "negative",
+      "title": "same epoch with conflicting artifact digest",
+      "expected": "deny_current",
+      "asserts": [
+        "same_epoch_different_digest",
+        "authorization_cannot_override_conflict"
+      ]
+    },
+    {
+      "case_id": "RG-A3-N06",
+      "class": "negative",
+      "title": "replayed Owner authorization",
+      "expected": "deny_current",
+      "asserts": [
+        "one_time_approval_consumption",
+        "second_use_rejected"
+      ]
+    },
+    {
+      "case_id": "RG-A3-B01",
+      "class": "boundary",
+      "title": "candidate exactly at revocation floor",
+      "expected": "policy_dependent_allow",
+      "asserts": [
+        "floor_comparison_is_inclusive",
+        "all_other_gates_still_apply"
+      ]
+    },
+    {
+      "case_id": "RG-A3-B02",
+      "class": "boundary",
+      "title": "epoch zero and u64 maximum handling",
+      "expected": "deterministic",
+      "asserts": [
+        "nonnegative_epoch_domain",
+        "checked_or_saturating_time_arithmetic",
+        "no_integer_wraparound"
+      ]
+    }
+  ],
+  "execution_status": "DESIGNED_NOT_EXECUTED",
+  "authority_boundary": "No mutation, merge, deployment, execution permission or authority is created by this gene."
+}
