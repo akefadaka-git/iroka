@@ -249,9 +249,7 @@ impl SqliteAuditSink {
             i64::try_from(required_quorum).map_err(|_| AuditStoreError::Rejected)?;
         let persisted_at = i64::try_from(persisted_at).map_err(|_| AuditStoreError::Rejected)?;
         let expected_event_head = parse_sha256_hex(&payload.event_head_sha256)?;
-        let checkpoint_digest = checkpoint
-            .digest()
-            .map_err(|_| AuditStoreError::Rejected)?;
+        let checkpoint_digest = checkpoint.digest().map_err(|_| AuditStoreError::Rejected)?;
         let checkpoint_value =
             serde_json::to_value(checkpoint).map_err(|_| AuditStoreError::Rejected)?;
         let checkpoint_json =
