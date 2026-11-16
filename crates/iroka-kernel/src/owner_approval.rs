@@ -473,6 +473,7 @@ impl OwnerApprovalVerifier {
             .map_err(Into::into)
     }
 
+    #[cfg(test)]
     pub fn latest_execution_receipt_bytes(
         &self,
         nonce: &str,
