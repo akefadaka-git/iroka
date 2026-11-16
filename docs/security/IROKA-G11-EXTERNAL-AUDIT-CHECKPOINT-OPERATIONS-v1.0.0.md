@@ -81,7 +81,7 @@ The client adapter does not prove that two URLs are independent. Organizational 
 
 ## 5. HTTP witness contract
 
-The API contract for independent operators is defined in `docs/architecture/A4-03-INDEPENDENT-HTTPS-WITNESS-ADAPTER.md` from the prior implementation baseline. Required server behavior:
+The API contract for independent operators is defined in `docs/security/IROKA-G11-HTTPS-WITNESS-API-CONTRACT-v1.0.0.md`. Required server behavior:
 - `POST /v1/checkpoints`: validate signer trust, envelope, stream, sequence and predecessor; durably commit checkpoint and receipt before returning success; return the original receipt for an exact idempotent retry; reject conflicting content.
 - `GET /v1/streams/{stream-id}/latest`: return both the latest signed checkpoint and its witness receipt, or both null; never return a partial pair.
 - Return errors for malformed envelopes, authentication failures, replay/conflict, gaps and unavailable storage. A successful response must never represent volatile/in-memory-only acceptance.
