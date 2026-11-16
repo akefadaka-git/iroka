@@ -21,7 +21,7 @@ mod service;
 mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
-pub use audit_store::{AuditStoreError, SqliteAuditSink};
+pub use audit_store::{AuditStoreError, SqliteAuditSink, VerifiedAuditHead};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use external_checkpoint::{
     create_audit_checkpoint, create_checkpoint, verify_and_reconcile_head, verify_witness_quorum,
