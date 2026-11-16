@@ -140,9 +140,18 @@ impl RollbackEvidenceTrustPolicy {
     }
 
     fn allows(&self, subject: &str, issuer: &str) -> bool {
-        self.allowed_issuers
+        if self
+            .allowed_issuers
             .get(subject)
             .is_some_and(|issuers| issuers.contains(issuer))
+        {
+            return true;
+        }
+        self.allowed_issuers.iter().any(|(pattern, issuers)| {
+            pattern
+                .strip_suffix('*')
+                .is_some_and(|prefix| subject.starts_with(prefix) && issuers.contains(issuer))
+        })
     }
 }
 
