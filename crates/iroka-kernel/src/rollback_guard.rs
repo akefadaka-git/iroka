@@ -112,7 +112,6 @@ pub trait RollbackEvidenceVerifier: Send + Sync {
     ) -> Result<(), EvidenceVerificationError>;
 }
 
-
 /// Subject-specific issuer allowlist. A generally trusted signing key is not
 /// sufficient: each evidence subject must be issued by an explicitly assigned authority.
 #[derive(Debug, Clone)]
@@ -164,7 +163,11 @@ impl<R: crate::RevocationChecker> Ed25519RollbackEvidenceVerifier<R> {
         store: std::sync::Arc<crate::SqliteSecurityStore>,
         trust_policy: RollbackEvidenceTrustPolicy,
     ) -> Self {
-        Self { credentials, store, trust_policy }
+        Self {
+            credentials,
+            store,
+            trust_policy,
+        }
     }
 }
 
@@ -1021,7 +1024,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn rollback_without_owner_approval_is_denied() {
         let current = json!({"version":"2.0.0","state":"current"});
@@ -1032,7 +1034,8 @@ mod tests {
         input.provenance = &provenance;
         input.version_bound_evidence = &version_bound;
         let (_, owner_verifier) = owner();
-        let result = evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
+        let result =
+            evaluate_rollback_guard(&input, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert!(!result.allowed);
         assert_eq!(result.denial_code, RollbackDenialCode::AuthorizationInvalid);
         assert_eq!(result.effective_state, EffectiveState::Current);
