@@ -690,6 +690,63 @@ mod tests {
     }
 
     #[allow(clippy::too_many_arguments)]
+
+    fn signed_evidence_receipt(
+        signer: &SigningKey,
+        binding: &EvidenceBinding,
+        nonce: &str,
+    ) -> RollbackEvidenceReceipt {
+        let mut receipt = RollbackEvidenceReceipt {
+            subject: binding.subject.clone(),
+            subject_digest: binding.digest.clone(),
+            subject_epoch: binding.epoch,
+            revision: binding.revision,
+            issuer: "issuer:rollback-test".into(),
+            key_id: "rollback-evidence-key".into(),
+            issued_at: 1_000,
+            expires_at: 1_200,
+            nonce: nonce.into(),
+            signature: Vec::new(),
+        };
+        let payload = json!({
+            "subject": receipt.subject,
+            "subject_digest": receipt.subject_digest,
+            "subject_epoch": receipt.subject_epoch,
+            "revision": receipt.revision,
+            "issuer": receipt.issuer,
+            "key_id": receipt.key_id,
+            "issued_at": receipt.issued_at,
+            "expires_at": receipt.expires_at,
+            "nonce": receipt.nonce
+        });
+        let bytes = canonical_json(&payload).unwrap();
+        receipt.signature = signer.sign(&bytes).to_bytes().to_vec();
+        receipt
+    }
+
+    fn production_evidence_verifier() -> (
+        SigningKey,
+        Arc<SqliteSecurityStore>,
+        Ed25519RollbackEvidenceVerifier<Arc<SqliteSecurityStore>>,
+    ) {
+        let signer = SigningKey::from_bytes(&[81u8; 32]);
+        let store = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let trust = crate::TrustStore::new(
+            ["issuer:rollback-test"],
+            vec![crate::TrustedKey {
+                issuer: "issuer:rollback-test".into(),
+                key_id: "rollback-evidence-key".into(),
+                public_key: signer.verifying_key().to_bytes(),
+                not_before: 900,
+                not_after: 5_000,
+            }],
+        )
+        .unwrap();
+        let credentials = crate::Ed25519CredentialVerifier::new(trust, Arc::clone(&store));
+        let verifier = Ed25519RollbackEvidenceVerifier::new(credentials, Arc::clone(&store));
+        (signer, store, verifier)
+    }
+
     fn fixture<'a>(
         current_epoch: u64,
         candidate_epoch: u64,
@@ -832,6 +889,65 @@ mod tests {
         let mismatch =
             evaluate_rollback_guard(&substituted, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(mismatch.denial_code, RollbackDenialCode::DigestMismatch);
+    }
+
+
+    #[test]
+    fn production_evidence_verifier_authenticates_and_consumes_nonce_once() {
+        let (signer, _store, verifier) = production_evidence_verifier();
+        let binding = EvidenceBinding {
+            subject: "current_state".into(),
+            digest: "a".repeat(64),
+            epoch: 5,
+            revision: 5,
+        };
+        let receipt = signed_evidence_receipt(&signer, &binding, "nonce-production-proof-0001");
+        assert_eq!(verifier.verify(&receipt, &binding, 1_100), Ok(()));
+        assert_eq!(
+            verifier.verify(&receipt, &binding, 1_101),
+            Err(EvidenceVerificationError::Replay)
+        );
+    }
+
+    #[test]
+    fn production_evidence_verifier_rejects_revoked_keys_and_floor_rollback() {
+        let (signer, store, verifier) = production_evidence_verifier();
+        let binding = EvidenceBinding {
+            subject: "revocation_floor".into(),
+            digest: digest_value(&json!({"revocation_floor":10,"revision":5})).unwrap(),
+            epoch: 10,
+            revision: 5,
+        };
+        let receipt = signed_evidence_receipt(&signer, &binding, "nonce-floor-proof-0001");
+        assert_eq!(verifier.verify(&receipt, &binding, 1_100), Ok(()));
+
+        let lower_floor = EvidenceBinding {
+            subject: "revocation_floor".into(),
+            digest: digest_value(&json!({"revocation_floor":9,"revision":6})).unwrap(),
+            epoch: 9,
+            revision: 6,
+        };
+        let lower_receipt =
+            signed_evidence_receipt(&signer, &lower_floor, "nonce-floor-proof-0002");
+        assert_eq!(
+            verifier.verify(&lower_receipt, &lower_floor, 1_100),
+            Err(EvidenceVerificationError::ScopeMismatch)
+        );
+
+        store
+            .revoke_key(
+                "issuer:rollback-test",
+                "rollback-evidence-key",
+                1_101,
+                "test key compromise",
+            )
+            .unwrap();
+        let after_revoke =
+            signed_evidence_receipt(&signer, &binding, "nonce-floor-proof-0003");
+        assert_eq!(
+            verifier.verify(&after_revoke, &binding, 1_102),
+            Err(EvidenceVerificationError::Revoked)
+        );
     }
 
     #[test]
