@@ -356,14 +356,23 @@ impl OwnerApprovalVerifier {
         if p.nonce.trim().is_empty()
             || p.nonce.len() > 256
             || p.owner_subject.trim().is_empty()
+            || p.owner_subject.len() > 256
             || p.key_id.trim().is_empty()
+            || p.key_id.len() > 256
             || p.request_subject.trim().is_empty()
+            || p.request_subject.len() > 256
             || p.executor_subject.trim().is_empty()
+            || p.executor_subject.len() > 256
             || p.capability.trim().is_empty()
+            || p.capability.len() > 256
             || p.resource.trim().is_empty()
+            || p.resource.len() > 256
             || p.effect_type.trim().is_empty()
+            || p.effect_type.len() > 256
             || p.risk_class.trim().is_empty()
+            || p.risk_class.len() > 16
             || p.policy_version.trim().is_empty()
+            || p.policy_version.len() > 128
             || p.issued_at >= p.expires_at
             || p.operation_digest == [0; 32]
             || p.genome_digest == [0; 32]
