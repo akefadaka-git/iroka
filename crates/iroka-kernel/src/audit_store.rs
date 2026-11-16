@@ -385,6 +385,22 @@ mod tests {
     }
 
     #[test]
+    fn verified_head_and_prefix_are_from_one_integrity_checked_snapshot() {
+        let s = SqliteAuditSink::open_in_memory().unwrap();
+        s.append_event(&event("event:prefix")).unwrap();
+        let expected_prefix = s.verified_head().unwrap().1;
+        s.append_event(&event("event:tail")).unwrap();
+        let (sequence, head, prefix) = s.verified_head_and_prefix(1).unwrap();
+        assert_eq!(sequence, 2);
+        assert_eq!(head, s.head().unwrap().1);
+        assert_eq!(prefix, Some(expected_prefix));
+        assert_eq!(
+            s.verified_head_and_prefix(3),
+            Ok((2, head, None))
+        );
+    }
+
+    #[test]
     fn rejects_duplicate_event_ids() {
         let s = SqliteAuditSink::open_in_memory().unwrap();
         s.append_event(&event("event:1")).unwrap();
