@@ -22,6 +22,20 @@ pub struct VerifiedAuditHead {
     pub prefix_digest: Option<[u8; 32]>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CheckpointEvidenceBytes {
+    pub checkpoint_json: Vec<u8>,
+    pub receipts_json: Vec<u8>,
+}
+
+struct StoredCheckpointRow {
+    digest: Vec<u8>,
+    checkpoint_json: Vec<u8>,
+    receipts_json: Vec<u8>,
+    receipt_count: i64,
+    required_quorum: i64,
+}
+
 pub struct SqliteAuditSink {
     connection: Mutex<Connection>,
 }
@@ -293,34 +307,32 @@ impl SqliteAuditSink {
             )
             .map_err(|_| AuditStoreError::Unavailable)?;
         if changed == 0 {
-            let existing: Option<(Vec<u8>, Vec<u8>, Vec<u8>, i64, i64)> = transaction
+            let existing: Option<StoredCheckpointRow> = transaction
                 .query_row(
                     "SELECT checkpoint_digest, checkpoint_json, receipts_json, receipt_count, required_quorum
                      FROM external_checkpoint_evidence
                      WHERE stream_id=?1 AND checkpoint_sequence=?2",
                     params![payload.stream_id, checkpoint_sequence],
                     |row| {
-                        Ok((
-                            row.get(0)?,
-                            row.get(1)?,
-                            row.get(2)?,
-                            row.get(3)?,
-                            row.get(4)?,
-                        ))
+                        Ok(StoredCheckpointRow {
+                            digest: row.get(0)?,
+                            checkpoint_json: row.get(1)?,
+                            receipts_json: row.get(2)?,
+                            receipt_count: row.get(3)?,
+                            required_quorum: row.get(4)?,
+                        })
                     },
                 )
                 .optional()
                 .map_err(|_| AuditStoreError::Unavailable)?;
-            let Some((digest, checkpoint_bytes, receipt_bytes, stored_count, stored_quorum)) =
-                existing
-            else {
+            let Some(existing) = existing else {
                 return Err(AuditStoreError::Rejected);
             };
-            if digest.as_slice() != checkpoint_digest.as_slice()
-                || checkpoint_bytes != checkpoint_json
-                || receipt_bytes != receipts_json
-                || stored_count != receipt_count
-                || stored_quorum != required_quorum
+            if existing.digest.as_slice() != checkpoint_digest.as_slice()
+                || existing.checkpoint_json != checkpoint_json
+                || existing.receipts_json != receipts_json
+                || existing.receipt_count != receipt_count
+                || existing.required_quorum != required_quorum
             {
                 return Err(AuditStoreError::Rejected);
             }
@@ -335,7 +347,7 @@ impl SqliteAuditSink {
     pub fn latest_checkpoint_evidence_bytes(
         &self,
         stream_id: &str,
-    ) -> Result<Option<(Vec<u8>, Vec<u8>)>, AuditStoreError> {
+    ) -> Result<Option<CheckpointEvidenceBytes>, AuditStoreError> {
         if stream_id.trim().is_empty() {
             return Err(AuditStoreError::Rejected);
         }
@@ -349,7 +361,12 @@ impl SqliteAuditSink {
                  FROM external_checkpoint_evidence
                  WHERE stream_id=?1 ORDER BY checkpoint_sequence DESC LIMIT 1",
                 [stream_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| {
+                    Ok(CheckpointEvidenceBytes {
+                        checkpoint_json: row.get(0)?,
+                        receipts_json: row.get(1)?,
+                    })
+                },
             )
             .optional()
             .map_err(|_| AuditStoreError::Unavailable)
