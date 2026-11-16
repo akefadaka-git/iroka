@@ -1433,6 +1433,49 @@ mod tests {
     }
 
     #[test]
+    fn rollback_nonce_and_revocation_floor_survive_file_store_reopen() {
+        use std::fs;
+        let path = std::env::temp_dir().join(format!(
+            "iroka-rollback-state-recovery-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            store.consume_rollback_evidence_nonce(
+                "issuer:persist",
+                "key:persist",
+                "nonce-persisted-evidence-proof-0001",
+                500,
+                100,
+            ).unwrap();
+            store.advance_rollback_revocation_floor(20, 7).unwrap();
+        }
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            assert_eq!(
+                store.consume_rollback_evidence_nonce(
+                    "issuer:persist",
+                    "key:persist",
+                    "nonce-persisted-evidence-proof-0001",
+                    500,
+                    101,
+                ),
+                Err(SecurityStoreError::EvidenceReplay)
+            );
+            assert_eq!(
+                store.advance_rollback_revocation_floor(19, 8),
+                Err(SecurityStoreError::RevocationFloorRollback)
+            );
+            assert_eq!(store.advance_rollback_revocation_floor(20, 7), Ok(()));
+            assert_eq!(store.integrity_check(), Ok(()));
+        }
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
     fn busy_lock_exhaustion_fails_closed_without_partial_trust_write() {
         use std::fs;
 
