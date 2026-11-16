@@ -4914,51 +4914,175 @@
         {
           "field": "envelope_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve to an authenticated immutable source envelope; retrieve and verify its exact bytes/digest, source provenance and permitted use before transformation."
         },
         {
           "field": "transform_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve transform identity to a signed, versioned registry entry; verify immutable implementation digest, publisher, dependencies, execution profile and revocation state."
         },
         {
           "field": "transform_version",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require an exact immutable version and bind it to implementation, runtime, dependencies and declared compatibility; reject floating or substituted versions."
         },
         {
           "field": "modality",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate the canonical source modality against a versioned registry and the selected transform's declared input capabilities."
         },
         {
           "field": "output_type",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Validate canonical output type and compatibility with source modality and transform declaration; reject mismatches and unsupported conversions."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require structured resolvable provenance binding source envelope/segments, transformation parameters, engine/model, locale, execution context and validation evidence."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind exact source, transform artifact, dependencies, runtime, policy, model/engine and evaluator versions to the output and reproducible execution record."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Preserve originals and label OCR, translation, transcription and normalization uncertainty.",
+          "assertion": "The original source remains immutable and independently retrievable; transformed content is explicitly distinguished from source content, normalization and inference.",
           "observable_fields": [
+            "source_envelope_digest",
+            "output_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Every lossy, uncertain, omitted, normalized or non-preserving transformation is disclosed with source-segment mapping, impact and supporting evidence; no lossy result is represented as exact source content.",
+          "observable_fields": [
+            "loss_annotations",
             "transform_status",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "The declared transform identity/version, modality, output type and both digests are verified against authenticated registries and exact immutable artifacts.",
           "observable_fields": [
+            "transform_id",
+            "output_type",
+            "source_envelope_digest",
+            "output_digest",
+            "evidence",
+            "version_bound_evidence"
+          ]
+        },
+        {
+          "assertion": "Transform status is semantically consistent with output availability, completeness, loss annotations and uncertainty; degraded and rejected results cannot be silently represented as success.",
+          "observable_fields": [
+            "transform_status",
+            "loss_annotations",
+            "output_digest",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Preserve originals and label OCR, translation, transcription and normalization uncertainty; no transformed payload creates authority or overrides higher-priority governance.",
+          "observable_fields": [
+            "loss_annotations",
             "transform_status",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never present lossy transformation as exact source content. fail-closed"
+      "character_failure_rule": "Never present lossy transformation as exact source content. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G06-PERCEPTION-TRANSFORM-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "c92676129cf04b9cb94f3b87150499fc386b4890",
+          "a2_contract_blob_before_review": "c58382d06c04f1e122b6ba9b7af51264aad20b71",
+          "a2_catalog_blob_before_review": "59fedce02a91d7e18d094d2bb82e77a10d2d66d2",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "b0936f797fe9f9f9d60aa360e238f289803d861e",
+          "output_schema_blob": "2db52333cac5789f7a6380dd96b9d2c1ac1cc1e2"
+        },
+        "confirmed_sufficient": [
+          "Input schema requires envelope_id, transform_id, transform_version, modality, output_type, provenance and version_bound_evidence, and rejects undeclared top-level fields.",
+          "Input schema types the transform identifiers, modality and output type as strings; it does not bind them to authenticated registries or compatibility rules.",
+          "Output schema requires transform_id, output_digest, output_type, source_envelope_digest, loss_annotations, transform_status, evidence and version_bound_evidence.",
+          "Output schema constrains transform_status to success, rejected or degraded and requires each loss annotation to contain annotation_id, loss_type, source_segment, description, impact and severity.",
+          "Loss annotation items reject undeclared properties and the schema declares an x-genesis-collection-rules extension for unique annotation IDs and disclosure of lossy/degraded transformations; this extension is not itself a standard JSON Schema validation keyword.",
+          "Provenance and version-bound evidence are only non-empty objects; their internal semantic structure and binding to source, transform and output are not defined."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G06-PT-SEM-01",
+            "severity": "HIGH",
+            "finding": "envelope_id is an unrestricted string and provenance is only a non-empty object; the schema does not resolve the immutable source envelope or prove that the transformation consumed the referenced original bytes.",
+            "required_disposition": "Resolve envelope_id to an authenticated immutable envelope; bind the exact source-envelope digest and retrieval evidence to the transformation input and preserve an unmodified original."
+          },
+          {
+            "gap_id": "G06-PT-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "transform_id and transform_version are unrestricted strings; there is no authenticated transform registry, immutable implementation artifact, signer, dependency manifest, execution profile or compatibility binding.",
+            "required_disposition": "Resolve transform_id/version to a signed, immutable registry entry and implementation digest; verify publisher, dependencies, runtime/profile, supported input/output types and revocation status."
+          },
+          {
+            "gap_id": "G06-PT-SEM-03",
+            "severity": "HIGH",
+            "finding": "modality and output_type are unrestricted strings; there are no canonical modality/type registries or enforced compatibility rules between source modality, transform capability and declared output type.",
+            "required_disposition": "Validate modality and output_type against versioned registries and the transform's declared compatibility matrix; reject unsupported, ambiguous or mismatched combinations."
+          },
+          {
+            "gap_id": "G06-PT-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "output_digest and source_envelope_digest are unrestricted strings; the schema does not define digest algorithms, canonicalization, immutable output retrieval or recomputation proving output bytes derive from the exact source envelope.",
+            "required_disposition": "Define versioned digest algorithms and canonical byte semantics; recompute both digests over immutable source/output bytes and bind them to a reproducible transformation record."
+          },
+          {
+            "gap_id": "G06-PT-SEM-05",
+            "severity": "CRITICAL",
+            "finding": "loss_annotations is an array whose items require descriptive fields, but the schema does not enforce completeness against actual losses; the x-genesis-collection-rules extension is not a standard JSON Schema assertion and may not be enforced by generic validators.",
+            "required_disposition": "Define a normative loss taxonomy and deterministic loss-detection/reporting rules; require every discarded, normalized, uncertain or non-preserved source segment to be annotated, with evidence and impact; independently verify annotation completeness."
+          },
+          {
+            "gap_id": "G06-PT-SEM-06",
+            "severity": "HIGH",
+            "finding": "transform_status permits success, rejected or degraded but no conditional invariants relate status to loss_annotations, output availability, uncertainty or rejection evidence; success can coexist with unreported loss.",
+            "required_disposition": "Specify cross-field invariants: success only for declared complete transformations with no undisclosed loss; degraded requires explicit loss/uncertainty annotations and evidence; rejected requires a reason and cannot be represented as a successful output."
+          },
+          {
+            "gap_id": "G06-PT-SEM-07",
+            "severity": "HIGH",
+            "finding": "provenance and version_bound_evidence are only non-empty objects; they do not require source segment mapping, transformation parameters, model/engine versions, locale, calibration, human review or exact execution context.",
+            "required_disposition": "Structure reproducible provenance linking source envelope and segments, transform artifact/version, parameters, engine/model, locale, policy, execution context, output and reviewer/validation evidence where applicable."
+          },
+          {
+            "gap_id": "G06-PT-SEM-08",
+            "severity": "HIGH",
+            "finding": "The contract does not explicitly enforce retention and availability of the original alongside transformed output, nor distinguish verbatim transcription/translation/OCR from normalized or inferred content; uncertainty can be lost or presented as source fact.",
+            "required_disposition": "Require immutable original retention/reference and explicit separation of source content, transformed content, normalization and inference; preserve uncertainty and confidence as qualified claims, never as proof of exactness."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g06.perception-transform input/output schemas and its conformance vectors to close G06-PT-SEM-01 through G06-PT-SEM-08.",
+          "Define immutable source-envelope resolution, authenticated transform registry and artifact/version verification, canonical modality/output-type registries and compatibility checks.",
+          "Define digest algorithms and recomputation over exact immutable source and output bytes; bind results to reproducible transformation evidence.",
+          "Define a normative loss taxonomy and enforce completeness of source-segment annotations; specify status/annotation/output cross-field invariants.",
+          "Preserve the immutable original and distinguish verbatim, translated, transcribed, OCR, normalized and inferred content with explicit uncertainty.",
+          "Preserve 12 chromosomes, 36 genes and all unrelated contracts; perform schema meta-validation and exact-head conformance tests only after separate A3 authorization."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g07.agent-principal",
