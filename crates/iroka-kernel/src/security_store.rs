@@ -26,6 +26,12 @@ pub(crate) enum ApprovalConsumptionError {
     ApprovalRevoked,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SecurityCommandError {
+    Store(SecurityStoreError),
+    SigningKeyRevoked,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum RevocationTarget {
     Credential {
@@ -42,6 +48,16 @@ pub(crate) enum RevocationTarget {
         approval_id: String,
         reason: String,
     },
+}
+
+pub(crate) struct SignedSecurityCommand<'a> {
+    pub command_id: &'a str,
+    pub owner_subject: &'a str,
+    pub signer_issuer: &'a str,
+    pub signer_key_id: &'a str,
+    pub digest: &'a [u8],
+    pub at: u64,
+    pub target: RevocationTarget,
 }
 
 pub(crate) struct ApprovalReceipt<'a> {
@@ -328,27 +344,56 @@ impl SqliteSecurityStore {
     /// Atomically records a signed control command and its revocation effect.
     pub(crate) fn apply_signed_revocation(
         &self,
-        command_id: &str,
-        owner_subject: &str,
-        signer_key_id: &str,
-        digest: &[u8],
-        at: u64,
-        target: RevocationTarget,
-    ) -> Result<bool, SecurityStoreError> {
-        if command_id.trim().is_empty() || digest.len() != 32 {
-            return Err(SecurityStoreError::InvalidVersion);
+        command: SignedSecurityCommand<'_>,
+    ) -> Result<bool, SecurityCommandError> {
+        let SignedSecurityCommand {
+            command_id,
+            owner_subject,
+            signer_issuer,
+            signer_key_id,
+            digest,
+            at,
+            target,
+        } = command;
+        if command_id.trim().is_empty()
+            || signer_issuer.trim().is_empty()
+            || signer_key_id.trim().is_empty()
+            || digest.len() != 32
+        {
+            return Err(SecurityCommandError::Store(
+                SecurityStoreError::InvalidVersion,
+            ));
         }
+        let occurred_at = i64::try_from(at)
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::InvalidVersion))?;
         let mut connection = self
             .connection
             .lock()
-            .map_err(|_| SecurityStoreError::Unavailable)?;
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(|_| SecurityStoreError::Unavailable)?;
-        let changed = tx.execute(
-            "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
-            params![format!("security-command:{command_id}"), digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
+
+        // The signer revocation check shares the IMMEDIATE transaction with
+        // command identity consumption and the revocation effect. This gives
+        // command application and key revocation one SQLite serialization order.
+        let signer_revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params![signer_issuer, signer_key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
+        if signer_revoked {
+            return Err(SecurityCommandError::SigningKeyRevoked);
+        }
+
+        let changed = tx
+            .execute(
+                "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
+                params![format!("security-command:{command_id}"), digest, occurred_at],
+            )
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
         if changed == 0 {
             return Ok(false);
         }
@@ -384,14 +429,9 @@ impl SqliteSecurityStore {
             } => {
                 tx.execute(
                     "INSERT OR IGNORE INTO revoked_credentials VALUES(?1, ?2, ?3, ?4)",
-                    params![
-                        issuer,
-                        credential_id,
-                        i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                        reason
-                    ],
+                    params![issuer, credential_id, occurred_at, reason],
                 )
-                .map_err(|_| SecurityStoreError::Unavailable)?;
+                .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
             }
             RevocationTarget::Key {
                 issuer,
@@ -400,14 +440,9 @@ impl SqliteSecurityStore {
             } => {
                 tx.execute(
                     "INSERT OR IGNORE INTO revoked_keys VALUES(?1, ?2, ?3, ?4)",
-                    params![
-                        issuer,
-                        key_id,
-                        i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                        reason
-                    ],
+                    params![issuer, key_id, occurred_at, reason],
                 )
-                .map_err(|_| SecurityStoreError::Unavailable)?;
+                .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
             }
             RevocationTarget::Approval {
                 approval_id,
@@ -415,20 +450,27 @@ impl SqliteSecurityStore {
             } => {
                 tx.execute(
                     "INSERT OR IGNORE INTO revoked_approvals VALUES(?1, ?2, ?3)",
-                    params![
-                        approval_id,
-                        i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
-                        reason
-                    ],
+                    params![approval_id, occurred_at, reason],
                 )
-                .map_err(|_| SecurityStoreError::Unavailable)?;
+                .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
             }
         }
         tx.execute(
             "INSERT INTO security_command_log(command_id, digest, owner_subject, signer_key_id, action, target, reason, occurred_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![command_id, digest, owner_subject, signer_key_id, action_name, target_name, reason_text, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
-        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+            params![
+                command_id,
+                digest,
+                owner_subject,
+                signer_key_id,
+                action_name,
+                target_name,
+                reason_text,
+                occurred_at
+            ]
+        )
+        .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
+        tx.commit()
+            .map_err(|_| SecurityCommandError::Store(SecurityStoreError::Unavailable))?;
         Ok(true)
     }
 
@@ -987,5 +1029,233 @@ mod tests {
         );
         assert_eq!(store.highest_trust_bundle_version(), Ok(None));
         assert_eq!(store.trust_bundle_history_count(), Ok(before_count));
+    }
+    #[test]
+    fn signed_security_command_rejects_signer_revoked_before_transaction() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        store
+            .revoke_key("iroka:owner-authority", "owner-key-race", 19, "compromised")
+            .unwrap();
+
+        let result = store.apply_signed_revocation(SignedSecurityCommand {
+            command_id: "command:after-revocation",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key-race",
+            digest: &[7; 32],
+            at: 20,
+            target: RevocationTarget::Credential {
+                issuer: "issuer:test".into(),
+                credential_id: "credential:test".into(),
+                reason: "test".into(),
+            },
+        });
+
+        assert_eq!(result, Err(SecurityCommandError::SigningKeyRevoked));
+        assert_eq!(store.security_command_count(), Ok(0));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:test"),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn signed_security_command_serializes_before_later_signer_revocation() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+
+        let result = store.apply_signed_revocation(SignedSecurityCommand {
+            command_id: "command:before-revocation",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key-race",
+            digest: &[8; 32],
+            at: 20,
+            target: RevocationTarget::Credential {
+                issuer: "issuer:test".into(),
+                credential_id: "credential:before".into(),
+                reason: "test".into(),
+            },
+        });
+        assert_eq!(result, Ok(true));
+
+        store
+            .revoke_key("iroka:owner-authority", "owner-key-race", 21, "compromised")
+            .unwrap();
+        assert_eq!(store.security_command_count(), Ok(1));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:before"),
+            Ok(true)
+        );
+    }
+
+    #[test]
+    fn signed_security_command_rejects_conflicting_command_id_replay() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let first = store.apply_signed_revocation(SignedSecurityCommand {
+            command_id: "command:conflicting-replay",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key",
+            digest: &[1; 32],
+            at: 20,
+            target: RevocationTarget::Credential {
+                issuer: "issuer:test".into(),
+                credential_id: "credential:first".into(),
+                reason: "first command".into(),
+            },
+        });
+        let conflicting = store.apply_signed_revocation(SignedSecurityCommand {
+            command_id: "command:conflicting-replay",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key",
+            digest: &[2; 32],
+            at: 21,
+            target: RevocationTarget::Credential {
+                issuer: "issuer:test".into(),
+                credential_id: "credential:second".into(),
+                reason: "conflicting command".into(),
+            },
+        });
+
+        assert_eq!(first, Ok(true));
+        assert_eq!(conflicting, Ok(false));
+        assert_eq!(store.security_command_count(), Ok(1));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:first"),
+            Ok(true)
+        );
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:second"),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn signed_security_command_write_failure_rolls_back_consumption_and_effect() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        {
+            let connection = store.connection.lock().unwrap();
+            connection
+                .execute_batch(
+                    "CREATE TRIGGER reject_security_command_log
+                     BEFORE INSERT ON security_command_log
+                     BEGIN SELECT RAISE(ABORT, 'injected command log failure'); END;",
+                )
+                .unwrap();
+        }
+
+        let command = || SignedSecurityCommand {
+            command_id: "command:retry-after-rollback",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key",
+            digest: &[3; 32],
+            at: 20,
+            target: RevocationTarget::Credential {
+                issuer: "issuer:test".into(),
+                credential_id: "credential:rollback".into(),
+                reason: "test".into(),
+            },
+        };
+        assert_eq!(
+            store.apply_signed_revocation(command()),
+            Err(SecurityCommandError::Store(SecurityStoreError::Unavailable))
+        );
+        assert_eq!(store.security_command_count(), Ok(0));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:rollback"),
+            Ok(false)
+        );
+
+        {
+            let connection = store.connection.lock().unwrap();
+            connection
+                .execute_batch("DROP TRIGGER reject_security_command_log;")
+                .unwrap();
+        }
+        assert_eq!(store.apply_signed_revocation(command()), Ok(true));
+        assert_eq!(store.security_command_count(), Ok(1));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:rollback"),
+            Ok(true)
+        );
+    }
+
+    #[test]
+    fn concurrent_signer_revocation_and_security_command_are_serializable() {
+        use std::fs;
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let path = std::env::temp_dir().join(format!(
+            "iroka-security-command-race-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        let revoker = SqliteSecurityStore::open(&path).unwrap();
+        let commander = SqliteSecurityStore::open(&path).unwrap();
+        let barrier = Arc::new(Barrier::new(3));
+
+        let revoke_barrier = Arc::clone(&barrier);
+        let revoke_thread = thread::spawn(move || {
+            revoke_barrier.wait();
+            revoker.revoke_key(
+                "iroka:owner-authority",
+                "owner-key-concurrent",
+                19,
+                "concurrent compromise",
+            )
+        });
+
+        let command_barrier = Arc::clone(&barrier);
+        let command_thread = thread::spawn(move || {
+            command_barrier.wait();
+            commander.apply_signed_revocation(SignedSecurityCommand {
+                command_id: "command:concurrent",
+                owner_subject: "owner:test",
+                signer_issuer: "iroka:owner-authority",
+                signer_key_id: "owner-key-concurrent",
+                digest: &[9; 32],
+                at: 20,
+                target: RevocationTarget::Credential {
+                    issuer: "issuer:test".into(),
+                    credential_id: "credential:concurrent".into(),
+                    reason: "test".into(),
+                },
+            })
+        });
+
+        barrier.wait();
+        revoke_thread.join().unwrap().unwrap();
+        let command_result = command_thread.join().unwrap();
+
+        let verifier = SqliteSecurityStore::open(&path).unwrap();
+        assert_eq!(
+            verifier.key_revoked("iroka:owner-authority", "owner-key-concurrent"),
+            Ok(true)
+        );
+        match command_result {
+            Ok(true) => {
+                assert_eq!(verifier.security_command_count(), Ok(1));
+                assert_eq!(
+                    verifier.credential_revoked("issuer:test", "credential:concurrent"),
+                    Ok(true)
+                );
+            }
+            Err(SecurityCommandError::SigningKeyRevoked) => {
+                assert_eq!(verifier.security_command_count(), Ok(0));
+                assert_eq!(
+                    verifier.credential_revoked("issuer:test", "credential:concurrent"),
+                    Ok(false)
+                );
+            }
+            other => panic!("unexpected concurrent security-command result: {other:?}"),
+        }
+
+        drop(verifier);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
     }
 }
