@@ -2,19 +2,26 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation]
+    branches: [feat/igacms-a3-implementation, implementation/a3-character-genome-v1]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "scripts/a3_schema_baseline_audit.py"
+      - "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json"
+      - "docs/architecture/IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-v1.0.0.json"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base]
+    branches: [main, architecture/igacms-a2-ci-base, architecture/a2-character-gene-contracts-v2]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "scripts/a3_schema_baseline_audit.py"
+      - "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json"
+      - "docs/architecture/IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-v1.0.0.json"
+      - "docs/architecture/IROKA-A3-CHARACTER-GENE-IMPLEMENTATION-RECORD-v1.0.0.md"
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
@@ -47,7 +54,6 @@ jobs:
           rustc --version
           cargo --version
 
-
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -59,6 +65,9 @@ jobs:
 
       - name: Run complete unit and contract test suite
         run: cargo test --workspace --all-targets --locked
+
+      - name: Run static A3 gene schema and traceability audit
+        run: python3 scripts/a3_schema_baseline_audit.py
 
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
