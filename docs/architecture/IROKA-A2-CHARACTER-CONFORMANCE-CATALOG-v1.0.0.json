@@ -199,13 +199,19 @@
       "case_id": "CHAR-G02.AUTHORITY-SOURCE-P",
       "gene_id": "g02.authority-source",
       "polarity": "positive",
-      "scenario": "Given the exact approved input schema fields (authority_id, source_type, mandate_ref, valid_from, valid_until, provenance), valid provenance/version evidence and the baseline positive condition (valid mandate accepted; expired mandate rejected), the gene must satisfy: Resolve authority only from configured, verifiable sources and preserve scope.",
-      "expected": "Return the existing gene-specific output contract with truthful status, complete evidence and no authority expansion; satisfy the character obligation.",
+      "scenario": "A principal resolves in the configured trusted registry, its registered source class is eligible, and mandate_ref resolves to an authenticated current mandate whose subject, issuer, delegation chain, scope and validity interval are verified. Evaluation uses a trusted clock and returns only the mandate's verified scope.",
+      "expected": "Return source_valid=true and decision=valid only when principal trust, source-class eligibility, mandate authenticity, scope, temporal validity and non-revocation are all established; report no scope beyond the mandate.",
       "assertions": [
-        "required inputs validated",
-        "evidence references resolve",
-        "no authority expansion",
-        "decision status reflects observed result"
+        "authority_id resolves to canonical trusted principal with current key/status and non-revocation evidence",
+        "source_type matches registered principal class and governing policy eligibility",
+        "mandate_ref resolves to authenticated immutable mandate bound to authority_id",
+        "mandate issuer/signature, delegation chain, constraints and exact scope verify",
+        "valid_from and valid_until parse as canonical timezone-aware timestamps and interval ordering is valid",
+        "null valid_until is accepted only where policy permits unbounded mandates",
+        "evaluation time is trusted and recorded",
+        "source_valid=true iff decision=valid",
+        "reported scope does not exceed authenticated mandate scope",
+        "evidence reproduces all checks without granting or expanding authority"
       ],
       "existing_gene_io_case_id": "G02-GENE-001",
       "existing_gene_io_expected": "ACCEPT",
@@ -213,19 +219,34 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
         "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-AUTH-SRC-SEM-01",
+        "G02-AUTH-SRC-SEM-02",
+        "G02-AUTH-SRC-SEM-03",
+        "G02-AUTH-SRC-SEM-04",
+        "G02-AUTH-SRC-SEM-05",
+        "G02-AUTH-SRC-SEM-06",
+        "G02-AUTH-SRC-SEM-07"
       ]
     },
     {
       "case_id": "CHAR-G02.AUTHORITY-SOURCE-N",
       "gene_id": "g02.authority-source",
       "polarity": "negative",
-      "scenario": "Given the exact approved input schema fields with a character invariant violation (Reject inferred, self-issued, revoked or ambiguous authority.), and the baseline negative condition (expired or unrecognized authority source), the gene must enforce: fail-closed",
-      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose the violation and evidence; do not fabricate or silently continue.",
+      "scenario": "The authority identifier is unknown, self-issued or revoked; source_type is spoofed or ineligible; mandate_ref is missing, forged, expired, revoked, out of scope or not bound to the principal; timestamps are malformed, ambiguous or inverted; null expiry is not policy-permitted; or output status/scope contradicts the verified mandate.",
+      "expected": "Reject or fail closed. Do not infer authority from identity, claimed source class or a bare mandate reference; do not report valid status or scope without complete verifiable evidence.",
       "assertions": [
-        "failure semantics enforced",
-        "no fabricated evidence",
-        "no silent downgrade",
-        "reason and evidence recorded"
+        "unknown, self-issued or revoked principal fails closed",
+        "source class mismatch or policy-ineligible class fails closed",
+        "unverifiable, forged, revoked or principal-mismatched mandate fails closed",
+        "delegation chain and mandate scope are fully checked",
+        "malformed, timezone-ambiguous or inverted validity interval fails closed",
+        "null expiry without explicit policy permission fails closed",
+        "source_valid=true with invalid/expired decision is rejected",
+        "reported scope exceeding mandate scope is rejected",
+        "no fabricated trust, mandate or revocation evidence",
+        "failure reason and evidence are recorded"
       ],
       "existing_gene_io_case_id": "G02-GENE-001",
       "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
@@ -233,6 +254,15 @@
       "required_schema_ids": [
         "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
         "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-AUTH-SRC-SEM-01",
+        "G02-AUTH-SRC-SEM-02",
+        "G02-AUTH-SRC-SEM-03",
+        "G02-AUTH-SRC-SEM-04",
+        "G02-AUTH-SRC-SEM-05",
+        "G02-AUTH-SRC-SEM-06",
+        "G02-AUTH-SRC-SEM-07"
       ]
     },
     {
@@ -1588,6 +1618,26 @@
         "G01-COMP-SEM-04",
         "G01-COMP-SEM-05",
         "G01-COMP-SEM-06"
+      ]
+    },
+    {
+      "review_id": "A2-G02-AUTHORITY-SOURCE-SEMANTIC-REVIEW-001",
+      "gene_id": "g02.authority-source",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G02.AUTHORITY-SOURCE-P",
+        "CHAR-G02.AUTHORITY-SOURCE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G02-AUTH-SRC-SEM-01",
+        "G02-AUTH-SRC-SEM-02",
+        "G02-AUTH-SRC-SEM-03",
+        "G02-AUTH-SRC-SEM-04",
+        "G02-AUTH-SRC-SEM-05",
+        "G02-AUTH-SRC-SEM-06",
+        "G02-AUTH-SRC-SEM-07"
       ]
     }
   ]
