@@ -3184,48 +3184,170 @@
         {
           "field": "claims",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require unique immutable claim IDs and canonical claim semantics; validate source_ids against authenticated source records. Define confidence as a calibrated, source-grounded measure rather than an unexplained [0,1] scalar; preserve claim time, scope, qualifiers and epistemic status."
         },
         {
           "field": "sources",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve every source_ref and verify source_digest against retrieved source content; bind source identity, origin, time, rights and trust assessment to structured provenance. A trust_ref must resolve to a versioned trust assessment; null must produce an explicitly untrusted/unknown source state."
         },
         {
           "field": "relations",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require unique relation IDs and resolve both claim endpoints; use explicit, symmetric/ directional semantics for supports, contradicts, duplicates and depends_on. Detect contradictory relation assertions, cycles where disallowed, missing relation coverage and duplicate claims without silently collapsing material distinctions."
         },
         {
           "field": "policy_id",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Resolve policy_id to an immutable, authorized, versioned conflict policy with scope, precedence rules and effective interval; reject unknown, stale, unsigned or out-of-scope policies. Policy must not authorize suppression of material contradictions."
         },
         {
           "field": "provenance",
           "required": true,
-          "control": "Validate against the exact gene-specific A1-approved IO contract; preserve provenance and do not infer authority from presence of data."
+          "control": "Require structured provenance for each claim, source, relation and policy evaluation, including acquisition time, transformation history, rights/context and epistemic status."
+        },
+        {
+          "field": "version_bound_evidence",
+          "required": true,
+          "control": "Bind the conflict analysis to exact claims, source bytes/digests, relation graph, trust assessments, policy version, evaluator and schema versions."
         }
       ],
       "character_output_assertions": [
         {
-          "assertion": "Retain material contradictions and represent competing accounts fairly.",
+          "assertion": "Every material contradiction supported by the input claims and relation graph is represented; no claim or source is silently discarded to manufacture consensus.",
           "observable_fields": [
-            "conflict_set_id",
+            "conflicts",
+            "resolution_state",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Every conflict record has complete, unique, resolvable claim and source references and accurately identifies the conflicting relation and evidence.",
+          "observable_fields": [
             "conflicts",
             "evidence"
           ]
         },
         {
-          "assertion": "Report the prohibited behavior as a denial, unresolved finding or explicit limitation whenever its trigger is observed.",
+          "assertion": "A conflict may be marked resolved only when an explicit, authorized policy rule and sufficient evidence justify the resolution; unresolved and insufficient_evidence remain distinct.",
           "observable_fields": [
-            "conflict_set_id",
             "conflicts",
+            "resolution_state",
+            "policy_applied",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "policy_applied identifies the exact registered policy version and rule path actually applied; policy evaluation is reproducible.",
+          "observable_fields": [
+            "policy_applied",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Confidence and source trust are not treated as authority or as automatic grounds to erase a competing account; uncertainty and material dissent remain visible.",
+          "observable_fields": [
+            "conflicts",
+            "resolution_state",
+            "evidence"
+          ]
+        },
+        {
+          "assertion": "Output conflict coverage is complete relative to the input claims and relation graph, and every exclusion, duplicate grouping or unresolved relation is disclosed.",
+          "observable_fields": [
+            "conflicts",
+            "resolution_state",
             "evidence"
           ]
         }
       ],
-      "character_failure_rule": "Never conceal conflicts or force false consensus. fail-closed"
+      "character_failure_rule": "Never conceal conflicts or force false consensus. fail-closed",
+      "semantic_reconciliation": {
+        "review_id": "A2-G04-CONFLICT-MODEL-SEMANTIC-REVIEW-001",
+        "review_status": "VERIFIED_CLOSED",
+        "disposition": "AMEND",
+        "reviewed_at": "2026-11-16",
+        "evidence": {
+          "a2_branch": "architecture/a2-character-gene-contracts-v2",
+          "a2_head_at_review": "0aef5a83ad6e85c90b65e8438fa4e492ab31c614",
+          "a2_contract_blob_before_review": "edfbee96810a855220845303c9a68cf77beb8c37",
+          "gene_io_branch": "architecture/genesis-gene-contract-amendment-proposal",
+          "gene_io_commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+          "input_schema_blob": "08b372f3efcc5a9a4df2164a7f8171b197788842",
+          "output_schema_blob": "2ed4a219c853a55378462752f48f10f6cc175271"
+        },
+        "confirmed_sufficient": [
+          "Claims require IDs, subject, predicate, object value, unique source IDs and confidence constrained to [0,1].",
+          "Sources require source IDs, references, digests and an explicit nullable trust reference.",
+          "Relations are limited to supports, contradicts, duplicates and depends_on, with both claim endpoints required.",
+          "Input collection annotations require source and relation references to resolve and reject self-relations.",
+          "Output conflict records require conflict and claim/source identifiers, conflict type, description and a bounded resolution state.",
+          "Top-level resolution_state distinguishes unresolved, resolved and insufficient_evidence."
+        ],
+        "semantic_gaps": [
+          {
+            "gap_id": "G04-CM-SEM-01",
+            "severity": "HIGH",
+            "finding": "Claim confidence is only bounded [0,1]; calibration, epistemic meaning, time/scope qualifiers and evidence derivation are undefined.",
+            "required_disposition": "Define confidence semantics and calibration, preserve claim scope/time/qualifiers, and prevent confidence from being treated as authority."
+          },
+          {
+            "gap_id": "G04-CM-SEM-02",
+            "severity": "CRITICAL",
+            "finding": "source_ref/source_digest are non-empty strings and trust_ref may be null without source retrieval, digest verification, trust registry or explicit unknown-trust behavior.",
+            "required_disposition": "Verify source content integrity and bind trust references to versioned assessments; represent null trust as unknown/untrusted rather than implicitly trusted."
+          },
+          {
+            "gap_id": "G04-CM-SEM-03",
+            "severity": "HIGH",
+            "finding": "Relation graph semantics, directionality/symmetry, transitive behavior, cycles, contradictory relations and completeness are not defined.",
+            "required_disposition": "Specify formal relation semantics and graph validation; detect inconsistent or unsupported relation structures."
+          },
+          {
+            "gap_id": "G04-CM-SEM-04",
+            "severity": "CRITICAL",
+            "finding": "policy_id is an unvalidated string with no policy authenticity, version, scope, effective interval or precedence semantics.",
+            "required_disposition": "Resolve policy ID to an immutable authorized versioned policy and expose the exact rules applied."
+          },
+          {
+            "gap_id": "G04-CM-SEM-05",
+            "severity": "HIGH",
+            "finding": "provenance is a generic non-empty object and does not bind each claim, source, relation and policy evaluation to source/time/rights/derivation context.",
+            "required_disposition": "Require structured item-level provenance, source integrity, temporal context, rights and epistemic status."
+          },
+          {
+            "gap_id": "G04-CM-SEM-06",
+            "severity": "HIGH",
+            "finding": "Output conflicts are not required to cover all material contradictions in the input graph; empty output conflicts can coexist with an unresolved or resolved top-level state.",
+            "required_disposition": "Enforce complete conflict coverage and reconcile conflict records with input claims/relations and top-level state."
+          },
+          {
+            "gap_id": "G04-CM-SEM-07",
+            "severity": "HIGH",
+            "finding": "Top-level resolution_state and per-conflict resolution_state can contradict each other; resolved lacks an evidence/policy sufficiency condition.",
+            "required_disposition": "Define cross-record state consistency and require explicit authorized policy plus sufficient evidence for each resolved conflict."
+          },
+          {
+            "gap_id": "G04-CM-SEM-08",
+            "severity": "MEDIUM",
+            "finding": "conflict_type and policy_applied are arbitrary non-empty strings and output evidence does not require an auditable policy rule path or explain exclusions/grouping.",
+            "required_disposition": "Bind conflict types and applied policy/rule identifiers to registries and expose reproducible decision trace and all exclusions."
+          }
+        ],
+        "a3_bounded_amendment_proposal": [
+          "Amend only g04.conflict-model input/output schemas and its positive/negative conformance vectors to close G04-CM-SEM-01 through G04-CM-SEM-08.",
+          "Define claim confidence semantics, source integrity/trust resolution, relation graph semantics and completeness checks.",
+          "Bind policy IDs to immutable authorized versions and define explicit conflict-resolution sufficiency conditions.",
+          "Enforce full conflict coverage, per-conflict/top-level state consistency and auditable evidence for any resolution.",
+          "Run schema meta-validation and exact-head conflict conformance tests only after separately authorized A3 implementation."
+        ],
+        "execution_status": {
+          "schema_mutation": "NOT RUN",
+          "runtime_conformance": "NOT RUN",
+          "merge": "NOT AUTHORIZED",
+          "deployment": "NOT AUTHORIZED"
+        }
+      }
     },
     {
       "gene_id": "g05.memory-classification",
