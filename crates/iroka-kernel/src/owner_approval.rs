@@ -514,6 +514,7 @@ impl OwnerApprovalVerifier {
             || now >= owner_key.not_after
             || p.issued_at < owner_key.not_before
             || p.issued_at >= owner_key.not_after
+            || p.expires_at > owner_key.not_after
         {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
