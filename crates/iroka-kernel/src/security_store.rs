@@ -1089,6 +1089,100 @@ mod tests {
     }
 
     #[test]
+    fn signed_security_command_rejects_conflicting_command_id_replay() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let first = store.apply_signed_revocation(SignedSecurityCommand {
+            command_id: "command:conflicting-replay",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key",
+            digest: &[1; 32],
+            at: 20,
+            target: RevocationTarget::Credential {
+                issuer: "issuer:test".into(),
+                credential_id: "credential:first".into(),
+                reason: "first command".into(),
+            },
+        });
+        let conflicting = store.apply_signed_revocation(SignedSecurityCommand {
+            command_id: "command:conflicting-replay",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key",
+            digest: &[2; 32],
+            at: 21,
+            target: RevocationTarget::Credential {
+                issuer: "issuer:test".into(),
+                credential_id: "credential:second".into(),
+                reason: "conflicting command".into(),
+            },
+        });
+
+        assert_eq!(first, Ok(true));
+        assert_eq!(conflicting, Ok(false));
+        assert_eq!(store.security_command_count(), Ok(1));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:first"),
+            Ok(true)
+        );
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:second"),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn signed_security_command_write_failure_rolls_back_consumption_and_effect() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        {
+            let connection = store.connection.lock().unwrap();
+            connection
+                .execute_batch(
+                    "CREATE TRIGGER reject_security_command_log
+                     BEFORE INSERT ON security_command_log
+                     BEGIN SELECT RAISE(ABORT, 'injected command log failure'); END;",
+                )
+                .unwrap();
+        }
+
+        let command = || SignedSecurityCommand {
+            command_id: "command:retry-after-rollback",
+            owner_subject: "owner:test",
+            signer_issuer: "iroka:owner-authority",
+            signer_key_id: "owner-key",
+            digest: &[3; 32],
+            at: 20,
+            target: RevocationTarget::Credential {
+                issuer: "issuer:test".into(),
+                credential_id: "credential:rollback".into(),
+                reason: "test".into(),
+            },
+        };
+        assert_eq!(
+            store.apply_signed_revocation(command()),
+            Err(SecurityCommandError::Store(SecurityStoreError::Unavailable))
+        );
+        assert_eq!(store.security_command_count(), Ok(0));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:rollback"),
+            Ok(false)
+        );
+
+        {
+            let connection = store.connection.lock().unwrap();
+            connection
+                .execute_batch("DROP TRIGGER reject_security_command_log;")
+                .unwrap();
+        }
+        assert_eq!(store.apply_signed_revocation(command()), Ok(true));
+        assert_eq!(store.security_command_count(), Ok(1));
+        assert_eq!(
+            store.credential_revoked("issuer:test", "credential:rollback"),
+            Ok(true)
+        );
+    }
+
+    #[test]
     fn concurrent_signer_revocation_and_security_command_are_serializable() {
         use std::fs;
         use std::sync::{Arc, Barrier};
