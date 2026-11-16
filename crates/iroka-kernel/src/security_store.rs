@@ -15,6 +15,28 @@ use crate::version_lineage::{
     VersionLineageRecord, VersionLineageRegistry,
 };
 
+type LineageArtifactRow = (
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    i64,
+);
+type LineageMutationRow = (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    i64,
+    i64,
+    String,
+);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecurityStoreError {
     Unavailable,
@@ -715,16 +737,7 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             version: &str,
             digest: &str,
         ) -> Result<RegisteredLineageArtifact, LineageRegistryError> {
-            let row: Option<(
-                String,
-                String,
-                String,
-                String,
-                Option<String>,
-                Option<String>,
-                Option<String>,
-                i64,
-            )> = connection
+            let row: Option<LineageArtifactRow> = connection
                 .query_row(
                     "SELECT gene_id, version, artifact_digest, artifact_json,
                             parent_version, parent_digest, mutation_id, epoch
@@ -798,17 +811,7 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             .last()
             .ok_or(LineageRegistryError::IntegrityFailure)?;
         let mutation = if let Some(mutation_id) = candidate.mutation_id.as_deref() {
-            let row: Option<(
-                String,
-                String,
-                String,
-                String,
-                String,
-                String,
-                i64,
-                i64,
-                String,
-            )> = connection
+            let row: Option<LineageMutationRow> = connection
                 .query_row(
                     "SELECT mutation_ref, mutation_id, source_version, source_digest,
                             target_version, target_digest, approved, gates_passed,
