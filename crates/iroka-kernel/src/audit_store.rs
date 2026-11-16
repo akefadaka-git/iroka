@@ -239,8 +239,7 @@ fn verify_chain_and_prefix(
     let mut prefix_hash = (target_sequence == Some(0)).then_some(ZERO);
     while let Some(row) = rows.next().map_err(|_| AuditStoreError::Unavailable)? {
         let sequence: i64 = row.get(0).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let sequence =
-            u64::try_from(sequence).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let sequence = u64::try_from(sequence).map_err(|_| AuditStoreError::IntegrityFailure)?;
         if sequence <= last_sequence {
             return Err(AuditStoreError::IntegrityFailure);
         }
@@ -252,10 +251,8 @@ fn verify_chain_and_prefix(
         let policy: String = row.get(6).map_err(|_| AuditStoreError::IntegrityFailure)?;
         let decision: String = row.get(7).map_err(|_| AuditStoreError::IntegrityFailure)?;
         let occurred_at: i64 = row.get(8).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let stored_previous: Vec<u8> =
-            row.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
-        let stored_hash: Vec<u8> =
-            row.get(10).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let stored_previous: Vec<u8> = row.get(9).map_err(|_| AuditStoreError::IntegrityFailure)?;
+        let stored_hash: Vec<u8> = row.get(10).map_err(|_| AuditStoreError::IntegrityFailure)?;
         if stored_previous != previous || stored_previous.len() != 32 {
             return Err(AuditStoreError::IntegrityFailure);
         }
@@ -378,10 +375,7 @@ mod tests {
             )
             .unwrap();
         }
-        assert_eq!(
-            s.verified_head(),
-            Err(AuditStoreError::IntegrityFailure)
-        );
+        assert_eq!(s.verified_head(), Err(AuditStoreError::IntegrityFailure));
     }
 
     #[test]
@@ -394,10 +388,7 @@ mod tests {
         assert_eq!(sequence, 2);
         assert_eq!(head, s.head().unwrap().1);
         assert_eq!(prefix, Some(expected_prefix));
-        assert_eq!(
-            s.verified_head_and_prefix(3),
-            Ok((2, head, None))
-        );
+        assert_eq!(s.verified_head_and_prefix(3), Ok((2, head, None)));
     }
 
     #[test]
