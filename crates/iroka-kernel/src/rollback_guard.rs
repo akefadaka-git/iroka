@@ -899,7 +899,10 @@ mod tests {
         let mismatch =
             evaluate_rollback_guard(&substituted, &TestEvidence, &owner_verifier, 1_100).unwrap();
         assert_eq!(mismatch.denial_code, RollbackDenialCode::DigestMismatch);
-    }\n\n    #[test]\n    fn production_evidence_verifier_authenticates_and_consumes_nonce_once() {
+    }
+
+    #[test]
+    fn production_evidence_verifier_authenticates_and_consumes_nonce_once() {
         let (signer, _store, verifier) = production_evidence_verifier();
         let binding = EvidenceBinding {
             subject: "current_state".into(),
