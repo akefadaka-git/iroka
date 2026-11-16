@@ -24,9 +24,10 @@ pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink, VerifiedAuditHead};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use external_checkpoint::{
-    create_audit_checkpoint, create_checkpoint, verify_and_reconcile_head, verify_witness_quorum,
-    CheckpointError, CheckpointPayload, CheckpointSigner, CheckpointWitness, Reconciliation,
-    SignedCheckpoint, WitnessReceipt, WitnessReceiptPayload,
+    create_audit_checkpoint, create_checkpoint, verify_and_reconcile_head,
+    verify_checkpoint_evidence, verify_witness_quorum, CheckpointError, CheckpointPayload,
+    CheckpointSigner, CheckpointWitness, Reconciliation, SignedCheckpoint,
+    VerifiedCheckpointEvidence, WitnessReceipt, WitnessReceiptPayload,
 };
 pub use external_checkpoint_https::{
     publish_witness_quorum, HttpsCheckpointWitness, HttpsWitnessConfig,
