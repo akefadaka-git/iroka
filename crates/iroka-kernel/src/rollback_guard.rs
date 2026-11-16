@@ -809,6 +809,9 @@ mod tests {
                 ("candidate_state", "issuer:rollback-test"),
                 ("revocation_floor", "issuer:rollback-test"),
                 ("policy_version", "issuer:rollback-test"),
+                ("lineage:artifact:*", "issuer:rollback-test"),
+                ("lineage:mutation:*", "issuer:rollback-test"),
+                ("lineage:registry", "issuer:rollback-test"),
             ]
             .into_iter()
             .map(|(subject, issuer)| {
@@ -991,6 +994,21 @@ mod tests {
             verifier.verify(&receipt, &binding, 1_101),
             Err(EvidenceVerificationError::Replay)
         );
+    }
+
+
+    #[test]
+    fn production_evidence_verifier_accepts_subject_scoped_lineage_patterns() {
+        let (signer, _store, verifier) = production_evidence_verifier();
+        let binding = EvidenceBinding {
+            subject: "lineage:artifact:0123456789abcdef".into(),
+            digest: "b".repeat(64),
+            epoch: 2,
+            revision: 42,
+        };
+        let receipt =
+            signed_evidence_receipt(&signer, &binding, "nonce-lineage-artifact-proof-0001");
+        assert_eq!(verifier.verify(&receipt, &binding, 1_100), Ok(()));
     }
 
     #[test]
