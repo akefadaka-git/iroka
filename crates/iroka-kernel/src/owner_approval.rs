@@ -7,13 +7,13 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::security_store::{
-    ApprovalConsumptionError, ApprovalReceipt, RevocationTarget, SecurityCommandError,
-    SignedSecurityCommand,
-};
 use crate::protected_effect::{
     OwnerEffectGrantPayload, ProtectedEffectRequest, SignedOwnerEffectGrant, VerifiedEffectGrant,
     VerifiedExecutionReceipt,
+};
+use crate::security_store::{
+    ApprovalConsumptionError, ApprovalReceipt, RevocationTarget, SecurityCommandError,
+    SignedSecurityCommand,
 };
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
@@ -415,6 +415,7 @@ impl OwnerApprovalVerifier {
             || now >= owner_key.not_after
             || p.issued_at < owner_key.not_before
             || p.issued_at >= owner_key.not_after
+            || p.expires_at > owner_key.not_after
         {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
@@ -426,7 +427,9 @@ impl OwnerApprovalVerifier {
         {
             return Err(OwnerApprovalError::Revoked);
         }
-        let signing_bytes = p.signing_bytes().map_err(|_| OwnerApprovalError::Malformed)?;
+        let signing_bytes = p
+            .signing_bytes()
+            .map_err(|_| OwnerApprovalError::Malformed)?;
         let signature =
             Signature::from_slice(&grant.signature).map_err(|_| OwnerApprovalError::Malformed)?;
         owner_key
