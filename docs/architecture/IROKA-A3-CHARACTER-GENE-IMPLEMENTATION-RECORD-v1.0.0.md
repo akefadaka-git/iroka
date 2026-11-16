@@ -52,3 +52,50 @@ The A3 branch imports the 72 read-only schema baselines from the frozen gene IO 
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic`: PASS
 
 This verifies the imported baseline and existing Rust kernel tests only. It does **not** establish that the 36 gene-specific semantic amendments, stronger evidence semantics, or all 72 character conformance scenarios are implemented or executed.
+
+## G12 rollback-guard — A3 implementation increment
+
+**Implemented code head:** `72e7157ad3fcdc78628304861689a169319dca59`  
+**Workflow:** [Rust kernel verification run #1566](https://github.com/akefadaka-git/iroka/actions/runs/43855408317) — **PASS**
+
+The original A2 v1.0.0 input/output schema files remain unchanged. Additive A3 v1.1.0 schemas and ten gene-specific conformance vectors are under `igacms/schemas/a3/genes/` and `docs/architecture/a3/`.
+
+Implemented in this increment:
+- Non-negative epoch and floor domain in the A3 schema.
+- SHA-256 over RFC 8785 JCS canonical artifact bytes; current and candidate digests are recomputed.
+- Exact binding of provenance and version-bound evidence to current state, candidate state, revocation-floor revision and policy version.
+- A typed evidence-verifier boundary; invalid, stale, missing, replayed or mismatched evidence denies.
+- Existing signed Owner approval verifier reused for one-time rollback approval, scoped to a canonical transition commitment that includes the explicit rollback reason.
+- Candidate below the verified revocation floor is denied before Owner approval is checked or consumed.
+- Same-epoch/different-digest conflict is denied.
+- Denial preserves verified current state only when it is at/above the floor; otherwise effective state is unresolved.
+- Canonical decision envelope and reproducible SHA-256 guard digest.
+- Serialized output fields checked against the A3 v1.1.0 output shape.
+
+### Exact-head verification
+
+At tested code head `72e7157ad3fcdc78628304861689a169319dca59`:
+- Formatting: PASS
+- Workspace compile: PASS
+- No-default-features compile: PASS
+- Rust unit tests: **76 passed, 0 failed**
+- Integration/contract tests: **2 passed, 0 failed**
+- Static A2/A3 schema and traceability audit: PASS
+  - 12 chromosome scope assertion
+  - 36 gene contracts
+  - 72 frozen A2 schemas
+  - 72 A2 conformance cases
+  - 36 A2 review records
+  - version-bound evidence inventory 72/72
+  - G12 A3 v1.1.0 schema and ten-vector static audit PASS
+- Clippy: PASS
+
+The five new G12 Rust test functions exercise six of the ten catalog vectors: `RG-A3-P01`, `RG-A3-P02`, `RG-A3-N01`, `RG-A3-N03`, `RG-A3-N05`, and `RG-A3-N06`. The remaining four vectors are NOT RUN.
+
+### Important implementation limitation
+
+The production `RollbackEvidenceVerifier` adapter is **not yet implemented**. The evaluator requires this verifier as an injected dependency and fails closed when it rejects evidence; tests use a test-only verifier. Production trust-root/key verification, durable evidence replay prevention and authoritative monotonic revocation-floor integration remain outstanding. Therefore this increment is **kernel logic implemented and CI-verified**, not production-ready rollback assurance.
+
+Independent external security review: NOT RECEIVED.  
+A3 overall: IN PROGRESS.  
+Merge: NOT AUTHORIZED. Deployment: NOT AUTHORIZED.
