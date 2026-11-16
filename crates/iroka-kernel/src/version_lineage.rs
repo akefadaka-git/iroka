@@ -233,7 +233,7 @@ pub fn evaluate_version_lineage(
     if !valid_digest(&input.artifact_digest)
         || parse_semver(&input.version).is_none()
         || input.mutation_ref.trim().is_empty()
-        || input.epoch > i64::MAX as u64
+
     {
         return Ok(deny(
             input,
@@ -422,7 +422,11 @@ pub fn evaluate_version_lineage(
     for entry in &record.ancestry {
         expected.push(EvidenceBinding {
             subject: format!("lineage:artifact:{}", entry.artifact_digest),
-            digest: entry.artifact_digest.clone(),
+            digest: digest_value(&json!({
+                "version": entry.version,
+                "artifact_digest": entry.artifact_digest,
+                "epoch": entry.epoch
+            }))?,
             epoch: entry.epoch,
             revision: record.registry_revision,
         });
@@ -622,7 +626,11 @@ mod tests {
         for entry in &record.ancestry {
             bindings.push(EvidenceBinding {
                 subject: format!("lineage:artifact:{}", entry.artifact_digest),
-                digest: entry.artifact_digest.clone(),
+                digest: digest_value(&json!({
+                    "version": entry.version,
+                    "artifact_digest": entry.artifact_digest,
+                    "epoch": entry.epoch
+                })).unwrap(),
                 epoch: entry.epoch,
                 revision: record.registry_revision,
             });
