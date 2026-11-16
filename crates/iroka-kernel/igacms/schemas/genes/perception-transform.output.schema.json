@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0",
+  "title": "Perception transform — output",
+  "description": "Normative output contract for g06.perception-transform v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "loss_annotations_item": {
+      "type": "object",
+      "properties": {
+        "annotation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "loss_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_segment": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "impact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "annotation_id",
+        "loss_type",
+        "source_segment",
+        "description",
+        "impact",
+        "severity"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g06-perception-transform-output-loss_annotations-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "transform_id": {
+      "type": "string",
+      "description": "transform_id — approved output field for g06.perception-transform"
+    },
+    "output_digest": {
+      "type": "string",
+      "description": "output_digest — approved output field for g06.perception-transform"
+    },
+    "output_type": {
+      "type": "string",
+      "description": "output_type — approved output field for g06.perception-transform"
+    },
+    "source_envelope_digest": {
+      "type": "string",
+      "description": "source_envelope_digest — approved output field for g06.perception-transform"
+    },
+    "loss_annotations": {
+      "type": "array",
+      "description": "loss_annotations — approved output field for g06.perception-transform",
+      "items": {
+        "$ref": "#/$defs/loss_annotations_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "annotation_id"
+        ],
+        "rule": "every lossy/degraded transformation is disclosed; no annotation may claim information was preserved when it was discarded"
+      }
+    },
+    "transform_status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "rejected",
+        "degraded"
+      ],
+      "description": "transform_status — approved output field for g06.perception-transform"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "transform_id",
+    "output_digest",
+    "output_type",
+    "source_envelope_digest",
+    "loss_annotations",
+    "transform_status",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

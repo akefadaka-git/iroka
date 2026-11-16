@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
+  "title": "Source trust — input",
+  "description": "Normative input contract for g06.source-trust v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "description": "source_id — approved input field for g06.source-trust"
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "credential_ref — approved input field for g06.source-trust"
+    },
+    "policy_id": {
+      "type": "string",
+      "description": "policy_id — approved input field for g06.source-trust"
+    },
+    "signature": {
+      "type": "string",
+      "description": "signature — approved input field for g06.source-trust"
+    },
+    "revocation_epoch": {
+      "type": "integer",
+      "description": "revocation_epoch — approved input field for g06.source-trust"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "source_id",
+    "credential_ref",
+    "policy_id",
+    "signature",
+    "revocation_epoch",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

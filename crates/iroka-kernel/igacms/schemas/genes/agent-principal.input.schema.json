@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
+  "title": "Agent principal — input",
+  "description": "Normative input contract for g07.agent-principal v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "agent_id — approved input field for g07.agent-principal"
+    },
+    "credential_ref": {
+      "type": "string",
+      "description": "credential_ref — approved input field for g07.agent-principal"
+    },
+    "runtime_instance_id": {
+      "type": "string",
+      "description": "runtime_instance_id — approved input field for g07.agent-principal"
+    },
+    "principal_class": {
+      "type": "string",
+      "enum": [
+        "system",
+        "service",
+        "task",
+        "subagent"
+      ],
+      "description": "principal_class — approved input field for g07.agent-principal"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "agent_id",
+    "credential_ref",
+    "runtime_instance_id",
+    "principal_class",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

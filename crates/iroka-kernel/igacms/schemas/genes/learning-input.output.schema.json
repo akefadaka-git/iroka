@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0",
+  "title": "Learning input — output",
+  "description": "Normative output contract for g10.learning-input v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "eligible_observations_item": {
+      "type": "object",
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "eligibility_basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authorization_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "observation_id",
+        "source_ref",
+        "eligibility_basis",
+        "authorization_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g10-learning-input-output-eligible_observations-item-v1-0-0"
+    },
+    "excluded_observations_item": {
+      "type": "object",
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exclusion_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "observation_id",
+        "source_ref",
+        "exclusion_reason",
+        "policy_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g10-learning-input-output-excluded_observations-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "learning_batch_id": {
+      "type": "string",
+      "description": "learning_batch_id — approved output field for g10.learning-input"
+    },
+    "eligible_observations": {
+      "type": "array",
+      "description": "eligible_observations — approved output field for g10.learning-input",
+      "items": {
+        "$ref": "#/$defs/eligible_observations_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "observation_id"
+        ],
+        "rule": "eligibility must be evidence-backed; no training/model mutation is implied"
+      }
+    },
+    "excluded_observations": {
+      "type": "array",
+      "description": "excluded_observations — approved output field for g10.learning-input",
+      "items": {
+        "$ref": "#/$defs/excluded_observations_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "observation_id"
+        ],
+        "rule": "eligible and excluded IDs must be disjoint and together account for every input observation"
+      }
+    },
+    "eligibility_digest": {
+      "type": "string",
+      "description": "eligibility_digest — approved output field for g10.learning-input"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "learning_batch_id",
+    "eligible_observations",
+    "excluded_observations",
+    "eligibility_digest",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

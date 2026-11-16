@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g09.admission-gate/output/1.0.0",
+  "title": "Admission gate — output",
+  "description": "Normative output contract for g09.admission-gate v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "admission_id": {
+      "type": "string",
+      "description": "admission_id — approved output field for g09.admission-gate"
+    },
+    "admitted": {
+      "type": "boolean",
+      "description": "admitted — approved output field for g09.admission-gate"
+    },
+    "denial_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "denial_code — approved output field for g09.admission-gate"
+    },
+    "authorization_digest": {
+      "type": "string",
+      "description": "authorization_digest — approved output field for g09.admission-gate"
+    },
+    "consumed_nonce": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "consumed_nonce — approved output field for g09.admission-gate"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "admission_id",
+    "admitted",
+    "denial_code",
+    "authorization_digest",
+    "consumed_nonce",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g07.delegation-boundary/input/1.0.0",
+  "title": "Delegation boundary — input",
+  "description": "Normative input contract for g07.delegation-boundary v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "capability_subset_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g07-delegation-boundary-input-capability_subset-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "delegator_id": {
+      "type": "string",
+      "description": "delegator_id — approved input field for g07.delegation-boundary"
+    },
+    "delegate_id": {
+      "type": "string",
+      "description": "delegate_id — approved input field for g07.delegation-boundary"
+    },
+    "capability_subset": {
+      "type": "array",
+      "description": "capability_subset — approved input field for g07.delegation-boundary",
+      "items": {
+        "$ref": "#/$defs/capability_subset_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "must be subset of delegator's currently valid capabilities"
+      }
+    },
+    "expires_at": {
+      "type": "string",
+      "description": "expires_at — approved input field for g07.delegation-boundary"
+    },
+    "delegation_proof": {
+      "type": "string",
+      "description": "delegation_proof — approved input field for g07.delegation-boundary"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "delegator_id",
+    "delegate_id",
+    "capability_subset",
+    "expires_at",
+    "delegation_proof",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

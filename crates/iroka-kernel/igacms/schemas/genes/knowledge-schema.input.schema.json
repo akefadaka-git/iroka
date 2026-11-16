@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g04.knowledge-schema/input/1.0.0",
+  "title": "g04.knowledge-schema input contract v1.0.0",
+  "description": "input contract for g04.knowledge-schema: knowledge type, field definitions, constraints, schema version",
+  "type": "object",
+  "properties": {
+    "knowledge_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/fields_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "field_id",
+          "name"
+        ],
+        "rule": "field names unique within knowledge_type"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/constraints_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "constraint_id"
+        ],
+        "rule": "field_id must resolve to a declared field"
+      }
+    },
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "knowledge_type",
+    "fields",
+    "constraints",
+    "schema_version",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "fields_item": {
+      "type": "object",
+      "properties": {
+        "field_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value_type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "integer",
+            "number",
+            "boolean",
+            "object",
+            "array"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "nullable": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "field_id",
+        "name",
+        "value_type",
+        "required",
+        "nullable",
+        "description"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g04-knowledge-schema-input-fields-item-v1-0-0"
+    },
+    "constraints_item": {
+      "type": "object",
+      "properties": {
+        "constraint_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "field_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "constraint_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expression": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameters_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "constraint_id",
+        "field_id",
+        "constraint_type",
+        "expression",
+        "parameters_digest"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g04-knowledge-schema-input-constraints-item-v1-0-0"
+    }
+  }
+}

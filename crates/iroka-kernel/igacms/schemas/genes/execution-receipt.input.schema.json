@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
+  "title": "Execution receipt — input",
+  "description": "Normative input contract for g09.execution-receipt v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "admission_id": {
+      "type": "string",
+      "description": "admission_id — approved input field for g09.execution-receipt"
+    },
+    "executor_id": {
+      "type": "string",
+      "description": "executor_id — approved input field for g09.execution-receipt"
+    },
+    "result_digest": {
+      "type": "string",
+      "description": "result_digest — approved input field for g09.execution-receipt"
+    },
+    "started_at": {
+      "type": "string",
+      "description": "started_at — approved input field for g09.execution-receipt"
+    },
+    "completed_at": {
+      "type": "string",
+      "description": "completed_at — approved input field for g09.execution-receipt"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failure",
+        "partial"
+      ],
+      "description": "outcome — approved input field for g09.execution-receipt"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "admission_id",
+    "executor_id",
+    "result_digest",
+    "started_at",
+    "completed_at",
+    "outcome",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
