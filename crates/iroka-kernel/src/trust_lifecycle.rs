@@ -81,6 +81,7 @@ pub struct SignedRollbackEvidencePolicy {
     pub signature: Vec<u8>,
 }
 
+#[rustfmt::skip]
 impl SignedRollbackEvidencePolicy {
     pub fn from_signature(
         root_key_id: impl Into<String>,
@@ -245,6 +246,7 @@ pub fn verify_and_install_trust_bundle(
 /// Verify and persist a root-signed subject-to-issuer policy. The root set
 /// is provisioned out of band by the Owner; policy updates are monotonic and
 /// only become active after durable storage succeeds.
+#[rustfmt::skip]
 pub fn verify_and_install_rollback_evidence_policy(
     signed: &SignedRollbackEvidencePolicy,
     roots: &TrustRootSet,
@@ -283,6 +285,7 @@ pub fn verify_and_install_rollback_evidence_policy(
 
 /// Rebuild the issuer policy after restart only from a persisted, root-signed
 /// document that is revalidated against the current out-of-band root set.
+#[rustfmt::skip]
 pub fn restore_rollback_evidence_policy_with_roots(
     roots: &TrustRootSet,
     store: &SqliteSecurityStore,
@@ -295,6 +298,7 @@ pub fn restore_rollback_evidence_policy_with_roots(
     verify_and_install_rollback_evidence_policy(&signed, roots, store, now)
 }
 
+#[rustfmt::skip]
 fn validate_lineage_snapshot(
     payload: &crate::VersionLineageRegistrySnapshotPayload,
 ) -> Result<(), TrustBundleError> {
@@ -373,6 +377,7 @@ fn validate_lineage_snapshot(
 
 /// Verify, validate and atomically provision a root-signed immutable G12 lineage
 /// registry snapshot. No direct unsigned write path is exposed to callers.
+#[rustfmt::skip]
 pub fn verify_and_install_version_lineage_snapshot(
     signed: &SignedVersionLineageRegistrySnapshot,
     roots: &TrustRootSet,
@@ -410,6 +415,7 @@ pub fn verify_and_install_version_lineage_snapshot(
 
 /// Restore the authoritative registry only from the persisted signed snapshot,
 /// rechecking root signature, validity, revision and all lineage invariants.
+#[rustfmt::skip]
 pub fn restore_version_lineage_snapshot_with_roots(
     roots: &TrustRootSet,
     store: &SqliteSecurityStore,
@@ -521,6 +527,7 @@ impl TrustSnapshotManager {
     }
 }
 
+#[rustfmt::skip]
 #[cfg(test)]
 mod tests {
     use super::*;
