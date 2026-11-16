@@ -923,7 +923,7 @@ impl SqliteSecurityStore {
                     mutation.source_version.as_deref().unwrap_or(""),
                     mutation.source_digest.as_deref().unwrap_or(""),
                     mutation.target_version, mutation.target_digest,
-                    i64::from(mutation.approved), i64::from(mutation.gates_passed),
+                    if mutation.approved { 1i64 } else { 0i64 }, if mutation.gates_passed { 1i64 } else { 0i64 },
                     mutation.approval_commitment
                 ],
             ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
