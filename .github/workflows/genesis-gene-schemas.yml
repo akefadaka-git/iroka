@@ -22,6 +22,7 @@ on:
       - "docs/security/**"
       - ".github/workflows/genesis-gene-schemas.yml"
       - ".github/workflows/rust-kernel.yml"
+      - ".github/workflows/security-supply-chain.yml"
   workflow_dispatch:
 permissions:
   contents: read
