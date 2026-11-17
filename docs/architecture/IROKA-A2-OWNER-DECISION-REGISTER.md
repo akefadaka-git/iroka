@@ -239,7 +239,7 @@ Each work package requires an approved scope, acceptance criteria, threat review
 
 ## 7. Owner response record — superseded by approval
 
-The response examples below describe the original decision-collection protocol and are retained as historical process context. They are not pending requests. The authoritative dispositions for all nine decisions are recorded in [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md). No blank or historical checkbox is interpreted as approval independently of that record.
+The original response protocol is retained as historical process context. They are not pending requests. The authoritative dispositions for all nine decisions are recorded in [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md). No blank or historical checkbox is interpreted as approval independently of that record.
 
 
 ## 8. Owner disposition — approved (authoritative)
@@ -251,6 +251,6 @@ The Owner approved all nine recommended defaults exactly as written, with no ame
 - [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md)
 - Approval record commit: `78a5d2695cb1f2b6295eca83ee2be1be7fd79500`
 
-This section records the disposition without rewriting the original recommendation text. The original decision checkboxes and pending-value fields above are historical proposal-form content; the Owner's authoritative disposition is the separate approval record linked here.
+This section records the disposition without rewriting the original recommendation text. The detailed disposition fields above now reflect the approval record; the immutable Owner Approval Record remains the authority for the approved decisions.
 
 Approval resolves the nine Owner decision questions only. It does not certify dependent evidence, close A2, or authorize A3, implementation, merge, or deployment. All A2 exit criteria and the separate A3 authorization gate remain in force.
