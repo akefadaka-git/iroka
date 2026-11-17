@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Checkout branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
       - name: Install stable Rust
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt
@@ -34,5 +36,6 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add crates
             git commit -m "style(g03): format inference-rule implementation"
+            git pull --rebase origin "$GITHUB_REF_NAME"
             git push
           fi
