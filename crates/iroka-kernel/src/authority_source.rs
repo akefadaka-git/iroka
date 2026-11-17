@@ -747,7 +747,7 @@ mod tests {
     #[test]
     fn accepts_signed_registered_owner_mandate() {
         let (v, i, p) = fixture();
-        let o = evaluate_authority_source(&i, &p, &v, 1_800_000_000);
+        let o = evaluate_authority_source(&i, &p, &v, 1_767_225_600);
         assert!(o.source_valid);
         assert_eq!(o.scope, vec!["governance.decide"]);
     }
@@ -755,16 +755,16 @@ mod tests {
     fn rejects_source_class_and_scope_substitution() {
         let (v, mut i, p) = fixture();
         i.source_type = AuthoritySourceType::System;
-        assert!(!evaluate_authority_source(&i, &p, &v, 1_800_000_000).source_valid);
+        assert!(!evaluate_authority_source(&i, &p, &v, 1_767_225_600).source_valid);
         let (v, mut i, p) = fixture();
         i.mandate.scope.push("system.execute".into());
-        assert!(!evaluate_authority_source(&i, &p, &v, 1_800_000_000).source_valid);
+        assert!(!evaluate_authority_source(&i, &p, &v, 1_767_225_600).source_valid);
     }
     #[test]
     fn rejects_noncanonical_or_expired_time() {
         let (v, mut i, p) = fixture();
         i.valid_from = "2026-01-01 00:00:00".into();
-        assert!(!evaluate_authority_source(&i, &p, &v, 1_800_000_000).source_valid);
+        assert!(!evaluate_authority_source(&i, &p, &v, 1_767_225_600).source_valid);
         let (v, mut i, p) = fixture();
         assert_eq!(
             evaluate_authority_source(&i, &p, &v, 1_900_000_000).decision,
