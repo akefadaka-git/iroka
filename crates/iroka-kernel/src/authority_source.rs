@@ -207,6 +207,7 @@ fn parse_utc(value: &str) -> Option<u64> {
     let days = era * 146097 + doe - 719468;
     u64::try_from(days * 86_400 + h * 3_600 + min * 60 + sec).ok()
 }
+#[allow(clippy::too_many_arguments)]
 fn decision(
     input: &AuthoritySourceInput,
     now: u64,
@@ -603,8 +604,8 @@ pub fn evaluate_authority_source<R: RevocationChecker>(
             delegation_ok,
         );
     }
-    let temporal = (now >= reg_from && reg_until.is_none_or(|v| now < v))
-        && (now >= mandate_from && mandate_until.is_none_or(|v| now < v));
+    let temporal = (now >= reg_from && reg_until.map_or(true, |v| now < v))
+        && (now >= mandate_from && mandate_until.map_or(true, |v| now < v));
     if !temporal {
         let expired =
             reg_until.is_some_and(|v| now >= v) || mandate_until.is_some_and(|v| now >= v);
@@ -765,7 +766,7 @@ mod tests {
         let (v, mut i, p) = fixture();
         i.valid_from = "2026-01-01 00:00:00".into();
         assert!(!evaluate_authority_source(&i, &p, &v, 1_767_225_600).source_valid);
-        let (v, mut i, p) = fixture();
+        let (v, i, p) = fixture();
         assert_eq!(
             evaluate_authority_source(&i, &p, &v, 1_900_000_000).decision,
             AuthorityDecision::Expired
