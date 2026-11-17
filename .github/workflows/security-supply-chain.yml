@@ -12,6 +12,7 @@ on:
       - ".github/workflows/**"
       - ".gitleaks.toml"
       - "docs/security/**"
+      - "scripts/security/**"
   push:
     branches: [main, architecture/genesis-gene-contract-amendment-proposal]
     paths:
@@ -83,4 +84,23 @@ jobs:
         run: |
           gitleaks version
           gitleaks git --redact --exit-code 1 .
+
+      - name: Generate SPDX 2.3 dependency SBOM
+        run: |
+          mkdir -p artifacts target
+          cargo metadata --locked --format-version 1 > target/cargo-metadata.json
+          python3 scripts/security/generate_cargo_sbom.py \
+            --metadata target/cargo-metadata.json \
+            --lockfile Cargo.lock \
+            --output artifacts/iroka-cargo.spdx.json
+          python3 -m json.tool artifacts/iroka-cargo.spdx.json > /dev/null
+          sha256sum artifacts/iroka-cargo.spdx.json
+
+      - name: Retain SPDX SBOM as workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iroka-cargo-sbom-${{ github.sha }}
+          path: artifacts/iroka-cargo.spdx.json
+          if-no-files-found: error
+          retention-days: 90
 
