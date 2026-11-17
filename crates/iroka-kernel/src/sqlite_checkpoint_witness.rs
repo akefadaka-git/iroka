@@ -505,15 +505,6 @@ mod tests {
                 )
                 .unwrap();
         }
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(
-                &backup_path,
-                std::fs::Permissions::from_mode(0o600),
-            )
-            .unwrap();
-        }
         drop(witness);
         // SQLite VACUUM INTO may create a broadly readable file under the
         // process umask. A backup must be secured before it is copied/restored.
