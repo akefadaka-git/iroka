@@ -142,6 +142,6 @@ Implemented additively:
 
 **Implementation commits:** `4a4ef69b053b135177f3270dc20f685d81363124`, `151bd8223589f3b652f1c8a336107ea204eff2e0`, `59e7dead6cf2e01928146375ed0269e9ec5b62a9`, `2d86a6a2a7c939427d1da4e2c77e4cb2ddfcf99a`, `a5745e2c91c961baf0e0ed314fd2d05a834cdb58`.
 
-**Verification:** NOT RUN on this increment. Exact-head formatting, compile, no-default-features, tests, schema audit and Clippy are required before acceptance.  
+**Verification:** Exact-head CI is enabled on the dedicated branch; run result is pending. Exact-head formatting, compile, no-default-features, tests, schema audit and Clippy are required before acceptance.  
 **Limitations:** The evaluator consumes an already verified signed trust snapshot and a live revocation checker; it does not provision production roots or claim a production key ceremony.  
 **Merge/deployment:** NOT AUTHORIZED.
