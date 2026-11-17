@@ -21,14 +21,14 @@
 2. Shared version-bound evidence enforcement across all 36 input/output gene schemas.
 3. Owner approval, delegation, revocation and rollback boundary enforcement.
 4. Executable positive, negative, boundary and adversarial conformance tests.
-5. Exact-head regression/security verification and independent review findings.
+5. Exact-head regression/security verification and final pre-deployment independent assessment evidence.
 6. A3 evidence and closure report.
 
 ## First implementation increment
 
 The A3 branch imports the 72 read-only schema baselines from the frozen gene IO commit without changing their contents and adds a deterministic static reconciliation test. This makes the schema inputs and A2 traceability locally inspectable before applying gene-specific amendments.
 
-**Initial status:** schema baseline import prepared; gene-specific amendments pending; runtime conformance NOT RUN; independent external review NOT YET RECEIVED; merge NOT AUTHORIZED; deployment NOT AUTHORIZED.
+**Initial status:** schema baseline import prepared; gene-specific amendments pending; runtime conformance NOT RUN; final integrated independent assessment DEFERRED UNTIL PRE-DEPLOYMENT; merge NOT AUTHORIZED; deployment NOT AUTHORIZED.
 
 ## Acceptance gates
 
@@ -96,7 +96,7 @@ All ten G12 catalog vectors have runtime coverage and PASS: `RG-A3-P01`, `RG-A3-
 
 The production `Ed25519RollbackEvidenceVerifier` adapter is implemented. It verifies Ed25519 signatures against the credential verifier's signed trust snapshot, enforces subject-specific issuer allowlists, checks live key revocation, consumes evidence nonces durably in SQLite, and advances a persistent monotonic revocation-floor high-water mark. Tests cover signature acceptance, unauthorized issuer rejection, invalid signatures, expired receipts, key revocation, nonce replay, concurrent single-use nonce consumption, nonce expiry cleanup and floor rollback. The exact-head run also confirms all ten G12 rollback-guard catalog vectors pass. Application-level provisioning of the signed trust snapshot and subject issuer policy, multi-node transactional storage, and independent security review remain deployment gates. This is **kernel implementation and CI verified**, not production deployment authorization.
 
-Independent external security review: NOT RECEIVED.  
+Independent external security review: DEFERRED TO ONE INTEGRATED PRE-DEPLOYMENT ASSESSMENT under Owner Directive OD-2026-11-17-IR-01. It is not an A3 implementation-step blocker.  
 A3 overall: IN PROGRESS.  
 Merge: NOT AUTHORIZED. Deployment: NOT AUTHORIZED.
 
