@@ -19,6 +19,7 @@ mod knowledge_schema;
 mod memory_classification;
 mod owner_approval;
 mod owner_governance;
+mod perception_transform;
 mod policy;
 mod premise_model;
 mod request;
@@ -91,6 +92,11 @@ pub use owner_governance::{
     OwnerGovernanceApprovalPayload, OwnerGovernanceDecision, OwnerGovernanceEvidence,
     OwnerGovernanceInput, OwnerGovernanceOutput, OwnerGovernancePolicy, OwnerRegisterStatus,
     SignedOwnerDecisionRegisterSnapshot, SignedOwnerGovernanceApproval,
+};
+pub use perception_transform::{
+    evaluate_perception_transform, PerceptionLossAnnotation, PerceptionTransformEvidence,
+    PerceptionTransformInput, PerceptionTransformOutput, PerceptionTransformPolicy,
+    PerceptionTransformRegistration,
 };
 pub use policy::{Policy, RiskLevel};
 pub use premise_model::{
