@@ -136,7 +136,7 @@ fn cross_bound_errors(constraints:&[KnowledgeConstraint])->Vec<String>{
         if c.constraint_type.starts_with("min")||c.constraint_type=="minimum"{entry.0=Some(value);}else{entry.1=Some(value);}
     }
     bounds.into_iter().filter_map(|((field,group),(min,max))|{
-        if min.zip(max).is_some_and(|(lo,hi)|lo>hi){Some(format!("constraint_bounds_inverted:{field}:{group}")}else{None}
+        if min.zip(max).is_some_and(|(lo,hi)|lo>hi){Some(format!("constraint_bounds_inverted:{field}:{group}"))}else{None}
     }).collect()
 }
 fn constraint_error(c:&KnowledgeConstraint,field:&KnowledgeFieldDefinition,policy:&KnowledgeSchemaPolicy)->Option<String>{
