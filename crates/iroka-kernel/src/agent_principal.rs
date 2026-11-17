@@ -1,5 +1,6 @@
 //! G07 agent-principal identity binding over verified credential registry evidence.
 //! Principal identity is not a capability grant or execution authorization.
+//! Registry and policy snapshots are digest-bound to the versioned input evidence.
 use crate::canonical_json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
