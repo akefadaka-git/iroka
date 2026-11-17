@@ -1,0 +1,19 @@
+{
+  "document_id":"IROKA-G02-AUTHORITY-SOURCE-A3-CONFORMANCE-001",
+  "version":"1.1.0",
+  "gene_id":"g02.authority-source",
+  "chromosome_count":12,
+  "gene_count":36,
+  "execution_policy":"Synthetic signed principal/mandate records and test keys only; no real Owner credentials or live authority grants.",
+  "schema_ids":[
+    "https://iroka.dev/schemas/genes/g02.authority-source/input/1.1.0",
+    "https://iroka.dev/schemas/genes/g02.authority-source/output/1.1.0"
+  ],
+  "cases":[
+    {"case_id":"G02-AUTH-P01","polarity":"positive","scenario":"Trusted issuer signs an active principal registration and exact-scope mandate; source class and temporal interval are allowed; evidence commitments match.","expected":"Valid decision with exact mandate scope and all evidence flags true."},
+    {"case_id":"G02-AUTH-N01","polarity":"negative","scenario":"Principal registration or mandate signature is invalid, unknown, revoked, or revocation state is unavailable.","expected":"Fail closed; no scope is returned."},
+    {"case_id":"G02-AUTH-N02","polarity":"negative","scenario":"Claimed authority ID, source class, mandate reference, principal binding or mandate scope is substituted.","expected":"Fail closed; signed records must bind the exact authority, class, mandate and scope."},
+    {"case_id":"G02-AUTH-N03","polarity":"negative","scenario":"Timestamp is noncanonical, invalid, interval is inverted, record is expired/not-yet-valid, or null expiry is not explicitly permitted.","expected":"Fail closed or expired; no scope is returned."},
+    {"case_id":"G02-AUTH-N04","polarity":"negative","scenario":"Delegation chain is missing, cyclic/duplicated, or provenance/version evidence commitment differs.","expected":"Fail closed; no authority expansion or execution permission."}
+  ]
+}
