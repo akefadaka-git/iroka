@@ -1,0 +1,19 @@
+{
+  "document_id":"IROKA-G01-LINEAGE-A3-CONFORMANCE-001",
+  "version":"1.1.0",
+  "gene_id":"g01.lineage",
+  "chromosome_count":12,
+  "gene_count":36,
+  "execution_policy":"Synthetic Ed25519 test keys only; no production identity keys or live identity records.",
+  "schema_ids":[
+    "https://iroka.dev/schemas/genes/g01.lineage/input/1.1.0",
+    "https://iroka.dev/schemas/genes/g01.lineage/output/1.1.0"
+  ],
+  "cases":[
+    {"case_id":"G01-LIN-P01","polarity":"positive","scenario":"Valid root-to-tip single-parent chain with signed proof for each node, exact parent links, unique subjects/nonces and increasing epochs.","expected":"Lineage accepted with deterministic chain digest."},
+    {"case_id":"G01-LIN-N01","polarity":"negative","scenario":"Invalid signature, digest substitution, unknown key, revoked key or unavailable revocation state.","expected":"Fail closed; no valid lineage claim."},
+    {"case_id":"G01-LIN-N02","polarity":"negative","scenario":"Cycle, duplicate subject, missing parent or incorrect predecessor.","expected":"Fail closed; all links must match the preceding node."},
+    {"case_id":"G01-LIN-N03","polarity":"negative","scenario":"Epoch regression, expired/future proof, excessive proof TTL or repeated nonce.","expected":"Fail closed; temporal and uniqueness constraints enforced."},
+    {"case_id":"G01-LIN-N04","polarity":"negative","scenario":"Candidate tip differs from last verified node or attempts unsupported merge relationship.","expected":"Fail closed; only single-parent lineage is accepted."}
+  ]
+}
