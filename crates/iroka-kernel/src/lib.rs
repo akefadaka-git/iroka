@@ -30,6 +30,7 @@ mod service;
 mod trust_lifecycle;
 mod uncertainty_calculus;
 mod version_lineage;
+mod workflow_graph;
 
 pub use agent_principal::{
     evaluate_agent_principal, AgentCredentialBinding, AgentPrincipalEvidence, AgentPrincipalInput,
@@ -139,6 +140,10 @@ pub use version_lineage::{
     SignedVersionLineageRegistrySnapshot, VersionLineageError, VersionLineageInput,
     VersionLineageRecord, VersionLineageRegistry, VersionLineageRegistrySnapshotPayload,
     VersionLineageResult,
+};
+pub use workflow_graph::{
+    evaluate_workflow_graph, WorkflowEdge, WorkflowGraphEvidence, WorkflowGraphInput,
+    WorkflowGraphOutput, WorkflowNode,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
