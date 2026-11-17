@@ -15,6 +15,7 @@ mod identity_lineage;
 mod identity_root;
 mod igacms;
 mod inference_rules;
+mod knowledge_schema;
 mod owner_approval;
 mod owner_governance;
 mod policy;
@@ -70,6 +71,11 @@ pub use inference_rules::{
     evaluate_inference_rules, DerivationStep, InferenceConclusion, InferenceEvidence,
     InferencePremise, InferenceRule, InferenceRulePolicy, InferenceRulesInput,
     InferenceRulesOutput, UnsupportedInferenceStep,
+};
+pub use knowledge_schema::{
+    evaluate_knowledge_schema, KnowledgeConstraint, KnowledgeFieldDefinition,
+    KnowledgeSchemaEvidence, KnowledgeSchemaInput, KnowledgeSchemaOutput, KnowledgeSchemaPolicy,
+    KnowledgeValueType, NormalizedKnowledgeSchema,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
