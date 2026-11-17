@@ -20,3 +20,8 @@
 ## Integration boundary
 
 The premise-set digest is supplied from the preceding premise-model output and cross-checked against version-bound evidence; end-to-end runtime wiring remains a later integration task. This evaluator does not independently authenticate source documents or provide a general-purpose logic programming runtime.
+
+
+## Exact-head verification trigger
+
+Rule definitions and rule sets are independently re-digested using canonical, domain-separated encodings. Query and premise-model version bindings are cross-checked before any rule can produce a conclusion. The Rust formatter has been applied on the development branch; exact-head CI is the completion gate.
