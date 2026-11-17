@@ -84,7 +84,7 @@ impl UncertaintyPolicy {
 pub struct HypothesisEstimate {
     pub hypothesis_id: String,
     pub statement: String,
-    pub prior_probability: f64,
+    pub prior_probability: Option<f64>,
     pub posterior_probability: Option<f64>,
     pub normalized_entropy: Option<f64>,
     pub supporting_evidence_count: u64,
@@ -167,7 +167,7 @@ fn base_evidence(input:&UncertaintyInput,profile_hash:String,used:u64,unresolved
 }
 fn empty_estimates(input:&UncertaintyInput,reason:&str)->Vec<HypothesisEstimate>{
     input.hypotheses.iter().map(|h|HypothesisEstimate{
-        hypothesis_id:h.hypothesis_id.clone(),statement:h.statement.clone(),prior_probability:h.prior_probability,
+        hypothesis_id:h.hypothesis_id.clone(),statement:h.statement.clone(),prior_probability:if h.prior_probability.is_finite()&&h.prior_probability>0.0&&h.prior_probability<1.0{Some(h.prior_probability)}else{None},
         posterior_probability:None,normalized_entropy:None,supporting_evidence_count:0,refuting_evidence_count:0,
         evidence_conflict:false,used_evidence_ids:vec![],uncertainty_reason:Some(reason.into())
     }).collect()
@@ -199,7 +199,7 @@ pub fn evaluate_uncertainty(input:&UncertaintyInput,policy:&UncertaintyPolicy,no
     let unique=input.hypotheses.iter().all(|h|!h.hypothesis_id.trim().is_empty()&&ids.insert(h.hypothesis_id.as_str()));
     let valid=version_ok&&profile_ok&&unique&&!input.hypotheses.is_empty()
         &&input.hypotheses.len()<=policy.maximum_hypotheses
-        &&input.hypotheses.iter().all(|h|h.prior_probability.is_finite()&&h.prior_probability>0.0&&h.prior_probability<1.0
+        &&input.hypotheses.iter().all(|h|!h.statement.trim().is_empty()&&h.prior_probability.is_finite()&&h.prior_probability>0.0&&h.prior_probability<1.0
             &&h.evidence.len()<=policy.maximum_evidence_per_hypothesis);
     let mut estimates=Vec::new();let mut unresolved_items=Vec::new();let mut used_total=0u64;let mut total=0u64;
     if !valid{
@@ -207,7 +207,7 @@ pub fn evaluate_uncertainty(input:&UncertaintyInput,policy:&UncertaintyPolicy,no
             hypothesis_id:h.hypothesis_id.clone(),evidence_id:e.evidence_id.clone(),reason:"calibration_or_input_policy_invalid".into()
         });}}
         let complete=unresolved_items.len() as u64==total;
-        let ev=base_evidence(input,profile_hash,0,total,complete as u64,complete,false,"calibration_or_input_policy_invalid");
+        let ev=base_evidence(input,profile_hash,0,total,total,complete,false,"calibration_or_input_policy_invalid");
         return UncertaintyOutput{calculation_valid:false,hypothesis_estimates:empty_estimates(input,"calibration_or_input_policy_invalid"),
             unresolved_evidence:unresolved_items,evidence:ev,version_bound_evidence:input.version_bound_evidence.clone()};
     }
@@ -220,27 +220,27 @@ pub fn evaluate_uncertainty(input:&UncertaintyInput,policy:&UncertaintyPolicy,no
             else if !e.weight.is_finite()||!(0.0..=1.0).contains(&e.weight)||!e.reliability.is_finite()||!(0.0..=1.0).contains(&e.reliability){"invalid_weight_or_reliability"}
             else if e.epistemic_status!=EpistemicStatus::Fact{"non_fact_evidence_not_admissible"}
             else if !valid_digest(&e.source_digest)||e.provenance_ref.trim().is_empty(){"source_provenance_invalid"}
-            else if parse_utc(&e.observed_at).is_none_or(|t|t>now){"observation_time_invalid_or_future"}
-            else if e.valid_until.as_ref().is_some_and(|v|parse_utc(v).is_none_or(|t|t<=now)){"evidence_expired_or_invalid"}
+            else if parse_utc(&e.observed_at).map_or(true, |t|t>now){"observation_time_invalid_or_future"}
+            else if e.valid_until.as_ref().is_some_and(|v|parse_utc(v).map_or(true, |t|t<=now)){"evidence_expired_or_invalid"}
             else {""};
             if !reason.is_empty(){unresolved_items.push(UnresolvedEvidence{hypothesis_id:h.hypothesis_id.clone(),evidence_id:e.evidence_id.clone(),reason:reason.into()});continue;}
             used.push(e.evidence_id.clone());used_total+=1;
             let effect=e.weight*e.reliability;
-            match e.direction{
+            if effect>0.0 { match e.direction{
                 EvidenceDirection::Supports=>{support_count+=1;log_odds+=effect*profile.support_likelihood_ratio.ln();}
                 EvidenceDirection::Refutes=>{refute_count+=1;log_odds-=effect*profile.refute_likelihood_ratio.ln();}
                 EvidenceDirection::Neutral=>{}
-            }
+            }}
         }
         used.sort();
         let informative=support_count+refute_count>0;
         let posterior=if informative{
-            let raw=1.0/(1.0+(-log_odds).exp());
+            let raw=1.0/(1.0+(-log_odds.clamp(-700.0,700.0)).exp());
             Some(raw.clamp(profile.probability_floor,profile.probability_ceiling))
         }else{None};
         let normalized_entropy=posterior.map(entropy);
         estimates.push(HypothesisEstimate{
-            hypothesis_id:h.hypothesis_id.clone(),statement:h.statement.clone(),prior_probability:h.prior_probability,
+            hypothesis_id:h.hypothesis_id.clone(),statement:h.statement.clone(),prior_probability:Some(h.prior_probability),
             posterior_probability:posterior,normalized_entropy,supporting_evidence_count:support_count,
             refuting_evidence_count:refute_count,evidence_conflict:support_count>0&&refute_count>0,
             used_evidence_ids:used,uncertainty_reason:if informative{None}else{Some("no_informative_valid_fact_evidence".into())}
@@ -298,7 +298,7 @@ mod tests{
     }
     #[test]fn refuses_non_fact_evidence_and_expired_sources(){
         let(i,p)=fixture();let mut bad=i.clone();bad.hypotheses[0].evidence[0].epistemic_status=EpistemicStatus::Assumption;
-        let o=evaluate_uncertainty(&bad,&p,1_767_225_600);assert_eq!(o.evidence.used_evidence_count,1);
+        let o=evaluate_uncertainty(&bad,&p,1_767_312_000);assert_eq!(o.evidence.used_evidence_count,1);
         let mut bad=i;bad.hypotheses[0].evidence[0].valid_until=Some("2026-01-01T00:00:01Z".into());
         let o=evaluate_uncertainty(&bad,&p,1_767_225_600);assert_eq!(o.evidence.used_evidence_count,1);
     }
