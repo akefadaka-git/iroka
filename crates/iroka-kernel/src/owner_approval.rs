@@ -213,6 +213,57 @@ impl OwnerApprovalVerifier {
         })
     }
 
+    /// Verify an Owner-signed, domain-separated payload without consuming an
+    /// execution approval or mutating the security store. Used by read-only
+    /// governance/decision-register evidence evaluators.
+    pub fn verify_detached_owner_payload(
+        &self,
+        owner_subject: &str,
+        key_id: &str,
+        payload: &[u8],
+        signature_bytes: &[u8],
+        issued_at: u64,
+        now: u64,
+    ) -> Result<(), OwnerApprovalError> {
+        if owner_subject.trim().is_empty()
+            || key_id.trim().is_empty()
+            || payload.is_empty()
+            || signature_bytes.len() != 64
+        {
+            return Err(OwnerApprovalError::Malformed);
+        }
+        if issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
+            return Err(OwnerApprovalError::NotYetValid);
+        }
+        let owner_key = self
+            .keys
+            .get(key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if owner_subject != owner_key.owner_subject {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || issued_at < owner_key.not_before
+            || issued_at >= owner_key.not_after
+        {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
+        if self
+            .store
+            .key_revoked(OWNER_ISSUER, key_id)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?
+        {
+            return Err(OwnerApprovalError::Revoked);
+        }
+        let signature =
+            Signature::from_slice(signature_bytes).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(payload, &signature)
+            .map_err(|_| OwnerApprovalError::InvalidSignature)
+    }
+
     pub fn verify_and_consume(
         &self,
         approval: &SignedOwnerApproval,

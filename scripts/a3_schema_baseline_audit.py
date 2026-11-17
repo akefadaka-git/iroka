@@ -280,6 +280,41 @@ if len(g02_cases) != 5 or len({case.get("case_id") for case in g02_cases}) != 5:
 if g02_vectors.get("chromosome_count") != 12 or g02_vectors.get("gene_count") != 36:
     errors.append("G02 authority-source amendment changes the fixed genome")
 
+
+
+# A3 G02 Owner-governance v1.1.0 additive contract audit.
+OG_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g02.owner-governance.input.schema.json"
+OG_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g02.owner-governance.output.schema.json"
+OG_VECTORS = ROOT / "docs/architecture/a3/g02-owner-governance-conformance-v1.1.0.json"
+og_input, og_output, og_vectors = load(OG_INPUT), load(OG_OUTPUT), load(OG_VECTORS)
+for schema_path_obj, document in ((OG_INPUT, og_input), (OG_OUTPUT, og_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if og_input.get("$id") != "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.1.0":
+    errors.append("G02 Owner-governance input schema ID/version mismatch")
+if og_output.get("$id") != "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.1.0":
+    errors.append("G02 Owner-governance output schema ID/version mismatch")
+og_required = set(og_input.get("required", []))
+for field in ("owner_id", "decision_id", "scope", "approval_digest", "signature", "issued_at",
+              "expires_at", "approval", "register_snapshot", "provenance", "version_bound_evidence"):
+    if field not in og_required:
+        errors.append(f"G02 Owner-governance input missing required field: {field}")
+if og_output.get("properties", {}).get("execution_authorized", {}).get("const") is not False:
+    errors.append("G02 Owner-governance output must hard-code execution_authorized=false")
+if len(og_output.get("allOf", [])) < 4:
+    errors.append("G02 Owner-governance output status/scope/safeguard invariants missing")
+og_cases = og_vectors.get("cases", [])
+if og_vectors.get("gene_id") != "g02.owner-governance" or og_vectors.get("version") != "1.1.0":
+    errors.append("G02 Owner-governance conformance catalog identity/version mismatch")
+if len(og_cases) != 6 or len({case.get("case_id") for case in og_cases}) != 6:
+    errors.append(f"G02 Owner-governance expected 6 unique conformance vectors, found {len(og_cases)}")
+if og_vectors.get("chromosome_count") != 12 or og_vectors.get("gene_count") != 36:
+    errors.append("G02 Owner-governance amendment changes the fixed genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -304,3 +339,5 @@ print("g01_lineage_v1_1_0=PASS")
 print(f"g01_lineage_a3_conformance_cases={len(gl_cases)}")
 print("g02_authority_source_v1_1_0=PASS")
 print(f"g02_authority_source_a3_conformance_cases={len(g02_cases)}")
+print("g02_owner_governance_v1_1_0=PASS")
+print(f"g02_owner_governance_a3_conformance_cases={len(og_cases)}")

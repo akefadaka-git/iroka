@@ -15,6 +15,7 @@ mod identity_lineage;
 mod identity_root;
 mod igacms;
 mod owner_approval;
+mod owner_governance;
 mod policy;
 mod request;
 mod rollback_guard;
@@ -65,6 +66,12 @@ pub use igacms::{
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
+};
+pub use owner_governance::{
+    evaluate_owner_governance, OwnerDecision, OwnerDecisionRegisterEntry,
+    OwnerGovernanceApprovalPayload, OwnerGovernanceDecision, OwnerGovernanceEvidence,
+    OwnerGovernanceInput, OwnerGovernanceOutput, OwnerGovernancePolicy, OwnerRegisterStatus,
+    SignedOwnerDecisionRegisterSnapshot, SignedOwnerGovernanceApproval,
 };
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;

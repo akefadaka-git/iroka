@@ -1,0 +1,20 @@
+{
+  "document_id":"IROKA-G02-OWNER-GOVERNANCE-A3-CONFORMANCE-001",
+  "version":"1.1.0",
+  "gene_id":"g02.owner-governance",
+  "chromosome_count":12,
+  "gene_count":36,
+  "execution_policy":"Synthetic Owner keys, register snapshots and approvals only; evaluator is read-only and never authorizes execution.",
+  "schema_ids":[
+    "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.1.0",
+    "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.1.0"
+  ],
+  "cases":[
+    {"case_id":"G02-OWNER-P01","polarity":"positive","scenario":"Trusted Owner key signs a canonical domain-separated approval and a unique active decision-register snapshot with exact scope and valid timestamps.","expected":"Approval evidence validates; exact scope is reported; execution_authorized remains false."},
+    {"case_id":"G02-OWNER-N01","polarity":"negative","scenario":"Owner key is unknown, revoked, outside validity, or signature/digest is substituted.","expected":"Fail closed; approval_valid=false and no authorized scope."},
+    {"case_id":"G02-OWNER-N02","polarity":"negative","scenario":"Decision ID is missing, duplicated, superseded, revoked, or register sequence is stale/conflicting.","expected":"Fail closed; register entry must be unique, active and current."},
+    {"case_id":"G02-OWNER-N03","polarity":"negative","scenario":"Scope is reordered/noncanonical, duplicated, expanded, contains wildcard/ambiguous entries, or differs from signed approval/register.","expected":"Fail closed; exact canonical scope required."},
+    {"case_id":"G02-OWNER-N04","polarity":"negative","scenario":"Approval is expired, not yet valid, malformed or exceeds policy TTL.","expected":"Expired or rejected; no authorized scope."},
+    {"case_id":"G02-OWNER-N05","polarity":"negative","scenario":"A valid signed approval conflicts with a non-overridable safeguard.","expected":"Report the conflict; safeguards_satisfied=false and execution_authorized=false."}
+  ]
+}
