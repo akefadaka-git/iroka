@@ -257,9 +257,9 @@ fn base_evidence(
         unresolved_evidence_count: unresolved,
         complete_disposition: complete,
         probability_semantics: if valid {
-            "calibrated_posterior_under_registered_profile"
+            "calibrated_posterior_under_registered_profile".into()
         } else {
-            "no_calibrated_probability"
+            "no_calibrated_probability".into()
         },
         normalization_scope: "independent_per_hypothesis".into(),
         calculation_digest: calc,
