@@ -9904,11 +9904,11 @@
           ]
         },
         {
-          "assertion": "Environment and report digests are recomputed from canonical versioned payloads and detect tampering.",
+          "assertion": "The report digest is recomputed from a canonical versioned report payload bound to the input execution-environment digest and detects tampering.",
           "observable_fields": [
-            "environment_digest",
             "report_digest",
-            "evidence"
+            "evidence",
+            "version_bound_evidence"
           ]
         },
         {
