@@ -550,7 +550,7 @@ mod tests {
 
         let _ = std::fs::remove_file(&db_path);
         let _ = std::fs::remove_file(db_path.with_extension("sqlite-wal"));
-        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+        let _ = std::fs::remove_file(db_path.with_extension("sqlite-shm"));
         let _ = std::fs::remove_file(&link);
         let _ = std::fs::remove_file(&target);
     }
