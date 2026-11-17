@@ -3,7 +3,10 @@
 //! This adapter provides transactional, append-only checkpoint acceptance and
 //! signed receipts. It is not itself an independent operator or a network API;
 //! each operator must run and administer its own isolated instance and keys.
-use crate::{CheckpointError, CheckpointSigner, CheckpointWitness, SignedCheckpoint, WitnessReceipt, WitnessReceiptPayload};
+use crate::{
+    CheckpointError, CheckpointSigner, CheckpointWitness, SignedCheckpoint, WitnessReceipt,
+    WitnessReceiptPayload,
+};
 use ed25519_dalek::VerifyingKey;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use std::{
@@ -151,14 +154,23 @@ impl CheckpointWitness for SqliteCheckpointWitness {
             .optional()
             .map_err(|_| CheckpointError::WitnessUnavailable)?;
 
-        if let Some((previous_sequence, previous_event, previous_digest, previous_envelope, previous_receipt)) = previous {
+        if let Some((
+            previous_sequence,
+            previous_event,
+            previous_digest,
+            previous_envelope,
+            previous_receipt,
+        )) = previous
+        {
             if sequence == previous_sequence
                 && digest == previous_digest
                 && envelope == previous_envelope
             {
                 let receipt = serde_json::from_slice(&previous_receipt)
                     .map_err(|_| CheckpointError::WitnessUnavailable)?;
-                transaction.commit().map_err(|_| CheckpointError::WitnessUnavailable)?;
+                transaction
+                    .commit()
+                    .map_err(|_| CheckpointError::WitnessUnavailable)?;
                 return Ok(receipt);
             }
             let expected_sequence = previous_sequence
@@ -183,8 +195,7 @@ impl CheckpointWitness for SqliteCheckpointWitness {
         }
 
         let receipt = self.make_receipt(checkpoint, accepted_at)?;
-        let receipt_bytes =
-            serde_json::to_vec(&receipt).map_err(|_| CheckpointError::Malformed)?;
+        let receipt_bytes = serde_json::to_vec(&receipt).map_err(|_| CheckpointError::Malformed)?;
         transaction
             .execute(
                 "INSERT INTO g11_witness_checkpoint_receipts
@@ -202,7 +213,9 @@ impl CheckpointWitness for SqliteCheckpointWitness {
                 ],
             )
             .map_err(|_| CheckpointError::WitnessUnavailable)?;
-        transaction.commit().map_err(|_| CheckpointError::WitnessUnavailable)?;
+        transaction
+            .commit()
+            .map_err(|_| CheckpointError::WitnessUnavailable)?;
         Ok(receipt)
     }
 
@@ -325,13 +338,8 @@ mod tests {
         assert_eq!(witness.publish(&first).unwrap(), receipt);
         drop(witness);
 
-        let reopened = SqliteCheckpointWitness::open(
-            &path,
-            "witness:operator-a",
-            signer,
-            roots,
-        )
-        .unwrap();
+        let reopened =
+            SqliteCheckpointWitness::open(&path, "witness:operator-a", signer, roots).unwrap();
         let (stored, stored_receipt) = reopened
             .latest("audit-stream:durable-test")
             .unwrap()
@@ -347,28 +355,14 @@ mod tests {
     fn durable_witness_rejects_sequence_gaps_regressions_and_wrong_predecessors() {
         let path = path("monotonic");
         let (signer, roots) = fixture();
-        let witness = SqliteCheckpointWitness::open(
-            &path,
-            "witness:operator-b",
-            signer.clone(),
-            roots,
-        )
-        .unwrap();
+        let witness =
+            SqliteCheckpointWitness::open(&path, "witness:operator-b", signer.clone(), roots)
+                .unwrap();
         let first = checkpoint(signer.as_ref(), 1, 10, None);
         witness.publish(&first).unwrap();
-        let gap = checkpoint(
-            signer.as_ref(),
-            3,
-            12,
-            Some(hex(&first.digest().unwrap())),
-        );
+        let gap = checkpoint(signer.as_ref(), 3, 12, Some(hex(&first.digest().unwrap())));
         assert_eq!(witness.publish(&gap), Err(CheckpointError::SequenceGap));
-        let regression = checkpoint(
-            signer.as_ref(),
-            2,
-            10,
-            Some(hex(&first.digest().unwrap())),
-        );
+        let regression = checkpoint(signer.as_ref(), 2, 10, Some(hex(&first.digest().unwrap())));
         assert_eq!(
             witness.publish(&regression),
             Err(CheckpointError::SequenceRegression)
@@ -387,13 +381,9 @@ mod tests {
     fn durable_witness_rejects_conflicting_same_sequence_and_keeps_original() {
         let path = path("conflict");
         let (signer, roots) = fixture();
-        let witness = SqliteCheckpointWitness::open(
-            &path,
-            "witness:operator-c",
-            signer.clone(),
-            roots,
-        )
-        .unwrap();
+        let witness =
+            SqliteCheckpointWitness::open(&path, "witness:operator-c", signer.clone(), roots)
+                .unwrap();
         let first = checkpoint(signer.as_ref(), 1, 10, None);
         witness.publish(&first).unwrap();
         let conflicting = create_checkpoint(
@@ -411,7 +401,11 @@ mod tests {
             Err(CheckpointError::SequenceConflict)
         );
         assert_eq!(
-            witness.latest("audit-stream:durable-test").unwrap().unwrap().0,
+            witness
+                .latest("audit-stream:durable-test")
+                .unwrap()
+                .unwrap()
+                .0,
             first
         );
         let _ = std::fs::remove_file(&path);
