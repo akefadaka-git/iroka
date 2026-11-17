@@ -113,8 +113,35 @@ fn parameters_digest(p:&BTreeMap<String,Value>)->Option<String>{
 }
 fn number_param(c:&KnowledgeConstraint)->Option<f64>{c.parameters.get("value")?.as_f64().filter(|v|v.is_finite())}
 fn integer_param(c:&KnowledgeConstraint)->Option<u64>{c.parameters.get("value")?.as_u64()}
+fn exact_parameter_keys(c:&KnowledgeConstraint)->bool{
+    let expected:&[&str]=match c.constraint_type.as_str(){
+        "min_length"|"max_length"|"minimum"|"maximum"|"min_items"|"max_items"|"min_properties"|"max_properties"=>&["value"],
+        "enum"=>&["values"],"item_type"=>&["value_type"],"closed_object"=>&["allow_unknown"],
+        "required_properties"=>&["names"],"format"=>&["format"],_=>return false
+    };
+    c.parameters.len()==expected.len()&&expected.iter().all(|key|c.parameters.contains_key(*key))
+}
+fn cross_bound_errors(constraints:&[KnowledgeConstraint])->Vec<String>{
+    let mut bounds:BTreeMap<(String,String),(Option<f64>,Option<f64>)>=BTreeMap::new();
+    for c in constraints{
+        let group=match c.constraint_type.as_str(){
+            "min_length"|"max_length"=>"length","minimum"|"maximum"=>"numeric",
+            "min_items"|"max_items"=>"items","min_properties"|"max_properties"=>"properties",_=>continue
+        };
+        let value=if matches!(c.constraint_type.as_str(),"min_length"|"max_length"|"min_items"|"max_items"|"min_properties"|"max_properties"){
+            integer_param(c).map(|v|v as f64)
+        }else{number_param(c)};
+        let Some(value)=value else{continue};
+        let entry=bounds.entry((c.field_id.clone(),group.into())).or_default();
+        if c.constraint_type.starts_with("min")||c.constraint_type=="minimum"{entry.0=Some(value);}else{entry.1=Some(value);}
+    }
+    bounds.into_iter().filter_map(|((field,group),(min,max))|{
+        if min.zip(max).is_some_and(|(lo,hi)|lo>hi){Some(format!("constraint_bounds_inverted:{field}:{group}")}else{None}
+    }).collect()
+}
 fn constraint_error(c:&KnowledgeConstraint,field:&KnowledgeFieldDefinition,policy:&KnowledgeSchemaPolicy)->Option<String>{
     if !policy.allowed_constraint_types.contains(&c.constraint_type){return Some("constraint_type_not_approved".into());}
+    if !exact_parameter_keys(c){return Some("constraint_parameter_shape_invalid".into());}
     if c.expression!=format!("field.{}",c.constraint_type){return Some("constraint_expression_outside_non_executable_grammar".into());}
     if !valid_digest(&c.parameters_digest)||parameters_digest(&c.parameters).as_deref()!=Some(c.parameters_digest.as_str()){
         return Some("constraint_parameters_digest_mismatch".into());
@@ -144,7 +171,7 @@ fn constraint_error(c:&KnowledgeConstraint,field:&KnowledgeFieldDefinition,polic
             if c.parameters.get("allow_unknown").and_then(Value::as_bool)==Some(false){None}else{Some("object_must_reject_unknown_properties".into())}
         },
         "min_properties"|"max_properties" if field.value_type==KnowledgeValueType::Object=>{
-            if integer_param(c).is_none_or(|v|v as usize>policy.maximum_collection_size){Some("object_property_bound_invalid_or_exceeds_policy".into())}else{None}
+            if integer_param(c).map_or(true, |v|v as usize>policy.maximum_collection_size){Some("object_property_bound_invalid_or_exceeds_policy".into())}else{None}
         },
         "required_properties" if field.value_type==KnowledgeValueType::Object=>{
             let values=c.parameters.get("names").and_then(Value::as_array);
@@ -178,15 +205,16 @@ pub fn evaluate_knowledge_schema(input:&KnowledgeSchemaInput,policy:&KnowledgeSc
     let mut field_ids=BTreeSet::new();let mut names=BTreeSet::new();
     for f in &input.fields{
         if !valid_slug(&f.field_id)||f.name.trim().is_empty()||f.description.trim().is_empty(){errors.push(format!("field_malformed:{}",f.field_id));}
-        if !field_ids.insert(f.field_id.as_str())||!names.insert(f.name.as_str()){errors.push(format!("field_id_or_name_duplicate:{}",f.field_id));}
+        if !field_ids.insert(f.field_id.as_str())||!names.insert(f.name.to_lowercase()){errors.push(format!("field_id_or_name_duplicate:{}",f.field_id));}
     }
     let fields:BTreeMap<_,_>=input.fields.iter().map(|f|(f.field_id.as_str(),f)).collect();
     let mut constraint_ids=BTreeSet::new();
     for c in &input.constraints{
-        if c.constraint_id.trim().is_empty()||!constraint_ids.insert(c.constraint_id.as_str()){errors.push(format!("constraint_id_duplicate_or_empty:{}",c.constraint_id));continue;}
+        if !valid_slug(&c.constraint_id)||!constraint_ids.insert(c.constraint_id.as_str()){errors.push(format!("constraint_id_duplicate_or_empty:{}",c.constraint_id));continue;}
         let Some(field)=fields.get(c.field_id.as_str()) else{errors.push(format!("constraint_field_unresolved:{}",c.constraint_id));continue;};
         if let Some(e)=constraint_error(c,field,policy){errors.push(format!("{}:{}",c.constraint_id,e));}
     }
+    errors.extend(cross_bound_errors(&input.constraints));
     for f in &input.fields{
         let kinds:BTreeSet<_>=input.constraints.iter().filter(|c|c.field_id==f.field_id).map(|c|c.constraint_type.as_str()).collect();
         if f.value_type==KnowledgeValueType::Array&&(!kinds.contains("item_type")||!kinds.contains("max_items")){
