@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation, implementation/a3-character-genome-v1, implementation/a3-g01-identity-root]
+    branches: [feat/igacms-a3-implementation, implementation/a3-character-genome-v1, implementation/a3-g01-identity-root, implementation/a3-g07-ci-matrix]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -13,7 +13,7 @@ on:
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base, architecture/a2-character-gene-contracts-v2]
+    branches: [main, architecture/igacms-a2-ci-base, architecture/a2-character-gene-contracts-v2, implementation/a3-g07-agent-principal]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -49,8 +49,8 @@ jobs:
 
       - name: Install stable Rust toolchain
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-          rustup default stable
+          rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.100.0
           rustc --version
           cargo --version
 

@@ -1,0 +1,4368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "amendment_id": "IROKA-GENESIS-GENE-COLLECTION-ITEM-CONTRACT-AMENDMENT-A1",
+  "version": "1.0.0",
+  "status": "OWNER_APPROVED_NORMATIVE_BASELINE",
+  "repository": "akefadaka-git/iroka",
+  "derived_from": {
+    "approved_gene_contract": "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
+    "genome": "crates/iroka-kernel/igacms/genome-v1.0.0.json",
+    "gap_audit": "docs/architecture/GENESIS-GENE-NESTED-CONTRACT-GAPS-A1-AUDIT.json",
+    "branch_head_at_derivation": "e62e9c4e327d7ce5838339dfbd931745da215d47"
+  },
+  "governance": {
+    "purpose": "Provide explicit item schemas and collection-level validation rules for all 53 generic array fields.",
+    "normative_boundary": "Owner-approved normative nested-item contract amendment for the 53 generic array fields. The approved definitions are enforced by the 72 gene schema files and the collection conformance suite. This amendment does not change Genome, runtime behavior, production authority, or main.",
+    "source_limits": [
+      "Genome gene records currently declare permitted_effects=[none], dependencies=[], failure_semantics=fail-closed.",
+      "No capability grant, authorization, execution, external write, model mutation or promotion may be inferred from collection contents.",
+      "Where the authoritative source does not define a scale or controlled vocabulary, this proposal marks the choice as a proposed convention requiring Owner ratification."
+    ],
+    "approval_required_before": "No further approval is required to implement the 53 collection item definitions within the approved scope. Separate Owner approval remains required for merge, deployment, runtime activation, or changes to main.",
+    "owner_approval": {
+      "decision": "APPROVED",
+      "approval_record": "Explicit Owner approval in ChatGPT conversation, 2026-11-15",
+      "scope": "Apply the 53 proposed collection item structures and their validation rules to the affected gene schemas and conformance tests.",
+      "limitations": [
+        "No merge or deployment approval is granted.",
+        "No runtime activation or external effects are authorized.",
+        "Genome permitted_effects and dependency declarations remain unchanged."
+      ]
+    },
+    "implementation_state": {
+      "schema_application": "The 53 item definitions are represented by stable local $ref targets in the affected gene schemas; the exact-head validator is the acceptance authority for complete coverage.",
+      "conformance": "The collection conformance fixture contains 53 collection cases and 208 negative vectors; exact-head execution remains required.",
+      "semantic_boundary": "Only executable rules represented in collection_rules and implemented by the validator are claimed as enforced. Cross-collection closure, graph acyclicity, chronology and partition rules remain separate integration obligations unless explicitly tested.",
+      "genome_effects": "All Genome gene permitted_effects remain none; collection data grants no capability, authority, authorization, or execution permission."
+    }
+  },
+  "validation_conventions": {
+    "dialect": "https://json-schema.org/draft/2020-12/schema",
+    "objects": "All item objects use additionalProperties=false and explicit required members.",
+    "identifiers": "Non-empty strings; canonical syntax remains governed by the referenced gene's identifier registry.",
+    "timestamps": "RFC 3339 date-time where a timestamp is required.",
+    "digests": "Non-empty strings until an authoritative digest algorithm/encoding is bound; consumers must compare exact algorithm-bound digests.",
+    "empty_collections": "Allowed unless minItems is explicitly specified.",
+    "fail_closed": "Malformed items, unresolved references, duplicate identity keys, cycles, invalid authority, or inconsistent evidence reject the containing contract.",
+    "proposed_conventions_requiring_ratification": [
+      "Confidence/probability/weight normalized to [0,1].",
+      "The listed relation, polarity and evaluation-status vocabularies.",
+      "Generic field names and required item members introduced by this proposal."
+    ]
+  },
+  "collection_count": 53,
+  "collections": [
+    {
+      "gene_id": "g03.premise-model",
+      "side": "input",
+      "field": "premises",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "premise_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "context": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "premise_id",
+            "statement",
+            "source_refs",
+            "confidence",
+            "context"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "premise_id"
+        ],
+        "order": "input order preserved; no implicit reordering"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: premise model responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.premise-model",
+      "side": "output",
+      "field": "normalized_premises",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "premise_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "normalized_statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "premise_id",
+            "normalized_statement",
+            "source_refs",
+            "confidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "premise_id"
+        ],
+        "order": "deterministic normalized output order"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: premise model responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.premise-model",
+      "side": "output",
+      "field": "unresolved_premises",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "premise_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "unresolved_reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "premise_id",
+            "statement",
+            "source_refs",
+            "unresolved_reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "premise_id"
+        ],
+        "order": "deterministic"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: premise model responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "input",
+      "field": "rules",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "rule_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rule_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "antecedent_premise_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "conclusion_template": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rule_expression": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "rule_id",
+            "rule_version",
+            "antecedent_premise_ids",
+            "conclusion_template",
+            "rule_expression"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "rule_id"
+        ],
+        "rule": "all antecedent premise IDs must exist in premise_ids"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: inference rules responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "input",
+      "field": "premise_ids",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "IDs unique and resolve against the supplied premise model"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: inference rules responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "conclusion_set",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "conclusion_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "supporting_premise_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "applied_rule_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "conclusion_id",
+            "statement",
+            "supporting_premise_ids",
+            "applied_rule_ids",
+            "confidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "conclusion_id"
+        ],
+        "rule": "all premise/rule references must resolve to supplied inputs"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: inference rules responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "applied_rule_ids",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "rule": "unique IDs; every ID must identify a rule in the input set"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: inference rules responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "unsupported_steps",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "step_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rule_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "premise_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "step_id",
+            "rule_id",
+            "premise_ids",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "step_id"
+        ],
+        "rule": "unsupported steps are reported, never silently promoted to conclusions"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: inference rules responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "input",
+      "field": "hypotheses",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "hypothesis_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "statement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "prior_probability": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "hypothesis_id",
+            "statement",
+            "prior_probability"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "hypothesis_id"
+        ]
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: uncertainty calculus responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "input",
+      "field": "evidence_items",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "evidence_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "hypothesis_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "weight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "polarity": {
+              "type": "string",
+              "enum": [
+                "supports",
+                "refutes",
+                "neutral"
+              ]
+            }
+          },
+          "required": [
+            "evidence_id",
+            "hypothesis_id",
+            "source_ref",
+            "weight",
+            "polarity"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "evidence_id"
+        ],
+        "rule": "hypothesis_id must resolve; weights use proposed normalized [0,1] scale"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: uncertainty calculus responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "output",
+      "field": "estimates",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "hypothesis_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "estimate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "lower_bound": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "upper_bound": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "hypothesis_id",
+            "estimate",
+            "lower_bound",
+            "upper_bound",
+            "method"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "hypothesis_id"
+        ],
+        "rule": "lower_bound <= estimate <= upper_bound; bounds and estimate in [0,1]"
+      },
+      "gene_context": {
+        "chromosome_id": "G03",
+        "gene_version": "1.0.0",
+        "purpose": "Cognitive: uncertainty calculus responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.knowledge-schema",
+      "side": "input",
+      "field": "fields",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "field_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value_type": {
+              "type": "string",
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean",
+                "object",
+                "array"
+              ]
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "nullable": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "field_id",
+            "name",
+            "value_type",
+            "required",
+            "nullable",
+            "description"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "field_id",
+          "name"
+        ],
+        "rule": "field names unique within knowledge_type"
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: knowledge schema responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.knowledge-schema",
+      "side": "input",
+      "field": "constraints",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "constraint_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "field_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "constraint_type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expression": {
+              "type": "string",
+              "minLength": 1
+            },
+            "parameters_digest": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "constraint_id",
+            "field_id",
+            "constraint_type",
+            "expression",
+            "parameters_digest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "constraint_id"
+        ],
+        "rule": "field_id must resolve to a declared field"
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: knowledge schema responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "side": "input",
+      "field": "events",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "event_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sequence": {
+              "type": "integer"
+            },
+            "event_type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "occurred_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "source_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "previous_event_digest": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "event_digest": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "event_id",
+            "sequence",
+            "event_type",
+            "actor_id",
+            "occurred_at",
+            "source_ref",
+            "previous_event_digest",
+            "event_digest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "event_id",
+          "sequence"
+        ],
+        "order": "strictly increasing sequence; preserve source chronology",
+        "rule": "first event previous_event_digest is null or equals declared prior chain tip; subsequent links must match preceding event digest"
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: provenance chain responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "side": "input",
+      "field": "actor_ids",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "rule": "unique actor identifiers; every event.actor_id must be included"
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: provenance chain responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "side": "output",
+      "field": "broken_links",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "from_event_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "to_event_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected_digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "observed_digest": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "from_event_id",
+            "to_event_id",
+            "expected_digest",
+            "observed_digest",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "from_event_id",
+          "to_event_id"
+        ],
+        "rule": "empty only when chain verification finds no broken links"
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: provenance chain responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "claims",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "claim_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1
+            },
+            "predicate": {
+              "type": "string",
+              "minLength": 1
+            },
+            "object_value": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "claim_id",
+            "subject",
+            "predicate",
+            "object_value",
+            "source_ids",
+            "confidence"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "claim_id"
+        ],
+        "rule": "all source_ids resolve to sources"
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: conflict model responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "sources",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "source_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trust_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source_id",
+            "source_ref",
+            "source_digest",
+            "trust_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "source_id"
+        ]
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: conflict model responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "relations",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "relation_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "left_claim_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "right_claim_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "relation_type": {
+              "type": "string",
+              "enum": [
+                "supports",
+                "contradicts",
+                "duplicates",
+                "depends_on"
+              ]
+            }
+          },
+          "required": [
+            "relation_id",
+            "left_claim_id",
+            "right_claim_id",
+            "relation_type"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "relation_id"
+        ],
+        "rule": "both claim IDs resolve; self-relations rejected"
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: conflict model responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "side": "output",
+      "field": "conflicts",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "conflict_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "claim_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "source_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "conflict_type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "resolution_state": {
+              "type": "string",
+              "enum": [
+                "unresolved",
+                "resolved",
+                "insufficient_evidence"
+              ]
+            }
+          },
+          "required": [
+            "conflict_id",
+            "claim_ids",
+            "source_ids",
+            "conflict_type",
+            "description",
+            "resolution_state"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "conflict_id"
+        ],
+        "rule": "claim/source references resolve; do not resolve by silently discarding a claim"
+      },
+      "gene_context": {
+        "chromosome_id": "G04",
+        "gene_version": "1.0.0",
+        "purpose": "Knowledge: conflict model responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g05.memory-classification",
+      "side": "input",
+      "field": "labels",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "labels are opaque policy identifiers; no implicit downgrade or normalization"
+      },
+      "gene_context": {
+        "chromosome_id": "G05",
+        "gene_version": "1.0.0",
+        "purpose": "Memory: memory classification responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g05.memory-classification",
+      "side": "output",
+      "field": "handling_controls",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "control_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "action": {
+              "type": "string",
+              "minLength": 1
+            },
+            "scope": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rationale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "mandatory": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "control_id",
+            "action",
+            "scope",
+            "rationale",
+            "mandatory"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "control_id"
+        ],
+        "rule": "controls may restrict handling; they do not authorize disclosure"
+      },
+      "gene_context": {
+        "chromosome_id": "G05",
+        "gene_version": "1.0.0",
+        "purpose": "Memory: memory classification responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g06.perception-transform",
+      "side": "output",
+      "field": "loss_annotations",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "annotation_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "loss_type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_segment": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "impact": {
+              "type": "string",
+              "minLength": 1
+            },
+            "severity": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "annotation_id",
+            "loss_type",
+            "source_segment",
+            "description",
+            "impact",
+            "severity"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "annotation_id"
+        ],
+        "rule": "every lossy/degraded transformation is disclosed; no annotation may claim information was preserved when it was discarded"
+      },
+      "gene_context": {
+        "chromosome_id": "G06",
+        "gene_version": "1.0.0",
+        "purpose": "Perception: perception transform responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "side": "input",
+      "field": "requested_capabilities",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "capability identifiers are requests only, not grants"
+      },
+      "gene_context": {
+        "chromosome_id": "G07",
+        "gene_version": "1.0.0",
+        "purpose": "Agent: capability profile responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "side": "output",
+      "field": "granted_capabilities",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "rule": "must be subset of requested capabilities and independently authorized"
+      },
+      "gene_context": {
+        "chromosome_id": "G07",
+        "gene_version": "1.0.0",
+        "purpose": "Agent: capability profile responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "side": "output",
+      "field": "denied_capabilities",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "rule": "must be subset of requested capabilities; disjoint from granted_capabilities"
+      },
+      "gene_context": {
+        "chromosome_id": "G07",
+        "gene_version": "1.0.0",
+        "purpose": "Agent: capability profile responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g07.delegation-boundary",
+      "side": "input",
+      "field": "capability_subset",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "must be subset of delegator's currently valid capabilities"
+      },
+      "gene_context": {
+        "chromosome_id": "G07",
+        "gene_version": "1.0.0",
+        "purpose": "Agent: delegation boundary responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g07.delegation-boundary",
+      "side": "output",
+      "field": "effective_capabilities",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "rule": "intersection of delegated subset and delegator's live authority; empty if proof invalid, expired or revoked"
+      },
+      "gene_context": {
+        "chromosome_id": "G07",
+        "gene_version": "1.0.0",
+        "purpose": "Agent: delegation boundary responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "side": "input",
+      "field": "nodes",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "node_type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "operation_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "configuration_digest": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "node_id",
+            "node_type",
+            "operation_ref",
+            "configuration_digest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "node_id"
+        ],
+        "rule": "node IDs unique"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: workflow graph responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "side": "input",
+      "field": "edges",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "edge_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "from_node_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "to_node_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dependency_type": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "edge_id",
+            "from_node_id",
+            "to_node_id",
+            "dependency_type"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "edge_id",
+          "from_node_id",
+          "to_node_id"
+        ],
+        "rule": "endpoints must exist; self-edge rejected; graph cycle detection is mandatory"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: workflow graph responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "side": "output",
+      "field": "topological_order",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "rule": "contains every node exactly once; each source precedes its target; emitted only for acyclic valid graph"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: workflow graph responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.scheduler-policy",
+      "side": "input",
+      "field": "task_classes",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "class_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "priority": {
+              "type": "integer"
+            },
+            "quota": {
+              "type": "number",
+              "minimum": 0
+            },
+            "deadline_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "class_id",
+            "priority",
+            "quota",
+            "deadline_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "class_id"
+        ],
+        "rule": "priority is an integer; quota is non-negative; deadline is an absolute timestamp when present"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: scheduler policy responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.scheduler-policy",
+      "side": "output",
+      "field": "violations",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "violation_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "class_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rule_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected": {
+              "type": "string",
+              "minLength": 1
+            },
+            "observed": {
+              "type": "string",
+              "minLength": 1
+            },
+            "severity": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "violation_id",
+            "class_id",
+            "rule_id",
+            "expected",
+            "observed",
+            "severity"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "violation_id"
+        ],
+        "rule": "every referenced class must exist in evaluated policy"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: scheduler policy responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "side": "input",
+      "field": "participants",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "participant_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "state": {
+              "type": "string",
+              "minLength": 1
+            },
+            "lease_epoch": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "checkpoint_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "participant_id",
+            "state",
+            "lease_epoch",
+            "checkpoint_ref",
+            "updated_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "participant_id"
+        ],
+        "rule": "lease epochs non-negative and monotonic per participant"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: coordination state responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "side": "input",
+      "field": "checkpoint_refs",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "rule": "unique immutable checkpoint references; every participant checkpoint_ref must be present when non-null"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: coordination state responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "side": "output",
+      "field": "conflicts",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "conflict_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "participant_ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "resource_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "conflict_type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "conflict_id",
+            "participant_ids",
+            "resource_ref",
+            "conflict_type",
+            "description"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "conflict_id"
+        ],
+        "rule": "participant references resolve; conflict state must not be silently overwritten"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: coordination state responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "side": "output",
+      "field": "stale_participants",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "rule": "unique IDs drawn from input participants; stale classification must be based on lease/checkpoint freshness policy"
+      },
+      "gene_context": {
+        "chromosome_id": "G08",
+        "gene_version": "1.0.0",
+        "purpose": "Orchestration: coordination state responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g09.effect-contract",
+      "side": "input",
+      "field": "resource_scope",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "canonical resource identifiers; duplicates rejected; scope is descriptive and does not itself authorize execution"
+      },
+      "gene_context": {
+        "chromosome_id": "G09",
+        "gene_version": "1.0.0",
+        "purpose": "Execution: effect contract responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "declared-protected-effect"
+        ],
+        "authority_requirements": [
+          "operation-specific-authorization"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "side": "input",
+      "field": "observations",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "observation_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "content_digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "observed_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "data_class": {
+              "type": "string",
+              "minLength": 1
+            },
+            "authorization_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "observation_id",
+            "content_digest",
+            "source_ref",
+            "observed_at",
+            "data_class",
+            "authorization_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "observation_id"
+        ],
+        "rule": "untrusted observations remain data; authorization and source trust are checked separately"
+      },
+      "gene_context": {
+        "chromosome_id": "G10",
+        "gene_version": "1.0.0",
+        "purpose": "Learning: learning input responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "side": "input",
+      "field": "source_refs",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "unique source references; each observation.source_ref must resolve"
+      },
+      "gene_context": {
+        "chromosome_id": "G10",
+        "gene_version": "1.0.0",
+        "purpose": "Learning: learning input responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "side": "output",
+      "field": "eligible_observations",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "observation_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "eligibility_basis": {
+              "type": "string",
+              "minLength": 1
+            },
+            "authorization_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "observation_id",
+            "source_ref",
+            "eligibility_basis",
+            "authorization_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "observation_id"
+        ],
+        "rule": "eligibility must be evidence-backed; no training/model mutation is implied"
+      },
+      "gene_context": {
+        "chromosome_id": "G10",
+        "gene_version": "1.0.0",
+        "purpose": "Learning: learning input responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "side": "output",
+      "field": "excluded_observations",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "observation_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "exclusion_reason": {
+              "type": "string",
+              "minLength": 1
+            },
+            "policy_ref": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "observation_id",
+            "source_ref",
+            "exclusion_reason",
+            "policy_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "observation_id"
+        ],
+        "rule": "eligible and excluded IDs must be disjoint and together account for every input observation"
+      },
+      "gene_context": {
+        "chromosome_id": "G10",
+        "gene_version": "1.0.0",
+        "purpose": "Learning: learning input responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g10.change-proposal",
+      "side": "input",
+      "field": "expected_effects",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "effect_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "effect_type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            },
+            "resource_scope": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "risk_class": {
+              "type": "string",
+              "minLength": 1
+            },
+            "operation_digest": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "effect_id",
+            "effect_type",
+            "target",
+            "resource_scope",
+            "risk_class",
+            "operation_digest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "effect_id"
+        ],
+        "rule": "declarative expected effects only; no effect executes from proposal content"
+      },
+      "gene_context": {
+        "chromosome_id": "G10",
+        "gene_version": "1.0.0",
+        "purpose": "Learning: change proposal responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g10.change-proposal",
+      "side": "output",
+      "field": "required_evaluations",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "unique evaluation requirement identifiers; approval and independent verification remain separate gates"
+      },
+      "gene_context": {
+        "chromosome_id": "G10",
+        "gene_version": "1.0.0",
+        "purpose": "Learning: change proposal responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g10.evaluation-record",
+      "side": "output",
+      "field": "results",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "test_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "passed",
+                "failed",
+                "skipped",
+                "error",
+                "inconclusive"
+              ]
+            },
+            "baseline_value": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "candidate_value": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "evidence_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "test_id",
+            "status",
+            "baseline_value",
+            "candidate_value",
+            "unit",
+            "evidence_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "test_id"
+        ],
+        "rule": "status must agree with aggregate decision; skipped/error cannot be represented as pass"
+      },
+      "gene_context": {
+        "chromosome_id": "G10",
+        "gene_version": "1.0.0",
+        "purpose": "Learning: evaluation record responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g10.evaluation-record",
+      "side": "output",
+      "field": "regressions",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "regression_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "metric_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "baseline_value": {
+              "type": "number"
+            },
+            "candidate_value": {
+              "type": "number"
+            },
+            "delta": {
+              "type": "number"
+            },
+            "severity": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence_ref": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "regression_id",
+            "metric_id",
+            "baseline_value",
+            "candidate_value",
+            "delta",
+            "severity",
+            "evidence_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "regression_id"
+        ],
+        "rule": "delta must equal candidate_value minus baseline_value under declared metric semantics"
+      },
+      "gene_context": {
+        "chromosome_id": "G10",
+        "gene_version": "1.0.0",
+        "purpose": "Learning: evaluation record responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g11.validator",
+      "side": "input",
+      "field": "contract_ids",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "unique IDs; every ID resolves to a version-pinned contract"
+      },
+      "gene_context": {
+        "chromosome_id": "G11",
+        "gene_version": "1.0.0",
+        "purpose": "Assurance: validator responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g11.validator",
+      "side": "output",
+      "field": "findings",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "finding_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "contract_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "severity": {
+              "type": "string",
+              "minLength": 1
+            },
+            "code": {
+              "type": "string",
+              "minLength": 1
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            },
+            "instance_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "disposition": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "finding_id",
+            "contract_id",
+            "severity",
+            "code",
+            "message",
+            "instance_path",
+            "disposition"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "finding_id"
+        ],
+        "rule": "contract references resolve; valid=true requires no blocking findings"
+      },
+      "gene_context": {
+        "chromosome_id": "G11",
+        "gene_version": "1.0.0",
+        "purpose": "Assurance: validator responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g11.conformance-report",
+      "side": "input",
+      "field": "test_results",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "test_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "passed",
+                "failed",
+                "skipped",
+                "error",
+                "inconclusive"
+              ]
+            },
+            "duration_ms": {
+              "type": "number",
+              "minimum": 0
+            },
+            "failure_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "test_id",
+            "status",
+            "duration_ms",
+            "failure_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "test_id"
+        ],
+        "rule": "failed/error/inconclusive statuses cannot be reported as passing conformance"
+      },
+      "gene_context": {
+        "chromosome_id": "G11",
+        "gene_version": "1.0.0",
+        "purpose": "Assurance: conformance report responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "side": "input",
+      "field": "protected_invariants",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uniqueItems": true
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "rule": "unique invariant IDs; each resolves to a versioned protected invariant; omission cannot waive an invariant"
+      },
+      "gene_context": {
+        "chromosome_id": "G12",
+        "gene_version": "1.0.0",
+        "purpose": "Evolution: mutation policy responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "side": "output",
+      "field": "required_gates",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "gate_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "stage": {
+              "type": "string",
+              "minLength": 1
+            },
+            "requirement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "blocking": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "gate_id",
+            "stage",
+            "requirement",
+            "blocking"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "gate_id"
+        ],
+        "rule": "all mandatory gates must pass before permitted=true; this output cannot itself authorize execution"
+      },
+      "gene_context": {
+        "chromosome_id": "G12",
+        "gene_version": "1.0.0",
+        "purpose": "Evolution: mutation policy responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "side": "output",
+      "field": "denial_reasons",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "minLength": 1
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariant_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "invariant_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "uniqueBy": [
+          "code"
+        ],
+        "rule": "permitted=false requires at least one denial reason; invariant refs resolve when non-null"
+      },
+      "gene_context": {
+        "chromosome_id": "G12",
+        "gene_version": "1.0.0",
+        "purpose": "Evolution: mutation policy responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    },
+    {
+      "gene_id": "g12.version-lineage",
+      "side": "output",
+      "field": "ancestry",
+      "source_basis": "gene purpose + approved field-level contract + Genome invariant anchors/dependencies/permitted effects/failure semantics",
+      "item_schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "gene_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "artifact_digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "parent_digest": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mutation_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "epoch": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "gene_id",
+            "version",
+            "artifact_digest",
+            "parent_digest",
+            "mutation_id",
+            "epoch"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "collection_rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "gene_id",
+          "version",
+          "artifact_digest"
+        ],
+        "order": "oldest ancestor to candidate",
+        "rule": "digest links form one acyclic chain; epochs strictly increase; candidate must match output artifact"
+      },
+      "gene_context": {
+        "chromosome_id": "G12",
+        "gene_version": "1.0.0",
+        "purpose": "Evolution: version lineage responsibility.",
+        "invariant_anchors": [
+          {
+            "id": "identity-authority-separation",
+            "statement": "Identity does not itself confer capability, permission, authority, or authorization."
+          },
+          {
+            "id": "authority-authorization-separation",
+            "statement": "Possession or existence of authority does not by itself establish authorization for a specific operation, resource, or scope."
+          },
+          {
+            "id": "authorization-execution-separation",
+            "statement": "An execution request or execution context must never implicitly create or increase authorization."
+          },
+          {
+            "id": "external-input-untrusted",
+            "statement": "External input is untrusted by default until an explicit trust determination establishes otherwise."
+          },
+          {
+            "id": "security-failure-fail-closed",
+            "statement": "Failure to establish a required security condition must not result in authorization or execution."
+          }
+        ],
+        "dependencies": [],
+        "permitted_effects": [
+          "none"
+        ],
+        "authority_requirements": [
+          "none"
+        ],
+        "evidence_requirements": [
+          "provenance",
+          "version-bound-evidence"
+        ],
+        "failure_semantics": "fail-closed",
+        "compatibility_policy": "explicit-versioned-compatibility"
+      }
+    }
+  ],
+  "cross_collection_invariants": [
+    "All object members are closed; unknown item properties are rejected.",
+    "All identifiers and references are version-bound; unresolved references fail closed.",
+    "A collection item never grants authority; authority and authorization must be validated by their designated genes.",
+    "Outputs must preserve evidence and distinguish absent, invalid, rejected, excluded, unresolved and inconclusive states.",
+    "Ordering is preserved or deterministic only where specified; no consumer may assume arbitrary array order is semantically meaningful.",
+    "Where two output collections partition an input set, their identifiers must be disjoint and complete."
+  ],
+  "acceptance_tests": {
+    "required_counts": {
+      "generic_array_fields": 53,
+      "explicit_item_schemas": 53,
+      "collection_rule_sets": 53
+    },
+    "positive_cases": "At least one valid item per item schema, plus valid empty arrays where allowed.",
+    "negative_cases": [
+      "missing required item member",
+      "wrong primitive type",
+      "unknown item property",
+      "invalid enum",
+      "out-of-range numeric value",
+      "duplicate identity",
+      "unresolved reference",
+      "invalid ordering/cycle",
+      "cross-collection contradiction",
+      "attempted authority escalation"
+    ],
+    "cross_reference": "Validate every gene_id/side/field against the approved amendment's 53 generic-array declarations; no extra or missing collection is accepted."
+  }
+}
