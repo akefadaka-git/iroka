@@ -302,6 +302,16 @@ mod tests{
         p.calibration_profile_digest="f".repeat(64);
         let o=evaluate_uncertainty(&i,&p,1_767_225_600);assert!(!o.calculation_valid);
     }
+    #[test]fn refuses_future_observation_and_does_not_invent_prior_posterior(){
+        let(i,p)=fixture();let mut future=i.clone();
+        future.hypotheses[0].evidence[0].observed_at="2027-01-01T00:00:00Z".into();
+        let o=evaluate_uncertainty(&future,&p,1_767_225_600);
+        assert_eq!(o.evidence.used_evidence_count,1);
+        let mut neutral=i;neutral.hypotheses[0].evidence[0].direction=EvidenceDirection::Neutral;
+        neutral.hypotheses[0].evidence[1].direction=EvidenceDirection::Neutral;
+        let o=evaluate_uncertainty(&neutral,&p,1_767_225_600);
+        assert!(o.hypothesis_estimates[0].posterior_probability.is_none());
+    }
     #[test]fn refuses_non_fact_evidence_and_expired_sources(){
         let(i,p)=fixture();let mut bad=i.clone();bad.hypotheses[0].evidence[0].epistemic_status=EpistemicStatus::Assumption;
         let o=evaluate_uncertainty(&bad,&p,1_767_312_000);assert_eq!(o.evidence.used_evidence_count,1);
