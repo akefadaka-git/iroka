@@ -97,7 +97,7 @@ pub fn evaluate_identity_root<R: RevocationChecker>(
     let mut issuer_trust_verified = false;
     let mut fingerprint_match = false;
     let mut revocation_checked = false;
-    let mut reason = "untrusted".to_owned();
+    let reason: String;
     let mut decision = IdentityTrustDecision::Untrusted;
     let canonical_id = format!("{}::{}", input.issuer_id, input.key_id);
 
