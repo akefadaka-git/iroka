@@ -137,9 +137,7 @@ pub fn evaluate_memory_classification(
     if input.provenance.is_empty() || input.version_bound_evidence.is_empty() {
         return fail(input, "provenance_or_version_evidence_missing");
     }
-    let Some(base_classification) = policy
-        .classification_by_data_class
-        .get(&input.data_class)
+    let Some(base_classification) = policy.classification_by_data_class.get(&input.data_class)
     else {
         return fail(input, "data_class_not_approved");
     };
@@ -234,12 +232,21 @@ mod tests {
             ]),
             BTreeMap::from([
                 ("public".into(), vec![control("public-retain", "retain")]),
-                ("internal".into(), vec![control("internal-limit", "limit_internal")]),
-                ("confidential".into(), vec![control("confidential-encrypt", "encrypt_at_rest")]),
-                ("restricted".into(), vec![
-                    control("restricted-encrypt", "encrypt_at_rest"),
-                    control("restricted-no-export", "deny_export"),
-                ]),
+                (
+                    "internal".into(),
+                    vec![control("internal-limit", "limit_internal")],
+                ),
+                (
+                    "confidential".into(),
+                    vec![control("confidential-encrypt", "encrypt_at_rest")],
+                ),
+                (
+                    "restricted".into(),
+                    vec![
+                        control("restricted-encrypt", "encrypt_at_rest"),
+                        control("restricted-no-export", "deny_export"),
+                    ],
+                ),
             ]),
             16,
             8,
@@ -255,7 +262,10 @@ mod tests {
             owner_id: "owner-001".into(),
             data_class: "public".into(),
             provenance: BTreeMap::from([("source".into(), json!("synthetic"))]),
-            version_bound_evidence: BTreeMap::from([("genome_digest".into(), json!("b".repeat(64)))]),
+            version_bound_evidence: BTreeMap::from([(
+                "genome_digest".into(),
+                json!("b".repeat(64)),
+            )]),
         }
     }
 
@@ -281,30 +291,51 @@ mod tests {
         value.labels = vec!["legal_hold".into()];
         let result = evaluate_memory_classification(&value, &policy()).unwrap();
         assert_eq!(result.classification, "restricted");
-        assert!(result.handling_controls.iter().any(|control| control.action == "deny_export"));
+        assert!(result
+            .handling_controls
+            .iter()
+            .any(|control| control.action == "deny_export"));
     }
 
     #[test]
     fn rejects_unknown_or_normalized_labels_and_duplicate_labels() {
         let mut value = input();
         value.labels = vec!["PII".into()];
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("label_not_approved".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("label_not_approved".into())
+        );
         value.labels = vec!["pii ".into()];
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("labels_must_be_unique_opaque_policy_identifiers".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("labels_must_be_unique_opaque_policy_identifiers".into())
+        );
         value.labels = vec!["pii".into(), "pii".into()];
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("labels_must_be_unique_opaque_policy_identifiers".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("labels_must_be_unique_opaque_policy_identifiers".into())
+        );
     }
 
     #[test]
     fn rejects_bad_digest_missing_controls_and_missing_provenance() {
         let mut value = input();
         value.content_digest = "not-a-digest".into();
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("content_digest_invalid".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("content_digest_invalid".into())
+        );
         let mut p = policy();
         p.controls_by_classification.remove("internal");
-        assert_eq!(evaluate_memory_classification(&input(), &p), Err("handling_controls_missing".into()));
+        assert_eq!(
+            evaluate_memory_classification(&input(), &p),
+            Err("handling_controls_missing".into())
+        );
         let mut value = input();
         value.provenance.clear();
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("provenance_or_version_evidence_missing".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("provenance_or_version_evidence_missing".into())
+        );
     }
 }
