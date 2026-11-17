@@ -93,7 +93,7 @@ No real external operator, HSM/KMS custody ceremony, independent backup account 
 - [x] Hardened SPDX generator regression tests pass; the exact-head SBOM generator enforced equality of Cargo metadata/Cargo.lock package identities, complete resolved graph coverage and registry checksum validity; the generated artifact was independently inspected (Section 11).
 - [x] Release workflow YAML/actionlint validation and static permissions/input review pass (Section 12); actual release attestation execution remains pending.
 - [ ] Authorized stable release produces library, SBOM, provenance and SBOM attestations; both attestations verify against exact artifact digest.
-- [ ] Witness backend backup/restore test passes on exact head.
+- [x] Witness backend backup/restore test passes on exact code-verification head `d504c54fab04fe36866894c6c1f7f79eea516337` (Rust run #1872; named test evidence in Section 11).
 - [ ] Two independent witness operators are appointed and organizational independence is evidenced.
 - [ ] Live publish/readback, replay/conflict, sequence, outage/quorum, key rotation and restore tests pass.
 - [ ] Owner/custodian trust-root ceremony and protected signing boundary evidence are recorded.
@@ -116,7 +116,7 @@ No merge, release, production key provisioning, runtime activation or deployment
 
 All three required workflows completed successfully on this exact commit:
 
-- Rust kernel verification run #1872: https://github.com/akefadaka-git/iroka/actions/runs/44106810503 — PASS. Job 134121268946; 111 unit tests and 2 integration tests passed, 0 failed; formatting, all-target compilation, production feature guard, optimized workspace build and Clippy passed.
+- Rust kernel verification run #1872: https://github.com/akefadaka-git/iroka/actions/runs/44106810503 — PASS. Job 134121268946; 111 unit tests and 2 integration tests passed, 0 failed; named test `sqlite_checkpoint_witness::tests::durable_witness_backup_restore_preserves_checkpoint_and_receipt_chain` passed; formatting, all-target compilation, production feature guard, optimized workspace build and Clippy passed.
 - GENESIS gene schema closure run #170: https://github.com/akefadaka-git/iroka/actions/runs/44106811083 — PASS. Job 134121277394; all 72/72 Genome schema references resolved; all schemas passed Draft 2020-12/unique-ID/closed-object checks; 0 generic array fields lacked approved item contracts; all 53 item-schema references resolved. The workflow also completed cross-collection semantic integration conformance. Schema validation alone is not represented as proof of graph invariants beyond the integration checks.
 - Security supply-chain verification run #74: https://github.com/akefadaka-git/iroka/actions/runs/44106810736 — PASS. Job 134121278966; locked graph, RustSec, cargo-deny, syn-version disposition, optimized build, full-history Gitleaks, actionlint v1.7.12, SPDX generator regression tests, SBOM generation and artifact upload all passed.
 
@@ -154,4 +154,4 @@ Reviewed `.github/workflows/release-attest.yml` at the frozen commit; Git blob S
 
 ## 13. Updated A4 decision
 
-The exact-head software verification and SBOM artifact reconciliation items are now evidenced on commit `d504c54fab04fe36866894c6c1f7f79eea516337`. This does not close A4. Independent assessment, external witness operations, production trust-root custody/recovery, external restore evidence, production G09 integration, a deployable runtime, and an authorized end-to-end release-attestation run remain outstanding. The workflow/document update itself may advance the PR head and require a fresh exact-head CI reconciliation before a later closure decision.
+The exact-head software verification and SBOM artifact reconciliation items are evidenced on code-verification commit `d504c54fab04fe36866894c6c1f7f79eea516337`. The A4 evidence update was committed separately as documentation-only commit `9f589502de9c40ba1f572541209d0a8fb70e47dc`; no workflow runs were returned for that documentation-only commit, and it changed only this reconciliation document. The tested code did not change after `d504c54`. This does not close A4. Independent assessment, external witness operations, production trust-root custody/recovery, external restore evidence, production G09 integration, a deployable runtime, and an authorized end-to-end release-attestation run remain outstanding. The workflow/document update itself may advance the PR head and require a fresh exact-head CI reconciliation before a later closure decision.
