@@ -1,0 +1,38 @@
+name: Format Rust on G02 development branch
+
+on:
+  push:
+    branches:
+      - implementation/a3-g02-authority-source
+    paths:
+      - "crates/**/*.rs"
+      - ".github/workflows/format-rust-g02.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: format-rust-g02
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt
+          rustup default stable
+      - name: Apply rustfmt
+        run: cargo fmt --all
+      - name: Commit formatting if changed
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add crates
+            git commit -m "style(g02): apply rustfmt"
+            git push
+          fi

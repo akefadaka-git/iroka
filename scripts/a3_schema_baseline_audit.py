@@ -247,6 +247,39 @@ if len(gl_cases) != 5 or len({case.get("case_id") for case in gl_cases}) != 5:
 if gl_vectors.get("chromosome_count") != 12 or gl_vectors.get("gene_count") != 36:
     errors.append("G01 lineage amendment changes the fixed genome")
 
+
+
+# A3 G02 authority-source v1.1.0 additive contract audit.
+G02_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g02.authority-source.input.schema.json"
+G02_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g02.authority-source.output.schema.json"
+G02_VECTORS = ROOT / "docs/architecture/a3/g02-authority-source-conformance-v1.1.0.json"
+g02_input, g02_output, g02_vectors = load(G02_INPUT), load(G02_OUTPUT), load(G02_VECTORS)
+for schema_path_obj, document in ((G02_INPUT, g02_input), (G02_OUTPUT, g02_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if g02_input.get("$id") != "https://iroka.dev/schemas/genes/g02.authority-source/input/1.1.0":
+    errors.append("G02 authority-source input schema ID/version mismatch")
+if g02_output.get("$id") != "https://iroka.dev/schemas/genes/g02.authority-source/output/1.1.0":
+    errors.append("G02 authority-source output schema ID/version mismatch")
+g02_required = set(g02_input.get("required", []))
+for field in ("authority_id", "source_type", "mandate_ref", "valid_from", "valid_until",
+              "principal_registration", "mandate", "provenance", "version_bound_evidence"):
+    if field not in g02_required:
+        errors.append(f"G02 authority-source input missing required field: {field}")
+if len(g02_output.get("allOf", [])) < 2:
+    errors.append("G02 authority-source output status/scope consistency conditions missing")
+g02_cases = g02_vectors.get("cases", [])
+if g02_vectors.get("gene_id") != "g02.authority-source" or g02_vectors.get("version") != "1.1.0":
+    errors.append("G02 authority-source conformance catalog identity/version mismatch")
+if len(g02_cases) != 5 or len({case.get("case_id") for case in g02_cases}) != 5:
+    errors.append(f"G02 authority-source expected 5 unique conformance vectors, found {len(g02_cases)}")
+if g02_vectors.get("chromosome_count") != 12 or g02_vectors.get("gene_count") != 36:
+    errors.append("G02 authority-source amendment changes the fixed genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -269,3 +302,5 @@ print("g01_identity_root_v1_1_0=PASS")
 print(f"g01_identity_root_a3_conformance_cases={len(g01_cases)}")
 print("g01_lineage_v1_1_0=PASS")
 print(f"g01_lineage_a3_conformance_cases={len(gl_cases)}")
+print("g02_authority_source_v1_1_0=PASS")
+print(f"g02_authority_source_a3_conformance_cases={len(g02_cases)}")
