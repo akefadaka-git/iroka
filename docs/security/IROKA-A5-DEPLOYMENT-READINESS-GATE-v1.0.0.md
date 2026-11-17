@@ -2,38 +2,50 @@
 
 **Status:** READINESS PLAN PREPARED — NOT READY FOR DEPLOYMENT  
 **Authority:** Owner approval required for every production provisioning and deployment action  
-**Current repository artifact:** Rust kernel library (`.rlib`); no production runtime executable/container is defined
+**Current repository artifact:** Rust kernel library (.rlib); no production runtime executable/container is defined
 
 ## 1. Purpose
 
 This document defines the evidence required before IROKA can enter A5 deployment. It prepares the deployment gate; it does not authorize production key generation, provisioning, release, activation, traffic migration or deployment.
 
-## 2. Current blockers
+## 2. Runtime architecture baseline
 
-1. **No deployable runtime target:** the repository builds a kernel library, not a runnable IROKA service, application, container image or deployment bundle. The runtime composition, interfaces, operating model and deployment topology must be specified and verified before A5.
-2. **A3.10.3 operational trust remains open:** no independently administered witness operators/endpoints, production mTLS enrollment, Owner root ceremony, protected signing boundary or external restore evidence.
-3. **A3.10.7 independent assessment is outstanding:** no independent assessor or authenticated report; no independent retest evidence.
-4. **A4 is not closed:** current evidence register identifies exact-head CI and operational/independent gates still required.
-5. **Production G09 integration is absent:** no production executor/adapter, end-to-end protected side-effect test or operational kill-switch evidence.
-6. **Release attestation is implemented as a workflow but not yet executed:** no published release, SBOM attestation or provenance attestation exists from this implementation.
-7. **Environment and operational decisions remain unselected:** no Owner-approved hosting/runtime target, environment configuration, recovery objectives, monitoring, incident response or deployment rollback evidence.
+The reference architecture is documented in `docs/architecture/IROKA-HYBRID-RUNTIME-REFERENCE-ARCHITECTURE-v1.0.0.md`. It separates:
+- Amharic-first clients and edge/API services.
+- G01 identity and G02 Owner governance.
+- Deterministic Rust kernel service and G09 admission/receipt path.
+- Isolated untrusted workload/agent workers.
+- Separate least-privilege business executors.
+- Append-only audit, external witnesses, backup/recovery and operations.
 
-## 3. Mandatory A5 gates
+The proposed logical processes (API, governance, kernel service, worker, audit bridge and node agent) are architecture components, not existing executable binaries. The first target hosting provider, jurisdiction, hardware/OS, database, identity provider, HSM/KMS and operational objectives still require Owner approval.
+
+## 3. Current blockers
+
+1. **No deployable runtime target:** repository builds a kernel library, not a runnable IROKA service, application, container image or deployment bundle.
+2. **No production G09 executor:** the kernel trait and verification path exist, but no real business system, effect domain, API, staging endpoint, idempotency ledger, executor key or mTLS enrollment is selected or integrated.
+3. **A3.10.3 operational trust remains open:** no independently administered witness operators/endpoints, production mTLS enrollment, Owner root ceremony, protected signing boundary or external restore evidence.
+4. **A3.10.7 independent assessment is outstanding:** no Owner-appointed independent assessor or authenticated report; no independent retest evidence.
+5. **A4 is not closed:** the evidence reconciliation identifies missing independent, external operational and runtime evidence.
+6. **Release attestation has not been executed:** workflow code exists and is being hardened, but no stable release, verified SBOM attestation or provenance attestation exists from this programme.
+7. **Environment/operations decisions remain open:** hosting target, data jurisdiction, RPO/RTO, monitoring, incident response, operations ownership and rollback evidence are not approved.
+
+## 4. Mandatory A5 gates
 
 ### A. Architecture and artifact
-- [ ] Owner-approved runtime architecture and component inventory.
+- [ ] Owner-approved runtime architecture, hosting target, jurisdiction and component inventory.
 - [ ] Deployable application/service executable or container image, not only a library.
 - [ ] Reproducible build instructions and pinned toolchain.
-- [ ] Versioned release tag and immutable release assets.
-- [ ] SPDX SBOM reconciled to the exact release artifact.
+- [ ] Stable release tag reachable from main and immutable release assets.
+- [ ] SPDX SBOM reconciled to exact release dependency graph and artifact.
 - [ ] Signed provenance and SBOM attestations independently verified against repository, workflow, tag and artifact digest.
-- [ ] Vulnerability, license, source and secret scans pass on the release commit.
+- [ ] Vulnerability, license, source and secret scans pass on release commit.
 
 ### B. Identity, trust and cryptographic custody
 - [ ] Owner-approved root manifest and fingerprint verification through an independent channel.
 - [ ] Two-person root enrollment/rotation/revocation ceremony.
 - [ ] Production signing boundary (HSM/KMS or Owner-approved equivalent) selected, enrolled and attested.
-- [ ] No production private keys in Git, ordinary application configuration or unprotected CI secrets.
+- [ ] No production private keys in Git, ordinary application configuration or CI secrets.
 - [ ] mTLS client credentials provisioned and rotation/revocation tested.
 - [ ] Trust snapshot, anti-rollback state and revocation persistence verified after restart/restore.
 
@@ -51,32 +63,33 @@ This document defines the evidence required before IROKA can enter A5 deployment
 - [ ] Idempotency and ambiguous-outcome recovery proven against the real adapter.
 - [ ] Emergency stop tested and independently observed.
 - [ ] No protected side effect can execute from a plain policy ALLOW without required approval.
+- [ ] Executor key rotation/revocation and incident reconciliation tested.
 
 ### E. Independent assurance and governance
 - [ ] A3.10.7 independent assessment completed on the release candidate.
 - [ ] No unresolved Critical or High findings.
 - [ ] Medium findings fixed or risk-accepted by the Owner with compensating controls and expiry.
 - [ ] A4 evidence reconciliation closed and signed.
-- [ ] Data classification, privacy, regulatory and retention obligations assessed for the actual deployment jurisdiction and use case.
+- [ ] Data classification, privacy, regulatory and retention obligations assessed for actual deployment jurisdiction and use case.
 - [ ] Owner approves residual risk, operations owner, support model and change-control procedure.
 
 ### F. Operations and recovery
 - [ ] Monitoring, alerting, audit export and incident response runbooks tested.
-- [ ] Backup frequency, retention, RPO/RTO and restore drills approved.
+- [ ] Backup frequency, retention, RPO/RTO and restore drills approved and passed.
 - [ ] Key compromise, witness outage, data corruption and service rollback scenarios rehearsed.
 - [ ] Environment hardening, network ingress/egress, secrets handling, patching and access review complete.
 - [ ] Deployment, health-check, rollback and post-deployment verification plans reviewed.
 - [ ] Production data migration and rollback tested using approved non-production data.
 
-## 4. Release workflow boundary
+## 5. Release attestation boundary
 
-`.github/workflows/release-attest.yml` runs only after a GitHub release is published. It builds and tests the current kernel library, generates an SPDX SBOM, creates GitHub/Sigstore provenance and SBOM attestations, and attaches the library and SBOM to that release.
+`.github/workflows/release-attest.yml` is designed to run only after a stable, non-draft, non-prerelease GitHub release whose tag commit is reachable from main. It checks out the exact tag, runs the Rust checks, builds the kernel library, generates SPDX SBOM, creates provenance and SBOM attestations, verifies both with GitHub CLI and uploads the library and SBOM.
 
-This workflow is not a deployment workflow. It does not provision production keys, contact witness operators, configure a production environment, activate runtime services or route traffic. The current `.rlib` is a library artifact and is not a deployable application on its own.
+The GitHub attestation action's documented requirements include OIDC token, attestation write and artifact metadata write permissions; the configured action uses the documented subject-path and sbom-path inputs. This workflow is not a deployment workflow. It has not been executed because no release has been authorized. The resulting .rlib remains a library, not a deployable service.
 
-## 5. Go/no-go rule
+## 6. Go/no-go rule
 
-A5 may be declared READY only when every mandatory gate in Sections 3A–3F is supported by exact, inspectable evidence and the Owner signs a readiness decision.
+A5 may be declared READY only when every mandatory gate in Sections 4A–4F is supported by exact, inspectable evidence and the Owner signs a readiness decision.
 
 A5 deployment may proceed only after a separate explicit Owner authorization naming:
 - The exact release/tag and artifact digests.
