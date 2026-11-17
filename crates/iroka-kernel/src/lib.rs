@@ -31,11 +31,11 @@ mod trust_lifecycle;
 mod uncertainty_calculus;
 mod version_lineage;
 
-pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use agent_principal::{
     evaluate_agent_principal, AgentCredentialBinding, AgentPrincipalEvidence, AgentPrincipalInput,
     AgentPrincipalOutput, AgentPrincipalPolicy,
 };
+pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use authority_source::{
     evaluate_authority_source, AuthorityDecision, AuthoritySourceEvidence, AuthoritySourceInput,
