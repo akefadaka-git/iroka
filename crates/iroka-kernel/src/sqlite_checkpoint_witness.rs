@@ -513,17 +513,17 @@ mod tests {
     fn durable_witness_enforces_private_database_file_and_rejects_symlinks() {
         use std::os::unix::fs::PermissionsExt;
 
-        let path = path("permissions");
+        let db_path = path("permissions");
         let (checkpoint_signer, witness_signer, roots) = fixture();
         let witness = SqliteCheckpointWitness::open(
-            &path,
+            &db_path,
             "witness:permissions",
             witness_signer.clone(),
             witness_signer.key.verifying_key(),
             roots,
         )
         .unwrap();
-        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        let mode = std::fs::metadata(&db_path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600);
         drop(witness);
 
@@ -537,7 +537,7 @@ mod tests {
         );
 
         let reused_checkpoint_key = SqliteCheckpointWitness::open(
-            &path,
+            &db_path,
             "witness:bad-key-reuse",
             checkpoint_signer.clone(),
             checkpoint_signer.key.verifying_key(),
@@ -548,8 +548,8 @@ mod tests {
         );
         assert!(matches!(reused_checkpoint_key, Err(CheckpointError::Malformed)));
 
-        let _ = std::fs::remove_file(&path);
-        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(&db_path);
+        let _ = std::fs::remove_file(db_path.with_extension("sqlite-wal"));
         let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
         let _ = std::fs::remove_file(&link);
         let _ = std::fs::remove_file(&target);
