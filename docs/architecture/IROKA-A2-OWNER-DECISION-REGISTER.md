@@ -1,16 +1,16 @@
 # IROKA A2 Owner Decision Register
 
 - Register ID: IROKA-A2-OWNER-DECISIONS-001
-- Version: 0.1.0
-- Status: PROPOSED — OWNER DECISION REQUIRED
+- Version: 0.2.0
+- Status: OWNER DECISIONS APPROVED — A2 EVIDENCE OPEN
 - Applies to: IROKA ZERO native OS, IROKA Native Language (INL), VYRAQON interoperability and conformance
 - Governing baseline: IROKA A1 Amharic-first Ethiopian and African requirements
 - Authority: Owner
-- Implementation state: No decision in this register is approved merely by publication.
+- Decision state: OD-01 through OD-09 are approved only by the linked immutable Owner Approval Record 001; publication of this register alone is not approval.
 
 ## 1. Purpose and decision protocol
 
-This register converts unresolved A2 architecture questions into explicit, reviewable decisions. Each entry gives a recommended default, alternatives, consequences and evidence needed. Recommendations are not approvals.
+This register converts unresolved A2 architecture questions into explicit, reviewable decisions. Each entry gives a recommended default, alternatives, consequences and evidence needed. Recommendations are not approvals unless and until an authoritative Owner approval record is linked. The nine recommendations in this version have been approved by Owner Approval Record 001.
 
 Decision values:
 - **APPROVE** — Owner accepts the recommendation as written.
@@ -18,21 +18,21 @@ Decision values:
 - **DEFER** — Keep the decision unresolved and block dependent A3 work.
 - **REJECT** — Do not use the recommendation; record the selected alternative and rationale.
 
-No implementation, trust-root change, repository creation, cross-repository publication, merge or deployment is authorized by this register. Approved decisions must be recorded with Owner identity, timestamp, scope, version and an integrity-protected approval record before implementation planning treats them as binding.
+No implementation, trust-root change, repository creation, cross-repository publication, merge or deployment is authorized by this register. Approved decisions must be recorded with Owner identity, timestamp, scope, version and an integrity-protected approval record before implementation planning treats them as binding. For OD-01–OD-09, see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ## 2. Decision summary
 
 | ID | Decision | Recommended default | Current status |
 |---|---|---|---|
-| OD-01 | Kernel architecture | Small capability-based microkernel; Rust implementation foundation | OWNER DECISION REQUIRED |
-| OD-02 | Execution and portability | Deterministic typed IROKA IR plus sandboxed VM; native backends later | OWNER DECISION REQUIRED |
-| OD-03 | Initial hardware targets | x86_64 and AArch64; hosted development mode first | OWNER DECISION REQUIRED |
-| OD-04 | INL memory and safety model | Statically checked ownership/borrowing, safe by default | OWNER DECISION REQUIRED |
-| OD-05 | INL compiler and runtime strategy | Rust-hosted compiler first; self-hosting only after conformance | OWNER DECISION REQUIRED |
-| OD-06 | VYRAQON authority and repository boundary | Independent VYRAQON specification/release; IROKA adapter consumes signed releases | OWNER DECISION REQUIRED |
-| OD-07 | Interchange representation | Versioned canonical semantic model; deterministic CBOR signed envelope; JSON debug view | OWNER DECISION REQUIRED |
-| OD-08 | Regional and language profile policy | Amharic-first Ethiopia profile plus independently versioned African regional profiles | OWNER DECISION REQUIRED |
-| OD-09 | Assurance and release thresholds | Zero tolerance for critical security failures; measurable performance budgets ratified per target | OWNER DECISION REQUIRED |
+| OD-01 | Kernel architecture | Small capability-based microkernel; Rust implementation foundation | APPROVED |
+| OD-02 | Execution and portability | Deterministic typed IROKA IR plus sandboxed VM; native backends later | APPROVED |
+| OD-03 | Initial hardware targets | x86_64 and AArch64; hosted development mode first | APPROVED |
+| OD-04 | INL memory and safety model | Statically checked ownership/borrowing, safe by default | APPROVED |
+| OD-05 | INL compiler and runtime strategy | Rust-hosted compiler first; self-hosting only after conformance | APPROVED |
+| OD-06 | VYRAQON authority and repository boundary | Independent VYRAQON specification/release; IROKA adapter consumes signed releases | APPROVED |
+| OD-07 | Interchange representation | Versioned canonical semantic model; deterministic CBOR signed envelope; JSON debug view | APPROVED |
+| OD-08 | Regional and language profile policy | Amharic-first Ethiopia profile plus independently versioned African regional profiles | APPROVED |
+| OD-09 | Assurance and release thresholds | Zero tolerance for critical security failures; measurable performance budgets ratified per target | APPROVED |
 
 ## 3. Detailed decisions
 
@@ -50,8 +50,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** privilege map; threat model; trusted computing base inventory; boot and recovery design; IPC and capability model; driver isolation plan; failure-containment tests.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ### OD-02 — Execution model and portability
 
@@ -67,8 +67,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** IR grammar/schema; verifier rules; deterministic execution contract; capability ABI; VM threat model; golden vectors; backend equivalence criteria.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ### OD-03 — Initial hardware and boot targets
 
@@ -84,8 +84,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** reference hardware shortlist; firmware/boot assumptions; secure boot and recovery capabilities; minimum RAM/storage/CPU budgets; device support matrix; hardware lab and emulator strategy.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ### OD-04 — INL memory, type and safety model
 
@@ -101,8 +101,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** type-system specification; lifetime/resource rules; aliasing and concurrency model; unsafe-code policy; FFI boundary; diagnostics; reference examples; adversarial compiler tests.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ### OD-05 — INL compiler bootstrap and self-hosting
 
@@ -118,8 +118,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** compiler pipeline; grammar and semantic versioning; bootstrap trust chain; reproducible build process; compiler test corpus; self-hosting exit criteria.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ### OD-06 — VYRAQON authority, independence and repository boundary
 
@@ -135,8 +135,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** confirmed VYRAQON repository; approved VYRAQON charter and normative release; canonical data model; signed release metadata; compatibility matrix; round-trip and downgrade tests.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ### OD-07 — VYRAQON interchange and canonical representation
 
@@ -152,8 +152,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** schema and canonicalization spec; signed artifact example; parser/serializer vectors; unknown extension behavior; version compatibility matrix; source-preservation tests.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ### OD-08 — Amharic-first and African regional profile policy
 
@@ -169,8 +169,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** reviewed Amharic/Ethiopic corpus; input/rendering/accessibility matrix; approved Ethiopian calendar reference oracle; date/time semantics; regional profile schema; competent language review and country-specific profile governance.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ### OD-09 — Assurance, release thresholds and performance budgets
 
@@ -191,8 +191,8 @@ No implementation, trust-root change, repository creation, cross-repository publ
 
 **A2 evidence required:** finalized test catalog; harness; test oracles; target-specific budgets; security acceptance; recovery exercises; signed build attestations.
 
-**Owner decision:** [ ] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
-**Owner value / rationale:** Pending.
+**Owner decision:** [x] APPROVE  [ ] AMEND  [ ] DEFER  [ ] REJECT  
+**Owner value / rationale:** Approved exactly as recommended by the Owner on 2026-11-05; see [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md).
 
 ## 4. Mandatory A2 exit criteria
 
@@ -237,19 +237,12 @@ Each work package requires an approved scope, acceptance criteria, threat review
 | Executable conformance harness | Not verified | Exact-SHA run with retained machine-readable evidence |
 | Hardware performance budgets | Missing | Approved target profiles and measured baselines |
 
-## 7. Owner response record
+## 7. Owner response record — superseded by approval
 
-The Owner may respond using decision IDs and values, for example:
-
-- `OD-01 APPROVE`
-- `OD-02 AMEND: ...`
-- `OD-03 DEFER`
-- `OD-04 APPROVE`
-
-No blank checkbox or proposed default is interpreted as approval. Record the final decision in a separate immutable approval artifact and link it to this register; do not rewrite historical decision records.
+The response examples below describe the original decision-collection protocol and are retained as historical process context. They are not pending requests. The authoritative dispositions for all nine decisions are recorded in [IROKA A2 Owner Approval Record 001](./IROKA-A2-OWNER-APPROVAL-001.md). No blank or historical checkbox is interpreted as approval independently of that record.
 
 
-## 8. Owner disposition — approved
+## 8. Owner disposition — approved (authoritative)
 
 **Current decision status: OD-01 through OD-09 APPROVED.**
 
