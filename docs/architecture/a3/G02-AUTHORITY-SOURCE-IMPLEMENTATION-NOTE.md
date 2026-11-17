@@ -23,3 +23,8 @@
 Synthetic test keys and records only. Production trust-root provisioning, live authority registry integration, real Owner credentials, merge, release and deployment are not performed by this increment.
 
 Automated exact-head verification is required before this increment can be marked complete.
+
+
+## Explicit issuer policy
+
+The runtime policy now has separate allowlists for principal-registration issuers and mandate issuers, in addition to source-class and unbounded-expiry policy. A trusted cryptographic key alone is not sufficient to issue a principal registration or mandate: its issuer must also be explicitly permitted by the authority-source policy. A negative conformance unit test rejects a mandate issuer outside that allowlist.
