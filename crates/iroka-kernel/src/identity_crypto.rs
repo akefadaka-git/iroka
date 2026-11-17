@@ -260,10 +260,24 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
     }
 
     /// Verify a root descriptor against this signed trust snapshot and live revocation source.
-    pub(crate) fn verify_root_descriptor(&self, issuer: &str, key_id: &str, public_key: &[u8; 32], now: u64) -> Result<(), CredentialError> {
+    pub(crate) fn verify_root_descriptor(
+        &self,
+        issuer: &str,
+        key_id: &str,
+        public_key: &[u8; 32],
+        now: u64,
+    ) -> Result<(), CredentialError> {
         let record = self.trust.key(issuer, key_id, now)?;
-        if record.issuer != issuer || record.key.to_bytes() != *public_key { return Err(CredentialError::InvalidSignature); }
-        if self.revocations.key_revoked(issuer, key_id).map_err(|_| CredentialError::RevocationUnavailable)? { return Err(CredentialError::RevokedKey); }
+        if record.issuer != issuer || record.key.to_bytes() != *public_key {
+            return Err(CredentialError::InvalidSignature);
+        }
+        if self
+            .revocations
+            .key_revoked(issuer, key_id)
+            .map_err(|_| CredentialError::RevocationUnavailable)?
+        {
+            return Err(CredentialError::RevokedKey);
+        }
         Ok(())
     }
 
