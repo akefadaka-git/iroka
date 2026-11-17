@@ -301,7 +301,7 @@ fn private_key_is_secure(path: &Path) -> bool {
     };
     metadata.is_file()
         && !metadata.file_type().is_symlink()
-        && metadata.permissions().mode() & 0o077 == 0
+        && metadata.permissions().mode() & 0o177 == 0
 }
 
 #[cfg(not(unix))]
@@ -377,6 +377,8 @@ mod tests {
         std::fs::write(&path, b"synthetic-key-material").unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
         assert!(private_key_is_secure(&path));
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(!private_key_is_secure(&path));
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
         assert!(!private_key_is_secure(&path));
         std::fs::remove_file(&path).unwrap();
