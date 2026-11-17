@@ -24,6 +24,7 @@ mod rollback_guard;
 mod security_store;
 mod service;
 mod trust_lifecycle;
+mod uncertainty_calculus;
 mod version_lineage;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
@@ -104,6 +105,11 @@ pub use trust_lifecycle::{
     G12SecurityRuntime, RollbackEvidencePolicyPayload, SignedRollbackEvidencePolicy,
     SignedTrustBundle, TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet,
     TrustSnapshotManager,
+};
+pub use uncertainty_calculus::{
+    evaluate_uncertainty, CalibrationProfile, CalibrationStatus, EvidenceDirection,
+    HypothesisEstimate, UncertaintyEvidence, UncertaintyHypothesis, UncertaintyInput,
+    UncertaintyMethod, UncertaintyOutput, UncertaintyPolicy, UnresolvedEvidence, WeightedEvidence,
 };
 pub use version_lineage::{
     evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
