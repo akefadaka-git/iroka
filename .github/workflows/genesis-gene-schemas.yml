@@ -10,12 +10,17 @@ on:
       - "tools/genesis/**"
       - ".github/workflows/genesis-gene-schemas.yml"
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - architecture/genesis-gene-contract-amendment-proposal
     paths:
       - "crates/iroka-kernel/igacms/genome-v1.0.0.json"
       - "crates/iroka-kernel/igacms/schemas/genes/**"
       - "crates/iroka-kernel/igacms/conformance/**"
       - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
+      - "docs/architecture/IROKA-A2-CHARACTER-*.json"
+      - "docs/architecture/IROKA-A2-CHARACTER-*.md"
+      - "docs/constitutional/IROKA-CHARACTER-CONSTITUTION-v1.0.0.md"
       - "tools/genesis/**"
       - ".github/workflows/genesis-gene-schemas.yml"
   workflow_dispatch:
@@ -36,8 +41,11 @@ jobs:
           persist-credentials: false
       - name: Install pinned JSON Schema validator
         run: python3 -m pip install --disable-pip-version-check jsonschema==4.23.0
-      - name: Resolve all 72 references and execute conformance vectors
+      - name: Resolve all 72 references and execute gene IO conformance
         run: python3 tools/genesis/validate_gene_schemas.py
+      - name: Validate character A2 overlay, catalog and schema bindings
+        if: github.event_name == 'pull_request' && github.base_ref == 'architecture/genesis-gene-contract-amendment-proposal'
+        run: python3 tools/genesis/validate_character_a2.py
       - name: Validate approved 53 collection item contracts
         run: python3 tools/genesis/validate_collection_item_amendment.py
       - name: Execute cross-collection semantic integration conformance
