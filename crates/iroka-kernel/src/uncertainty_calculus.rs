@@ -226,6 +226,7 @@ fn profile_digest(profile: &CalibrationProfile) -> Option<String> {
     bytes.extend(canonical(profile)?);
     Some(digest(&bytes))
 }
+#[allow(clippy::too_many_arguments)]
 fn base_evidence(
     input: &UncertaintyInput,
     profile_hash: String,
