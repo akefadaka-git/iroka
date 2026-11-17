@@ -89,9 +89,9 @@ No real external operator, HSM/KMS custody ceremony, independent backup account 
 
 ## 9. A4 closure checklist
 
-- [ ] Final current-head Rust, GENESIS and supply-chain workflows pass on one frozen exact PR #88 head.
-- [ ] Hardened SPDX generator regression tests pass; generated SBOM matches complete Cargo metadata, Cargo.lock and resolved dependency graph.
-- [ ] Release workflow passes actionlint and its YAML/permissions/inputs are reviewed.
+- [x] Final current-head Rust, GENESIS and supply-chain workflows pass on frozen PR #88 head `d504c54fab04fe36866894c6c1f7f79eea516337` (runs #1872, #170 and #74).
+- [x] Hardened SPDX generator regression tests pass; the exact-head SBOM generator enforced equality of Cargo metadata/Cargo.lock package identities, complete resolved graph coverage and registry checksum validity; the generated artifact was independently inspected (Section 11).
+- [x] Release workflow YAML/actionlint validation and static permissions/input review pass (Section 12); actual release attestation execution remains pending.
 - [ ] Authorized stable release produces library, SBOM, provenance and SBOM attestations; both attestations verify against exact artifact digest.
 - [ ] Witness backend backup/restore test passes on exact head.
 - [ ] Two independent witness operators are appointed and organizational independence is evidenced.
@@ -108,3 +108,50 @@ No real external operator, HSM/KMS custody ceremony, independent backup account 
 **A4: NOT CLOSED.** This document is the formal evidence reconciliation and closure submission, but the gate fails because independent assessment, external witness operations, production trust-root custody/recovery, production G09 integration and complete runtime deployment evidence are absent. Do not represent A4 as closed.
 
 No merge, release, production key provisioning, runtime activation or deployment follows from this evidence report. A5 remains a separate Owner decision.
+
+
+## 11. Latest exact-head CI and SBOM evidence — 2026-11-17
+
+**Frozen verification commit:** `d504c54fab04fe36866894c6c1f7f79eea516337` on PR #88 branch `feat/a3-security-workstreams`, base `architecture/genesis-gene-contract-amendment-proposal` at `8e4a8b5582d47d430539ae7b56aac75f0991c8a4`.
+
+All three required workflows completed successfully on this exact commit:
+
+- Rust kernel verification run #1872: https://github.com/akefadaka-git/iroka/actions/runs/44106810503 — PASS. Job 134121268946; 111 unit tests and 2 integration tests passed, 0 failed; formatting, all-target compilation, production feature guard, optimized workspace build and Clippy passed.
+- GENESIS gene schema closure run #170: https://github.com/akefadaka-git/iroka/actions/runs/44106811083 — PASS. Job 134121277394; all 72/72 Genome schema references resolved; all schemas passed Draft 2020-12/unique-ID/closed-object checks; 0 generic array fields lacked approved item contracts; all 53 item-schema references resolved. The workflow also completed cross-collection semantic integration conformance. Schema validation alone is not represented as proof of graph invariants beyond the integration checks.
+- Security supply-chain verification run #74: https://github.com/akefadaka-git/iroka/actions/runs/44106810736 — PASS. Job 134121278966; locked graph, RustSec, cargo-deny, syn-version disposition, optimized build, full-history Gitleaks, actionlint v1.7.12, SPDX generator regression tests, SBOM generation and artifact upload all passed.
+
+### 11.1 Actual SBOM artifact inspection
+
+- Workflow artifact ID: `14337619679`.
+- Artifact name: `iroka-cargo-sbom-d504c54fab04fe36866894c6c1f7f79eea516337`.
+- Artifact ZIP size: 7,280 bytes.
+- Artifact ZIP SHA-256: `677c93bb73b076c54e723e34beff6d61cf27e554cea9809abb4d0dcc4608aeb9` (matches GitHub artifact metadata digest).
+- Artifact created: 2026-11-17 14:53:35 UTC; expires: 2027-02-15 14:46:37 UTC.
+- Contained file: `iroka-cargo.spdx.json`.
+- SBOM file SHA-256: `712b909082b78e34572bf9a576cfc80e121c57a05c8687b375ba524d306cb990`.
+- SPDX version: 2.3; document name: `IROKA ZERO Cargo workspace`.
+- Package records: 63 total — 1 workspace crate and 62 registry crates; 63 unique SPDX package IDs and 63 unique Cargo package URLs.
+- Every one of the 62 registry package records contains a 64-character SHA-256 checksum.
+- Relationships: 96 unique `DEPENDS_ON` plus 1 `DESCRIBES`; zero dangling relationship references.
+- Document namespace embeds Cargo.lock SHA-256: `bdfdaa7838e5d5f1ad2c377cc5bcbd6bfff6e7dff6a3963b4a9aa55704f81980`; Cargo.lock Git blob SHA at this commit: `17f972f5c55f63f41ca92bdaf6bbe1b1803b56d1`.
+- The successful generator step enforced exact Cargo metadata/Cargo.lock package identity-set equality, complete resolved graph coverage, and valid registry checksums before emitting the artifact. The downloaded SBOM was independently parsed and its package IDs, PURLs, checksum presence and relationship endpoints were checked. This is artifact-content reconciliation, not a claim that a separate third-party SPDX conformance validator was run.
+
+**A3.10.5 software evidence:** VERIFIED on the frozen commit above. Release-attestation execution remains a separate uncompleted gate.
+
+## 12. Release-attestation workflow semantic review
+
+Reviewed `.github/workflows/release-attest.yml` at the frozen commit; Git blob SHA `3251b9d081e4094876b7cf361153ad87f07908bb`. The pinned `actions/attest` action commit is `1e69f48acb82d1966a394da916b4c1698aa569d6`; its pinned `action.yml` declares both `subject-path` and `sbom-path` inputs.
+
+- Exact-head supply-chain run #74 successfully parsed the YAML and passed actionlint v1.7.12.
+- The workflow only starts for a published release, then excludes drafts and prereleases; it checks that the tag resolves to `GITHUB_SHA` and that the commit is an ancestor of `origin/main`.
+- The build step uses locked Cargo commands, tests and Clippy, creates the SPDX JSON, and copies `libiroka_kernel.rlib` as the attestation subject.
+- The first attestation action call supplies `subject-path` only, selecting the action's provenance mode. The second supplies the same subject plus `sbom-path`, selecting SPDX SBOM attestation mode. Both inputs are supported by the exact pinned action metadata.
+- `id-token: write` and `attestations: write` are present. `contents: write` is needed for release asset upload. `artifact-metadata: write` is broader than this file-only workflow currently appears to require because `push-to-registry` is not enabled; consider removing it before release unless artifact storage-record functionality is intentionally added.
+- The two `gh attestation verify` calls are semantically aligned: default provenance verification for the library, then SPDX predicate verification using `https://spdx.dev/Document/v2.3`. GitHub's documentation specifies the predicate-type flag for SPDX SBOM attestation verification.
+- The workflow attaches the library and SBOM to the published release. It does not build a deployable IROKA runtime; the subject remains a Rust kernel `.rlib`.
+
+**Static workflow semantics:** PASS, with the least-privilege note above. **End-to-end release/attestation behavior:** NOT RUN — no release was created or published, consistent with the Owner's deployment/release restrictions. Do not describe attestations as generated or verified until a separately authorized release run produces and verifies them.
+
+## 13. Updated A4 decision
+
+The exact-head software verification and SBOM artifact reconciliation items are now evidenced on commit `d504c54fab04fe36866894c6c1f7f79eea516337`. This does not close A4. Independent assessment, external witness operations, production trust-root custody/recovery, external restore evidence, production G09 integration, a deployable runtime, and an authorized end-to-end release-attestation run remain outstanding. The workflow/document update itself may advance the PR head and require a fresh exact-head CI reconciliation before a later closure decision.
