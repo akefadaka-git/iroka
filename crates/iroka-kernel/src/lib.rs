@@ -15,7 +15,6 @@ mod identity_lineage;
 mod identity_root;
 mod igacms;
 mod inference_rules;
-mod uncertainty_calculus;
 mod owner_approval;
 mod owner_governance;
 mod policy;
@@ -25,6 +24,7 @@ mod rollback_guard;
 mod security_store;
 mod service;
 mod trust_lifecycle;
+mod uncertainty_calculus;
 mod version_lineage;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
@@ -66,7 +66,6 @@ pub use igacms::{
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
 };
-pub use uncertainty_calculus::{evaluate_uncertainty, CalibrationProfile, CalibrationStatus, EvidenceDirection, HypothesisEstimate, UncertaintyEvidence, UncertaintyHypothesis, UncertaintyInput, UncertaintyMethod, UncertaintyOutput, UncertaintyPolicy, UnresolvedEvidence, WeightedEvidence};
 pub use inference_rules::{
     evaluate_inference_rules, DerivationStep, InferenceConclusion, InferenceEvidence,
     InferencePremise, InferenceRule, InferenceRulePolicy, InferenceRulesInput,
@@ -106,6 +105,11 @@ pub use trust_lifecycle::{
     G12SecurityRuntime, RollbackEvidencePolicyPayload, SignedRollbackEvidencePolicy,
     SignedTrustBundle, TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet,
     TrustSnapshotManager,
+};
+pub use uncertainty_calculus::{
+    evaluate_uncertainty, CalibrationProfile, CalibrationStatus, EvidenceDirection,
+    HypothesisEstimate, UncertaintyEvidence, UncertaintyHypothesis, UncertaintyInput,
+    UncertaintyMethod, UncertaintyOutput, UncertaintyPolicy, UnresolvedEvidence, WeightedEvidence,
 };
 pub use version_lineage::{
     evaluate_version_lineage, LineageAncestryOutput, LineageDenialCode, LineageEvidenceSummary,
