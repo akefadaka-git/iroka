@@ -2,15 +2,22 @@
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "$id":"https://iroka.dev/schemas/genes/g03.premise-model/output/1.1.0",
   "title":"G03 premise-model A3 output v1.1.0",
-  "type":"object","additionalProperties":false,
+  "type":"object",
+  "additionalProperties":false,
   "$defs":{
-    "source_ref":{"type":"object","additionalProperties":false,"properties":{
-      "source_id":{"type":"string","minLength":1},"source_type":{"type":"string","minLength":1},
-      "source_digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},"provenance_ref":{"type":"string","minLength":1},
-      "observed_at":{"oneOf":[{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},{"type":"null"}]},
-      "observation_time_unknown_reason":{"oneOf":[{"type":"string","minLength":1},{"type":"null"}]},
-      "valid_until":{"oneOf":[{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},{"type":"null"}]}
-    },"required":["source_id","source_type","source_digest","provenance_ref","observed_at","observation_time_unknown_reason","valid_until"]},
+    "source_ref":{
+      "type":"object","additionalProperties":false,
+      "properties":{
+        "source_id":{"type":"string","minLength":1},
+        "source_type":{"type":"string","minLength":1},
+        "source_digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+        "provenance_ref":{"type":"string","minLength":1},
+        "observed_at":{"oneOf":[{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},{"type":"null"}]},
+        "observation_time_unknown_reason":{"oneOf":[{"type":"string","minLength":1},{"type":"null"}]},
+        "valid_until":{"oneOf":[{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},{"type":"null"}]}
+      },
+      "required":["source_id","source_type","source_digest","provenance_ref","observed_at","observation_time_unknown_reason","valid_until"]
+    },
     "normalized":{
       "type":"object","additionalProperties":false,
       "properties":{
@@ -26,10 +33,12 @@
     "unresolved":{
       "type":"object","additionalProperties":false,
       "properties":{
-        "premise_id":{"type":"string","minLength":1},"statement":{"type":"string","minLength":1},
+        "premise_id":{"type":"string","minLength":1},
+        "statement":{"type":"string","minLength":1},
         "epistemic_status":{"enum":["fact","assumption","hypothesis","unknown"]},
         "source_refs":{"type":"array","uniqueItems":true,"items":{"$ref":"#/$defs/source_ref"}},
-        "unresolved_reason":{"type":"string","minLength":1},"context":{"type":"string","minLength":1}
+        "unresolved_reason":{"type":"string","minLength":1},
+        "context":{"type":"string","minLength":1}
       },
       "required":["premise_id","statement","epistemic_status","source_refs","unresolved_reason","context"]
     }
@@ -61,7 +70,29 @@
   },
   "required":["model_id","model_valid","premise_set_digest","normalized_premises","unresolved_premises","evidence","version_bound_evidence"],
   "allOf":[
-    {"if":{"properties":{"model_valid":{"const":true}},"required":["model_valid"]},"then":{"properties":{"premise_set_digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},"evidence":{"properties":{"complete_disposition":{"const":true},"deterministic_ordering":{"const":true},"canonical_serialization":{"const":true}}}}},
-    {"if":{"properties":{"model_valid":{"const":false}},"required":["model_valid"]},"then":{"properties":{"premise_set_digest":{"type":"null"},"normalized_premises":{"maxItems":0}}}}
+    {
+      "if":{"properties":{"model_valid":{"const":true}},"required":["model_valid"]},
+      "then":{
+        "properties":{
+          "premise_set_digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+          "evidence":{
+            "properties":{
+              "complete_disposition":{"const":true},
+              "deterministic_ordering":{"const":true},
+              "canonical_serialization":{"const":true}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if":{"properties":{"model_valid":{"const":false}},"required":["model_valid"]},
+      "then":{
+        "properties":{
+          "premise_set_digest":{"type":"null"},
+          "normalized_premises":{"maxItems":0}
+        }
+      }
+    }
   ]
 }
