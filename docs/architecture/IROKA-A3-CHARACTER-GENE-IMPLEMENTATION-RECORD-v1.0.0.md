@@ -126,3 +126,22 @@ All 12 version-lineage vectors have unit-test coverage and PASS using a static t
 G12 version-lineage A3 status: **IMPLEMENTED / UNIT-TESTED / PRODUCTION-ADAPTER-PENDING**.  
 Independent external security review: NOT RECEIVED.  
 Merge and deployment: NOT AUTHORIZED.
+
+
+## G01 identity-root — A3 v1.1.0 first implementation increment
+
+**Branch:** `implementation/a3-g01-identity-root`  
+**Parent A3 baseline:** `e201e2805db6740253eb4c9f59aeb4318fd8be42`
+
+Implemented additively:
+- Input v1.1.0 binds canonical issuer/key identity, a base64url Ed25519 public key, SHA-256 fingerprint, explicit EdDSA policy version, activation epoch, status, provenance and version-bound evidence.
+- Output v1.1.0 makes issuer/trust-snapshot verification, fingerprint match, algorithm-policy version, revocation check and decision reason explicit.
+- Output schema conditions prohibit verified=true with untrusted/revoked decisions and require all trust assertions for trusted output.
+- Runtime evaluator checks canonical root ID, exact key material/fingerprint, policy version, activation, root status, signed trust-snapshot membership, key validity and live revocation. Revocation unavailability fails closed.
+- Synthetic unit tests cover trusted root, fingerprint substitution, unsupported algorithm, revoked/suspended state, future activation and noncanonical identity.
+
+**Implementation commits:** `4a4ef69b053b135177f3270dc20f685d81363124`, `151bd8223589f3b652f1c8a336107ea204eff2e0`, `59e7dead6cf2e01928146375ed0269e9ec5b62a9`, `2d86a6a2a7c939427d1da4e2c77e4cb2ddfcf99a`, `a5745e2c91c961baf0e0ed314fd2d05a834cdb58`.
+
+**Verification:** PASS at exact head `3115c7f1f0136e57f5fae7b6eca729063a2c7453`; PR workflow run #1893 (`44110723597`) passed formatting, locked workspace compilation, no-default-features compilation, 113 unit tests, 2 integration tests, static A3 schema/traceability audit and Clippy. Exact-head formatting, compile, no-default-features, tests, schema audit and Clippy are required before acceptance.  
+**Limitations:** The evaluator consumes an already verified signed trust snapshot and a live revocation checker; it does not provision production roots or claim a production key ceremony.  
+**Merge/deployment:** NOT AUTHORIZED.

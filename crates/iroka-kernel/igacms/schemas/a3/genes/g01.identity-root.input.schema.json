@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.identity-root/input/1.1.0",
+  "title": "G01 identity-root A3 input contract v1.1.0",
+  "description": "Structural contract only; trust snapshot and live revocation are verified by the kernel.",
+  "type": "object",
+  "properties": {
+    "root_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issuer_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "key_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "key_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "public_key_base64url": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$"
+    },
+    "algorithm": {
+      "const": "EdDSA"
+    },
+    "algorithm_policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "activation_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "enum": [
+        "active",
+        "suspended",
+        "revoked"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    }
+  },
+  "required": [
+    "root_id",
+    "issuer_id",
+    "key_id",
+    "key_fingerprint",
+    "public_key_base64url",
+    "algorithm",
+    "algorithm_policy_version",
+    "activation_epoch",
+    "status",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

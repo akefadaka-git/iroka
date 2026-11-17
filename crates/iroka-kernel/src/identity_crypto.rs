@@ -259,6 +259,28 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         Ok(())
     }
 
+    /// Verify a root descriptor against this signed trust snapshot and live revocation source.
+    pub(crate) fn verify_root_descriptor(
+        &self,
+        issuer: &str,
+        key_id: &str,
+        public_key: &[u8; 32],
+        now: u64,
+    ) -> Result<(), CredentialError> {
+        let record = self.trust.key(issuer, key_id, now)?;
+        if record.issuer != issuer || record.key.to_bytes() != *public_key {
+            return Err(CredentialError::InvalidSignature);
+        }
+        if self
+            .revocations
+            .key_revoked(issuer, key_id)
+            .map_err(|_| CredentialError::RevocationUnavailable)?
+        {
+            return Err(CredentialError::RevokedKey);
+        }
+        Ok(())
+    }
+
     /// Verifies signature, issuer/key trust, time claims, exact audience and
     /// revocation before creating the opaque principal. Token format is
     /// base64url(header).base64url(claims).base64url(signature).

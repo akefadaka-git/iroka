@@ -1,0 +1,32 @@
+name: Format Rust on development branch
+on:
+  push:
+    branches:
+      - implementation/a3-g01-identity-root
+    paths:
+      - 'crates/**/*.rs'
+      - '.github/workflows/format-rust-development.yml'
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: implementation/a3-g01-identity-root
+          persist-credentials: true
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Apply rustfmt
+        run: cargo fmt --all
+      - name: Commit formatting if changed
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add crates
+            git commit -m "style: apply rustfmt to G01 lineage implementation"
+            git push origin HEAD:implementation/a3-g01-identity-root
+          fi

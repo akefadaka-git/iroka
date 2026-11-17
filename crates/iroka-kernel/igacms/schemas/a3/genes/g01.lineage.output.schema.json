@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.lineage/output/1.1.0",
+  "title": "G01 identity-lineage A3 output v1.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "subject_id":{"type":"string","minLength":1},
+    "lineage_valid":{"type":"boolean"},
+    "chain_digest":{"oneOf":[{"type":"string","pattern":"^[a-f0-9]{64}$"},{"type":"null"}]},
+    "verified_depth":{"type":"integer","minimum":0},
+    "evidence":{
+      "type":"object","additionalProperties":false,
+      "properties":{
+        "provenance":{"type":"object"},
+        "version_bound_evidence":{"type":"object"},
+        "proofs_verified":{"type":"boolean"},
+        "graph_acyclic":{"type":"boolean"},
+        "parent_links_valid":{"type":"boolean"},
+        "epoch_monotonic":{"type":"boolean"},
+        "proof_count":{"type":"integer","minimum":0},
+        "verified_issuers":{"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+        "decision_reason":{"type":"string","minLength":1}
+      },
+      "required":["provenance","version_bound_evidence","proofs_verified","graph_acyclic","parent_links_valid","epoch_monotonic","proof_count","verified_issuers","decision_reason"]
+    },
+    "version_bound_evidence":{"type":"object"}
+  },
+  "required":["subject_id","lineage_valid","chain_digest","verified_depth","evidence","version_bound_evidence"],
+  "allOf":[
+    {
+      "if":{"properties":{"lineage_valid":{"const":true}},"required":["lineage_valid"]},
+      "then":{"properties":{
+        "chain_digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+        "verified_depth":{"type":"integer","minimum":1},
+        "evidence":{"properties":{
+          "proofs_verified":{"const":true},
+          "graph_acyclic":{"const":true},
+          "parent_links_valid":{"const":true},
+          "epoch_monotonic":{"const":true},
+          "proof_count":{"minimum":1},
+          "verified_issuers":{"minItems":1}
+        }}
+      }}
+    },
+    {
+      "if":{"properties":{"lineage_valid":{"const":false}},"required":["lineage_valid"]},
+      "then":{"properties":{
+        "chain_digest":{"type":"null"},
+        "verified_depth":{"const":0},
+        "evidence":{"properties":{"proofs_verified":{"const":false}}}
+      }}
+    }
+  ]
+}

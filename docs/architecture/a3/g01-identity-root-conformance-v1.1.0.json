@@ -1,0 +1,44 @@
+{
+  "document_id": "IROKA-G01-IDENTITY-ROOT-A3-CONFORMANCE-001",
+  "version": "1.1.0",
+  "gene_id": "g01.identity-root",
+  "chromosome_count": 12,
+  "gene_count": 36,
+  "schema_ids": [
+    "https://iroka.dev/schemas/genes/g01.identity-root/input/1.1.0",
+    "https://iroka.dev/schemas/genes/g01.identity-root/output/1.1.0"
+  ],
+  "execution_policy": "Executable Rust unit tests; synthetic Ed25519 keys only; no production trust roots or credentials.",
+  "cases": [
+    {
+      "case_id": "G01-A3-P01",
+      "polarity": "positive",
+      "scenario": "Canonical active root has a public key matching its SHA-256 fingerprint and is present in the signed trust snapshot with live non-revoked status.",
+      "expected": "verified=true and trust_decision=trusted with reproducible evidence."
+    },
+    {
+      "case_id": "G01-A3-N01",
+      "polarity": "negative",
+      "scenario": "Declared key fingerprint differs from the decoded Ed25519 public key.",
+      "expected": "Fail closed; verified=false and trust_decision=untrusted."
+    },
+    {
+      "case_id": "G01-A3-N02",
+      "polarity": "negative",
+      "scenario": "Algorithm is not EdDSA or the algorithm policy version does not match the active policy.",
+      "expected": "Fail closed; no trusted decision."
+    },
+    {
+      "case_id": "G01-A3-N03",
+      "polarity": "negative",
+      "scenario": "Root is revoked or suspended, activation epoch is in the future, or live key revocation is unavailable.",
+      "expected": "Never return verified=true; revoked state takes precedence and unavailable revocation fails closed."
+    },
+    {
+      "case_id": "G01-A3-N04",
+      "polarity": "negative",
+      "scenario": "Root ID is an alias or key is absent/outside validity in the signed trust snapshot.",
+      "expected": "Fail closed; canonical identity and trusted-key membership are mandatory."
+    }
+  ]
+}
