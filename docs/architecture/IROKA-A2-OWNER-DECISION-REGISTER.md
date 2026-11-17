@@ -261,3 +261,14 @@ The Owner approved all nine recommended defaults exactly as written, with no ame
 This section records the disposition without rewriting the original recommendation text. The original decision checkboxes and pending-value fields above are historical proposal-form content; the Owner's authoritative disposition is the separate approval record linked here.
 
 Approval resolves the nine Owner decision questions only. It does not certify dependent evidence, close A2, or authorize A3, implementation, merge, or deployment. All A2 exit criteria and the separate A3 authorization gate remain in force.
+
+
+## 9. Owner direction — integrated independent assessment before deployment
+
+On 2026-11-17, the Owner directed that IROKA be fully developed before conducting independent review. Independent security/architecture review is not a per-PR or per-gene gate. One integrated assessment will be conducted after implementation and A4 evidence reconciliation, immediately before the separate A5 deployment decision.
+
+- Decision ID: `OD-2026-11-17-IR-01`
+- [Owner Direction — One Integrated Independent Assessment Before Deployment](./IROKA-OWNER-DIRECTION-2026-11-17-PREDEPLOYMENT-INDEPENDENT-ASSESSMENT.md)
+- Decision artifact commit on `main`: `95d5a3b27517110a5ba1a3288c0f9c883c673024`
+
+This decision does not waive automated verification, secure engineering, A4 reconciliation, or the separate Owner authorization required for A5. It does not authorize merge, release, production key provisioning, runtime activation or deployment.
