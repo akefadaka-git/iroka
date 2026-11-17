@@ -91,7 +91,7 @@ pub fn evaluate_identity_root<R: RevocationChecker>(
         reason = "invalid_or_noncanonical_identity_descriptor".into();
     } else if input.algorithm != "EdDSA" {
         reason = "unsupported_algorithm".into();
-    } else if input.algorithm_policy_version != policy.version {
+    } else if input.algorithm_policy_version != policy.version() {
         reason = "algorithm_policy_version_mismatch".into();
     } else if input.activation_epoch > policy.current_epoch {
         reason = "root_not_yet_active".into();
@@ -146,7 +146,7 @@ pub fn evaluate_identity_root<R: RevocationChecker>(
             provenance: input.provenance.clone(),
             issuer_trust_verified,
             key_fingerprint_match: fingerprint_match,
-            algorithm_policy_version: policy.version.clone(),
+            algorithm_policy_version: policy.version().to_owned(),
             key_revocation_checked: revocation_checked,
             decision_reason: reason,
             root_status: input.status,
@@ -214,6 +214,11 @@ mod tests {
         let out = evaluate_identity_root(&input, &policy, &verifier, 1_200);
         assert!(!out.verified);
         assert_eq!(out.evidence.decision_reason, "unsupported_algorithm");
+        input.algorithm = "EdDSA".into();
+        input.algorithm_policy_version = "unapproved-policy".into();
+        let out = evaluate_identity_root(&input, &policy, &verifier, 1_200);
+        assert!(!out.verified);
+        assert_eq!(out.evidence.decision_reason, "algorithm_policy_version_mismatch");
     }
 
     #[test]
