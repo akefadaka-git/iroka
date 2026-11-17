@@ -20,3 +20,8 @@
 ## Calibration boundary
 
 A profile is accepted only when its digest matches the policy registry and it is marked validated. This increment does not train or independently validate a calibration profile. Profile governance, calibration dataset provenance and independent statistical validation remain external policy/evidence responsibilities.
+
+
+## Exact-head validation
+
+The kernel module is registered in the public API. Rust formatting has been applied on the development branch; the latest exact-head CI run remains the completion gate for this increment.
