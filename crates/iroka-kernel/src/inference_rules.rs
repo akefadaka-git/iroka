@@ -57,6 +57,7 @@ pub struct InferenceRulePolicy {
     maximum_steps: usize,
 }
 impl InferenceRulePolicy {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rule_version: String, rule_set_digest: String, confidence_policy_version: String,
         evaluator_version: String, approved_rule_digests: BTreeMap<String, String>,
@@ -120,6 +121,18 @@ pub struct InferenceRulesOutput {
 }
 fn canonical<T:Serialize>(value:&T)->Option<Vec<u8>>{canonical_json(&serde_json::to_value(value).ok()?).ok()}
 fn digest(bytes:&[u8])->String{format!("{:x}",Sha256::digest(bytes))}
+fn rule_content_digest(rule:&InferenceRule)->Option<String>{
+    let mut payload=rule.clone();payload.rule_digest.clear();
+    let mut bytes=b"IROKA-RULE-DEFINITION-V1\\0".to_vec();bytes.extend(canonical(&payload)?);Some(digest(&bytes))
+}
+fn rule_set_digest(rules:&[InferenceRule])->Option<String>{
+    let mut entries:Vec<_>=rules.iter().map(|r|(r.rule_id.clone(),r.rule_digest.clone())).collect();
+    entries.sort_by(|a,b|a.0.cmp(&b.0));
+    let mut bytes=b"IROKA-RULE-SET-V1\\0".to_vec();bytes.extend(canonical(&entries)?);Some(digest(&bytes))
+}
+fn query_digest(query:&str)->Option<String>{
+    let mut bytes=b"IROKA-INFERENCE-QUERY-V1\\0".to_vec();bytes.extend(canonical(&query)?);Some(digest(&bytes))
+}
 fn valid_digest(s:&str)->bool{s.len()==64&&s.bytes().all(|b|b.is_ascii_hexdigit()&&!b.is_ascii_uppercase())}
 fn step_id(rule_id:&str)->String{format!("step:{}",digest(rule_id.as_bytes()))}
 fn expected_expression(ids:&[String])->String{format!("AND({})",ids.join(","))}
@@ -158,7 +171,13 @@ pub fn evaluate_inference_rules(input:&InferenceRulesInput,policy:&InferenceRule
         ||input.provenance.is_empty()||input.version_bound_evidence.is_empty(){
         return empty_output(input,"required_input_missing_or_malformed",vec![]);
     }
+    let computed_rule_set_digest=rule_set_digest(&input.rules);
+    let computed_query_digest=query_digest(&input.query);
     let version_ok=input.rule_version==policy.rule_version&&input.rule_set_digest==policy.rule_set_digest
+        &&computed_rule_set_digest.as_deref()==Some(input.rule_set_digest.as_str())
+        &&computed_query_digest.as_deref()==input.version_bound_evidence.get("query_digest").and_then(Value::as_str)
+        &&input.version_bound_evidence.get("rule_set_digest").and_then(Value::as_str)==Some(input.rule_set_digest.as_str())
+        &&input.version_bound_evidence.get("evaluator_version").and_then(Value::as_str)==Some(input.evaluator_version.as_str())
         &&input.confidence_policy_version==policy.confidence_policy_version
         &&input.evaluator_version==policy.evaluator_version
         &&input.version_bound_evidence.get("premise_set_digest").and_then(Value::as_str)==Some(input.premise_set_digest.as_str())
@@ -166,7 +185,7 @@ pub fn evaluate_inference_rules(input:&InferenceRulesInput,policy:&InferenceRule
     let mut premise_map=BTreeMap::new();
     for p in &input.premises{
         if p.premise_id.trim().is_empty()||p.context_id!=input.context_id||!valid_digest(&p.source_digest)
-            ||p.confidence.is_none_or(|v|!v.is_finite()||!(0.0..=1.0).contains(&v))
+            ||p.confidence.map_or(true, |v|!v.is_finite()||!(0.0..=1.0).contains(&v))
             ||premise_map.insert(p.premise_id.as_str(),p).is_some(){
             return empty_output(input,"premise_set_invalid_or_ambiguous",vec![]);
         }
@@ -179,6 +198,7 @@ pub fn evaluate_inference_rules(input:&InferenceRulesInput,policy:&InferenceRule
     let mut candidates:BTreeMap<String,Vec<(InferenceRule,DerivationStep,f64)>>=BTreeMap::new();
     for rule in &input.rules{
         let reason=if !version_ok{"rule_or_evidence_version_mismatch"}
+        else if rule_content_digest(rule).as_deref()!=Some(rule.rule_digest.as_str()){"rule_content_digest_mismatch"}
         else if rule.rule_version!=policy.rule_version{"mixed_or_stale_rule_version"}
         else if policy.approved_rule_digests.get(&rule.rule_id)!=Some(&rule.rule_digest){"rule_not_in_immutable_registry"}
         else if rule.rule_id.trim().is_empty()||rule.conclusion_id.trim().is_empty()||rule.conclusion_template.trim().is_empty(){"malformed_rule"}
@@ -247,9 +267,12 @@ mod tests{
             conclusion_id:"c-1".into(),conclusion_template:"The source supports conclusion A".into(),
             antecedent_premise_ids:vec!["p-1".into()],allowed_epistemic_statuses:vec![EpistemicStatus::Fact],
             rule_expression:"AND(p-1)".into(),query_match:"Is conclusion A supported?".into(),rule_confidence:0.95};
-        let input=InferenceRulesInput{rules:vec![rule],premises:vec![premise],premise_set_digest:"c".repeat(64),
+        let mut rule=rule;rule.rule_digest=rule_content_digest(&rule).unwrap();
+        let rules_digest=rule_set_digest(std::slice::from_ref(&rule)).unwrap();
+        let query_digest=query_digest("Is conclusion A supported?").unwrap();
+        let input=InferenceRulesInput{rules:vec![rule.clone()],premises:vec![premise],premise_set_digest:"c".repeat(64),
             premise_model_version:"premise-model-1.1".into(),query:"Is conclusion A supported?".into(),context_id:"ctx-1".into(),
-            rule_version:"rules-1.1".into(),rule_set_digest:"d".repeat(64),confidence_policy_version:"min-support-1.0".into(),
+            rule_version:"rules-1.1".into(),rule_set_digest:rules_digest.clone(),confidence_policy_version:"min-support-1.0".into(),
             evaluator_version:"inference-evaluator-1.1".into(),provenance:BTreeMap::from([("rules".into(),serde_json::json!("registry"))]),
             version_bound_evidence:BTreeMap::from([("premise_set_digest".into(),serde_json::json!("c".repeat(64))),
                 ("premise_model_version".into(),serde_json::json!("premise-model-1.1"))])};
