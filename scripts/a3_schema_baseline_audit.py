@@ -384,6 +384,42 @@ if len(ir_cases) != 6 or len({case.get("case_id") for case in ir_cases}) != 6:
 if ir_vectors.get("chromosome_count") != 12 or ir_vectors.get("gene_count") != 36:
     errors.append("G03 inference-rules amendment changes the fixed genome")
 
+
+
+# A3 G03 uncertainty-calculus v1.1.0 additive contract audit.
+UC_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g03.uncertainty-calculus.input.schema.json"
+UC_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g03.uncertainty-calculus.output.schema.json"
+UC_VECTORS = ROOT / "docs/architecture/a3/g03-uncertainty-calculus-conformance-v1.1.0.json"
+uc_input, uc_output, uc_vectors = load(UC_INPUT), load(UC_OUTPUT), load(UC_VECTORS)
+for schema_path_obj, document in ((UC_INPUT, uc_input), (UC_OUTPUT, uc_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if uc_input.get("$id") != "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/input/1.1.0":
+    errors.append("G03 uncertainty-calculus input schema ID/version mismatch")
+if uc_output.get("$id") != "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.1.0":
+    errors.append("G03 uncertainty-calculus output schema ID/version mismatch")
+uc_required = set(uc_input.get("required", []))
+for field in ("inference_id", "premise_set_digest", "calculation_method", "method_version",
+              "calibration_profile", "hypotheses", "provenance", "version_bound_evidence"):
+    if field not in uc_required:
+        errors.append(f"G03 uncertainty-calculus input missing required field: {field}")
+uc_output_props = uc_output.get("properties", {})
+if "hypothesis_estimates" not in uc_output_props or "unresolved_evidence" not in uc_output_props:
+    errors.append("G03 uncertainty-calculus output missing estimate/unresolved evidence fields")
+if uc_output_props.get("evidence", {}).get("properties", {}).get("normalization_scope", {}).get("const") != "independent_per_hypothesis":
+    errors.append("G03 uncertainty-calculus must not normalize probabilities across hypotheses")
+uc_cases = uc_vectors.get("cases", [])
+if uc_vectors.get("gene_id") != "g03.uncertainty-calculus" or uc_vectors.get("version") != "1.1.0":
+    errors.append("G03 uncertainty-calculus conformance catalog identity/version mismatch")
+if len(uc_cases) != 7 or len({case.get("case_id") for case in uc_cases}) != 7:
+    errors.append(f"G03 uncertainty-calculus expected 7 unique conformance vectors, found {len(uc_cases)}")
+if uc_vectors.get("chromosome_count") != 12 or uc_vectors.get("gene_count") != 36:
+    errors.append("G03 uncertainty-calculus amendment changes the fixed genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -414,3 +450,5 @@ print("g03_premise_model_v1_1_0=PASS")
 print(f"g03_premise_model_a3_conformance_cases={len(pm_cases)}")
 print("g03_inference_rules_v1_1_0=PASS")
 print(f"g03_inference_rules_a3_conformance_cases={len(ir_cases)}")
+print("g03_uncertainty_calculus_v1_1_0=PASS")
+print(f"g03_uncertainty_calculus_a3_conformance_cases={len(uc_cases)}")
