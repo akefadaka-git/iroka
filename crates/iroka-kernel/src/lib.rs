@@ -4,8 +4,8 @@
 //! reviewed trust-boundary components.
 
 mod assurance;
-mod authority_source;
 mod audit_store;
+mod authority_source;
 mod decision;
 #[cfg(test)]
 mod governance;
@@ -23,9 +23,13 @@ mod service;
 mod trust_lifecycle;
 mod version_lineage;
 
-pub use authority_source::{evaluate_authority_source, AuthorityDecision, AuthoritySourceEvidence, AuthoritySourceInput, AuthoritySourceOutput, AuthoritySourcePolicy, AuthoritySourceType, AuthorityStatus, SignedAuthorityMandate, SignedPrincipalRegistration};
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
+pub use authority_source::{
+    evaluate_authority_source, AuthorityDecision, AuthoritySourceEvidence, AuthoritySourceInput,
+    AuthoritySourceOutput, AuthoritySourcePolicy, AuthoritySourceType, AuthorityStatus,
+    SignedAuthorityMandate, SignedPrincipalRegistration,
+};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 #[cfg(test)]
 pub(crate) use governance::{
