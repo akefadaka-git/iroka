@@ -20,3 +20,8 @@
 ## Verification boundary
 
 No external source is fetched or independently authenticated by this pure evaluator. Source digests and provenance references are structurally checked and bound into the premise-set digest; authoritative source retrieval/verification remains an integration responsibility. No inference or execution is performed.
+
+
+## Runtime integration status
+
+The Rust evaluator is registered in the kernel public API and is exercised by the branch's dedicated test suite. It remains a pure deterministic normalization component; it does not fetch or authenticate external sources and does not execute inference rules.
