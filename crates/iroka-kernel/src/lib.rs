@@ -10,6 +10,7 @@ mod decision;
 mod governance;
 mod identity;
 mod identity_crypto;
+mod identity_root;
 mod igacms;
 mod owner_approval;
 mod policy;
@@ -28,6 +29,7 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
+pub use identity_root::{evaluate_identity_root, IdentityRootDecisionEvidence, IdentityRootError, IdentityRootInput, IdentityRootOutput, IdentityRootPolicy, IdentityRootStatus, IdentityTrustDecision};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
