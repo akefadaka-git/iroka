@@ -63,10 +63,15 @@ pub use igacms::{
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
 };
-pub use owner_governance::{evaluate_owner_governance, OwnerDecision, OwnerDecisionRegisterEntry, OwnerGovernanceApprovalPayload, OwnerGovernanceDecision, OwnerGovernanceEvidence, OwnerGovernanceInput, OwnerGovernanceOutput, OwnerGovernancePolicy, OwnerRegisterStatus, SignedOwnerDecisionRegisterSnapshot, SignedOwnerGovernanceApproval};
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
+};
+pub use owner_governance::{
+    evaluate_owner_governance, OwnerDecision, OwnerDecisionRegisterEntry,
+    OwnerGovernanceApprovalPayload, OwnerGovernanceDecision, OwnerGovernanceEvidence,
+    OwnerGovernanceInput, OwnerGovernanceOutput, OwnerGovernancePolicy, OwnerRegisterStatus,
+    SignedOwnerDecisionRegisterSnapshot, SignedOwnerGovernanceApproval,
 };
 pub use policy::{Policy, RiskLevel};
 pub use request::AuthorizationRequest;
