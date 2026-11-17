@@ -29,7 +29,11 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use identity_root::{evaluate_identity_root, IdentityRootDecisionEvidence, IdentityRootError, IdentityRootInput, IdentityRootOutput, IdentityRootPolicy, IdentityRootStatus, IdentityTrustDecision, IDENTITY_ROOT_ALGORITHM_POLICY_VERSION};
+pub use identity_root::{
+    evaluate_identity_root, IdentityRootDecisionEvidence, IdentityRootError, IdentityRootInput,
+    IdentityRootOutput, IdentityRootPolicy, IdentityRootStatus, IdentityTrustDecision,
+    IDENTITY_ROOT_ALGORITHM_POLICY_VERSION,
+};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
