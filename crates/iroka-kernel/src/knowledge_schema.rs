@@ -133,7 +133,7 @@ fn constraint_error(c:&KnowledgeConstraint,field:&KnowledgeFieldDefinition,polic
             }){Some("enum_requires_unique_nonempty_string_values".into())}else{None}
         },
         "min_items"|"max_items" if field.value_type==KnowledgeValueType::Array=>{
-            if integer_param(c).is_none_or(|v|v as usize>policy.maximum_collection_size){Some("array_bound_invalid_or_exceeds_policy".into())}else{None}
+            if integer_param(c).map_or(true, |v|v as usize>policy.maximum_collection_size){Some("array_bound_invalid_or_exceeds_policy".into())}else{None}
         },
         "item_type" if field.value_type==KnowledgeValueType::Array=>{
             match c.parameters.get("value_type").and_then(Value::as_str){
