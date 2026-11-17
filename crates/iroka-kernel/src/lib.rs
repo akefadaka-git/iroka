@@ -3,6 +3,7 @@
 //! assurance contracts. Concrete production adapters remain independently
 //! reviewed trust-boundary components.
 
+mod agent_principal;
 mod assurance;
 mod audit_store;
 mod authority_source;
@@ -30,6 +31,10 @@ mod trust_lifecycle;
 mod uncertainty_calculus;
 mod version_lineage;
 
+pub use agent_principal::{
+    evaluate_agent_principal, AgentCredentialBinding, AgentPrincipalEvidence, AgentPrincipalInput,
+    AgentPrincipalOutput, AgentPrincipalPolicy,
+};
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use authority_source::{
