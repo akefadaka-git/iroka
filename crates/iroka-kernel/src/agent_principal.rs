@@ -114,6 +114,16 @@ pub fn evaluate_agent_principal(
     else {
         return Err("agent_registry_digest_missing".into());
     };
+    let Some(policy_digest) = canonical(policy).map(|bytes| digest(&bytes)) else {
+        return Err("agent_policy_canonicalization_failed".into());
+    };
+    let Some(bound_policy_digest) = input
+        .version_bound_evidence
+        .get("agent_policy_digest")
+        .and_then(Value::as_str)
+    else {
+        return Err("agent_policy_digest_missing".into());
+    };
     let Some(bound_credential_digest) = input
         .version_bound_evidence
         .get("credential_digest")
@@ -123,6 +133,8 @@ pub fn evaluate_agent_principal(
     };
     if !valid_digest(bound_registry_digest)
         || bound_registry_digest != registry_digest
+        || !valid_digest(bound_policy_digest)
+        || bound_policy_digest != policy_digest
         || bound_credential_digest != binding.credential_digest
     {
         return Err("agent_registry_or_credential_digest_mismatch".into());
@@ -201,6 +213,7 @@ mod tests {
             provenance: BTreeMap::from([("issuer".into(), json!("synthetic-test"))]),
             version_bound_evidence: BTreeMap::from([
                 ("agent_registry_digest".into(), json!(registry_digest)),
+                ("agent_policy_digest".into(), json!(digest(&canonical(policy).unwrap()))),
                 ("credential_digest".into(), json!("a".repeat(64))),
             ]),
         }
