@@ -133,6 +133,14 @@ def main():
         require(contract.get("prohibited_behavior") == a1_gene.get("prohibited_behavior"), "Prohibited behavior mismatch: " + gene_id)
         require(contract.get("chromosome_id") == gene_id[1:3] + ".", "Character chromosome mapping mismatch: " + gene_id)
         require(genome_gene.get("chromosome_id") == "G" + gene_id[1:3], "Genome chromosome mapping mismatch: " + gene_id)
+        require(contract.get("gene_invariant_anchors") == genome_gene.get("invariant_anchors"),
+                "Character contract invariant anchors differ from Genome: " + gene_id)
+        require(contract.get("permitted_effects") == genome_gene.get("permitted_effects"),
+                "Character contract permitted effects differ from Genome: " + gene_id)
+        require(contract.get("authority_requirements") == genome_gene.get("authority_requirements"),
+                "Character contract authority requirements differ from Genome: " + gene_id)
+        require(contract.get("failure_semantics") == genome_gene.get("failure_semantics"),
+                "Character contract failure semantics differ from Genome: " + gene_id)
         require(contract.get("semantic_reconciliation", {}).get("review_status") == "VERIFIED_CLOSED",
                 "Gene semantic review is not VERIFIED_CLOSED: " + gene_id)
 
@@ -142,6 +150,15 @@ def main():
             cases_for_gene["positive"]["case_id"],
             cases_for_gene["negative"]["case_id"],
         }
+        require(cases_for_gene["positive"]["case_id"] == a1_gene.get("positive_case_id"),
+                "A1 positive case traceability mismatch: " + gene_id)
+        require(cases_for_gene["negative"]["case_id"] == a1_gene.get("negative_case_id"),
+                "A1 negative case traceability mismatch: " + gene_id)
+        for polarity in ("positive", "negative"):
+            require(bool(cases_for_gene[polarity].get("scenario"))
+                    and bool(cases_for_gene[polarity].get("expected"))
+                    and bool(cases_for_gene[polarity].get("assertions")),
+                    "Incomplete character test design: " + gene_id + "/" + polarity)
         require(set(contract.get("conformance_case_ids", [])) == expected_case_ids,
                 "Contract/catalog case IDs disagree: " + gene_id)
 
@@ -240,6 +257,15 @@ def main():
     require(len(schema_paths) == 72 and len(schema_ids) == 72, "Expected exactly 72 unique input/output schema files and IDs")
     require(executed_positive == 72 and executed_negative == 72, "Expected 72 positive and 72 negative executable schema vectors")
     require(external_refs == 0, "External schema references found: " + str(external_refs))
+    require(catalog_doc.get("contract_ref") == "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
+            "Character catalog contract reference mismatch")
+    require(catalog_doc.get("schema_reconciliation_ref") == "IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-001",
+            "Character catalog reconciliation ID mismatch")
+    require(catalog_doc.get("schema_reconciliation_path") == "docs/architecture/IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-v1.0.0.json",
+            "Character catalog reconciliation path mismatch")
+    require(catalog_doc.get("execution_policy", {}).get("executed") is False
+            and catalog_doc.get("execution_policy", {}).get("runtime_tests_not_authorized_in_A2") is True,
+            "Character behavioral designs must remain explicitly unexecuted in A2")
     require(catalog_doc.get("case_count") == 72 and catalog_doc.get("genes_covered") == 36,
             "Character catalog metadata mismatch")
     require(all(catalog_by_gene.get(gene_id, {}).keys() == {"positive", "negative"} for gene_id in character_contracts),
