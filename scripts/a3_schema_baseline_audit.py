@@ -315,6 +315,41 @@ if len(og_cases) != 6 or len({case.get("case_id") for case in og_cases}) != 6:
 if og_vectors.get("chromosome_count") != 12 or og_vectors.get("gene_count") != 36:
     errors.append("G02 Owner-governance amendment changes the fixed genome")
 
+
+
+# A3 G03 premise-model v1.1.0 additive contract audit.
+PM_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g03.premise-model.input.schema.json"
+PM_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g03.premise-model.output.schema.json"
+PM_VECTORS = ROOT / "docs/architecture/a3/g03-premise-model-conformance-v1.1.0.json"
+pm_input, pm_output, pm_vectors = load(PM_INPUT), load(PM_OUTPUT), load(PM_VECTORS)
+for schema_path_obj, document in ((PM_INPUT, pm_input), (PM_OUTPUT, pm_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if pm_input.get("$id") != "https://iroka.dev/schemas/genes/g03.premise-model/input/1.1.0":
+    errors.append("G03 premise-model input schema ID/version mismatch")
+if pm_output.get("$id") != "https://iroka.dev/schemas/genes/g03.premise-model/output/1.1.0":
+    errors.append("G03 premise-model output schema ID/version mismatch")
+pm_required = set(pm_input.get("required", []))
+for field in ("premises", "context_id", "model_version", "normalization_policy_version", "provenance", "version_bound_evidence"):
+    if field not in pm_required:
+        errors.append(f"G03 premise-model input missing required field: {field}")
+pm_output_props = pm_output.get("properties", {})
+if "normalized_premises" not in pm_output_props or "unresolved_premises" not in pm_output_props:
+    errors.append("G03 premise-model must expose normalized and unresolved premise partitions")
+if len(pm_output.get("allOf", [])) < 2:
+    errors.append("G03 premise-model output digest/disposition consistency conditions missing")
+pm_cases = pm_vectors.get("cases", [])
+if pm_vectors.get("gene_id") != "g03.premise-model" or pm_vectors.get("version") != "1.1.0":
+    errors.append("G03 premise-model conformance catalog identity/version mismatch")
+if len(pm_cases) != 6 or len({case.get("case_id") for case in pm_cases}) != 6:
+    errors.append(f"G03 premise-model expected 6 unique conformance vectors, found {len(pm_cases)}")
+if pm_vectors.get("chromosome_count") != 12 or pm_vectors.get("gene_count") != 36:
+    errors.append("G03 premise-model amendment changes the fixed genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -341,3 +376,5 @@ print("g02_authority_source_v1_1_0=PASS")
 print(f"g02_authority_source_a3_conformance_cases={len(g02_cases)}")
 print("g02_owner_governance_v1_1_0=PASS")
 print(f"g02_owner_governance_a3_conformance_cases={len(og_cases)}")
+print("g03_premise_model_v1_1_0=PASS")
+print(f"g03_premise_model_a3_conformance_cases={len(pm_cases)}")
