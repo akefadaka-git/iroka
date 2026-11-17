@@ -94,7 +94,7 @@ jobs:
       - name: Validate release workflow YAML and GitHub Actions semantics
         run: |
           ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/release-attest.yml")'
-          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
           "$(go env GOPATH)/bin/actionlint" .github/workflows/release-attest.yml
 
       - name: Test SPDX generator package and graph reconciliation
