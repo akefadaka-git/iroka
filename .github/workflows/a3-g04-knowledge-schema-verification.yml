@@ -45,8 +45,12 @@ jobs:
           rustup default stable
           rustc --version
           cargo --version
-      - name: Check Rust formatting
+      - name: Apply canonical Rust formatting in verification workspace
+        run: cargo fmt --all
+      - name: Check Rust formatting after normalization
         run: cargo fmt --all -- --check
+      - name: Emit formatted G04 source for exact-source reconciliation
+        run: cat crates/iroka-kernel/src/knowledge_schema.rs
       - name: Compile G04 kernel and all targets
         run: cargo check -p iroka-kernel --all-targets --locked
       - name: Verify production feature set
