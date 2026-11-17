@@ -448,8 +448,14 @@ mod tests {
         assert_eq!(witness.publish(&first).unwrap(), receipt);
         drop(witness);
 
-        let reopened =
-            SqliteCheckpointWitness::open(&path, "witness:operator-a", signer, roots).unwrap();
+        let reopened = SqliteCheckpointWitness::open(
+            &path,
+            "witness:operator-a",
+            witness_signer.clone(),
+            witness_signer.key.verifying_key(),
+            roots.clone(),
+        )
+        .unwrap();
         let (stored, stored_receipt) = reopened
             .latest("audit-stream:durable-test")
             .unwrap()
@@ -474,10 +480,15 @@ mod tests {
     #[test]
     fn durable_witness_rejects_sequence_gaps_regressions_and_wrong_predecessors() {
         let path = path("monotonic");
-        let (signer, roots) = fixture();
-        let witness =
-            SqliteCheckpointWitness::open(&path, "witness:operator-b", signer.clone(), roots)
-                .unwrap();
+        let (signer, witness_signer, roots) = fixture();
+        let witness = SqliteCheckpointWitness::open(
+            &path,
+            "witness:operator-b",
+            witness_signer.clone(),
+            witness_signer.key.verifying_key(),
+            roots,
+        )
+        .unwrap();
         let first = checkpoint(signer.as_ref(), 1, 10, None);
         witness.publish(&first).unwrap();
         let gap = checkpoint(signer.as_ref(), 3, 12, Some(hex(&first.digest().unwrap())));
@@ -500,7 +511,7 @@ mod tests {
     #[test]
     fn durable_witness_binds_database_to_one_identity_and_signing_key() {
         let path = path("identity");
-        let (signer, roots) = fixture();
+        let (signer, witness_signer, roots) = fixture();
         let witness = SqliteCheckpointWitness::open(
             &path,
             "witness:operator-a",
@@ -516,7 +527,13 @@ mod tests {
             key: SigningKey::from_bytes(&[42; 32]),
         });
         assert!(matches!(
-            SqliteCheckpointWitness::open(&path, "witness:operator-b", other_signer, roots,),
+            SqliteCheckpointWitness::open(
+                &path,
+                "witness:operator-b",
+                other_signer.clone(),
+                other_signer.key.verifying_key(),
+                roots,
+            ),
             Err(CheckpointError::Malformed)
         ));
         let _ = std::fs::remove_file(&path);
@@ -527,10 +544,15 @@ mod tests {
     #[test]
     fn durable_witness_rejects_conflicting_same_sequence_and_keeps_original() {
         let path = path("conflict");
-        let (signer, roots) = fixture();
-        let witness =
-            SqliteCheckpointWitness::open(&path, "witness:operator-c", signer.clone(), roots)
-                .unwrap();
+        let (signer, witness_signer, roots) = fixture();
+        let witness = SqliteCheckpointWitness::open(
+            &path,
+            "witness:operator-c",
+            witness_signer.clone(),
+            witness_signer.key.verifying_key(),
+            roots,
+        )
+        .unwrap();
         let first = checkpoint(signer.as_ref(), 1, 10, None);
         witness.publish(&first).unwrap();
         let conflicting = create_checkpoint(
