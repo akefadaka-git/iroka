@@ -499,9 +499,6 @@ mod tests {
         {
             let connection = witness.connection.lock().unwrap();
             connection
-                .execute("PRAGMA wal_checkpoint(FULL)", [])
-                .unwrap();
-            connection
                 .execute(
                     "VACUUM INTO ?1",
                     params![backup_path.to_string_lossy().as_ref()],
