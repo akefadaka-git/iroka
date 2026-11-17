@@ -147,3 +147,14 @@ The backend's automated persistence/restart tests are part of the Rust kernel su
 **Operational:** NOT CLOSED. No independently administered operator endpoints, mTLS enrollment, production keys, retention evidence, external backup/restore or cross-operator independence evidence are claimed.
 
 **A3.10.3 closure rule:** The software portion may be marked VERIFIED after exact-head tests pass. The operational workstream remains PARTIAL until the live operator and Owner/custodian ceremony evidence in Sections 7–8 is attached and independently checked.
+
+
+### Durable backend hardening addendum
+
+The SQLite reference backend also:
+- Creates a new POSIX ledger file with owner-only mode `0600`; rejects an existing database file if it is a symlink, non-regular file or grants group/other permissions.
+- Fails closed on non-POSIX platforms until platform-specific ACL verification is implemented.
+- Binds the database to one immutable witness identity and witness key ID at initialization; reopening the same ledger under a different identity or key is rejected.
+- Applies append-only triggers to both the identity record and checkpoint/receipt history.
+
+These controls protect the local reference backend's identity and file boundary. They do not protect against a privileged database administrator replacing the entire ledger, and they do not substitute for independent operators, backups or externally retained checkpoints.
