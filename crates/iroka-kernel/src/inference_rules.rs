@@ -123,15 +123,15 @@ fn canonical<T:Serialize>(value:&T)->Option<Vec<u8>>{canonical_json(&serde_json:
 fn digest(bytes:&[u8])->String{format!("{:x}",Sha256::digest(bytes))}
 fn rule_content_digest(rule:&InferenceRule)->Option<String>{
     let mut payload=rule.clone();payload.rule_digest.clear();
-    let mut bytes=b"IROKA-RULE-DEFINITION-V1\\0".to_vec();bytes.extend(canonical(&payload)?);Some(digest(&bytes))
+    let mut bytes=b"IROKA-RULE-DEFINITION-V1\0".to_vec();bytes.extend(canonical(&payload)?);Some(digest(&bytes))
 }
 fn rule_set_digest(rules:&[InferenceRule])->Option<String>{
     let mut entries:Vec<_>=rules.iter().map(|r|(r.rule_id.clone(),r.rule_digest.clone())).collect();
     entries.sort_by(|a,b|a.0.cmp(&b.0));
-    let mut bytes=b"IROKA-RULE-SET-V1\\0".to_vec();bytes.extend(canonical(&entries)?);Some(digest(&bytes))
+    let mut bytes=b"IROKA-RULE-SET-V1\0".to_vec();bytes.extend(canonical(&entries)?);Some(digest(&bytes))
 }
 fn query_digest(query:&str)->Option<String>{
-    let mut bytes=b"IROKA-INFERENCE-QUERY-V1\\0".to_vec();bytes.extend(canonical(&query)?);Some(digest(&bytes))
+    let mut bytes=b"IROKA-INFERENCE-QUERY-V1\0".to_vec();bytes.extend(canonical(&query)?);Some(digest(&bytes))
 }
 fn valid_digest(s:&str)->bool{s.len()==64&&s.bytes().all(|b|b.is_ascii_hexdigit()&&!b.is_ascii_uppercase())}
 fn step_id(rule_id:&str)->String{format!("step:{}",digest(rule_id.as_bytes()))}
