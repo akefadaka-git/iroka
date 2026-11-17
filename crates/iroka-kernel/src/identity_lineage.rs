@@ -276,22 +276,31 @@ pub fn evaluate_identity_lineage<R: RevocationChecker>(
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{NoRevocations, TrustStore, TrustedKey};
     use ed25519_dalek::{Signer, SigningKey};
 
-    fn fixture() -> (Ed25519CredentialVerifier<NoRevocations>, IdentityLineageInput, IdentityLineagePolicy) {
+    fn fixture() -> (
+        Ed25519CredentialVerifier<NoRevocations>,
+        IdentityLineageInput,
+        IdentityLineagePolicy,
+    ) {
         let signer = SigningKey::from_bytes(&[52u8; 32]);
         let issuer = "issuer:lineage-test";
         let key_id = "lineage-key-1";
-        let trust = TrustStore::new([issuer], vec![TrustedKey {
-            issuer: issuer.into(), key_id: key_id.into(),
-            public_key: signer.verifying_key().to_bytes(),
-            not_before: 1_000, not_after: 10_000,
-        }]).expect("synthetic trust snapshot");
+        let trust = TrustStore::new(
+            [issuer],
+            vec![TrustedKey {
+                issuer: issuer.into(),
+                key_id: key_id.into(),
+                public_key: signer.verifying_key().to_bytes(),
+                not_before: 1_000,
+                not_after: 10_000,
+            }],
+        )
+        .expect("synthetic trust snapshot");
         let verifier = Ed25519CredentialVerifier::new(trust, NoRevocations);
         let provenance = BTreeMap::from([("source".into(), serde_json::json!("synthetic"))]);
         let version = BTreeMap::from([("genome_digest".into(), serde_json::json!("a".repeat(64)))]);
@@ -299,11 +308,19 @@ mod tests {
         let vd = map_digest(&version).unwrap();
         let make_node = |subject: &str, predecessor: Option<String>, relationship, epoch| {
             let mut node = IdentityLineageNode {
-                subject_id: subject.into(), predecessor_id: predecessor, relationship, epoch,
-                issuer_id: issuer.into(), key_id: key_id.into(), issued_at: 1_200,
-                expires_at: 1_500, nonce: format!("nonce-{subject}-000000"),
-                provenance_digest: pd.clone(), version_evidence_digest: vd.clone(),
-                proof_digest: String::new(), signature: Vec::new(),
+                subject_id: subject.into(),
+                predecessor_id: predecessor,
+                relationship,
+                epoch,
+                issuer_id: issuer.into(),
+                key_id: key_id.into(),
+                issued_at: 1_200,
+                expires_at: 1_500,
+                nonce: format!("nonce-{subject}-000000"),
+                provenance_digest: pd.clone(),
+                version_evidence_digest: vd.clone(),
+                proof_digest: String::new(),
+                signature: Vec::new(),
             };
             let bytes = proof_bytes(&node).unwrap();
             node.proof_digest = digest(&bytes);
@@ -311,12 +328,21 @@ mod tests {
             node
         };
         let root = make_node("subject:root", None, IdentityRelationship::Root, 0);
-        let tip = make_node("subject:child", Some("subject:root".into()), IdentityRelationship::Successor, 1);
+        let tip = make_node(
+            "subject:child",
+            Some("subject:root".into()),
+            IdentityRelationship::Successor,
+            1,
+        );
         let input = IdentityLineageInput {
-            subject_id: tip.subject_id.clone(), predecessor_id: tip.predecessor_id.clone(),
-            relationship: tip.relationship, proof_digest: tip.proof_digest.clone(),
-            epoch: tip.epoch, lineage_chain: vec![root, tip],
-            provenance, version_bound_evidence: version,
+            subject_id: tip.subject_id.clone(),
+            predecessor_id: tip.predecessor_id.clone(),
+            relationship: tip.relationship,
+            proof_digest: tip.proof_digest.clone(),
+            epoch: tip.epoch,
+            lineage_chain: vec![root, tip],
+            provenance,
+            version_bound_evidence: version,
         };
         (verifier, input, IdentityLineagePolicy::new(2))
     }
