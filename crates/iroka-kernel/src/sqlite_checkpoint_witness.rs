@@ -44,6 +44,8 @@ impl SqliteCheckpointWitness {
         {
             return Err(CheckpointError::Malformed);
         }
+        let path = path.as_ref();
+        prepare_database_file(path)?;
         let mut connection =
             Connection::open(path).map_err(|_| CheckpointError::WitnessUnavailable)?;
         connection
@@ -55,6 +57,17 @@ impl SqliteCheckpointWitness {
                  PRAGMA synchronous=FULL;
                  PRAGMA foreign_keys=ON;
                  PRAGMA trusted_schema=OFF;
+                 CREATE TABLE IF NOT EXISTS g11_witness_identity (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+                    witness_id TEXT NOT NULL UNIQUE,
+                    witness_key_id TEXT NOT NULL UNIQUE
+                 );
+                 CREATE TRIGGER IF NOT EXISTS g11_witness_identity_no_update
+                 BEFORE UPDATE ON g11_witness_identity
+                 BEGIN SELECT RAISE(ABORT, 'G11 witness identity is immutable'); END;
+                 CREATE TRIGGER IF NOT EXISTS g11_witness_identity_no_delete
+                 BEFORE DELETE ON g11_witness_identity
+                 BEGIN SELECT RAISE(ABORT, 'G11 witness identity is immutable'); END;
                  CREATE TABLE IF NOT EXISTS g11_witness_checkpoint_receipts (
                     stream_id TEXT NOT NULL,
                     checkpoint_sequence INTEGER NOT NULL CHECK(checkpoint_sequence > 0),
@@ -74,6 +87,30 @@ impl SqliteCheckpointWitness {
                  BEGIN SELECT RAISE(ABORT, 'G11 witness ledger is append-only'); END;",
             )
             .map_err(|_| CheckpointError::WitnessUnavailable)?;
+        let identity = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| CheckpointError::WitnessUnavailable)?;
+        identity
+            .execute(
+                "INSERT OR IGNORE INTO g11_witness_identity
+                 (singleton, witness_id, witness_key_id) VALUES (1, ?1, ?2)",
+                params![witness_id, signer.key_id()],
+            )
+            .map_err(|_| CheckpointError::WitnessUnavailable)?;
+        let stored_identity = identity
+            .query_row(
+                "SELECT witness_id, witness_key_id FROM g11_witness_identity WHERE singleton = 1",
+                [],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .map_err(|_| CheckpointError::WitnessUnavailable)?;
+        if stored_identity.0 != witness_id || stored_identity.1 != signer.key_id() {
+            return Err(CheckpointError::Malformed);
+        }
+        identity
+            .commit()
+            .map_err(|_| CheckpointError::WitnessUnavailable)?;
+
         Ok(Self {
             connection: Mutex::new(connection),
             witness_id,
@@ -253,6 +290,39 @@ impl CheckpointWitness for SqliteCheckpointWitness {
     }
 }
 
+
+#[cfg(unix)]
+fn prepare_database_file(path: &Path) -> Result<(), CheckpointError> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink()
+                || !metadata.is_file()
+                || metadata.permissions().mode() & 0o077 != 0
+            {
+                return Err(CheckpointError::Malformed);
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(path)
+                .map_err(|_| CheckpointError::WitnessUnavailable)?;
+            drop(file);
+        }
+        Err(_) => return Err(CheckpointError::WitnessUnavailable),
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn prepare_database_file(_path: &Path) -> Result<(), CheckpointError> {
+    // Platform-specific ACL verification is required before using this backend.
+    Err(CheckpointError::Malformed)
+}
+
 fn hex(bytes: &[u8]) -> String {
     const H: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
@@ -372,6 +442,37 @@ mod tests {
             witness.publish(&wrong),
             Err(CheckpointError::PredecessorMismatch)
         );
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
+    fn durable_witness_binds_database_to_one_identity_and_signing_key() {
+        let path = path("identity");
+        let (signer, roots) = fixture();
+        let witness = SqliteCheckpointWitness::open(
+            &path,
+            "witness:operator-a",
+            signer.clone(),
+            roots.clone(),
+        )
+        .unwrap();
+        drop(witness);
+
+        let other_signer = Arc::new(TestSigner {
+            id: "witness-key:operator-b".into(),
+            key: SigningKey::from_bytes(&[42; 32]),
+        });
+        assert!(matches!(
+            SqliteCheckpointWitness::open(
+                &path,
+                "witness:operator-b",
+                other_signer,
+                roots,
+            ),
+            Err(CheckpointError::Malformed)
+        ));
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
