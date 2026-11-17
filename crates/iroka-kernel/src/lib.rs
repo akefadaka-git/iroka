@@ -16,6 +16,7 @@ mod identity_root;
 mod igacms;
 mod inference_rules;
 mod knowledge_schema;
+mod memory_classification;
 mod owner_approval;
 mod owner_governance;
 mod policy;
@@ -76,6 +77,10 @@ pub use knowledge_schema::{
     evaluate_knowledge_schema, KnowledgeConstraint, KnowledgeFieldDefinition,
     KnowledgeSchemaEvidence, KnowledgeSchemaInput, KnowledgeSchemaOutput, KnowledgeSchemaPolicy,
     KnowledgeValueType, NormalizedKnowledgeSchema,
+};
+pub use memory_classification::{
+    evaluate_memory_classification, MemoryClassificationEvidence, MemoryClassificationInput,
+    MemoryClassificationOutput, MemoryClassificationPolicy, MemoryHandlingControl,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
