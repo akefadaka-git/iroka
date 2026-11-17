@@ -131,7 +131,8 @@ def main():
         require(contract.get("character_virtues") == a1_gene.get("virtues"), "Virtue mapping mismatch: " + gene_id)
         require(contract.get("character_obligation") == a1_gene.get("character_obligation"), "Character obligation mismatch: " + gene_id)
         require(contract.get("prohibited_behavior") == a1_gene.get("prohibited_behavior"), "Prohibited behavior mismatch: " + gene_id)
-        require(contract.get("chromosome_id") == genome_gene.get("chromosome_id"), "Genome chromosome mismatch: " + gene_id)
+        require(contract.get("chromosome_id") == gene_id[1:3] + ".", "Character chromosome mapping mismatch: " + gene_id)
+        require(genome_gene.get("chromosome_id") == "G" + gene_id[1:3], "Genome chromosome mapping mismatch: " + gene_id)
         require(contract.get("semantic_reconciliation", {}).get("review_status") == "VERIFIED_CLOSED",
                 "Gene semantic review is not VERIFIED_CLOSED: " + gene_id)
 
