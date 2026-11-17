@@ -217,6 +217,36 @@ if len(g01_cases) != 5 or len(g01_case_ids) != 5:
 if g01_vectors.get("chromosome_count") != 12 or g01_vectors.get("gene_count") != 36:
     errors.append("G01 A3 amendment changes the fixed genome")
 
+
+
+# A3 G01 identity-lineage v1.1.0 additive contract audit.
+GL_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g01.lineage.input.schema.json"
+GL_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g01.lineage.output.schema.json"
+GL_VECTORS = ROOT / "docs/architecture/a3/g01-lineage-conformance-v1.1.0.json"
+gl_input, gl_output, gl_vectors = load(GL_INPUT), load(GL_OUTPUT), load(GL_VECTORS)
+for schema_path_obj, document in ((GL_INPUT, gl_input), (GL_OUTPUT, gl_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if gl_input.get("$id") != "https://iroka.dev/schemas/genes/g01.lineage/input/1.1.0":
+    errors.append("G01 lineage input schema ID/version mismatch")
+if gl_output.get("$id") != "https://iroka.dev/schemas/genes/g01.lineage/output/1.1.0":
+    errors.append("G01 lineage output schema ID/version mismatch")
+if gl_input.get("properties", {}).get("lineage_chain", {}).get("maxItems") != 128:
+    errors.append("G01 lineage maximum depth must be 128")
+if len(gl_output.get("allOf", [])) < 2:
+    errors.append("G01 lineage output consistency conditions missing")
+gl_cases = gl_vectors.get("cases", [])
+if gl_vectors.get("gene_id") != "g01.lineage" or gl_vectors.get("version") != "1.1.0":
+    errors.append("G01 lineage conformance catalog identity/version mismatch")
+if len(gl_cases) != 5 or len({case.get("case_id") for case in gl_cases}) != 5:
+    errors.append(f"G01 lineage expected 5 unique conformance vectors, found {len(gl_cases)}")
+if gl_vectors.get("chromosome_count") != 12 or gl_vectors.get("gene_count") != 36:
+    errors.append("G01 lineage amendment changes the fixed genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -237,3 +267,5 @@ print("g12_version_lineage_v1_1_0=PASS")
 print(f"g12_version_lineage_a3_conformance_cases={len(vl_cases)}")
 print("g01_identity_root_v1_1_0=PASS")
 print(f"g01_identity_root_a3_conformance_cases={len(g01_cases)}")
+print("g01_lineage_v1_1_0=PASS")
+print(f"g01_lineage_a3_conformance_cases={len(gl_cases)}")
