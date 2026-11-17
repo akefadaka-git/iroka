@@ -13,6 +13,7 @@ mod identity;
 mod identity_crypto;
 mod identity_lineage;
 mod identity_root;
+mod knowledge_schema;
 mod igacms;
 mod inference_rules;
 mod owner_approval;
@@ -52,6 +53,7 @@ pub use identity_lineage::{
     evaluate_identity_lineage, IdentityLineageEvidence, IdentityLineageInput, IdentityLineageNode,
     IdentityLineageOutput, IdentityLineagePolicy, IdentityRelationship,
 };
+pub use knowledge_schema::{evaluate_knowledge_schema, KnowledgeConstraint, KnowledgeFieldDefinition, KnowledgeSchemaEvidence, KnowledgeSchemaInput, KnowledgeSchemaOutput, KnowledgeSchemaPolicy, KnowledgeValueType, NormalizedKnowledgeSchema};
 pub use identity_root::{
     evaluate_identity_root, IdentityRootDecisionEvidence, IdentityRootError, IdentityRootInput,
     IdentityRootOutput, IdentityRootPolicy, IdentityRootStatus, IdentityTrustDecision,
