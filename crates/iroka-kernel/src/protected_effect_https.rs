@@ -95,7 +95,7 @@ impl HttpsProtectedEffectExecutor {
             .arg("--header")
             .arg("IROKA-Protocol-Version: 1")
             .arg("--write-out")
-            .arg("\\nIROKA_HTTP_STATUS:%{http_code}");
+            .arg("\nIROKA_HTTP_STATUS:%{http_code}");
         if body.is_some() {
             command.arg("--data-binary").arg("@-");
         }
