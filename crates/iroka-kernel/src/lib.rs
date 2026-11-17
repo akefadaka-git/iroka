@@ -17,9 +17,9 @@ mod igacms;
 mod inference_rules;
 mod knowledge_schema;
 mod memory_classification;
-mod perception_transform;
 mod owner_approval;
 mod owner_governance;
+mod perception_transform;
 mod policy;
 mod premise_model;
 mod request;
@@ -83,11 +83,6 @@ pub use memory_classification::{
     evaluate_memory_classification, MemoryClassificationEvidence, MemoryClassificationInput,
     MemoryClassificationOutput, MemoryClassificationPolicy, MemoryHandlingControl,
 };
-pub use perception_transform::{
-    evaluate_perception_transform, PerceptionLossAnnotation, PerceptionTransformEvidence,
-    PerceptionTransformInput, PerceptionTransformOutput, PerceptionTransformPolicy,
-    PerceptionTransformRegistration,
-};
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
@@ -97,6 +92,11 @@ pub use owner_governance::{
     OwnerGovernanceApprovalPayload, OwnerGovernanceDecision, OwnerGovernanceEvidence,
     OwnerGovernanceInput, OwnerGovernanceOutput, OwnerGovernancePolicy, OwnerRegisterStatus,
     SignedOwnerDecisionRegisterSnapshot, SignedOwnerGovernanceApproval,
+};
+pub use perception_transform::{
+    evaluate_perception_transform, PerceptionLossAnnotation, PerceptionTransformEvidence,
+    PerceptionTransformInput, PerceptionTransformOutput, PerceptionTransformPolicy,
+    PerceptionTransformRegistration,
 };
 pub use policy::{Policy, RiskLevel};
 pub use premise_model::{
