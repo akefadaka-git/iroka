@@ -241,6 +241,7 @@ fn canonical_scope(scope: &[String]) -> Option<Vec<String>> {
     }
     Some(v)
 }
+#[allow(clippy::too_many_arguments)]
 fn output(
     input: &OwnerGovernanceInput,
     now: u64,
