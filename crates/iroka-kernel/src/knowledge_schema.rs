@@ -303,8 +303,7 @@ fn constraint_error(
             if values.is_none_or(|v| {
                 v.is_empty()
                     || v.len() > policy.maximum_collection_size
-                    || v.iter()
-                        .any(|x| x.as_str().is_none_or(|s| !valid_slug(s)))
+                    || v.iter().any(|x| x.as_str().is_none_or(|s| !valid_slug(s)))
                     || {
                         let mut s = BTreeSet::new();
                         v.iter().any(|x| !s.insert(x.as_str().unwrap_or_default()))
