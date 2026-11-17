@@ -662,8 +662,8 @@ mod tests {
                 issuer: issuer.into(),
                 key_id: kid.into(),
                 public_key: signer.verifying_key().to_bytes(),
-                not_before: 1_000,
-                not_after: 10_000,
+                not_before: 1_700_000_000,
+                not_after: 2_000_000_000,
             }],
         )
         .unwrap();
