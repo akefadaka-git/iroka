@@ -466,7 +466,7 @@ mod tests {
         assert_eq!(o.unresolved_premises.len(), 2);
         let mut bad = i;
         bad.premises[0].source_refs[0].valid_until = Some("2026-01-02T00:00:00Z".into());
-        let o = evaluate_premise_model(&bad, &p, 1_767_225_600);
+        let o = evaluate_premise_model(&bad, &p, 1_767_398_400);
         assert_eq!(o.unresolved_premises.len(), 2);
     }
 }
