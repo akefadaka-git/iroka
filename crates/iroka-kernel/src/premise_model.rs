@@ -116,8 +116,10 @@ fn parse_utc(s:&str)->Option<u64>{
 }
 fn normalize_statement(s:&str)->String{s.split_whitespace().collect::<Vec<_>>().join(" ")}
 fn unresolved(p:&PremiseInput,reason:&str)->UnresolvedPremise{
+    let mut source_refs=p.source_refs.clone();
+    source_refs.sort_by(|a,b|a.source_id.cmp(&b.source_id));
     UnresolvedPremise{premise_id:p.premise_id.clone(),statement:p.statement.clone(),epistemic_status:p.epistemic_status,
-        source_refs:p.source_refs.clone(),unresolved_reason:reason.into(),context:p.context.clone()}
+        source_refs,unresolved_reason:reason.into(),context:p.context.clone()}
 }
 fn source_problem(p:&PremiseInput,now:u64)->Option<String>{
     if p.premise_id.trim().is_empty()||p.statement.trim().is_empty()||p.context.trim().is_empty(){return Some("required_premise_field_missing".into());}
@@ -126,7 +128,9 @@ fn source_problem(p:&PremiseInput,now:u64)->Option<String>{
     if p.epistemic_status==EpistemicStatus::Fact&&p.source_refs.is_empty(){return Some("fact_without_source_reference".into());}
     if p.source_refs.is_empty(){return Some(p.source_unavailable_reason.clone().unwrap_or_else(||"source_unavailable_without_reason".into()));}
     if p.source_unavailable_reason.is_some(){return Some("source_unavailable_conflicts_with_source_reference".into());}
+    let mut source_ids=BTreeSet::new();
     for src in &p.source_refs{
+        if !source_ids.insert(src.source_id.as_str()){return Some("duplicate_source_reference_id".into());}
         if src.source_id.trim().is_empty()||src.source_type.trim().is_empty()||src.provenance_ref.trim().is_empty()||!valid_digest(&src.source_digest){
             return Some("source_reference_malformed".into());
         }
@@ -170,9 +174,11 @@ pub fn evaluate_premise_model(input:&PremiseModelInput,policy:&PremiseModelPolic
             }else if let Some(reason)=source_problem(p,now){
                 unresolved_items.push(unresolved(p,&reason));
             }else{
+                let mut source_refs=p.source_refs.clone();
+                source_refs.sort_by(|a,b|a.source_id.cmp(&b.source_id));
                 normalized.push(NormalizedPremise{
                     premise_id:p.premise_id.clone(),normalized_statement:normalize_statement(&p.statement),
-                    epistemic_status:p.epistemic_status,source_refs:p.source_refs.clone(),
+                    epistemic_status:p.epistemic_status,source_refs,
                     confidence:p.confidence,context:p.context.clone(),
                 });
             }
