@@ -121,3 +121,29 @@ No endpoint URLs, private keys, mTLS credentials or production witness keys are 
 - No unresolved critical/high findings.
 
 Software CI alone does not close the operational witness or independent-review gates.
+
+
+## 9. Durable SQLite witness reference backend (A3.10 implementation)
+
+The kernel now includes `SqliteCheckpointWitness` in `crates/iroka-kernel/src/sqlite_checkpoint_witness.rs`. It is a durable reference backend for an operator's witness service, implementing the existing `CheckpointWitness` contract.
+
+The backend:
+- Uses a dedicated SQLite database, WAL journaling, `synchronous=FULL`, foreign-key enforcement, a bounded busy timeout and an immediate write transaction for acceptance.
+- Verifies checkpoint signatures against the configured checkpoint-signer trust set before accepting a checkpoint.
+- Enforces per-stream genesis, exactly-next checkpoint sequence, strictly increasing event sequence, exact predecessor digest and exact-envelope idempotent retry.
+- Persists the signed checkpoint envelope and signed witness receipt in the same transaction before returning success.
+- Returns the original persisted receipt for an exact retry; conflicting same-sequence content, gaps, regressions and predecessor mismatches fail closed.
+- Adds SQLite triggers rejecting UPDATE and DELETE against the witness history table.
+- Supports process restart and readback of the latest checkpoint/receipt pair.
+
+The adapter deliberately does not claim to be a network-facing HTTPS/mTLS service. An operator must expose it only behind a separately reviewed authenticated service boundary, protect the database and signing key, and operate independent backups. Separate operator control, infrastructure, credentials and retention remain necessary; two local database instances do not prove organizational independence.
+
+The backend's automated persistence/restart tests are part of the Rust kernel suite. They are synthetic tests, not live external operator evidence.
+
+## 10. Updated closure boundary
+
+**Software:** Durable witness acceptance backend, signed receipt creation, persistent readback, append-only enforcement and restart tests are implemented. Exact-head CI for this addition is required before marking the source implementation verified.
+
+**Operational:** NOT CLOSED. No independently administered operator endpoints, mTLS enrollment, production keys, retention evidence, external backup/restore or cross-operator independence evidence are claimed.
+
+**A3.10.3 closure rule:** The software portion may be marked VERIFIED after exact-head tests pass. The operational workstream remains PARTIAL until the live operator and Owner/custodian ceremony evidence in Sections 7–8 is attached and independently checked.
