@@ -8,6 +8,8 @@ on:
       - "crates/iroka-kernel/igacms/conformance/**"
       - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
       - "tools/genesis/**"
+      - "crates/iroka-kernel/src/**"
+      - "docs/security/**"
   pull_request:
     branches: [main, architecture/genesis-gene-contract-amendment-proposal]
     paths:
@@ -16,6 +18,8 @@ on:
       - "crates/iroka-kernel/igacms/conformance/**"
       - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
       - "tools/genesis/**"
+      - "crates/iroka-kernel/src/**"
+      - "docs/security/**"
       - ".github/workflows/genesis-gene-schemas.yml"
   workflow_dispatch:
 permissions:
