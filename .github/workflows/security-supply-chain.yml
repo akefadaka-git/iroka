@@ -91,11 +91,14 @@ jobs:
           gitleaks version
           gitleaks git --redact --exit-code 1 .
 
-      - name: Validate release attestation workflow YAML
-        run: ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/release-attest.yml")'
+      - name: Validate release workflow YAML and GitHub Actions semantics
+        run: |
+          ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/release-attest.yml")'
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$(go env GOPATH)/bin/actionlint" .github/workflows/release-attest.yml
 
       - name: Test SPDX generator package and graph reconciliation
-        run: python3 -m unittest scripts/security/test_generate_cargo_sbom.py -v
+        run: python3 scripts/security/test_generate_cargo_sbom.py -v
 
       - name: Generate SPDX 2.3 dependency SBOM
         run: |
