@@ -10,6 +10,7 @@ on:
       - "tools/genesis/**"
       - "crates/iroka-kernel/src/**"
       - "docs/security/**"
+      - ".github/workflows/**"
   pull_request:
     branches: [main, architecture/genesis-gene-contract-amendment-proposal]
     paths:
