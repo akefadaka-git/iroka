@@ -75,4 +75,4 @@ Automated tests cover signed bundle recovery after file-store reopen, signed iss
 
 These tests demonstrate the code paths using deterministic test signers. They do not constitute production provisioning. The repository does not contain the Owner's production root public keys, signed issuer policy, signed G12 registry snapshot, or corresponding provenance records. Those must be supplied and approved through the Owner's out-of-band signing ceremony.
 
-Independent external security review, multi-node storage qualification, operational backup/restore drill and deployment approval remain separate gates. No merge or deployment is authorized by this document.
+One integrated independent security/architecture assessment, multi-node storage qualification, operational backup/restore drill and explicit deployment approval remain pre-deployment gates. The independent assessment is deferred until the integrated release candidate and A4 evidence are complete, under Owner Directive OD-2026-11-17-IR-01; it is not required for each implementation increment. No merge or deployment is authorized by this document.
