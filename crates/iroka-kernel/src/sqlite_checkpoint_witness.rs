@@ -8,8 +8,8 @@ use crate::{
     WitnessReceiptPayload,
 };
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use sha2::{Digest, Sha256};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     path::Path,
