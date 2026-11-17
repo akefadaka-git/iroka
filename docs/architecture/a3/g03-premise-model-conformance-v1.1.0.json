@@ -1,0 +1,20 @@
+{
+  "document_id":"IROKA-G03-PREMISE-MODEL-A3-CONFORMANCE-001",
+  "version":"1.1.0",
+  "gene_id":"g03.premise-model",
+  "chromosome_count":12,
+  "gene_count":36,
+  "execution_policy":"Pure deterministic normalization only; no external source retrieval, factual promotion, or execution.",
+  "schema_ids":[
+    "https://iroka.dev/schemas/genes/g03.premise-model/input/1.1.0",
+    "https://iroka.dev/schemas/genes/g03.premise-model/output/1.1.0"
+  ],
+  "cases":[
+    {"case_id":"G03-PREM-P01","polarity":"positive","scenario":"Source-backed fact has a resolvable source ID, integrity digest, provenance reference, observation time and context; assumptions retain their epistemic labels.","expected":"Deterministic normalization and canonical premise-set digest; assumptions are never promoted to facts."},
+    {"case_id":"G03-PREM-N01","polarity":"negative","scenario":"Fact has no source reference or source-unavailable state lacks an explicit reason.","expected":"Fail closed for that premise; preserve it in unresolved output."},
+    {"case_id":"G03-PREM-N02","polarity":"negative","scenario":"Unknown or noncanonical epistemic status, invalid confidence, duplicate premise ID or context mismatch.","expected":"Fail closed; no premise omitted or duplicated across output lists."},
+    {"case_id":"G03-PREM-N03","polarity":"negative","scenario":"Source digest is malformed, observation time is unknown without reason, future-dated, or source validity has expired.","expected":"Premise remains unresolved with explicit reason and preserved provenance."},
+    {"case_id":"G03-PREM-N04","polarity":"negative","scenario":"Model or normalization policy version is unknown/stale, provenance is missing or evidence binding is invalid.","expected":"Reject model normalization and return all inputs as unresolved."},
+    {"case_id":"G03-PREM-N05","polarity":"negative","scenario":"Input premise is omitted from both output lists or appears in both normalized and unresolved lists.","expected":"Complete, non-overlapping disposition invariant must hold."}
+  ]
+}
