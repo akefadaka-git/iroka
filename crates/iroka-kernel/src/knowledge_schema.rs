@@ -113,6 +113,11 @@ fn parameters_digest(p:&BTreeMap<String,Value>)->Option<String>{
 }
 fn number_param(c:&KnowledgeConstraint)->Option<f64>{c.parameters.get("value")?.as_f64().filter(|v|v.is_finite())}
 fn integer_param(c:&KnowledgeConstraint)->Option<u64>{c.parameters.get("value")?.as_u64()}
+fn signed_integer_param(c:&KnowledgeConstraint)->Option<i64>{c.parameters.get("value")?.as_i64()}
+fn numeric_bound_valid(c:&KnowledgeConstraint,field:&KnowledgeFieldDefinition)->bool{
+    match field.value_type{KnowledgeValueType::Integer=>signed_integer_param(c).is_some()||integer_param(c).is_some(),
+        KnowledgeValueType::Number=>number_param(c).is_some(),_=>false}
+}
 fn exact_parameter_keys(c:&KnowledgeConstraint)->bool{
     let expected:&[&str]=match c.constraint_type.as_str(){
         "min_length"|"max_length"|"minimum"|"maximum"|"min_items"|"max_items"|"min_properties"|"max_properties"=>&["value"],
@@ -133,7 +138,8 @@ fn cross_bound_errors(constraints:&[KnowledgeConstraint])->Vec<String>{
         }else{number_param(c)};
         let Some(value)=value else{continue};
         let entry=bounds.entry((c.field_id.clone(),group.into())).or_default();
-        if c.constraint_type.starts_with("min")||c.constraint_type=="minimum"{entry.0=Some(value);}else{entry.1=Some(value);}
+        if c.constraint_type.starts_with("min")||c.constraint_type=="minimum"{entry.0=Some(entry.0.map_or(value,|old|old.max(value)));}
+        else{entry.1=Some(entry.1.map_or(value,|old|old.min(value)));}
     }
     bounds.into_iter().filter_map(|((field,group),(min,max))|{
         if min.zip(max).is_some_and(|(lo,hi)|lo>hi){Some(format!("constraint_bounds_inverted:{field}:{group}"))}else{None}
@@ -148,14 +154,14 @@ fn constraint_error(c:&KnowledgeConstraint,field:&KnowledgeFieldDefinition,polic
     }
     let err=match c.constraint_type.as_str(){
         "min_length"|"max_length" if field.value_type==KnowledgeValueType::String=>{
-            if integer_param(c).is_none(){Some("length_constraint_requires_nonnegative_integer".into())}else{None}
+            if integer_param(c).map_or(true,|v|v as usize>policy.maximum_collection_size){Some("length_constraint_invalid_or_exceeds_policy".into())}else{None}
         },
         "minimum"|"maximum" if matches!(field.value_type,KnowledgeValueType::Integer|KnowledgeValueType::Number)=>{
-            if number_param(c).is_none(){Some("numeric_constraint_requires_finite_number".into())}else{None}
+            if !numeric_bound_valid(c,field){Some("numeric_constraint_requires_type_compatible_finite_number".into())}else{None}
         },
         "enum" if field.value_type==KnowledgeValueType::String=>{
             let values=c.parameters.get("values").and_then(Value::as_array);
-            if values.map_or(true,|v|v.is_empty()||v.iter().any(|x|!x.is_string())||{
+            if values.map_or(true,|v|v.is_empty()||v.len()>policy.maximum_collection_size||v.iter().any(|x|!x.is_string())||{
                 let mut s=BTreeSet::new();v.iter().any(|x|!s.insert(x.as_str().unwrap_or_default()))
             }){Some("enum_requires_unique_nonempty_string_values".into())}else{None}
         },
@@ -175,9 +181,9 @@ fn constraint_error(c:&KnowledgeConstraint,field:&KnowledgeFieldDefinition,polic
         },
         "required_properties" if field.value_type==KnowledgeValueType::Object=>{
             let values=c.parameters.get("names").and_then(Value::as_array);
-            if values.map_or(true,|v|v.iter().any(|x|x.as_str().map_or(true,|s|s.trim().is_empty()))||{
+            if values.map_or(true,|v|v.is_empty()||v.len()>policy.maximum_collection_size||v.iter().any(|x|x.as_str().map_or(true,|s|!valid_slug(s)))||{
                 let mut s=BTreeSet::new();v.iter().any(|x|!s.insert(x.as_str().unwrap_or_default()))
-            }){Some("required_properties_must_be_unique_nonempty_names".into())}else{None}
+            }){Some("required_properties_must_be_unique_bounded_canonical_names".into())}else{None}
         },
         "format" if field.value_type==KnowledgeValueType::String=>{
             match c.parameters.get("format").and_then(Value::as_str){
@@ -209,14 +215,17 @@ pub fn evaluate_knowledge_schema(input:&KnowledgeSchemaInput,policy:&KnowledgeSc
     }
     let fields:BTreeMap<_,_>=input.fields.iter().map(|f|(f.field_id.as_str(),f)).collect();
     let mut constraint_ids=BTreeSet::new();
+    let mut field_constraint_kinds=BTreeSet::new();
     for c in &input.constraints{
         if !valid_slug(&c.constraint_id)||!constraint_ids.insert(c.constraint_id.as_str()){errors.push(format!("constraint_id_duplicate_or_empty:{}",c.constraint_id));continue;}
         let Some(field)=fields.get(c.field_id.as_str()) else{errors.push(format!("constraint_field_unresolved:{}",c.constraint_id));continue;};
+        if !field_constraint_kinds.insert((c.field_id.as_str(),c.constraint_type.as_str())){errors.push(format!("constraint_type_duplicate_for_field:{}:{}",c.field_id,c.constraint_type));}
         if let Some(e)=constraint_error(c,field,policy){errors.push(format!("{}:{}",c.constraint_id,e));}
     }
     errors.extend(cross_bound_errors(&input.constraints));
     for f in &input.fields{
         let kinds:BTreeSet<_>=input.constraints.iter().filter(|c|c.field_id==f.field_id).map(|c|c.constraint_type.as_str()).collect();
+        if f.value_type==KnowledgeValueType::String&&!kinds.contains("max_length"){errors.push(format!("string_field_requires_bounded_max_length:{}",f.field_id));}
         if f.value_type==KnowledgeValueType::Array&&(!kinds.contains("item_type")||!kinds.contains("max_items")){
             errors.push(format!("array_field_requires_item_type_and_max_items:{}",f.field_id));
         }
@@ -259,6 +268,7 @@ mod tests{
         ];
         let constraints=vec![
             constraint("title-min","title","min_length",BTreeMap::from([("value".into(),serde_json::json!(1))])),
+            constraint("title-max","title","max_length",BTreeMap::from([("value".into(),serde_json::json!(256))])),
             constraint("year-min","year","minimum",BTreeMap::from([("value".into(),serde_json::json!(1800))]))
         ];
         let input=KnowledgeSchemaInput{knowledge_type:"book".into(),fields,constraints,schema_version:"1.0.0".into(),
@@ -289,4 +299,34 @@ mod tests{
         let(mut bad,p)=fixture();bad.fields.push(KnowledgeFieldDefinition{field_id:"tags".into(),name:"tags".into(),value_type:KnowledgeValueType::Array,required:false,nullable:false,description:"Tags".into()});
         assert!(evaluate_knowledge_schema(&bad,&p).validation_errors.iter().any(|e|e.contains("array_field_requires_item_type_and_max_items")));
     }
+    #[test]fn rejects_type_incompatible_integer_decimal_bounds(){
+        let(mut i,p)=fixture();
+        i.constraints.push(constraint("year-max","year","maximum",BTreeMap::from([("value".into(),serde_json::json!(2025.5))])));
+        assert!(evaluate_knowledge_schema(&i,&p).validation_errors.iter().any(|e|e.contains("type_compatible_finite_number")));
+    }
+    #[test]fn rejects_unbounded_strings_and_excessive_enum_values(){
+        let(mut i,p)=fixture();i.constraints.retain(|c|c.constraint_id!="title-max");
+        assert!(evaluate_knowledge_schema(&i,&p).validation_errors.iter().any(|e|e.contains("string_field_requires_bounded_max_length")));
+        let mut i=fixture().0;
+        i.constraints.push(constraint("title-enum","title","enum",BTreeMap::from([("values".into(),serde_json::json!(["a","b","c","d","e"]))])));
+        let mut p=fixture().1;p.maximum_collection_size=4;
+        assert!(evaluate_knowledge_schema(&i,&p).validation_errors.iter().any(|e|e.contains("enum_requires_unique_nonempty_string_values")));
+    }
+    #[test]fn rejects_duplicate_constraint_kinds_and_inverted_bounds(){
+        let(mut i,p)=fixture();
+        i.constraints.push(constraint("title-min-2","title","min_length",BTreeMap::from([("value".into(),serde_json::json!(2))])));
+        assert!(evaluate_knowledge_schema(&i,&p).validation_errors.iter().any(|e|e.contains("constraint_type_duplicate_for_field")));
+        let(mut i,p)=fixture();
+        i.constraints.push(constraint("title-max-small","title","max_length",BTreeMap::from([("value".into(),serde_json::json!(0))])));
+        assert!(evaluate_knowledge_schema(&i,&p).validation_errors.iter().any(|e|e.contains("constraint_bounds_inverted")));
+    }
+    #[test]fn rejects_invalid_required_property_names(){
+        let(mut i,p)=fixture();
+        i.fields.push(KnowledgeFieldDefinition{field_id:"meta".into(),name:"meta".into(),value_type:KnowledgeValueType::Object,required:false,nullable:false,description:"Metadata".into()});
+        i.constraints.push(constraint("meta-closed","meta","closed_object",BTreeMap::from([("allow_unknown".into(),serde_json::json!(false))])));
+        i.constraints.push(constraint("meta-max","meta","max_properties",BTreeMap::from([("value".into(),serde_json::json!(4))])));
+        i.constraints.push(constraint("meta-required","meta","required_properties",BTreeMap::from([("names".into(),serde_json::json!(["valid_name","Invalid Name"]))])));
+        assert!(evaluate_knowledge_schema(&i,&p).validation_errors.iter().any(|e|e.contains("required_properties_must_be_unique_bounded_canonical_names")));
+    }
+
 }
