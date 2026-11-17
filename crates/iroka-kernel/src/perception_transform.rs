@@ -126,7 +126,10 @@ pub fn evaluate_perception_transform(
     if registration.modality != input.modality {
         return Err("transform_modality_mismatch".into());
     }
-    if !registration.allowed_output_types.contains(&input.output_type) {
+    if !registration
+        .allowed_output_types
+        .contains(&input.output_type)
+    {
         return Err("transform_output_type_not_approved".into());
     }
     if !valid_digest(&registration.transform_digest) {
@@ -226,7 +229,11 @@ mod tests {
                     modality: "image".into(),
                     allowed_output_types: ["image/webp".into()].into_iter().collect(),
                     transform_digest: "c".repeat(64),
-                    loss_annotations: if lossy { vec![annotation()] } else { Vec::new() },
+                    loss_annotations: if lossy {
+                        vec![annotation()]
+                    } else {
+                        Vec::new()
+                    },
                 },
             )]),
             maximum_loss_annotations: 8,
@@ -267,22 +274,41 @@ mod tests {
     fn rejects_unregistered_or_substituted_transform_metadata() {
         let mut value = input();
         value.transform_id = "unknown-transform".into();
-        assert_eq!(evaluate_perception_transform(&value, &policy(false)), Err("transform_not_registered".into()));
+        assert_eq!(
+            evaluate_perception_transform(&value, &policy(false)),
+            Err("transform_not_registered".into())
+        );
         let mut value = input();
         value.modality = "audio".into();
-        assert_eq!(evaluate_perception_transform(&value, &policy(false)), Err("transform_modality_mismatch".into()));
+        assert_eq!(
+            evaluate_perception_transform(&value, &policy(false)),
+            Err("transform_modality_mismatch".into())
+        );
         let mut value = input();
-        value.version_bound_evidence.insert("transform_digest".into(), json!("d".repeat(64)));
-        assert_eq!(evaluate_perception_transform(&value, &policy(false)), Err("transform_digest_evidence_mismatch".into()));
+        value
+            .version_bound_evidence
+            .insert("transform_digest".into(), json!("d".repeat(64)));
+        assert_eq!(
+            evaluate_perception_transform(&value, &policy(false)),
+            Err("transform_digest_evidence_mismatch".into())
+        );
     }
 
     #[test]
     fn rejects_missing_or_invalid_receipt_digests() {
         let mut value = input();
         value.version_bound_evidence.remove("output_digest");
-        assert_eq!(evaluate_perception_transform(&value, &policy(false)), Err("output_digest_missing".into()));
+        assert_eq!(
+            evaluate_perception_transform(&value, &policy(false)),
+            Err("output_digest_missing".into())
+        );
         let mut value = input();
-        value.version_bound_evidence.insert("output_digest".into(), json!("bad"));
-        assert_eq!(evaluate_perception_transform(&value, &policy(false)), Err("source_or_output_digest_invalid".into()));
+        value
+            .version_bound_evidence
+            .insert("output_digest".into(), json!("bad"));
+        assert_eq!(
+            evaluate_perception_transform(&value, &policy(false)),
+            Err("source_or_output_digest_invalid".into())
+        );
     }
 }
