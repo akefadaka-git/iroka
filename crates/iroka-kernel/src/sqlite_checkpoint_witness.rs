@@ -7,7 +7,8 @@ use crate::{
     CheckpointError, CheckpointSigner, CheckpointWitness, SignedCheckpoint, WitnessReceipt,
     WitnessReceiptPayload,
 };
-use ed25519_dalek::VerifyingKey;
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use sha2::{Digest, Sha256};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use std::{
     collections::BTreeMap,
@@ -35,15 +36,31 @@ impl SqliteCheckpointWitness {
         path: impl AsRef<Path>,
         witness_id: impl Into<String>,
         signer: Arc<dyn CheckpointSigner>,
+        witness_verifying_key: VerifyingKey,
         trusted_checkpoint_signers: BTreeMap<String, VerifyingKey>,
     ) -> Result<Self, CheckpointError> {
         let witness_id = witness_id.into();
         if witness_id.trim().is_empty()
             || signer.key_id().trim().is_empty()
             || trusted_checkpoint_signers.is_empty()
+            || trusted_checkpoint_signers.contains_key(signer.key_id())
+            || trusted_checkpoint_signers
+                .values()
+                .any(|key| key.as_bytes() == witness_verifying_key.as_bytes())
         {
             return Err(CheckpointError::Malformed);
         }
+        let mut challenge = b"IROKA:G11:WITNESS-KEY-CHECK:V1\\0".to_vec();
+        challenge.extend_from_slice(witness_id.as_bytes());
+        challenge.extend_from_slice(signer.key_id().as_bytes());
+        let signature = signer.sign(&challenge)?;
+        let signature =
+            Signature::from_slice(&signature).map_err(|_| CheckpointError::InvalidSignature)?;
+        witness_verifying_key
+            .verify(&challenge, &signature)
+            .map_err(|_| CheckpointError::InvalidSignature)?;
+        let witness_key_fingerprint = hex(&Sha256::digest(witness_verifying_key.as_bytes()));
+
         let path = path.as_ref();
         prepare_database_file(path)?;
         let mut connection =
@@ -60,7 +77,8 @@ impl SqliteCheckpointWitness {
                  CREATE TABLE IF NOT EXISTS g11_witness_identity (
                     singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
                     witness_id TEXT NOT NULL UNIQUE,
-                    witness_key_id TEXT NOT NULL UNIQUE
+                    witness_key_id TEXT NOT NULL UNIQUE,
+                    witness_key_fingerprint TEXT NOT NULL
                  );
                  CREATE TRIGGER IF NOT EXISTS g11_witness_identity_no_update
                  BEFORE UPDATE ON g11_witness_identity
@@ -93,18 +111,29 @@ impl SqliteCheckpointWitness {
         identity
             .execute(
                 "INSERT OR IGNORE INTO g11_witness_identity
-                 (singleton, witness_id, witness_key_id) VALUES (1, ?1, ?2)",
-                params![witness_id, signer.key_id()],
+                 (singleton, witness_id, witness_key_id, witness_key_fingerprint)
+                 VALUES (1, ?1, ?2, ?3)",
+                params![witness_id, signer.key_id(), witness_key_fingerprint],
             )
             .map_err(|_| CheckpointError::WitnessUnavailable)?;
         let stored_identity = identity
             .query_row(
-                "SELECT witness_id, witness_key_id FROM g11_witness_identity WHERE singleton = 1",
+                "SELECT witness_id, witness_key_id, witness_key_fingerprint
+                 FROM g11_witness_identity WHERE singleton = 1",
                 [],
-                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                },
             )
             .map_err(|_| CheckpointError::WitnessUnavailable)?;
-        if stored_identity.0 != witness_id || stored_identity.1 != signer.key_id() {
+        if stored_identity.0 != witness_id
+            || stored_identity.1 != signer.key_id()
+            || stored_identity.2 != witness_key_fingerprint
+        {
             return Err(CheckpointError::Malformed);
         }
         identity
@@ -364,13 +393,24 @@ mod tests {
         ))
     }
 
-    fn fixture() -> (Arc<TestSigner>, BTreeMap<String, VerifyingKey>) {
-        let signer = Arc::new(TestSigner {
+    fn fixture() -> (
+        Arc<TestSigner>,
+        Arc<TestSigner>,
+        BTreeMap<String, VerifyingKey>,
+    ) {
+        let checkpoint_signer = Arc::new(TestSigner {
             id: "checkpoint-root:test".into(),
             key: SigningKey::from_bytes(&[41; 32]),
         });
-        let roots = BTreeMap::from([(signer.id.clone(), signer.key.verifying_key())]);
-        (signer, roots)
+        let witness_signer = Arc::new(TestSigner {
+            id: "witness-key:test".into(),
+            key: SigningKey::from_bytes(&[92; 32]),
+        });
+        let roots = BTreeMap::from([(
+            checkpoint_signer.id.clone(),
+            checkpoint_signer.key.verifying_key(),
+        )]);
+        (checkpoint_signer, witness_signer, roots)
     }
 
     fn checkpoint(
@@ -394,11 +434,12 @@ mod tests {
     #[test]
     fn durable_witness_persists_receipt_across_reopen_and_exact_retry() {
         let path = path("reopen");
-        let (signer, roots) = fixture();
+        let (signer, witness_signer, roots) = fixture();
         let witness = SqliteCheckpointWitness::open(
             &path,
             "witness:operator-a",
-            signer.clone(),
+            witness_signer.clone(),
+            witness_signer.key.verifying_key(),
             roots.clone(),
         )
         .unwrap();
@@ -415,6 +456,16 @@ mod tests {
             .unwrap();
         assert_eq!(stored, first);
         assert_eq!(stored_receipt, receipt);
+        stored_receipt
+            .verify(
+                &stored,
+                &roots,
+                &BTreeMap::from([(
+                    witness_signer.id.clone(),
+                    witness_signer.key.verifying_key(),
+                )]),
+            )
+            .unwrap();
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
         let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
@@ -453,7 +504,8 @@ mod tests {
         let witness = SqliteCheckpointWitness::open(
             &path,
             "witness:operator-a",
-            signer.clone(),
+            witness_signer.clone(),
+            witness_signer.key.verifying_key(),
             roots.clone(),
         )
         .unwrap();
