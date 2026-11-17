@@ -12,6 +12,7 @@ on:
       - "docs/security/**"
       - "scripts/security/**"
       - ".github/workflows/rust-kernel.yml"
+      - ".github/workflows/genesis-gene-schemas.yml"
   pull_request:
     branches: [main, architecture/igacms-a2-ci-base, architecture/genesis-gene-contract-amendment-proposal]
     paths:
@@ -25,6 +26,7 @@ on:
       - "docs/security/**"
       - "scripts/security/**"
       - ".github/workflows/rust-kernel.yml"
+      - ".github/workflows/genesis-gene-schemas.yml"
   workflow_dispatch:
 
 permissions:
