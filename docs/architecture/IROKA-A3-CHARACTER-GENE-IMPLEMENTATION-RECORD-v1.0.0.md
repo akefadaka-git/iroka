@@ -142,6 +142,6 @@ Implemented additively:
 
 **Implementation commits:** `4a4ef69b053b135177f3270dc20f685d81363124`, `151bd8223589f3b652f1c8a336107ea204eff2e0`, `59e7dead6cf2e01928146375ed0269e9ec5b62a9`, `2d86a6a2a7c939427d1da4e2c77e4cb2ddfcf99a`, `a5745e2c91c961baf0e0ed314fd2d05a834cdb58`.
 
-**Verification:** Exact-head CI is enabled on the dedicated branch; run result is pending. Exact-head formatting, compile, no-default-features, tests, schema audit and Clippy are required before acceptance.  
+**Verification:** PASS at exact head `3115c7f1f0136e57f5fae7b6eca729063a2c7453`; PR workflow run #1893 (`44110723597`) passed formatting, locked workspace compilation, no-default-features compilation, 113 unit tests, 2 integration tests, static A3 schema/traceability audit and Clippy. Exact-head formatting, compile, no-default-features, tests, schema audit and Clippy are required before acceptance.  
 **Limitations:** The evaluator consumes an already verified signed trust snapshot and a live revocation checker; it does not provision production roots or claim a production key ceremony.  
 **Merge/deployment:** NOT AUTHORIZED.
