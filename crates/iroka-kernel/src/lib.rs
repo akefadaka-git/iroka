@@ -17,6 +17,7 @@ mod igacms;
 mod inference_rules;
 mod knowledge_schema;
 mod memory_classification;
+mod perception_transform;
 mod owner_approval;
 mod owner_governance;
 mod policy;
@@ -81,6 +82,11 @@ pub use knowledge_schema::{
 pub use memory_classification::{
     evaluate_memory_classification, MemoryClassificationEvidence, MemoryClassificationInput,
     MemoryClassificationOutput, MemoryClassificationPolicy, MemoryHandlingControl,
+};
+pub use perception_transform::{
+    evaluate_perception_transform, PerceptionLossAnnotation, PerceptionTransformEvidence,
+    PerceptionTransformInput, PerceptionTransformOutput, PerceptionTransformPolicy,
+    PerceptionTransformRegistration,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
