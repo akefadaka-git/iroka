@@ -1,0 +1,2821 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "document_id": "IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-001",
+  "version": "1.0.0",
+  "status": "A2_TEST_DESIGNS_SCHEMA_BOUND_NOT_EXECUTED",
+  "contract_ref": "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
+  "case_count": 72,
+  "genes_covered": 36,
+  "cases": [
+    {
+      "case_id": "CHAR-G01.IDENTITY-ROOT-P",
+      "gene_id": "g01.identity-root",
+      "polarity": "positive",
+      "scenario": "After the proposed g01.identity-root amendment is applied: a canonical active root has an authenticated issuer, a fingerprint matching the referenced public key, an algorithm permitted by the versioned algorithm policy, valid activation state and complete provenance/version-bound evidence.",
+      "expected": "Accept only when every identity, issuer, key, algorithm, activation, status and provenance check passes; return verified=true with trust_decision=trusted and reproducible decision evidence.",
+      "assertions": [
+        "root_id resolves to the canonical configured root without aliasing or substitution",
+        "issuer identity and trust chain are verified",
+        "key fingerprint is recomputed or matched against authenticated key material",
+        "algorithm is allowed by the identified policy version",
+        "activation and root status are valid at evaluated_epoch",
+        "verified=true is consistent with trust_decision=trusted",
+        "evidence is sufficient to reproduce the decision",
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G01-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid active root accepted; revoked root rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-SEM-01",
+        "G01-SEM-02",
+        "G01-SEM-03",
+        "G01-SEM-04"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.IDENTITY-ROOT-N",
+      "gene_id": "g01.identity-root",
+      "polarity": "negative",
+      "scenario": "After the proposed g01.identity-root amendment is applied: the issuer is unknown or revoked, the fingerprint does not match the referenced key, the algorithm is unsupported, the root is suspended/revoked, provenance is missing/conflicting, or the output attempts verified=true with trust_decision=untrusted/revoked.",
+      "expected": "Reject or fail closed; do not return a trusted result, do not accept contradictory verified/trust_decision combinations, and expose the precise failure and available evidence without fabricating proof.",
+      "assertions": [
+        "unknown, substituted or revoked issuer fails closed",
+        "fingerprint mismatch fails closed",
+        "unsupported algorithm fails closed",
+        "suspended/revoked root cannot be trusted",
+        "missing/conflicting provenance fails closed",
+        "contradictory verified/trust_decision output is rejected",
+        "no fabricated evidence or silent downgrade",
+        "failure reason and evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G01-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unknown issuer or revoked root",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.identity-root/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-SEM-01",
+        "G01-SEM-02",
+        "G01-SEM-03",
+        "G01-SEM-04"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.LINEAGE-P",
+      "gene_id": "g01.lineage",
+      "polarity": "positive",
+      "scenario": "For a single-parent lineage with a canonical subject and predecessor, authenticated retrievable succession proof, valid provenance/version evidence, acyclic graph and valid monotonic epoch ordering, evaluate whether the chain is complete and verifiable.",
+      "expected": "Accept only when each ancestry link and proof is independently verifiable; return lineage_valid=true with chain_digest and verified_depth derived from the exact verified graph and evidence.",
+      "assertions": [
+        "subject and predecessor resolve to canonical identities",
+        "proof_digest matches retrievable authenticated proof material",
+        "relationship semantics and parent cardinality are valid",
+        "graph traversal detects cycles and conflicting ancestry",
+        "epoch ordering is valid against authoritative version/time evidence",
+        "chain_digest and verified_depth are reproducible from the verified graph",
+        "provenance and version-bound evidence bind the exact lineage decision",
+        "no invented ancestors, signatures or provenance",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G01-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid acyclic chain accepted; cycle rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.lineage/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.lineage/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-LIN-SEM-01",
+        "G01-LIN-SEM-02",
+        "G01-LIN-SEM-03",
+        "G01-LIN-SEM-04",
+        "G01-LIN-SEM-05",
+        "G01-LIN-SEM-06"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.LINEAGE-N",
+      "gene_id": "g01.lineage",
+      "polarity": "negative",
+      "scenario": "A lineage input contains a missing/unresolvable predecessor, self-reference or cycle, conflicting parent history, unavailable or invalid succession proof, unsupported merged-parent representation, invalid epoch ordering, or provenance mismatch; alternatively, output claims lineage_valid=true with inconsistent chain_digest/depth.",
+      "expected": "Reject or fail closed; do not invent missing ancestry or proof, and do not emit a valid lineage result or unverifiable depth/digest. Record the precise failure and available evidence.",
+      "assertions": [
+        "unknown or substituted subject/predecessor fails closed",
+        "missing or invalid proof fails closed",
+        "self-reference, cycle or conflicting ancestry fails closed",
+        "merged relationship cannot bypass parent-cardinality requirements",
+        "invalid/stale epoch ordering fails closed",
+        "lineage_valid, chain_digest and verified_depth contradictions are rejected",
+        "no fabricated ancestors, signatures or provenance",
+        "failure reason and evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G01-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "cycle or missing succession proof",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.lineage/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.lineage/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-LIN-SEM-01",
+        "G01-LIN-SEM-02",
+        "G01-LIN-SEM-03",
+        "G01-LIN-SEM-04",
+        "G01-LIN-SEM-05",
+        "G01-LIN-SEM-06"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.COMPATIBILITY-P",
+      "gene_id": "g01.compatibility",
+      "polarity": "positive",
+      "scenario": "A source and target contract resolve to exact canonical versions under an authenticated immutable policy; the policy independently evaluates their semantics and determines whether they are compatible without migration, incompatible, or require a verified migration artifact.",
+      "expected": "Return compatible=true only with decision=compatible. For incompatible or migration_required, return compatibility=false, with policy, comparison and migration evidence sufficient to reproduce the decision.",
+      "assertions": [
+        "source and target versions resolve under the policy-declared version grammar and canonical registry",
+        "policy_id resolves to authenticated immutable policy with valid scope and version",
+        "declared_compatible is treated as an untrusted assertion and independently checked",
+        "migration_digest, when present, resolves to an authenticated artifact bound to exact source and target versions",
+        "null migration_digest is accepted only when policy evidence establishes no migration is required",
+        "compatibility boolean is consistent with decision enum",
+        "evidence reproduces policy resolution and semantic comparison",
+        "no implicit coercion or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G01-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "explicit compatible pair accepted; undeclared pair rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-COMP-SEM-01",
+        "G01-COMP-SEM-02",
+        "G01-COMP-SEM-03",
+        "G01-COMP-SEM-04",
+        "G01-COMP-SEM-05",
+        "G01-COMP-SEM-06"
+      ]
+    },
+    {
+      "case_id": "CHAR-G01.COMPATIBILITY-N",
+      "gene_id": "g01.compatibility",
+      "polarity": "negative",
+      "scenario": "The source or target version is unknown/ambiguous, the policy is unauthenticated or out of scope, declared_compatible conflicts with independent evaluation, a migration digest is missing/invalid/mismatched, null is used without proof that migration is unnecessary, or output compatibility contradicts decision.",
+      "expected": "Reject or fail closed; never silently coerce versions or trust caller declarations. Return no positive compatibility result without reproducible policy, comparison and migration evidence.",
+      "assertions": [
+        "unknown or ambiguous version fails closed",
+        "unknown, unauthenticated, expired or out-of-scope policy fails closed",
+        "caller declaration cannot override independent policy evaluation",
+        "missing, invalid or mismatched migration artifact fails closed",
+        "null migration digest requires evidence that migration is unnecessary",
+        "compatibility=true with incompatible/migration_required is rejected",
+        "no implicit compatibility coercion or fabricated evidence",
+        "failure reason and evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G01-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "implicit major-version compatibility",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g01.compatibility/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g01.compatibility/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G01-COMP-SEM-01",
+        "G01-COMP-SEM-02",
+        "G01-COMP-SEM-03",
+        "G01-COMP-SEM-04",
+        "G01-COMP-SEM-05",
+        "G01-COMP-SEM-06"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.AUTHORITY-SOURCE-P",
+      "gene_id": "g02.authority-source",
+      "polarity": "positive",
+      "scenario": "A principal resolves in the configured trusted registry, its registered source class is eligible, and mandate_ref resolves to an authenticated current mandate whose subject, issuer, delegation chain, scope and validity interval are verified. Evaluation uses a trusted clock and returns only the mandate's verified scope.",
+      "expected": "Return source_valid=true and decision=valid only when principal trust, source-class eligibility, mandate authenticity, scope, temporal validity and non-revocation are all established; report no scope beyond the mandate.",
+      "assertions": [
+        "authority_id resolves to canonical trusted principal with current key/status and non-revocation evidence",
+        "source_type matches registered principal class and governing policy eligibility",
+        "mandate_ref resolves to authenticated immutable mandate bound to authority_id",
+        "mandate issuer/signature, delegation chain, constraints and exact scope verify",
+        "valid_from and valid_until parse as canonical timezone-aware timestamps and interval ordering is valid",
+        "null valid_until is accepted only where policy permits unbounded mandates",
+        "evaluation time is trusted and recorded",
+        "source_valid=true iff decision=valid",
+        "reported scope does not exceed authenticated mandate scope",
+        "evidence reproduces all checks without granting or expanding authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G02-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid mandate accepted; expired mandate rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-AUTH-SRC-SEM-01",
+        "G02-AUTH-SRC-SEM-02",
+        "G02-AUTH-SRC-SEM-03",
+        "G02-AUTH-SRC-SEM-04",
+        "G02-AUTH-SRC-SEM-05",
+        "G02-AUTH-SRC-SEM-06",
+        "G02-AUTH-SRC-SEM-07"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.AUTHORITY-SOURCE-N",
+      "gene_id": "g02.authority-source",
+      "polarity": "negative",
+      "scenario": "The authority identifier is unknown, self-issued or revoked; source_type is spoofed or ineligible; mandate_ref is missing, forged, expired, revoked, out of scope or not bound to the principal; timestamps are malformed, ambiguous or inverted; null expiry is not policy-permitted; or output status/scope contradicts the verified mandate.",
+      "expected": "Reject or fail closed. Do not infer authority from identity, claimed source class or a bare mandate reference; do not report valid status or scope without complete verifiable evidence.",
+      "assertions": [
+        "unknown, self-issued or revoked principal fails closed",
+        "source class mismatch or policy-ineligible class fails closed",
+        "unverifiable, forged, revoked or principal-mismatched mandate fails closed",
+        "delegation chain and mandate scope are fully checked",
+        "malformed, timezone-ambiguous or inverted validity interval fails closed",
+        "null expiry without explicit policy permission fails closed",
+        "source_valid=true with invalid/expired decision is rejected",
+        "reported scope exceeding mandate scope is rejected",
+        "no fabricated trust, mandate or revocation evidence",
+        "failure reason and evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G02-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "expired or unrecognized authority source",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.authority-source/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.authority-source/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-AUTH-SRC-SEM-01",
+        "G02-AUTH-SRC-SEM-02",
+        "G02-AUTH-SRC-SEM-03",
+        "G02-AUTH-SRC-SEM-04",
+        "G02-AUTH-SRC-SEM-05",
+        "G02-AUTH-SRC-SEM-06",
+        "G02-AUTH-SRC-SEM-07"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.OWNER-GOVERNANCE-P",
+      "gene_id": "g02.owner-governance",
+      "polarity": "positive",
+      "scenario": "The submitted Owner approval resolves to the canonical Owner trust root; the signing key and algorithm are trusted and valid; the signature verifies over a canonical domain-separated payload binding decision_id, decision content, exact scope, issue/expiry times and contract version; the immutable decision register confirms it is current; trusted-time and scope checks pass.",
+      "expected": "Return approval_valid=true and decision=approved only after all identity, cryptographic, register, scope and temporal checks succeed. Report only the exact verified signed scope. Explicitly preserve non-overridable safeguards and do not execute the approved action.",
+      "assertions": [
+        "owner_id resolves to canonical Owner identity in configured trust root",
+        "signing key is trusted, active, unrevoked and valid at issuance and evaluation",
+        "signature algorithm is explicitly allowed and signature verifies over canonical approval digest",
+        "digest binds owner, decision id/content, exact scope, timestamps and contract version",
+        "decision_id resolves to unique current immutable decision-register entry",
+        "replayed, superseded or conflicting decisions are not accepted",
+        "scope is canonical, exact and has no wildcard or inferred expansion",
+        "timestamps are timezone-aware, correctly ordered and valid under trusted clock",
+        "approval_valid=true iff decision=approved",
+        "authorized_scope does not exceed exact signed scope",
+        "non-overridable safeguards remain effective and approval validation does not execute actions",
+        "evidence is sufficient to reproduce all verification checks",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G02-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid signed approval accepted; forged signature rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-OWNER-SEM-01",
+        "G02-OWNER-SEM-02",
+        "G02-OWNER-SEM-03",
+        "G02-OWNER-SEM-04",
+        "G02-OWNER-SEM-05",
+        "G02-OWNER-SEM-06",
+        "G02-OWNER-SEM-07",
+        "G02-OWNER-SEM-08"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.OWNER-GOVERNANCE-N",
+      "gene_id": "g02.owner-governance",
+      "polarity": "negative",
+      "scenario": "Owner identity is unknown or key revoked; signature or digest is forged/mismatched; algorithm is disallowed; decision_id is replayed, superseded or conflicting; scope is ambiguous or exceeds signed scope; timestamps are malformed, future-dated or expired; output status contradicts decision; or approval conflicts with a non-overridable safeguard.",
+      "expected": "Reject or fail closed, record the reason and evidence, expose safeguard conflicts, and never treat loyalty as blind obedience, expand authority, conceal a conflict or execute an action.",
+      "assertions": [
+        "unknown Owner identity or untrusted/revoked key fails closed",
+        "forged signature, digest mismatch or disallowed algorithm fails closed",
+        "decision register replay, supersession or conflict fails closed",
+        "ambiguous, wildcard-expanded or excessive scope fails closed",
+        "malformed, future-dated, inverted or expired timestamps fail closed",
+        "approval_valid=true with rejected/expired decision is rejected",
+        "authorized_scope cannot exceed signed scope",
+        "non-overridable safeguard conflict is reported and not bypassed",
+        "no fabricated cryptographic or provenance evidence",
+        "no action execution or authority expansion occurs",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G02-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unsigned or scope-mismatched Owner approval",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.owner-governance/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.owner-governance/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-OWNER-SEM-01",
+        "G02-OWNER-SEM-02",
+        "G02-OWNER-SEM-03",
+        "G02-OWNER-SEM-04",
+        "G02-OWNER-SEM-05",
+        "G02-OWNER-SEM-06",
+        "G02-OWNER-SEM-07",
+        "G02-OWNER-SEM-08"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.DECISION-REGISTER-P",
+      "gene_id": "g02.decision-register",
+      "polarity": "positive",
+      "scenario": "A new decision has a unique canonical ID, trusted decision authority for its exact scope and transition, and a recomputed digest over the complete immutable record. Its status transition is permitted; effective time is canonical and authorized; supersession, if any, points to a valid existing record with no cycle or competing active successor; the append-only register confirms durable commit.",
+      "expected": "Return recorded=true only after durable append-only commit, with exact canonical_digest and authoritative unique monotonic register_sequence. Preserve the complete immutable decision history, provenance, scope, rationale, expiry and outcome.",
+      "assertions": [
+        "decision_id is unique or exact-record idempotent; conflicting duplicate/replay is rejected",
+        "authority_id resolves to trusted principal authorized for decision type, scope and transition at effective time",
+        "decision_digest recomputes over canonical complete record and schema version",
+        "status transition is permitted and approval status has required authority",
+        "effective_at is canonical timezone-aware and not unauthorized backdating",
+        "supersedes target exists, belongs to same lineage and has authorized successor relation",
+        "supersession graph has no self-reference, cycle or competing active successor",
+        "recorded=true follows durable append-only commit only",
+        "canonical_digest equals exact committed record digest",
+        "register_sequence is authoritative, unique and monotonic",
+        "evidence preserves scope, rationale, expiry, outcome and full provenance/history",
+        "registration does not itself authorize or execute the decision",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G02-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "unique immutable decision recorded; conflicting duplicate rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.decision-register/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-DEC-SEM-01",
+        "G02-DEC-SEM-02",
+        "G02-DEC-SEM-03",
+        "G02-DEC-SEM-04",
+        "G02-DEC-SEM-05",
+        "G02-DEC-SEM-06",
+        "G02-DEC-SEM-07",
+        "G02-DEC-SEM-08"
+      ]
+    },
+    {
+      "case_id": "CHAR-G02.DECISION-REGISTER-N",
+      "gene_id": "g02.decision-register",
+      "polarity": "negative",
+      "scenario": "A decision ID conflicts with an existing record or is replayed; authority is unknown or insufficient; digest differs from canonical content; status transition is unauthorized; effective time is malformed or backdated; supersedes target is missing, self-referential, cyclic or conflicts with another active successor; or output claims recording without durable commit or with mismatched digest/sequence.",
+      "expected": "Reject or fail closed without rewriting history. Do not claim recorded or approved, fabricate a sequence/digest, erase prior decisions or execute the decision; return evidence identifying the conflict.",
+      "assertions": [
+        "conflicting duplicate ID or non-identical replay fails closed",
+        "untrusted or insufficient authority fails closed",
+        "digest mismatch or ambiguous canonicalization fails closed",
+        "unauthorized status transition fails closed",
+        "malformed, ambiguous or unauthorized backdated effective time fails closed",
+        "missing/self/cyclic/competing supersession relation fails closed",
+        "recorded=true without durable commit is rejected",
+        "canonical digest and sequence mismatch are rejected",
+        "proposed/rejected/unrecorded record is never represented as approved",
+        "no history rewrite, evidence fabrication or decision execution",
+        "failure reason and immutable conflict evidence are recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G02-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "duplicate ID with conflicting digest",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g02.decision-register/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g02.decision-register/output/1.0.0"
+      ],
+      "amendment_dependencies": [
+        "G02-DEC-SEM-01",
+        "G02-DEC-SEM-02",
+        "G02-DEC-SEM-03",
+        "G02-DEC-SEM-04",
+        "G02-DEC-SEM-05",
+        "G02-DEC-SEM-06",
+        "G02-DEC-SEM-07",
+        "G02-DEC-SEM-08"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.PREMISE-MODEL-P",
+      "gene_id": "g03.premise-model",
+      "polarity": "positive",
+      "scenario": "Given the exact approved input schema fields (premises with unique premise_id, statement, non-empty resolvable source_refs, confidence in [0,1], context; context_id; model_version; provenance; version_bound_evidence), valid source/provenance/version evidence and the baseline positive condition (well-formed sourced premises normalized; unsupported premise flagged), the gene must satisfy: label each premise with source, confidence, time and explicit epistemic status; preserve context and original identity; produce a reproducible canonical premise-set digest and a complete, non-overlapping disposition.",
+      "expected": "Return the existing gene-specific output contract with every input premise represented exactly once as normalized or unresolved; preserve source, context, time and epistemic status; bind the digest to the exact premise set, model version and context; expose truthful evidence without authority expansion.",
+      "assertions": [
+        "all input premise IDs accounted for exactly once",
+        "source references resolve and are preserved",
+        "epistemic status distinguishes fact, inference, assumption, hypothesis and unknown",
+        "context and temporal provenance preserved",
+        "confidence semantics are explicit and bounded",
+        "digest reproducibly binds canonical premise set, model version and context",
+        "normalized and unresolved sets are disjoint and complete",
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G03-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "well-formed sourced premises normalized; unsupported premise flagged",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.premise-model/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.premise-model/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.PREMISE-MODEL-N",
+      "gene_id": "g03.premise-model",
+      "polarity": "negative",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never promote assumptions to facts.), and the baseline negative condition (premise has empty or unverifiable source_refs, invalid confidence, unknown context/model version, missing temporal provenance, contradictory evidence, or cannot be assigned an explicit epistemic status), the gene must enforce: fail-closed or preserve the premise as explicitly unresolved; never silently normalize it as fact.",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose each affected premise ID, unresolved reason and evidence; reject arbitrary digest claims, omitted/duplicated premise IDs and overlap between normalized and unresolved collections; do not fabricate provenance or silently continue.",
+      "assertions": [
+        "failure semantics enforced",
+        "no assumption promoted to fact",
+        "source and provenance failures remain visible",
+        "no fabricated temporal or contextual evidence",
+        "all premise IDs accounted for or evaluation fails closed",
+        "normalized and unresolved sets cannot overlap",
+        "digest mismatch rejected",
+        "reason and evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G03-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "premise lacks source or invalid confidence",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.premise-model/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.premise-model/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.INFERENCE-RULES-P",
+      "gene_id": "g03.inference-rules",
+      "polarity": "positive",
+      "scenario": "Given the exact approved input schema fields (non-empty unique rules with rule_id, rule_version, antecedent_premise_ids, conclusion_template and rule_expression; unique premise_ids; query; rule_version; provenance; version_bound_evidence), valid resolvable premises and registered deterministic rule versions, the baseline positive condition (valid rule chain produces trace; unknown rule rejected) must satisfy: apply only explicit, versioned, non-executable rules and expose complete derivations and unsupported steps.",
+      "expected": "Return conclusions only when each is supported by a complete ordered derivation trace linking exact premise IDs, rule IDs and rule versions; applied_rule_ids must exactly match rules used. Report unsupported or ambiguous steps separately, with reproducible evidence and no authority expansion.",
+      "assertions": [
+        "all premise references resolve to exact premise-model version",
+        "rule versions resolve and are mutually compatible",
+        "rule expressions parse under deterministic non-executable grammar",
+        "derivation trace links every conclusion to premises and rules",
+        "applied_rule_ids exactly equals rules used",
+        "unsupported steps remain separate and explicit",
+        "confidence follows declared versioned policy",
+        "inference evidence is reproducible",
+        "no selective rule application or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G03-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid rule chain produces trace; unknown rule rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.inference-rules/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.INFERENCE-RULES-N",
+      "gene_id": "g03.inference-rules",
+      "polarity": "negative",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never fabricate deductions or selectively apply rules to favor a party.), and baseline negative conditions including empty antecedents without registered axiom status, missing premise references, unknown/mixed rule versions, invalid or executable rule expression, conflicting rules, unsupported inference step or inconsistent derivation trace, the gene must fail closed or report the exact step as unsupported.",
+      "expected": "Return a fail-closed/reject/unknown result as appropriate under the existing output contract; expose exact failing step, premise and rule references; never fabricate a conclusion, silently omit a conflict, accept a mismatched rule version or claim a rule was applied when it was not.",
+      "assertions": [
+        "failure semantics enforced",
+        "missing premises and unknown rule versions rejected",
+        "empty antecedents require registered axiom status",
+        "invalid or executable rule expressions rejected",
+        "conflicting or ambiguous steps exposed",
+        "no unsupported conclusion emitted",
+        "applied_rule_ids cannot misstate execution trace",
+        "confidence is not fabricated",
+        "reason and reproducibility evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G03-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "rule references missing premise or unknown rule version",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.inference-rules/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.UNCERTAINTY-CALCULUS-P",
+      "gene_id": "g03.uncertainty-calculus",
+      "polarity": "positive",
+      "scenario": "Given the exact approved input schema fields (non-empty hypotheses with unique IDs and bounded priors; evidence_items; calibration_id; method enum; provenance; version_bound_evidence), verifiable evidence and a method-compatible versioned calibration profile, the baseline positive condition (bounded weights calculated; invalid weights rejected) must satisfy: propagate uncertainty, account for supporting/refuting/neutral evidence, and expose calibrated estimates, method-specific bounds and limitations.",
+      "expected": "Return an estimate or explicit insufficient/unresolved disposition for every input hypothesis; bounds must be finite, within [0,1] and ordered around the estimate; calibration status and method must be truthful and bound to exact versions; evidence contributions and uncertainty must remain visible.",
+      "assertions": [
+        "every input hypothesis accounted for exactly once",
+        "evidence source and provenance resolve",
+        "method and calibration profile are version-bound and compatible",
+        "prior and weight semantics follow declared method",
+        "refuting and neutral evidence accounted for",
+        "all estimates and bounds finite and within [0,1]",
+        "lower_bound <= estimate <= upper_bound",
+        "output method matches selected input method",
+        "insufficient calibration never presented as valid",
+        "no uncertainty suppression or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G03-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "bounded weights calculated; invalid weights rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G03.UNCERTAINTY-CALCULUS-N",
+      "gene_id": "g03.uncertainty-calculus",
+      "polarity": "negative",
+      "scenario": "Given the exact approved input schema fields with a character invariant violation (Never suppress uncertainty to appear decisive.), and baseline negative conditions including missing evidence without explicit insufficient status, uncalibrated or mismatched calibration ID, invalid/non-finite/out-of-range weights, method mismatch, contradictory evidence or invalid bounds, the gene must fail closed or explicitly return insufficient/invalid status.",
+      "expected": "Return a fail-closed/reject/unknown or explicit insufficient/invalid result as appropriate; expose affected hypotheses, evidence and calibration failures; never fabricate calibrated estimates, suppress uncertainty or emit invalid bounds.",
+      "assertions": [
+        "failure semantics enforced",
+        "missing evidence explicitly insufficient",
+        "unknown or mismatched calibration rejected",
+        "invalid or non-finite values rejected",
+        "method mismatch rejected",
+        "contradictory and dependent evidence exposed",
+        "bounds ordered and finite",
+        "all hypotheses accounted for or explicitly unresolved",
+        "no fabricated confidence or suppressed uncertainty",
+        "reason and evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G03-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "non-finite or out-of-range weights",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.KNOWLEDGE-SCHEMA-P",
+      "gene_id": "g04.knowledge-schema",
+      "polarity": "positive",
+      "scenario": "Given a registered knowledge type and schema version, non-empty uniquely identified field definitions, deterministic typed non-executable constraints, structured provenance including source rights/context/validity/epistemic status/derivation lineage, and version-bound evidence, the baseline positive condition (valid schema normalized deterministically; invalid constraints rejected) must preserve the complete source semantics.",
+      "expected": "Return a registry-bound schema_id, canonical reproducible schema_digest and strictly normalized schema that preserves every field, constraint, source context, rights, validity interval, epistemic status and derivation lineage; validation evidence must account for every input element.",
+      "assertions": [
+        "knowledge type and schema version resolve in authoritative registries",
+        "field IDs and names are unique and stable",
+        "nested field types and required/nullable semantics preserved",
+        "every constraint reference resolves",
+        "constraint grammar is deterministic and non-executable",
+        "empty constraints explicitly declared intentional",
+        "provenance and rights/context/validity/epistemic status preserved",
+        "original and derived content distinguished",
+        "normalized schema semantically equivalent to input",
+        "schema digest canonical and reproducible",
+        "all fields and constraints have validation evidence",
+        "no unsupported semantics silently discarded",
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G04-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "unique typed fields accepted; duplicate fields rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.knowledge-schema/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.knowledge-schema/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.KNOWLEDGE-SCHEMA-N",
+      "gene_id": "g04.knowledge-schema",
+      "polarity": "negative",
+      "scenario": "Given the exact approved input schema with a character invariant violation (Never erase source context or misrepresent derived content as original.), or malformed knowledge type/version, duplicate fields, unresolved constraint references, executable/unknown constraint expressions, contradictory constraints, missing rights/provenance, digest mismatch or unsupported normalization semantics, the gene must fail closed.",
+      "expected": "Return invalid/reject/fail-closed status with specific findings and evidence; preserve source content and provenance; do not silently discard unsupported fields, misstate rights, relabel derived content as original or emit a valid digest for altered semantics.",
+      "assertions": [
+        "unknown type or version rejected",
+        "duplicate field identity rejected",
+        "unresolved constraint references rejected",
+        "unknown or executable constraint grammar rejected",
+        "contradictory constraints reported",
+        "missing or unverifiable provenance/rights rejected or unresolved",
+        "source context and derivation lineage retained",
+        "normalization loss detected",
+        "digest mismatch detected",
+        "unsupported semantics cannot yield valid status",
+        "reason and evidence recorded",
+        "no silent downgrade or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G04-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "duplicate field names or unsupported type",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.knowledge-schema/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.knowledge-schema/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.PROVENANCE-CHAIN-P",
+      "gene_id": "g04.provenance-chain",
+      "polarity": "positive",
+      "scenario": "Given a registered artifact digest, authorized genesis or verified prior chain tip, ordered unique events with canonical timestamps, authenticated actors, resolvable source references, canonical event digests and complete version-bound provenance, the baseline positive condition (continuous chain verifies; broken link rejected) must preserve immutable source-to-event-to-artifact lineage.",
+      "expected": "Return a reproducible chain digest, exact input event count, verified=true and empty broken_links only after independently validating artifact bytes, all event digests, actor identities, chronology, source references and every predecessor link; evidence must bind the exact verification inputs.",
+      "assertions": [
+        "artifact digest algorithm and canonical bytes verified",
+        "event IDs unique and sequence strictly ordered/contiguous",
+        "timestamps canonical and chronology consistent",
+        "every actor resolves to authenticated identity and event-time key status",
+        "event type and source reference resolve",
+        "event digest recomputes from canonical event content and prior digest",
+        "genesis or prior chain tip validated and fork/rollback checks pass",
+        "event_count equals exact input event count",
+        "verified true only when broken_links is empty",
+        "chain digest reproducible and version-bound",
+        "source-to-event-to-artifact provenance preserved",
+        "no event rewriting or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G04-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "continuous chain verifies; broken link rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.provenance-chain/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.provenance-chain/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.PROVENANCE-CHAIN-N",
+      "gene_id": "g04.provenance-chain",
+      "polarity": "negative",
+      "scenario": "Given the exact approved input schema with a character invariant violation (Never fabricate, sever or silently rewrite provenance.), including altered artifact/event digest, broken predecessor link, duplicate or reordered sequence, unauthenticated actor, invalid timestamp, unresolved source, unauthorized genesis, fork/rollback or incomplete version evidence, the gene must fail closed.",
+      "expected": "Return verified=false with accurately enumerated broken_links and evidence, or reject/fail closed when verification inputs are untrustworthy; never repair or rewrite the chain, invent actor identity or suppress a broken link.",
+      "assertions": [
+        "artifact or event digest mismatch rejected",
+        "broken predecessor link reported with expected and observed digest",
+        "duplicate/reordered/non-contiguous event sequence rejected",
+        "unauthenticated or revoked actor rejected",
+        "invalid chronology or timestamp rejected",
+        "unresolved or integrity-failing source rejected",
+        "unauthorized null genesis rejected",
+        "fork/rollback/substitution detected",
+        "event_count reconciled without omissions",
+        "verified cannot be true with broken links",
+        "no provenance rewrite or fabricated evidence",
+        "reason and evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G04-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "broken digest link or missing event actor",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.provenance-chain/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.provenance-chain/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.CONFLICT-MODEL-P",
+      "gene_id": "g04.conflict-model",
+      "polarity": "positive",
+      "scenario": "Given uniquely identified claims with calibrated confidence and complete source references, digest-verified sources with explicit trust states, a validated relation graph, an authorized versioned conflict policy and structured version-bound provenance, the baseline positive condition (contradictions surfaced; silent overwrite rejected) must retain every material competing account.",
+      "expected": "Return complete conflict records with resolvable claim/source references and evidence; mark a conflict resolved only under an authorized policy rule with sufficient evidence; otherwise preserve unresolved or insufficient_evidence status and expose the exact policy trace.",
+      "assertions": [
+        "claim IDs unique and claim scope/time preserved",
+        "confidence semantics and calibration evidence available",
+        "source references resolve and source digests verify",
+        "unknown trust explicitly represented",
+        "relation endpoints resolve and graph semantics validated",
+        "contradictory and material relations retained",
+        "policy ID resolves to authorized immutable version",
+        "all material conflicts represented without silent claim loss",
+        "resolved status requires sufficient evidence and policy rule",
+        "per-conflict and top-level states are consistent",
+        "exclusions and groupings disclosed",
+        "no false consensus or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G04-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "contradictions surfaced; silent overwrite rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.conflict-model/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.conflict-model/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G04.CONFLICT-MODEL-N",
+      "gene_id": "g04.conflict-model",
+      "polarity": "negative",
+      "scenario": "Given the exact approved input schema with a character invariant violation (Never conceal conflicts or force false consensus.), including corrupted/untrusted source, missing source reference, contradictory relation graph, unknown/out-of-scope policy, unsupported confidence, or an attempt to silently overwrite a conflicting claim, the gene must fail closed or preserve the conflict as unresolved/insufficient_evidence.",
+      "expected": "Return explicit unresolved/insufficient_evidence or invalid status with all material competing claims and sources retained; reject unauthorized policy application, expose inconsistent relations and evidence failures, and never manufacture consensus by dropping claims.",
+      "assertions": [
+        "missing or corrupted source evidence rejected",
+        "unknown trust never treated as trusted",
+        "unresolved relation endpoint rejected",
+        "contradictory or unsupported relation semantics surfaced",
+        "unknown or unauthorized policy rejected",
+        "confidence cannot be treated as authority",
+        "silent claim overwrite detected and rejected",
+        "all material conflicts remain visible",
+        "resolved state without sufficient evidence rejected",
+        "top-level and per-conflict state contradictions rejected",
+        "exclusions and grouping disclosed",
+        "reason and evidence recorded",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G04-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "conflicting claims silently overwritten",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g04.conflict-model/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g04.conflict-model/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.MEMORY-CLASSIFICATION-P",
+      "gene_id": "g05.memory-classification",
+      "polarity": "positive",
+      "scenario": "Given a memory record whose immutable content digest is independently verified, whose labels and data_class resolve to the active versioned taxonomy, whose purpose and lawful-basis/consent evidence and owner/subject roles are verified, and whose source/context evidence is complete, the gene must classify conservatively and emit every applicable registered handling control without granting disclosure authority.",
+      "expected": "Return a registered classification no less restrictive than any applicable input or policy obligation, a complete enforceable handling-control set, and reproducible evidence bound to the exact content, identities, purpose/basis, taxonomy and policy versions.",
+      "assertions": [
+        "content digest independently verified",
+        "all labels and data class resolve to active taxonomy",
+        "purpose and lawful-basis/consent evidence verified",
+        "owner and relevant subject/controller roles authenticated",
+        "classification applies conservative precedence",
+        "complete registered controls emitted",
+        "evidence binds exact inputs and versions",
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G05-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "recognized class maps to controls; unknown class quarantined",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.memory-classification/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.memory-classification/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.MEMORY-CLASSIFICATION-N",
+      "gene_id": "g05.memory-classification",
+      "polarity": "negative",
+      "scenario": "Given an unknown or retired label/data class, a content-digest mismatch, unresolved owner/subject role, absent/withdrawn or incompatible lawful-basis/consent evidence, missing material context, or conflicting policy/control evidence, the gene must fail closed and apply the most protective handling without inferring permission.",
+      "expected": "Return an unresolved/rejected/unknown result under the existing output contract, do not emit a less restrictive classification, expose the missing/conflicting evidence and required protective controls, and never authorize disclosure or retention.",
+      "assertions": [
+        "unknown or conflicting evidence fails closed",
+        "no inferred consent or lawful basis",
+        "no identity or content substitution",
+        "no classification downgrade",
+        "protective controls applied",
+        "reason and evidence recorded",
+        "no fabricated evidence",
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G05-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unknown classification label",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.memory-classification/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.memory-classification/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.RETENTION-CONTROL-P",
+      "gene_id": "g05.retention-control",
+      "polarity": "positive",
+      "scenario": "Given an exact canonical memory record, an authenticated signed/versioned retention policy, a trusted creation/trigger timestamp, and independently verified authoritative hold status, the gene must calculate the deterministic deadline and return retain, hold or eligibility in accordance with all policy duties.",
+      "expected": "Return the exact memory identity, policy-bound deadline and digest, correct disposition under verified hold/exception/deadline state, and reproducible evidence; eligibility must not authorize or execute deletion.",
+      "assertions": [
+        "memory identity resolves canonically",
+        "policy signature/version/scope/effectivity verified",
+        "creation time is canonical and trusted",
+        "authoritative legal-hold status independently checked",
+        "deadline calculation is deterministic",
+        "disposition/deadline/hold invariants hold",
+        "evidence reproduces policy and calculation",
+        "no deletion authorization or execution",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G05-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid policy computes deadline; active hold prevents expiry",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.retention-control/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.retention-control/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.RETENTION-CONTROL-N",
+      "gene_id": "g05.retention-control",
+      "polarity": "negative",
+      "scenario": "Given an unknown/revoked policy, untrusted or malformed creation time, active or unresolved legal hold, missing hold registry, conflicting exception, or a deadline/disposition contradiction, the gene must fail closed and preserve data under the most protective applicable state.",
+      "expected": "Return hold or a fail-closed unresolved result under the existing output contract, never mark data eligible for deletion while a hold or uncertainty remains, and never authorize or execute deletion.",
+      "assertions": [
+        "unknown or revoked policy fails closed",
+        "untrusted timestamp rejected",
+        "active/unresolved hold prevents deletion eligibility",
+        "missing or conflicting hold evidence is not treated as no hold",
+        "deadline/disposition contradictions rejected",
+        "no inferred deletion permission",
+        "reason and evidence recorded",
+        "no destructive action executed",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G05-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "deletion despite active legal hold",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.retention-control/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.retention-control/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.INTEGRITY-CHECKPOINT-P",
+      "gene_id": "g05.integrity-checkpoint",
+      "polarity": "positive",
+      "scenario": "Given canonical snapshot material matching snapshot_digest, a registered digest policy, a valid genesis or authenticated prior checkpoint, a strictly valid sequence transition, authenticated in-scope authority, and provenance/version evidence bound to the exact checkpoint, the gene must detect unauthorized alteration and preserve verifiable continuity.",
+      "expected": "Return accepted=true only when the snapshot and checkpoint digests recompute correctly, the predecessor and sequence transition verify, and authority/evidence are valid; return the existing output contract with a reproducible trace and no authority expansion.",
+      "assertions": [
+        "snapshot digest independently recomputed from canonical material",
+        "genesis/prior checkpoint and sequence continuity verified",
+        "authority and version-bound evidence resolve and match exact checkpoint",
+        "accepted=true implies continuity_verified=true and every required check passes",
+        "no authority or execution capability expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G05-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "monotonic checkpoint accepted; rollback rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G05.INTEGRITY-CHECKPOINT-N",
+      "gene_id": "g05.integrity-checkpoint",
+      "polarity": "negative",
+      "scenario": "Given any digest mismatch or unavailable snapshot material, negative/duplicate/regressed sequence, unresolved or invalid predecessor, unauthorized/revoked authority, stale/conflicting evidence, or contradictory accepted/continuity_verified result, the gene must fail closed and never silently repair or rewrite evidence.",
+      "expected": "Reject or report unresolved/unknown under the existing output contract; accepted must be false, evidence must identify the failed or unresolved checks, and no checkpoint history may be silently changed.",
+      "assertions": [
+        "digest and checkpoint-record mismatches fail closed",
+        "rollback, duplicate sequence and invalid genesis/predecessor fail closed",
+        "untrusted or revoked authority cannot be accepted",
+        "accepted=true with continuity_verified=false is prohibited",
+        "complete reason and verification trace recorded; no silent repair",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G05-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "sequence rollback or digest mismatch",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.INPUT-ENVELOPE-P",
+      "gene_id": "g06.input-envelope",
+      "polarity": "positive",
+      "scenario": "Given an authenticated source, canonical envelope identity, supported normalized media type, retrievable immutable payload bytes whose recomputed digest and measured byte length match the declared values, valid trusted capture time and complete provenance/version evidence, the envelope is accepted strictly as untrusted data.",
+      "expected": "Return accepted=true and integrity_verified=true only after all source, payload, media, time and evidence checks pass; preserve the payload's untrusted status and relevant consent/purpose claims without granting authority.",
+      "assertions": [
+        "source and envelope identities independently resolve",
+        "media type is normalized under the active versioned registry",
+        "digest and byte length match exact retrieved immutable payload bytes",
+        "capture timestamp and provenance verify",
+        "accepted=true implies integrity_verified=true and rejection_reason=null",
+        "payload remains untrusted and cannot override governance",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G06-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "matching envelope accepted as untrusted input; tampered envelope rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.input-envelope/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.input-envelope/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.INPUT-ENVELOPE-N",
+      "gene_id": "g06.input-envelope",
+      "polarity": "negative",
+      "scenario": "Given an unknown or substituted source, malformed/unsupported media type, missing or mutable payload reference, digest/length mismatch, invalid capture time, incomplete/conflicting provenance, contradictory output flags, or payload text attempting to override higher-priority governance, the envelope must fail closed.",
+      "expected": "Return accepted=false with integrity_verified=false and an actionable rejection_reason, or an explicit unresolved result under the existing output contract; preserve evidence and never treat payload content as authority or instruction.",
+      "assertions": [
+        "source substitution and unresolved references fail closed",
+        "unsupported or ambiguous media types fail closed",
+        "digest, length and capture-time mismatches fail closed",
+        "missing/conflicting provenance or version evidence blocks acceptance",
+        "accepted=true with integrity_verified=false is prohibited",
+        "payload instructions cannot override governance or create authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G06-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "digest/length mismatch or unsupported media type",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.input-envelope/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.input-envelope/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G06.SOURCE-TRUST-P",
+      "gene_id": "g06.source-trust",
+      "polarity": "positive",
+      "scenario": "Given a canonical authenticated source, a valid credential chain bound to that source, a valid signature under the declared profile, an applicable signed/versioned policy and a fresh authenticated revocation snapshot showing no revocation, the gene must verify every binding and preserve reproducible version-bound evidence.",
+      "expected": "Return trust_level=trusted and signature_valid=true only when all independent checks pass; bind policy_digest and evidence to the exact authenticated artifacts and evaluator versions. No authority or execution permission is created.",
+      "assertions": [
+        "source identity resolves to one authenticated canonical principal",
+        "credential issuer, subject, scope, validity and key use are verified",
+        "signature is valid over the canonical context-bound message",
+        "policy artifact and digest are authenticated and applicable",
+        "revocation snapshot is authenticated, fresh and not rolled back",
+        "evidence and version bindings reproduce the trust decision",
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G06-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid credential assessed; revoked source never trusted",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.source-trust/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G06.SOURCE-TRUST-N",
+      "gene_id": "g06.source-trust",
+      "polarity": "negative",
+      "scenario": "Given a revoked, stale, unknown, substituted or unverifiable source/credential/policy/revocation input, or a malformed/invalid signature, the gene must not report trusted even when references are syntactically present or the source is popular/confident.",
+      "expected": "Return revoked, unknown or untrusted as justified by verified evidence; never emit trusted for invalid, stale or unverifiable inputs. Fail closed, expose the precise reason and preserve the verification evidence without fabricating trust.",
+      "assertions": [
+        "invalid or unresolved identity/credential fails closed",
+        "invalid signature never yields trusted",
+        "stale, rolled-back or unverifiable revocation state never yields trusted",
+        "policy authenticity and scope are enforced",
+        "trust_level and signature_valid are semantically consistent",
+        "no fabricated or silently downgraded evidence",
+        "no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G06-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "revoked credential or stale revocation state",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.source-trust/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.source-trust/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-P",
+      "gene_id": "g06.perception-transform",
+      "polarity": "positive",
+      "scenario": "Given an authenticated immutable source envelope, a signed and immutable transform implementation/version, supported canonical modality/output type, verified dependencies/runtime and reproducible execution evidence, the gene produces output whose digest is recomputed and whose relationship to the original is traceable; all losses and uncertainty are disclosed.",
+      "expected": "Return success only for a complete, supported transformation with verified source/output digests and no undisclosed loss; otherwise return degraded with complete loss/uncertainty annotations or reject. Preserve the original and distinguish transformed, normalized and inferred content.",
+      "assertions": [
+        "source envelope resolves and exact original bytes/digest are verified",
+        "transform artifact/version and execution profile authenticate",
+        "modality and output type are canonical and compatible",
+        "output digest recomputes over immutable output bytes",
+        "all lossy or uncertain segments are annotated and traceable",
+        "status matches output completeness and loss annotations",
+        "original remains unchanged and retrievable",
+        "evidence binds exact source, transform and execution versions",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G06-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "declared transform yields traceable output; mismatched version rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G06.PERCEPTION-TRANSFORM-N",
+      "gene_id": "g06.perception-transform",
+      "polarity": "negative",
+      "scenario": "Given a substituted or unverifiable source envelope, unknown or mutable transform/version, incompatible modality/output type, digest mismatch, missing or incomplete loss annotation, or a result that claims success despite material loss/uncertainty, the gene must reject or report degraded and must never claim exact source fidelity.",
+      "expected": "Fail closed or return degraded with explicit segment-level loss/uncertainty evidence as appropriate; never silently omit losses, fabricate source fidelity or overwrite the original.",
+      "assertions": [
+        "unknown or altered source/transform fails closed",
+        "incompatible modality/output type is rejected",
+        "digest mismatch is rejected",
+        "loss annotation completeness is checked rather than trusting array presence",
+        "success cannot coexist with undisclosed material loss",
+        "degraded status carries explicit loss and uncertainty evidence",
+        "original source is retained unchanged",
+        "no fabricated fidelity or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G06-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "transform version mismatch or undeclared output type",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g06.perception-transform/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G07.AGENT-PRINCIPAL-P",
+      "gene_id": "g07.agent-principal",
+      "polarity": "positive",
+      "scenario": "Given an agent identity resolving to one canonical authenticated registry record, a valid credential chain bound to that agent, and a fresh attested runtime instance matching the credential and declared principal class, the gene verifies all bindings and produces reproducible identity evidence without inferring permissions.",
+      "expected": "Return principal_valid=true and identity_status=valid only when canonical identity, credential, revocation and runtime attestation all verify and match; bind principal_digest to canonical principal evidence. Identity validation grants no authority or human status.",
+      "assertions": [
+        "agent_id resolves to one canonical authenticated principal",
+        "credential issuer, subject, key use, scope, validity and revocation are verified",
+        "runtime attestation matches agent and credential and is fresh",
+        "principal_class matches authoritative class registry and policy",
+        "principal_digest binds canonical principal and verification evidence",
+        "identity validity creates no authority or human status",
+        "evidence and versions reproduce the decision",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G07-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "bound principal accepted; revoked identity rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.agent-principal/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G07.AGENT-PRINCIPAL-N",
+      "gene_id": "g07.agent-principal",
+      "polarity": "negative",
+      "scenario": "Given an unknown, ambiguous, substituted or revoked agent identity; credential mismatch/revocation; untrusted, stale or replayed runtime instance; conflicting principal class; or incomplete identity evidence, the gene must not validate the principal or infer authority/human status.",
+      "expected": "Fail closed with identity_status invalid or revoked as supported by evidence and principal_valid=false; expose the reason and exact evidence. Never impersonate another agent or claim human status.",
+      "assertions": [
+        "unknown or substituted agent identity fails closed",
+        "invalid or revoked credential cannot validate principal",
+        "runtime mismatch, stale attestation or replay fails closed",
+        "principal-class mismatch is rejected",
+        "principal_valid cannot contradict identity_status",
+        "no authority, authorization or human status inferred",
+        "no fabricated or incomplete evidence",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G07-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "revoked or unbound agent identity",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.agent-principal/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.agent-principal/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G07.CAPABILITY-PROFILE-P",
+      "gene_id": "g07.capability-profile",
+      "polarity": "positive",
+      "scenario": "Given an authenticated canonical agent principal and session, registered versioned requested capabilities, typed resource limits within platform ceilings, and a verified effective policy artifact, evaluate least-privilege outcomes and account for every request without creating execution authority.",
+      "expected": "Return only independently policy-authorized capabilities as granted; classify every other requested capability as denied; enforce exact disjoint and complete set accounting and bounded limits. authority_granted remains false absent a separate authenticated authorization decision.",
+      "assertions": [
+        "agent principal and session authenticated",
+        "all capability identifiers resolve to canonical registry entries",
+        "resource limits have typed units and remain within hard ceilings",
+        "policy artifact authenticity, scope, version and validity verified",
+        "granted and denied sets are disjoint and exactly cover the request",
+        "no unrequested capability is granted",
+        "capability profile does not itself authorize execution",
+        "evidence binds exact request and policy/evaluator versions",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G07-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "only policy-allowed capabilities listed; escalation denied",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G07.CAPABILITY-PROFILE-N",
+      "gene_id": "g07.capability-profile",
+      "polarity": "negative",
+      "scenario": "Given an unknown principal or capability, missing/revoked/stale policy, resource limit ambiguity or escalation, contradictory grant/deny sets, omitted request entries, or an attempt to infer permission from capability membership, the gene must fail closed.",
+      "expected": "Do not issue unsupported grants; deny or mark unresolved every unverified request, enforce validated ceilings, keep authority_granted=false and expose reproducible evidence for the failure.",
+      "assertions": [
+        "unknown principal or capability fails closed",
+        "missing, stale or revoked policy fails closed",
+        "resource-limit ambiguity or escalation rejected",
+        "granted and denied sets contain no unrequested items and never overlap",
+        "all requested items are accounted for",
+        "authority_granted cannot be inferred from capability membership",
+        "no permission or execution authorization fabricated",
+        "evidence and version bindings explain the result",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G07-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "capability exceeds policy or attempts privilege escalation",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.capability-profile/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G07.DELEGATION-BOUNDARY-P",
+      "gene_id": "g07.delegation-boundary",
+      "polarity": "positive",
+      "scenario": "Given authenticated canonical delegator and delegate principals, a cryptographically valid non-replayed proof, a versioned capability registry and policy, and a requested capability set strictly within the delegator's live authority, evaluate a bounded, time-limited, acyclic delegation chain.",
+      "expected": "Accept only the authenticated strict subset, with expiry no later than the delegator or any ancestor; preserve chain accountability and permit no onward delegation beyond explicit parent policy. Acceptance does not itself execute actions.",
+      "assertions": [
+        "both principals resolve to authenticated active identities",
+        "proof binds exact principals, scope, expiry, audience and nonce",
+        "capability set is a strict subset of live delegator authority",
+        "expiry is canonical and bounded by all ancestors",
+        "delegation chain is complete, acyclic and depth-bounded",
+        "revocation and policy state are current",
+        "output acceptance matches effective capabilities",
+        "chain digest binds immutable complete chain",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G07-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "strict subset accepted; scope escalation rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.delegation-boundary/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.delegation-boundary/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G07.DELEGATION-BOUNDARY-N",
+      "gene_id": "g07.delegation-boundary",
+      "polarity": "negative",
+      "scenario": "Given unknown/revoked principals, invalid/replayed proof, capability escalation, expiry beyond parent, expired/revoked ancestor, cyclic or excessive-depth chain, or missing/stale evidence, the delegation must fail closed.",
+      "expected": "Return accepted=false with empty effective_capabilities when proof, principal, scope, chain or validity cannot be verified; record reproducible reasons and never permit privilege escalation or unbounded onward delegation.",
+      "assertions": [
+        "unknown or revoked principal rejected",
+        "invalid or replayed proof rejected",
+        "scope escalation rejected",
+        "expiry beyond parent or current authority rejected",
+        "cyclic or excessive-depth chain rejected",
+        "revocation propagates to descendants",
+        "accepted=false implies no effective capabilities",
+        "no fabricated proof or evidence",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G07-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "delegate scope exceeds delegator or expired delegation",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g07.delegation-boundary/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g07.delegation-boundary/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G08.WORKFLOW-GRAPH-P",
+      "gene_id": "g08.workflow-graph",
+      "polarity": "positive",
+      "scenario": "Given an immutable registered workflow revision with uniquely identified nodes and authenticated operation/configuration references, valid dependency edges, and complete provenance, validate the directed graph deterministically, preserve mandatory prerequisites and produce a complete topological order.",
+      "expected": "Return validation_status=valid only for an acyclic graph with all endpoints resolved; topological_order contains every node exactly once and every source precedes its target. Record checkpoints, safe stops and recovery paths; do not grant execution authority.",
+      "assertions": [
+        "workflow identity and graph revision resolve canonically",
+        "node IDs unique and operations/configurations authenticated",
+        "edge IDs unique and endpoints resolve to nodes",
+        "self-edges and cycles rejected",
+        "dependency types resolve to defined semantics",
+        "topological order covers every node exactly once",
+        "each dependency source precedes its target",
+        "graph digest binds canonical immutable graph content",
+        "graph validity does not authorize execution",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G08-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "acyclic graph ordered; cycle rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G08.WORKFLOW-GRAPH-N",
+      "gene_id": "g08.workflow-graph",
+      "polarity": "negative",
+      "scenario": "Given a cyclic graph, dangling or self-referencing edge, duplicate node/edge identity, unknown operation or dependency type, invalid configuration digest, missing prerequisite, or inconsistent validation evidence, graph validation must fail closed.",
+      "expected": "Return cycle or invalid_reference as supported by the evidence; do not emit a purported valid execution order, skip required dependencies or imply execution permission. Preserve diagnostic evidence and unresolved findings.",
+      "assertions": [
+        "cycle causes non-valid status",
+        "dangling and self edges rejected",
+        "duplicate identifiers rejected",
+        "unknown operations and dependency kinds rejected",
+        "configuration digest mismatch rejected",
+        "invalid graph has no valid topological order",
+        "mandatory dependencies cannot be skipped",
+        "evidence identifies exact graph revision and validator",
+        "no execution authority inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G08-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "cycle or dangling edge",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.workflow-graph/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.workflow-graph/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G08.SCHEDULER-POLICY-P",
+      "gene_id": "g08.scheduler-policy",
+      "polarity": "positive",
+      "scenario": "Given an authenticated immutable scheduler policy and registered task classes, fully typed priority/quota/deadline constraints, trusted clock/resource evidence and valid fairness rules, normalize the policy deterministically without changing protected-work status or silently reprioritizing tasks.",
+      "expected": "Return feasibility=feasible only when all hard constraints are satisfied; produce a deterministic semantics-preserving normalized_policy, unique class-bound violations (if any), auditable fairness/protected-work evidence and no execution authority.",
+      "assertions": [
+        "policy issuer and immutable revision verified",
+        "task-class IDs unique and registry-bound",
+        "priority/quota/deadline keys resolve to known classes",
+        "priority ordering and tie-break rules deterministic",
+        "quota units/windows and resource ceilings enforced",
+        "deadlines timezone-qualified and evaluated against trusted clock",
+        "normalization preserves policy semantics and protected work",
+        "feasibility agrees with constraints and violations",
+        "fairness and starvation protections are evidenced",
+        "no execution authority inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G08-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid constraints normalized; impossible schedule reported",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.scheduler-policy/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G08.SCHEDULER-POLICY-N",
+      "gene_id": "g08.scheduler-policy",
+      "polarity": "negative",
+      "scenario": "Given duplicate or unknown task classes, malformed or conflicting priority/quota/deadline maps, negative quota, impossible deadline, hidden priority rewrite, protected-work starvation, untrusted policy revision or insufficient resource/clock evidence, reject or report infeasibility/indeterminacy without silent normalization.",
+      "expected": "Return infeasible or indeterminate as evidence requires; identify every violation with unique IDs and valid class references; never silently change priorities, sacrifice protected work or imply permission to execute.",
+      "assertions": [
+        "duplicate and unknown class IDs rejected",
+        "unknown/conflicting policy map keys rejected",
+        "negative or out-of-bound quotas rejected",
+        "impossible/expired deadlines reported",
+        "untrusted policy or stale revision rejected",
+        "normalization cannot hide a priority change",
+        "protected work cannot be silently starved",
+        "violations uniquely identified and class-bound",
+        "insufficient evidence yields indeterminate",
+        "no execution authority inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G08-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "negative quota or impossible deadline silently accepted",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.scheduler-policy/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.scheduler-policy/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G08.COORDINATION-STATE-P",
+      "gene_id": "g08.coordination-state",
+      "polarity": "positive",
+      "scenario": "Given an authenticated workflow run with unique active participants, valid registered states, authoritative monotonic lease epochs, immutable run-bound checkpoints and trusted time/provenance evidence, reconcile a deterministic canonical state while preserving each owner's state and all dissenting/conflicting observations.",
+      "expected": "Return canonical_state and reproducible state_digest bound to the run revision; classify stale participants using explicit lease/checkpoint freshness rules; report every unresolved conflict with unique ID and known participant references; reject stale writes and duplicate effects without granting execution authority.",
+      "assertions": [
+        "run identity resolves to immutable workflow revision",
+        "participants authenticated and membership/ownership verified",
+        "participant IDs unique and states follow registered transition graph",
+        "lease map exactly corresponds to participants",
+        "lease epochs monotonic and stale writers fenced atomically",
+        "checkpoint references immutable and bound to run/participant/epoch",
+        "timestamps evaluated with trusted clock and explicit freshness policy",
+        "canonical state preserves ownership and dissent",
+        "state digest reproducible from canonical state and evidence",
+        "conflict IDs unique and participant references valid",
+        "no authority or execution permission inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G08-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "newer epoch wins; stale writer rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G08.COORDINATION-STATE-N",
+      "gene_id": "g08.coordination-state",
+      "polarity": "negative",
+      "scenario": "Given an unauthenticated or duplicate participant, stale/non-monotonic lease epoch, stale writer, invalid state transition, missing or mutable checkpoint, untrusted timestamp, conflicting ownership, duplicate effect or attempted silent conflict overwrite, reconciliation must fail closed and preserve the conflicting evidence.",
+      "expected": "Reject stale or invalid updates; expose unresolved conflicts and stale participants using the declared policy; never erase ownership, hide dissent, accept duplicate effects or fabricate canonical state/digest.",
+      "assertions": [
+        "unknown/duplicate participants rejected",
+        "stale lease epoch cannot overwrite newer state",
+        "lease-map mismatch rejected",
+        "invalid state transition rejected",
+        "missing/mutable/misbound checkpoint rejected",
+        "untrusted or stale time evidence yields indeterminate/fail-closed",
+        "ownership conflicts remain visible",
+        "duplicate effects rejected",
+        "no silent conflict overwrite or dissent erasure",
+        "digest not asserted when canonical state is indeterminate",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G08-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "stale lease epoch overwrites newer state",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g08.coordination-state/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g08.coordination-state/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G09.EFFECT-CONTRACT-P",
+      "gene_id": "g09.effect-contract",
+      "polarity": "positive",
+      "scenario": "Given canonical registered effect identity/type, authenticated target, canonical non-empty resource scope, policy-verified risk class, recomputable operation digest and authenticated provenance/version evidence, assess affected parties, proportionality, reversibility and resource impact; accept only a fully evidenced admissible contract without granting authority or execution permission.",
+      "expected": "Return the existing output contract with contract_valid=true and decision=admissible only when all identity, scope, digest, risk, impact and evidence checks pass; required_authorization lists registry-defined requirements without granting or satisfying them.",
+      "assertions": [
+        "all input identifiers resolve to canonical versioned registries",
+        "target ownership and resource boundaries are verified",
+        "risk class and operation digest are independently verified",
+        "impact dimensions are evidenced and proportionate",
+        "contract_valid=true implies decision=admissible",
+        "required authorization does not grant authority or execution",
+        "effect digest and evidence bind the exact evaluated inputs",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G09-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "declared effect contract evaluated; undeclared effect rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.effect-contract/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.effect-contract/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.EFFECT-CONTRACT-N",
+      "gene_id": "g09.effect-contract",
+      "polarity": "negative",
+      "scenario": "Given an unknown or substituted effect/target, non-canonical or expanded resource scope, risk downgrade, unverifiable operation digest, missing/stale provenance, materially unknown impact, deceptive or disproportionate effect, or contradictory output status, the gene must enforce fail-closed inadmissibility.",
+      "expected": "Return contract_valid=false and decision=inadmissible under the existing output contract; expose the specific violation, unresolved impact and evidence; do not fabricate evidence, grant authorization or permit execution.",
+      "assertions": [
+        "unknown identities and untrusted targets rejected",
+        "non-canonical, duplicate or expanded resource scope rejected",
+        "risk downgrade and digest mismatch rejected",
+        "missing, stale or conflicting evidence fails closed",
+        "materially unknown or harmful impact is inadmissible",
+        "contract_valid and decision cannot contradict",
+        "no authority or execution permission is inferred",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G09-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "undeclared or prohibited effect",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.effect-contract/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.effect-contract/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.ADMISSION-GATE-P",
+      "gene_id": "g09.admission-gate",
+      "polarity": "positive",
+      "scenario": "Given a canonical admissible effect contract and a current signed authorization whose issuer, subject, audience, tenant, exact effect and resource scope are verified; trusted policy snapshot and clock evidence resolve; signature and revocation checks pass; and a fresh nonce is atomically consumed once, admit the request without executing the effect.",
+      "expected": "Return the existing output contract with admitted=true, denial_code=null, a verified authorization_digest and consumed_nonce equal to the successfully consumed nonce; provide reproducible evidence and no authority or execution expansion.",
+      "assertions": [
+        "effect contract identity and immutable digest match",
+        "authorization issuer, subject, audience, tenant and exact scope verified",
+        "signature and signing-key trust/revocation verified",
+        "policy digest resolves to current immutable policy",
+        "validity interval checked using trusted clock",
+        "nonce atomically consumed exactly once",
+        "admitted and denial_code are consistent",
+        "admission does not execute the effect",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G09-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "valid scoped authorization admits; invalid/replayed authorization denied",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.admission-gate/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.admission-gate/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.ADMISSION-GATE-N",
+      "gene_id": "g09.admission-gate",
+      "polarity": "negative",
+      "scenario": "Given a missing, unknown, substituted, out-of-scope, unsigned or invalidly signed authorization; revoked signer/key or authorization; stale policy; expired/not-yet-valid authorization; replayed/concurrently reused nonce; unavailable revocation/clock evidence; or contradictory admission output, the gene must fail closed.",
+      "expected": "Return admitted=false with a stable denial_code, truthful consumed_nonce semantics and evidence identifying the failed or unresolved check; do not fabricate verification, silently admit or execute the effect.",
+      "assertions": [
+        "unknown or mismatched effect/authorization rejected",
+        "signature and signer/key trust failures rejected",
+        "revoked or suspended authorization denied",
+        "stale policy and invalid time interval denied",
+        "nonce replay and concurrent duplicate consumption denied",
+        "missing or conflicting evidence fails closed",
+        "admitted/denial_code/consumed_nonce consistency enforced",
+        "no execution or authority is inferred from admission",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G09-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "missing, invalid, expired or replayed authorization",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.admission-gate/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.admission-gate/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G09.EXECUTION-RECEIPT-P",
+      "gene_id": "g09.execution-receipt",
+      "polarity": "positive",
+      "scenario": "Given a canonical, unexpired and consumed admission bound to the authenticated executor and exact effect, a recomputable digest of observed result artifacts, trusted ordered execution timestamps, and verifiable provenance/version evidence, the receipt records the actual outcome without conferring authority.",
+      "expected": "Return a uniquely identified, canonically digested receipt bound to the exact admission and executor; integrity_verified is true only after all receipt, result, time and evidence checks pass.",
+      "assertions": [
+        "admission resolves to exact immutable admitted effect and is not orphaned, expired, revoked or replayed",
+        "executor identity and runtime attestation match admission scope",
+        "result_digest and receipt_digest recompute over canonical material",
+        "timestamps are timezone-aware, trusted and chronologically consistent",
+        "outcome is derived from observed result evidence",
+        "integrity_verified is consistent with all verified bindings",
+        "receipt does not grant or retroactively validate authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G09-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "receipt binds to admission; orphan receipt rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G09.EXECUTION-RECEIPT-N",
+      "gene_id": "g09.execution-receipt",
+      "polarity": "negative",
+      "scenario": "Given an orphan, expired or replayed admission; mismatched/unattested executor; forged result or receipt digest; malformed or reversed timestamps; outcome inconsistent with observed results; or unverifiable provenance, the receipt must fail closed and must not claim success or authority.",
+      "expected": "Reject or mark integrity unverified with explicit reason/evidence; never fabricate result evidence, accept an orphan receipt, or treat receipt existence as permission.",
+      "assertions": [
+        "orphan, revoked, expired or replayed admission rejected",
+        "executor mismatch or missing attestation rejected",
+        "digest mismatch rejected",
+        "malformed, untrusted or reversed timestamps rejected",
+        "outcome/result contradiction rejected",
+        "integrity_verified cannot be true when any required check fails",
+        "receipt existence never grants or retroactively validates authorization",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G09-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "receipt without admission or mismatched executor",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g09.execution-receipt/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g09.execution-receipt/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G10.LEARNING-INPUT-P",
+      "gene_id": "g10.learning-input",
+      "polarity": "positive",
+      "scenario": "Given observations with independently verified canonical content digests, authenticated source and rights records, trusted timestamps, recognized data classifications and current item-level purpose authorization, produce an evidence-backed eligibility partition without granting downstream training permission.",
+      "expected": "Return a batch whose eligible and excluded sets exactly and disjointly partition all input observation IDs; every decision is policy-backed, reproducible and limited to screening eligibility.",
+      "assertions": [
+        "each observation content digest recomputes and source reference resolves",
+        "source rights and provenance are verified",
+        "timestamps are trusted, normalized and within freshness policy",
+        "classification resolves and is compatible at item and batch level",
+        "each eligible item has current purpose-specific authorization and no withdrawal/revocation",
+        "eligible/excluded IDs are unique, disjoint and complete",
+        "eligibility digest recomputes over canonical decisions and versioned evidence",
+        "eligibility does not authorize training, retention or model mutation",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G10-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "eligible data isolated; prohibited input excluded",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G10.LEARNING-INPUT-N",
+      "gene_id": "g10.learning-input",
+      "polarity": "negative",
+      "scenario": "Given duplicate or unknown observation IDs, untrusted or mismatched source references, digest mismatch, stale/future timestamps, unknown/conflicting data classes, null/expired/revoked/withdrawn or purpose-mismatched authorization, or an incomplete/overlapping output partition, the gene must exclude affected data or fail closed.",
+      "expected": "Return explicit exclusions or fail-closed status with policy and provenance evidence; never promote untrusted or unauthorized data to eligible ground truth or imply permission for downstream learning.",
+      "assertions": [
+        "duplicate or unresolvable observation IDs rejected",
+        "source reference outside authenticated declared source set rejected",
+        "content digest mismatch rejected",
+        "stale, future or untrusted timestamp rejected",
+        "unknown or conflicting classification rejected",
+        "null, revoked, expired, withdrawn or purpose-mismatched authorization cannot be eligible",
+        "eligible/excluded sets cannot overlap, omit or invent IDs",
+        "digest mismatch or missing policy evidence fails closed",
+        "eligibility cannot grant downstream training/model-update permission",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G10-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "untrusted, unauthorized or prohibited data class",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.learning-input/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G10.CHANGE-PROPOSAL-P",
+      "gene_id": "g10.change-proposal",
+      "polarity": "positive",
+      "scenario": "Given an authenticated eligible proposer, an active canonical target, exact immutable base and proposed revisions, a recomputable canonical diff digest, unique registry-resolved expected effects, structured risk/benefit/rollback rationale and verifiable provenance, record a declarative proposal for independent evaluation.",
+      "expected": "Return a uniquely identified immutable proposal whose digest binds all proposal content; derive change class, required evaluations and approval requirement from versioned policy without granting approval or execution.",
+      "assertions": [
+        "target resolves and proposer is eligible for submission only",
+        "base and proposed versions satisfy canonical succession policy",
+        "diff digest recomputes over exact immutable diff artifact",
+        "expected effect IDs are unique and effect descriptors resolve",
+        "rationale covers benefit, risks, affected invariants, alternatives and rollback",
+        "change class and evaluation requirements derive from policy",
+        "approval_required is policy-derived and cannot be suppressed by proposer",
+        "proposal digest binds canonical proposal and has no approval or execution effect",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G10-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "proposal recorded for evaluation; invariant breach blocked",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G10.CHANGE-PROPOSAL-N",
+      "gene_id": "g10.change-proposal",
+      "polarity": "negative",
+      "scenario": "Given an unknown or unauthorized target/proposer, stale or invalid version transition, forged diff digest, duplicate or unresolved effects, unknown risk class, incomplete provenance, policy conflict or an attempt to self-approve/execute, the proposal must fail closed or remain explicitly unapproved and non-executable.",
+      "expected": "Reject or record an explicit unresolved proposal with evidence; never infer approval, waive mandatory evaluations, merge, deploy or execute.",
+      "assertions": [
+        "unknown target or ineligible proposer rejected",
+        "stale base or invalid proposed version rejected",
+        "diff digest mismatch rejected",
+        "duplicate or unresolved expected effects rejected",
+        "unknown risk/change class fails closed",
+        "mandatory evaluation set cannot be omitted or proposer-controlled",
+        "approval cannot be self-issued or inferred from proposal acceptance",
+        "proposal recording cannot execute, merge or deploy",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G10-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "proposal changes invariant or bypasses approval",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.change-proposal/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G10.EVALUATION-RECORD-P",
+      "gene_id": "g10.evaluation-record",
+      "polarity": "positive",
+      "scenario": "Given an authenticated evaluator independent of the proposal author, a canonical active proposal, a recomputable suite and environment digest, registry-defined comparable baseline/candidate metrics, verifiable provenance and version_bound_evidence on the complete input, record a reproducible evaluation with unique test results, policy-derived decision, complete regressions and recomputable output evidence digest.",
+      "expected": "Return the existing output contract with unique complete results and regressions, policy-derived pass/fail/inconclusive decision, evidence and version_bound_evidence; no approval, authorization or execution authority is created.",
+      "assertions": [
+        "all eight required input fields including version_bound_evidence validated",
+        "proposal, suite and environment references resolve to exact immutable versions",
+        "suite and environment digests recompute over canonical artifacts",
+        "baseline and candidate metrics resolve to comparable registry definitions, units, cohorts and windows",
+        "evaluator identity, qualification and independence verified",
+        "test IDs and regression IDs unique; regression deltas recompute correctly",
+        "decision follows versioned policy and all result statuses",
+        "evidence digest binds complete canonical output and source evidence",
+        "evaluation has no approval, authorization, merge, deployment or execution effect",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G10-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "complete evaluation recorded; missing evidence is inconclusive",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G10.EVALUATION-RECORD-N",
+      "gene_id": "g10.evaluation-record",
+      "polarity": "negative",
+      "scenario": "Given a stale or unresolved proposal, forged suite/environment/evidence digest, missing version_bound_evidence, unknown or incomparable metrics, unauthenticated or conflicted evaluator, duplicate test/regression IDs, inconsistent regression delta, hidden failed/skipped/error result, or incomplete/conflicting evidence, the evaluation must fail closed or return inconclusive.",
+      "expected": "Reject or return explicit inconclusive/fail with traceable evidence; never fabricate a pass, suppress failures, waive required evidence or grant approval/execution authority.",
+      "assertions": [
+        "missing input or output version_bound_evidence rejected",
+        "stale proposal or unresolved source reference rejected",
+        "suite, environment or evidence digest mismatch rejected",
+        "unknown metric or incomparable units/cohorts/windows cannot pass",
+        "unauthenticated, unqualified or conflicted evaluator rejected",
+        "duplicate test or regression IDs rejected",
+        "incorrect regression delta rejected",
+        "skipped, error, failed or inconclusive outcomes cannot be silently aggregated as pass",
+        "missing/conflicting evidence yields fail-closed or inconclusive",
+        "evaluation cannot approve, authorize, merge, deploy or execute",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G10-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "missing baseline or evaluator provenance",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G11.VALIDATOR-P",
+      "gene_id": "g11.validator",
+      "polarity": "positive",
+      "scenario": "Given an authenticated immutable artifact revision, complete version-pinned applicable contract set, signed validator release, canonical effective policy snapshot, verifiable provenance and version_bound_evidence, independently validate the artifact and emit unique contract-resolved findings with a recomputable validation digest.",
+      "expected": "Return the existing output contract with valid derived from all findings under the pinned policy, complete evidence and version_bound_evidence; validation does not approve or authorize execution.",
+      "assertions": [
+        "all six required input fields including version_bound_evidence validated",
+        "artifact reference resolves to exact immutable revision and content",
+        "all contract IDs resolve uniquely to applicable version-pinned contracts",
+        "validator release is signed, compatible and not revoked",
+        "policy digest recomputes and policy is effective for this scope",
+        "provenance and version-bound evidence bind exact validation context",
+        "finding IDs unique and contract references resolve to input set",
+        "severity/code/disposition use controlled policy registries",
+        "valid is consistent with all findings and blocking policy",
+        "validated digest recomputes over canonical inputs and result",
+        "validation grants no approval, authorization or execution authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G11-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "known contracts checked; unknown contract fails closed",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.validator/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G11.VALIDATOR-N",
+      "gene_id": "g11.validator",
+      "polarity": "negative",
+      "scenario": "Given an unknown or mutable artifact, missing or stale contract version, duplicate/unresolved contract ID, untrusted or revoked validator, forged/expired policy, missing version_bound_evidence, unverifiable provenance, duplicate finding IDs, unresolved contract references, unknown severity/disposition, blocking finding with valid=true or forged validated digest, validation must fail closed.",
+      "expected": "Reject or return valid=false with explicit findings and evidence; never waive failures, infer validity from delivery pressure, fabricate evidence or grant approval/execution authority.",
+      "assertions": [
+        "unknown/stale artifact rejected",
+        "missing, duplicate, unresolved or inapplicable contract rejected",
+        "untrusted, incompatible or revoked validator rejected",
+        "unknown, forged, expired or revoked policy fails closed",
+        "missing or unverifiable version_bound_evidence rejected",
+        "provenance mismatch or stale evidence rejected",
+        "duplicate finding IDs or out-of-set contract references rejected",
+        "unknown severity/code/disposition cannot be treated as non-blocking",
+        "blocking, unresolved or unclassified findings prohibit valid=true",
+        "validated digest mismatch rejected",
+        "validation cannot approve, authorize, merge, deploy or execute",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G11-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unknown contract or validator version",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.validator/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G11.ATTESTATION-P",
+      "gene_id": "g11.attestation",
+      "polarity": "positive",
+      "scenario": "Given a canonical immutable subject whose digest recomputes, a matching valid immutable validation record, authenticated qualified attester, trusted unrevoked key owned by that attester, fresh purpose/audience-bound one-time challenge, valid signature over the canonical versioned payload, provenance and version_bound_evidence, issue and verify a bounded attestation.",
+      "expected": "Return the existing output contract with verification_status=valid only after every cryptographic, identity, key, challenge, validation and evidence check succeeds; attestation grants no approval or execution authority.",
+      "assertions": [
+        "all seven required input fields including version_bound_evidence validated",
+        "subject digest recomputes over exact immutable subject bytes",
+        "validation reference resolves and binds same subject revision",
+        "attester authenticated, qualified and permitted for the claim",
+        "key is trusted, owned by attester, allowed, current and not revoked",
+        "challenge is unpredictable, audience/purpose bound, unexpired and consumed once",
+        "signature verifies over canonical domain-separated payload",
+        "issued_at is trusted normalized time within bounded skew",
+        "provenance and version-bound evidence bind all signed fields and key state",
+        "verification_status valid only when every check succeeds",
+        "attestation grants no approval, authorization or execution authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G11-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "fresh valid signature accepted; replay/revocation rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.attestation/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G11.ATTESTATION-N",
+      "gene_id": "g11.attestation",
+      "polarity": "negative",
+      "scenario": "Given a malformed or mismatched subject digest, stale/invalid validation, unauthenticated attester, key ownership mismatch, unsupported algorithm, unknown/rotated/revoked key, expired/replayed/cross-context challenge, altered signature, untrusted timestamp, missing provenance or version_bound_evidence, verification must fail closed.",
+      "expected": "Return verification_status=invalid with evidence-backed failure reasons; never attest to unobserved claims or treat missing/unknown evidence as valid.",
+      "assertions": [
+        "digest mismatch or unsupported algorithm rejected",
+        "validation reference missing, stale, invalid or subject-mismatched rejected",
+        "unauthenticated, unqualified or unauthorized attester rejected",
+        "unknown, wrong-owner, weak, expired or revoked key rejected",
+        "expired, replayed or wrong-audience/purpose challenge rejected",
+        "signature tampering or canonicalization mismatch rejected",
+        "untrusted or out-of-skew timestamp rejected",
+        "missing, stale, conflicting or unverifiable provenance rejected",
+        "missing or mismatched version_bound_evidence rejected",
+        "unknown or incomplete verification state cannot yield valid",
+        "attestation cannot approve, authorize, merge, deploy or execute",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G11-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "signature mismatch, replayed challenge or revoked key",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.attestation/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G11.CONFORMANCE-REPORT-P",
+      "gene_id": "g11.conformance-report",
+      "polarity": "positive",
+      "scenario": "Given a trusted immutable suite identity/version, a complete non-empty set of unique test IDs all marked passed, a verified full immutable tested commit, recomputable canonical environment digest, authentic provenance and version_bound_evidence, produce a report whose counts reconcile exactly and whose canonical report digest verifies.",
+      "expected": "Return overall_status=pass only when every required test is present, uniquely identified, executed and passed, all evidence verifies, and counts reconcile; report remains evidence only.",
+      "assertions": [
+        "all seven required input fields including version_bound_evidence validated",
+        "suite identity and exact immutable version resolve to trusted registry",
+        "test IDs unique and each result counted once",
+        "all required tests executed and passed",
+        "passed_count equals result population; failed_count and blocked_count are zero",
+        "tested_commit is full immutable commit with verified provenance",
+        "environment digest recomputes from canonical environment manifest",
+        "report digest recomputes over canonical report payload",
+        "provenance and version-bound evidence bind suite, commit, environment and results",
+        "overall_status pass only for complete all-passed evidence",
+        "report grants no approval, authorization, merge, deployment or execution authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G11-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "complete exact-head report accepted; missing result blocks pass",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.conformance-report/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G11.CONFORMANCE-REPORT-N",
+      "gene_id": "g11.conformance-report",
+      "polarity": "negative",
+      "scenario": "Given duplicate test IDs, empty or incomplete result set, failed/skipped/error/inconclusive status, count mismatch, mutable or unverified tested commit, environment digest tampering, report digest mismatch, untrusted provenance or missing version_bound_evidence, the report must not be classified as passing.",
+      "expected": "Return fail for demonstrated test failures or blocked for incomplete/unverifiable evidence under deterministic precedence; counts must reconcile and evidence-backed findings must expose each discrepancy.",
+      "assertions": [
+        "duplicate test IDs rejected before aggregation",
+        "missing required test result prevents pass",
+        "failed test produces fail and is never counted as passed",
+        "skipped, error and inconclusive results contribute to blocked state",
+        "counts reconcile exactly with unique result set; mismatch rejected",
+        "tested commit must be full immutable and verified",
+        "environment digest mismatch rejected",
+        "report digest mismatch rejected",
+        "missing, stale or unverifiable provenance rejected",
+        "missing or mismatched version_bound_evidence rejected",
+        "designed/not-run results never presented as executed pass",
+        "report cannot authorize, merge, deploy or execute",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G11-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "missing test result or SHA mismatch",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g11.conformance-report/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G12.MUTATION-POLICY-P",
+      "gene_id": "g12.mutation-policy",
+      "polarity": "positive",
+      "scenario": "Given a registered target gene and immutable base/proposed versions, evidence-classified risk, complete authoritative protected-invariant set, explicit authenticated Owner approval when required bound to the exact mutation, complete unique blocking gates all passed, recomputable policy digest and verified provenance/version_bound_evidence, evaluate the policy decision.",
+      "expected": "Return permitted=true only when all required conditions and blocking gates are verified, no denial reasons remain and evidence is complete; this policy evaluation itself does not execute or authorize mutation.",
+      "assertions": [
+        "all nine required input fields including version_bound_evidence validated",
+        "target gene resolves uniquely to registered immutable contract",
+        "base and proposed versions resolve to immutable artifacts with valid lineage",
+        "risk class is controlled and evidence-backed",
+        "protected invariant set is complete, authoritative and current",
+        "required Owner approval is authenticated and bound to exact mutation where needed",
+        "all mandatory gates are unique and passed with evidence",
+        "policy digest recomputes from canonical policy and decision inputs",
+        "permitted true only with zero denials and complete evidence",
+        "provenance and version-bound evidence resolve and match all decision inputs",
+        "no mutation side effect or execution authority",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G12-GENE-001",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "policy classifies and gates change; unauthorized mutation denied",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G12.MUTATION-POLICY-N",
+      "gene_id": "g12.mutation-policy",
+      "polarity": "negative",
+      "scenario": "Given unknown target/version/risk, omitted or stale protected invariants, null/forged/expired/mismatched Owner approval for a protected change, duplicate or missing gates, failed/unknown blocking gate, non-recomputable policy digest, inconsistent permitted/denial output, or unverifiable provenance/version_bound_evidence, the policy must fail closed.",
+      "expected": "Return permitted=false with actionable evidence-backed denial reasons; unknown or failed blocking gates cannot permit mutation, and no mutation is executed.",
+      "assertions": [
+        "unknown or ambiguous target gene rejected",
+        "unknown, malformed or incompatible versions rejected",
+        "unrecognized or unsupported risk class rejected",
+        "missing, substituted, duplicate or stale protected invariant rejected",
+        "null, forged, expired, revoked or scope-mismatched Owner approval rejected where required",
+        "duplicate or incomplete mandatory gate inventory rejected",
+        "failed or unknown blocking gate forces permitted=false",
+        "permitted=true with denial reasons or incomplete evidence rejected",
+        "policy digest mismatch or tampering rejected",
+        "missing, stale or unverifiable provenance/version-bound evidence rejected",
+        "assessment cannot mutate, approve, authorize, merge or deploy",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G12-GENE-001",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "unapproved protected mutation or invariant weakening",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G12.VERSION-LINEAGE-P",
+      "gene_id": "g12.version-lineage",
+      "polarity": "positive",
+      "scenario": "Given all eight schema-required input fields (artifact_digest, version, parent_version, parent_digest, mutation_ref, epoch, provenance, version_bound_evidence), authenticated evidence bound to the candidate and every ancestor, a registered mutation record, and one complete acyclic oldest-to-candidate chain with exact digest links and strictly increasing epochs, the gene must verify lineage and preserve immutable history.",
+      "expected": "Return the existing gene-specific output contract; derive linked=true and epoch_monotonic=true only from verified ancestry, return the recomputed lineage digest, complete ancestry and authentic evidence, and grant no authority or side effects.",
+      "assertions": [
+        "all schema-required inputs validated, including version_bound_evidence",
+        "candidate and each ancestor resolve to immutable registered artifacts",
+        "parent version and digest identify the same exact parent",
+        "mutation_ref resolves and matches the candidate artifact/version transition",
+        "ancestry is unique, acyclic, correctly ordered and digest-linked",
+        "epochs are authoritative, non-negative and strictly increasing",
+        "linked and epoch_monotonic are derived consistently from ancestry",
+        "lineage digest recomputes from canonical lineage contents",
+        "no history rewrite and no authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G12-GENE-002",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "linked monotonic lineage accepted; broken ancestry rejected",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G12.VERSION-LINEAGE-N",
+      "gene_id": "g12.version-lineage",
+      "polarity": "negative",
+      "scenario": "Given any lineage-integrity violation: missing/stale/forged version_bound_evidence, unknown or mismatched parent, unregistered version/mutation, malformed or mismatched digest, cyclic/duplicate/disconnected ancestry, non-monotonic or replayed epoch, candidate mismatch, or contradictory linked/epoch_monotonic flags, the gene must fail closed.",
+      "expected": "Return the existing output contract with linked=false and/or epoch_monotonic=false as applicable, expose the precise violation and evidence, and never fabricate lineage, silently continue, rewrite history or confer authority.",
+      "assertions": [
+        "missing or invalid evidence fails closed",
+        "unknown version, parent or mutation reference is rejected",
+        "digest and parent-link mismatches are exposed",
+        "cycles, duplicates, disconnected ancestry and candidate mismatch are rejected",
+        "epoch replay or non-monotonicity is rejected",
+        "output flags cannot contradict verified ancestry",
+        "no fabricated evidence or silent history rewrite",
+        "no mutation side effect or authority expansion",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G12-GENE-002",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "missing parent digest or non-monotonic epoch",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.version-lineage/output/1.0.0"
+      ]
+    },
+    {
+      "case_id": "CHAR-G12.ROLLBACK-GUARD-P",
+      "gene_id": "g12.rollback-guard",
+      "polarity": "positive",
+      "scenario": "Given exact baseline input fields including version_bound_evidence, a trusted current state and revocation floor, and an integrity-verified candidate whose epoch is not below current_epoch or revocation_floor, with no prohibited rollback, the gene must verify canonical digests, trusted provenance and fresh version-bound evidence before returning allow.",
+      "expected": "Return allow only when all current/candidate digests, authoritative epoch/floor, provenance, authorization state and version-bound evidence validate; identify the candidate as effective and provide a reproducible guard_digest bound to the complete decision envelope.",
+      "assertions": [
+        "all eight baseline input fields are present and schema-valid, including version_bound_evidence",
+        "current and candidate epochs are non-negative and compared against the authoritative revocation floor",
+        "current_digest and candidate_digest are recomputed or independently verified against exact canonical artifacts",
+        "provenance and version_bound_evidence are trusted, fresh, replay-resistant and bound to exact input and policy versions",
+        "candidate is not below revocation_floor and no protected invariant is weakened",
+        "decision=allow, denial_reason=null, and effective_epoch/effective_digest identify the verified candidate",
+        "guard_digest is reproducible from the canonical versioned decision envelope",
+        "no authority or execution capability is created",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G12-GENE-003",
+      "existing_gene_io_expected": "ACCEPT",
+      "existing_gene_io_scenario": "permitted forward transition accepted; rollback below floor denied",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "case_id": "CHAR-G12.ROLLBACK-GUARD-N",
+      "gene_id": "g12.rollback-guard",
+      "polarity": "negative",
+      "scenario": "Given exact baseline input fields including version_bound_evidence, deny when candidate_epoch is below revocation_floor or current_epoch, digest integrity fails, authorization is absent/invalid/replayed/expired, or provenance/version-bound evidence is stale, conflicting or unverifiable. A rollback authorization must never override the revocation floor or protected invariants.",
+      "expected": "Return deny or an explicit unresolved fail-closed result under the existing output contract; retain the verified current state or explicitly report unresolved state, never present the rejected candidate as effective; provide a non-empty denial_reason and evidence without fabrication.",
+      "assertions": [
+        "candidate below revocation_floor is denied regardless of rollback_authorization",
+        "stale or rollback candidate epoch is denied under deterministic precedence",
+        "digest mismatch, unsupported digest policy or candidate substitution fails closed",
+        "null, unauthenticated, out-of-scope, expired, revoked or replayed rollback authorization is not accepted",
+        "stale, replayed, incomplete or conflicting provenance/version_bound_evidence fails closed",
+        "deny output has a non-empty denial_reason and does not identify the rejected candidate as effective",
+        "guard_digest binds the complete decision envelope and cannot be accepted as an opaque caller value",
+        "no fabricated evidence, silent downgrade, authority expansion or protected effect occurs",
+        "Input and output conform to the exact frozen gene schemas, including required version_bound_evidence; output evidence also satisfies its schema-defined provenance and version_bound_evidence requirements."
+      ],
+      "existing_gene_io_case_id": "G12-GENE-003",
+      "existing_gene_io_expected": "REJECT_OR_FAIL_CLOSED",
+      "existing_gene_io_scenario": "candidate below revocation floor or stale epoch",
+      "required_schema_ids": [
+        "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
+        "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED"
+    }
+  ],
+  "execution_policy": {
+    "positive_and_negative_per_gene": true,
+    "case_count": 72,
+    "schemas_bound": 72,
+    "executed": false,
+    "runtime_tests_not_authorized_in_A2": true,
+    "a3_required_for_implementation": true
+  },
+  "gene_io_baseline": {
+    "branch": "architecture/genesis-gene-contract-amendment-proposal",
+    "commit": "8e4a8b5582d47d430539ae7b56aac75f0991c8a4",
+    "proposal_path": "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
+    "proposal_blob_sha": "0dea137514313a2f59bec7be4df53bec05330b45",
+    "existing_gene_contracts": 36,
+    "existing_input_output_schemas": 72
+  },
+  "schema_reconciliation_ref": "IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-001",
+  "schema_reconciliation_path": "docs/architecture/IROKA-A2-CHARACTER-SCHEMA-RECONCILIATION-v1.0.0.json",
+  "gene_review_records": [
+    {
+      "review_id": "A2-G01-IDENTITY-ROOT-SEMANTIC-REVIEW-001",
+      "gene_id": "g01.identity-root",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G01.IDENTITY-ROOT-P",
+        "CHAR-G01.IDENTITY-ROOT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G01-SEM-01",
+        "G01-SEM-02",
+        "G01-SEM-03",
+        "G01-SEM-04"
+      ]
+    },
+    {
+      "review_id": "A2-G01-LINEAGE-SEMANTIC-REVIEW-001",
+      "gene_id": "g01.lineage",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G01.LINEAGE-P",
+        "CHAR-G01.LINEAGE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G01-LIN-SEM-01",
+        "G01-LIN-SEM-02",
+        "G01-LIN-SEM-03",
+        "G01-LIN-SEM-04",
+        "G01-LIN-SEM-05",
+        "G01-LIN-SEM-06"
+      ]
+    },
+    {
+      "review_id": "A2-G01-COMPATIBILITY-SEMANTIC-REVIEW-001",
+      "gene_id": "g01.compatibility",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G01.COMPATIBILITY-P",
+        "CHAR-G01.COMPATIBILITY-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G01-COMP-SEM-01",
+        "G01-COMP-SEM-02",
+        "G01-COMP-SEM-03",
+        "G01-COMP-SEM-04",
+        "G01-COMP-SEM-05",
+        "G01-COMP-SEM-06"
+      ]
+    },
+    {
+      "review_id": "A2-G02-AUTHORITY-SOURCE-SEMANTIC-REVIEW-001",
+      "gene_id": "g02.authority-source",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G02.AUTHORITY-SOURCE-P",
+        "CHAR-G02.AUTHORITY-SOURCE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G02-AUTH-SRC-SEM-01",
+        "G02-AUTH-SRC-SEM-02",
+        "G02-AUTH-SRC-SEM-03",
+        "G02-AUTH-SRC-SEM-04",
+        "G02-AUTH-SRC-SEM-05",
+        "G02-AUTH-SRC-SEM-06",
+        "G02-AUTH-SRC-SEM-07"
+      ]
+    },
+    {
+      "review_id": "A2-G02-OWNER-GOVERNANCE-SEMANTIC-REVIEW-001",
+      "gene_id": "g02.owner-governance",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G02.OWNER-GOVERNANCE-P",
+        "CHAR-G02.OWNER-GOVERNANCE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G02-OWNER-SEM-01",
+        "G02-OWNER-SEM-02",
+        "G02-OWNER-SEM-03",
+        "G02-OWNER-SEM-04",
+        "G02-OWNER-SEM-05",
+        "G02-OWNER-SEM-06",
+        "G02-OWNER-SEM-07",
+        "G02-OWNER-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G02-DECISION-REGISTER-SEMANTIC-REVIEW-001",
+      "gene_id": "g02.decision-register",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G02.DECISION-REGISTER-P",
+        "CHAR-G02.DECISION-REGISTER-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G02-DEC-SEM-01",
+        "G02-DEC-SEM-02",
+        "G02-DEC-SEM-03",
+        "G02-DEC-SEM-04",
+        "G02-DEC-SEM-05",
+        "G02-DEC-SEM-06",
+        "G02-DEC-SEM-07",
+        "G02-DEC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G03-PREMISE-MODEL-SEMANTIC-REVIEW-001",
+      "gene_id": "g03.premise-model",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G03.PREMISE-MODEL-P",
+        "CHAR-G03.PREMISE-MODEL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G03-PREM-SEM-01",
+        "G03-PREM-SEM-02",
+        "G03-PREM-SEM-03",
+        "G03-PREM-SEM-04",
+        "G03-PREM-SEM-05",
+        "G03-PREM-SEM-06",
+        "G03-PREM-SEM-07",
+        "G03-PREM-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G03-INFERENCE-RULES-SEMANTIC-REVIEW-001",
+      "gene_id": "g03.inference-rules",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G03.INFERENCE-RULES-P",
+        "CHAR-G03.INFERENCE-RULES-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G03-INF-SEM-01",
+        "G03-INF-SEM-02",
+        "G03-INF-SEM-03",
+        "G03-INF-SEM-04",
+        "G03-INF-SEM-05",
+        "G03-INF-SEM-06",
+        "G03-INF-SEM-07",
+        "G03-INF-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G03-UNCERTAINTY-CALCULUS-SEMANTIC-REVIEW-001",
+      "gene_id": "g03.uncertainty-calculus",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G03.UNCERTAINTY-CALCULUS-P",
+        "CHAR-G03.UNCERTAINTY-CALCULUS-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G03-UNC-SEM-01",
+        "G03-UNC-SEM-02",
+        "G03-UNC-SEM-03",
+        "G03-UNC-SEM-04",
+        "G03-UNC-SEM-05",
+        "G03-UNC-SEM-06",
+        "G03-UNC-SEM-07",
+        "G03-UNC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G04-KNOWLEDGE-SCHEMA-SEMANTIC-REVIEW-001",
+      "gene_id": "g04.knowledge-schema",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G04.KNOWLEDGE-SCHEMA-P",
+        "CHAR-G04.KNOWLEDGE-SCHEMA-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G04-KS-SEM-01",
+        "G04-KS-SEM-02",
+        "G04-KS-SEM-03",
+        "G04-KS-SEM-04",
+        "G04-KS-SEM-05",
+        "G04-KS-SEM-06",
+        "G04-KS-SEM-07",
+        "G04-KS-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G04-PROVENANCE-CHAIN-SEMANTIC-REVIEW-001",
+      "gene_id": "g04.provenance-chain",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G04.PROVENANCE-CHAIN-P",
+        "CHAR-G04.PROVENANCE-CHAIN-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G04-PC-SEM-01",
+        "G04-PC-SEM-02",
+        "G04-PC-SEM-03",
+        "G04-PC-SEM-04",
+        "G04-PC-SEM-05",
+        "G04-PC-SEM-06",
+        "G04-PC-SEM-07",
+        "G04-PC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G04-CONFLICT-MODEL-SEMANTIC-REVIEW-001",
+      "gene_id": "g04.conflict-model",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G04.CONFLICT-MODEL-P",
+        "CHAR-G04.CONFLICT-MODEL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G04-CM-SEM-01",
+        "G04-CM-SEM-02",
+        "G04-CM-SEM-03",
+        "G04-CM-SEM-04",
+        "G04-CM-SEM-05",
+        "G04-CM-SEM-06",
+        "G04-CM-SEM-07",
+        "G04-CM-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G05-MEMORY-CLASSIFICATION-SEMANTIC-REVIEW-001",
+      "gene_id": "g05.memory-classification",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G05.MEMORY-CLASSIFICATION-P",
+        "CHAR-G05.MEMORY-CLASSIFICATION-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G05-MC-SEM-01",
+        "G05-MC-SEM-02",
+        "G05-MC-SEM-03",
+        "G05-MC-SEM-04",
+        "G05-MC-SEM-05",
+        "G05-MC-SEM-06",
+        "G05-MC-SEM-07",
+        "G05-MC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G05-RETENTION-CONTROL-SEMANTIC-REVIEW-001",
+      "gene_id": "g05.retention-control",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G05.RETENTION-CONTROL-P",
+        "CHAR-G05.RETENTION-CONTROL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G05-RC-SEM-01",
+        "G05-RC-SEM-02",
+        "G05-RC-SEM-03",
+        "G05-RC-SEM-04",
+        "G05-RC-SEM-05",
+        "G05-RC-SEM-06",
+        "G05-RC-SEM-07",
+        "G05-RC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G05-INTEGRITY-CHECKPOINT-SEMANTIC-REVIEW-001",
+      "gene_id": "g05.integrity-checkpoint",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G05.INTEGRITY-CHECKPOINT-P",
+        "CHAR-G05.INTEGRITY-CHECKPOINT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G05-IC-SEM-01",
+        "G05-IC-SEM-02",
+        "G05-IC-SEM-03",
+        "G05-IC-SEM-04",
+        "G05-IC-SEM-05",
+        "G05-IC-SEM-06",
+        "G05-IC-SEM-07",
+        "G05-IC-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G06-INPUT-ENVELOPE-SEMANTIC-REVIEW-001",
+      "gene_id": "g06.input-envelope",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G06.INPUT-ENVELOPE-P",
+        "CHAR-G06.INPUT-ENVELOPE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G06-IE-SEM-01",
+        "G06-IE-SEM-02",
+        "G06-IE-SEM-03",
+        "G06-IE-SEM-04",
+        "G06-IE-SEM-05",
+        "G06-IE-SEM-06",
+        "G06-IE-SEM-07",
+        "G06-IE-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G06-SOURCE-TRUST-SEMANTIC-REVIEW-001",
+      "gene_id": "g06.source-trust",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G06.SOURCE-TRUST-P",
+        "CHAR-G06.SOURCE-TRUST-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G06-ST-SEM-01",
+        "G06-ST-SEM-02",
+        "G06-ST-SEM-03",
+        "G06-ST-SEM-04",
+        "G06-ST-SEM-05",
+        "G06-ST-SEM-06",
+        "G06-ST-SEM-07",
+        "G06-ST-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G06-PERCEPTION-TRANSFORM-SEMANTIC-REVIEW-001",
+      "gene_id": "g06.perception-transform",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G06.PERCEPTION-TRANSFORM-P",
+        "CHAR-G06.PERCEPTION-TRANSFORM-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G06-PT-SEM-01",
+        "G06-PT-SEM-02",
+        "G06-PT-SEM-03",
+        "G06-PT-SEM-04",
+        "G06-PT-SEM-05",
+        "G06-PT-SEM-06",
+        "G06-PT-SEM-07",
+        "G06-PT-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G07-AGENT-PRINCIPAL-SEMANTIC-REVIEW-001",
+      "gene_id": "g07.agent-principal",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G07.AGENT-PRINCIPAL-P",
+        "CHAR-G07.AGENT-PRINCIPAL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G07-AP-SEM-01",
+        "G07-AP-SEM-02",
+        "G07-AP-SEM-03",
+        "G07-AP-SEM-04",
+        "G07-AP-SEM-05",
+        "G07-AP-SEM-06",
+        "G07-AP-SEM-07",
+        "G07-AP-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G07-CAPABILITY-PROFILE-SEMANTIC-REVIEW-001",
+      "gene_id": "g07.capability-profile",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G07.CAPABILITY-PROFILE-P",
+        "CHAR-G07.CAPABILITY-PROFILE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G07-CP-SEM-01",
+        "G07-CP-SEM-02",
+        "G07-CP-SEM-03",
+        "G07-CP-SEM-04",
+        "G07-CP-SEM-05",
+        "G07-CP-SEM-06",
+        "G07-CP-SEM-07",
+        "G07-CP-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G07-DELEGATION-BOUNDARY-SEMANTIC-REVIEW-001",
+      "gene_id": "g07.delegation-boundary",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G07.DELEGATION-BOUNDARY-P",
+        "CHAR-G07.DELEGATION-BOUNDARY-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G07-DB-SEM-01",
+        "G07-DB-SEM-02",
+        "G07-DB-SEM-03",
+        "G07-DB-SEM-04",
+        "G07-DB-SEM-05",
+        "G07-DB-SEM-06",
+        "G07-DB-SEM-07",
+        "G07-DB-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G08-WORKFLOW-GRAPH-SEMANTIC-REVIEW-001",
+      "gene_id": "g08.workflow-graph",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G08.WORKFLOW-GRAPH-P",
+        "CHAR-G08.WORKFLOW-GRAPH-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G08-WG-SEM-01",
+        "G08-WG-SEM-02",
+        "G08-WG-SEM-03",
+        "G08-WG-SEM-04",
+        "G08-WG-SEM-05",
+        "G08-WG-SEM-06",
+        "G08-WG-SEM-07",
+        "G08-WG-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G08-SCHEDULER-POLICY-SEMANTIC-REVIEW-001",
+      "gene_id": "g08.scheduler-policy",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G08.SCHEDULER-POLICY-P",
+        "CHAR-G08.SCHEDULER-POLICY-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G08-SP-SEM-01",
+        "G08-SP-SEM-02",
+        "G08-SP-SEM-03",
+        "G08-SP-SEM-04",
+        "G08-SP-SEM-05",
+        "G08-SP-SEM-06",
+        "G08-SP-SEM-07",
+        "G08-SP-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G08-COORDINATION-STATE-SEMANTIC-REVIEW-001",
+      "gene_id": "g08.coordination-state",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G08.COORDINATION-STATE-P",
+        "CHAR-G08.COORDINATION-STATE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G08-CS-SEM-01",
+        "G08-CS-SEM-02",
+        "G08-CS-SEM-03",
+        "G08-CS-SEM-04",
+        "G08-CS-SEM-05",
+        "G08-CS-SEM-06",
+        "G08-CS-SEM-07",
+        "G08-CS-SEM-08"
+      ]
+    },
+    {
+      "review_id": "A2-G09-EFFECT-CONTRACT-SEMANTIC-REVIEW-001",
+      "gene_id": "g09.effect-contract",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G09.EFFECT-CONTRACT-P",
+        "CHAR-G09.EFFECT-CONTRACT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G09-EC-SEM-01",
+        "G09-EC-SEM-02",
+        "G09-EC-SEM-03",
+        "G09-EC-SEM-04",
+        "G09-EC-SEM-05",
+        "G09-EC-SEM-06",
+        "G09-EC-SEM-07",
+        "G09-EC-SEM-08",
+        "G09-EC-SEM-09",
+        "G09-EC-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G09-ADMISSION-GATE-SEMANTIC-REVIEW-001",
+      "gene_id": "g09.admission-gate",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G09.ADMISSION-GATE-P",
+        "CHAR-G09.ADMISSION-GATE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G09-AG-SEM-01",
+        "G09-AG-SEM-02",
+        "G09-AG-SEM-03",
+        "G09-AG-SEM-04",
+        "G09-AG-SEM-05",
+        "G09-AG-SEM-06",
+        "G09-AG-SEM-07",
+        "G09-AG-SEM-08",
+        "G09-AG-SEM-09",
+        "G09-AG-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G09-EXECUTION-RECEIPT-SEMANTIC-REVIEW-001",
+      "gene_id": "g09.execution-receipt",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G09.EXECUTION-RECEIPT-P",
+        "CHAR-G09.EXECUTION-RECEIPT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G09-ER-SEM-01",
+        "G09-ER-SEM-02",
+        "G09-ER-SEM-03",
+        "G09-ER-SEM-04",
+        "G09-ER-SEM-05",
+        "G09-ER-SEM-06",
+        "G09-ER-SEM-07",
+        "G09-ER-SEM-08",
+        "G09-ER-SEM-09",
+        "G09-ER-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G10-LEARNING-INPUT-SEMANTIC-REVIEW-001",
+      "gene_id": "g10.learning-input",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G10.LEARNING-INPUT-P",
+        "CHAR-G10.LEARNING-INPUT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G10-LI-SEM-01",
+        "G10-LI-SEM-02",
+        "G10-LI-SEM-03",
+        "G10-LI-SEM-04",
+        "G10-LI-SEM-05",
+        "G10-LI-SEM-06",
+        "G10-LI-SEM-07",
+        "G10-LI-SEM-08",
+        "G10-LI-SEM-09",
+        "G10-LI-SEM-10",
+        "G10-LI-SEM-11",
+        "G10-LI-SEM-12"
+      ]
+    },
+    {
+      "review_id": "A2-G10-CHANGE-PROPOSAL-SEMANTIC-REVIEW-001",
+      "gene_id": "g10.change-proposal",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G10.CHANGE-PROPOSAL-P",
+        "CHAR-G10.CHANGE-PROPOSAL-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G10-CP-SEM-01",
+        "G10-CP-SEM-02",
+        "G10-CP-SEM-03",
+        "G10-CP-SEM-04",
+        "G10-CP-SEM-05",
+        "G10-CP-SEM-06",
+        "G10-CP-SEM-07",
+        "G10-CP-SEM-08",
+        "G10-CP-SEM-09",
+        "G10-CP-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G10-EVALUATION-RECORD-SEMANTIC-REVIEW-001",
+      "gene_id": "g10.evaluation-record",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G10.EVALUATION-RECORD-P",
+        "CHAR-G10.EVALUATION-RECORD-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G10-ERD-SEM-01",
+        "G10-ERD-SEM-02",
+        "G10-ERD-SEM-03",
+        "G10-ERD-SEM-04",
+        "G10-ERD-SEM-05",
+        "G10-ERD-SEM-06",
+        "G10-ERD-SEM-07",
+        "G10-ERD-SEM-08",
+        "G10-ERD-SEM-09",
+        "G10-ERD-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G11-VALIDATOR-SEMANTIC-REVIEW-001",
+      "gene_id": "g11.validator",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G11.VALIDATOR-P",
+        "CHAR-G11.VALIDATOR-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G11-V-SEM-01",
+        "G11-V-SEM-02",
+        "G11-V-SEM-03",
+        "G11-V-SEM-04",
+        "G11-V-SEM-05",
+        "G11-V-SEM-06",
+        "G11-V-SEM-07",
+        "G11-V-SEM-08",
+        "G11-V-SEM-09",
+        "G11-V-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G11-ATTESTATION-SEMANTIC-REVIEW-001",
+      "gene_id": "g11.attestation",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G11.ATTESTATION-P",
+        "CHAR-G11.ATTESTATION-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G11-A-SEM-01",
+        "G11-A-SEM-02",
+        "G11-A-SEM-03",
+        "G11-A-SEM-04",
+        "G11-A-SEM-05",
+        "G11-A-SEM-06",
+        "G11-A-SEM-07",
+        "G11-A-SEM-08",
+        "G11-A-SEM-09",
+        "G11-A-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G11-CONFORMANCE-REPORT-SEMANTIC-REVIEW-001",
+      "gene_id": "g11.conformance-report",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G11.CONFORMANCE-REPORT-P",
+        "CHAR-G11.CONFORMANCE-REPORT-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G11-CR-SEM-01",
+        "G11-CR-SEM-02",
+        "G11-CR-SEM-03",
+        "G11-CR-SEM-04",
+        "G11-CR-SEM-05",
+        "G11-CR-SEM-06",
+        "G11-CR-SEM-07",
+        "G11-CR-SEM-08",
+        "G11-CR-SEM-09",
+        "G11-CR-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G12-MUTATION-POLICY-SEMANTIC-REVIEW-001",
+      "gene_id": "g12.mutation-policy",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G12.MUTATION-POLICY-P",
+        "CHAR-G12.MUTATION-POLICY-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G12-MP-SEM-01",
+        "G12-MP-SEM-02",
+        "G12-MP-SEM-03",
+        "G12-MP-SEM-04",
+        "G12-MP-SEM-05",
+        "G12-MP-SEM-06",
+        "G12-MP-SEM-07",
+        "G12-MP-SEM-08",
+        "G12-MP-SEM-09",
+        "G12-MP-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G12-VERSION-LINEAGE-SEMANTIC-REVIEW-001",
+      "gene_id": "g12.version-lineage",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G12.VERSION-LINEAGE-P",
+        "CHAR-G12.VERSION-LINEAGE-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G12-VL-SEM-01",
+        "G12-VL-SEM-02",
+        "G12-VL-SEM-03",
+        "G12-VL-SEM-04",
+        "G12-VL-SEM-05",
+        "G12-VL-SEM-06",
+        "G12-VL-SEM-07",
+        "G12-VL-SEM-08",
+        "G12-VL-SEM-09",
+        "G12-VL-SEM-10"
+      ]
+    },
+    {
+      "review_id": "A2-G12-ROLLBACK-GUARD-SEMANTIC-REVIEW-001",
+      "gene_id": "g12.rollback-guard",
+      "disposition": "AMEND",
+      "review_status": "VERIFIED_CLOSED",
+      "case_ids": [
+        "CHAR-G12.ROLLBACK-GUARD-P",
+        "CHAR-G12.ROLLBACK-GUARD-N"
+      ],
+      "execution_status": "DESIGNED_NOT_EXECUTED",
+      "amendment_dependencies": [
+        "G12-RG-SEM-01",
+        "G12-RG-SEM-02",
+        "G12-RG-SEM-03",
+        "G12-RG-SEM-04",
+        "G12-RG-SEM-05",
+        "G12-RG-SEM-06",
+        "G12-RG-SEM-07",
+        "G12-RG-SEM-08",
+        "G12-RG-SEM-09",
+        "G12-RG-SEM-10"
+      ]
+    }
+  ],
+  "schema_inventory_reconciliation": {
+    "audit_id": "A2-CROSS-GENE-VERSION-BOUND-EVIDENCE-INVENTORY-AUDIT-001",
+    "status": "VERIFIED_CORRECTED",
+    "audited_schema_count": 72,
+    "affected_gene_count": 34,
+    "affected_schema_count": 68,
+    "conformance_cases_updated": 72,
+    "assertion": "Every positive and negative case explicitly asserts the common version_bound_evidence requirements of its exact frozen input/output schemas.",
+    "execution_status": "DESIGNED_NOT_EXECUTED"
+  }
+}
