@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a deterministic SPDX 2.3 SBOM from Cargo metadata and Cargo.lock."""
+"""Generate an SPDX 2.3 SBOM from Cargo metadata and Cargo.lock."""
 from __future__ import annotations
 
 import argparse
@@ -90,7 +90,7 @@ def main() -> None:
         declared_license = package.get("license") or "NOASSERTION"
         # SPDX custom LicenseRef values need extracted license text; proprietary terms
         # are not embedded here, so preserve the manifest declaration as a comment.
-        license_declared = "NOASSERTION" if declared_license.startswith("LicenseRef-") else declared_license
+        license_declared = (\n            "NOASSERTION" if declared_license.startswith("LicenseRef-") else declared_license\n        )
         item = {
             "name": package["name"],
             "SPDXID": package_spdx[package["id"]],
@@ -100,7 +100,9 @@ def main() -> None:
             "licenseConcluded": "NOASSERTION",
             "licenseDeclared": license_declared,
             "copyrightText": "NOASSERTION",
-            **({"licenseComments": f"Cargo manifest declares {declared_license}; license text is not included in this SBOM."} if declared_license.startswith("LicenseRef-") else {}),
+            **(\n                {\n                    "licenseComments": (\n                        f"Cargo manifest declares {declared_license}; "
+                        "license text is not included in this SBOM."
+                    )\n                }\n                if declared_license.startswith("LicenseRef-")\n                else {}\n            ),
             "primaryPackagePurpose": "LIBRARY",
             "externalRefs": [{
                 "referenceCategory": "PACKAGE-MANAGER",
@@ -113,10 +115,15 @@ def main() -> None:
                 ),
             }],
         }
-        if not is_workspace and locked.get("checksum"):
+        if not is_workspace:
+            checksum = locked.get("checksum")
+            if not checksum or len(checksum) != 64 or any(
+                character not in "0123456789abcdef" for character in checksum
+            ):
+                raise SystemExit(f"registry package has invalid Cargo.lock checksum: {key}")
             item["checksums"] = [{
                 "algorithm": "SHA256",
-                "checksumValue": locked["checksum"],
+                "checksumValue": checksum,
             }]
         spdx_packages.append(item)
 
@@ -135,7 +142,7 @@ def main() -> None:
         for dependency in node.get("deps", []):
             target_id = dependency.get("pkg")
             if target_id in package_spdx:
-                dependency_edges.add((package_spdx[source_id], package_spdx[target_id]))
+                dependency_edges.add(\n                    (package_spdx[source_id], package_spdx[target_id])\n                )
     relationships.extend({
         "spdxElementId": source_id,
         "relationshipType": "DEPENDS_ON",
