@@ -65,9 +65,9 @@ Required external evidence:
 
 ## 6. A3.10.7 — Independent assessment
 
-**Status:** NOT CLOSED / NOT STARTED.
+**Status:** DEFERRED BY OWNER — PRE-DEPLOYMENT GATE.
 
-The assessment package defines reviewer independence, scope, adversarial test cases, report format and closure criteria. No independent assessor has been appointed by the Owner. No independent review, authenticated report, finding register or independent retest exists. The implementation author and automated CI cannot satisfy this gate.
+The assessment package defines reviewer independence, scope, adversarial test cases, report format and closure criteria. Per the Owner's direction, one independent security assessment is intentionally deferred until immediately before deployment; it is not to be repeated as a gate at each implementation step. No assessor has yet been appointed, and no report, finding register or independent retest exists. The assessment remains mandatory before A5/deployment, and the final independent report and disposition must be recorded on repository `main` before deployment. The implementation author and automated CI cannot satisfy this gate.
 
 ## 7. Runtime architecture and G09 production integration
 
@@ -98,14 +98,14 @@ No real external operator, HSM/KMS custody ceremony, independent backup account 
 - [ ] Live publish/readback, replay/conflict, sequence, outage/quorum, key rotation and restore tests pass.
 - [ ] Owner/custodian trust-root ceremony and protected signing boundary evidence are recorded.
 - [ ] Independent external backup/restore/reconciliation drill passes with measured RPO/RTO.
-- [ ] Independent security assessment completed on a frozen exact commit; no unresolved Critical/High findings; remediations independently retested.
+- [ ] Before A5/deployment, complete the single Owner-directed independent security assessment on a frozen release-candidate commit; no unresolved Critical/High findings; remediations independently retested; record the final report/disposition on `main`. This is intentionally deferred during development, not a recurring implementation gate.
 - [ ] Production G09 executor selected, implemented, tested against its staging system and key lifecycle.
 - [ ] Runtime service binaries, environment, deployment controls, monitoring and rollback are implemented and verified.
 - [ ] Owner accepts residual risks and signs the A4 closure decision.
 
 ## 10. Closure decision
 
-**A4: NOT CLOSED.** This document is the formal evidence reconciliation and closure submission, but the gate fails because independent assessment, external witness operations, production trust-root custody/recovery, production G09 integration and complete runtime deployment evidence are absent. Do not represent A4 as closed.
+**A4: NOT CLOSED.** This document is the formal evidence reconciliation and closure submission. Exact-head software evidence is now reconciled, but external witness operations, production trust-root custody/recovery, production G09 integration and complete runtime deployment evidence remain absent. The independent assessment is intentionally deferred by Owner direction to the single pre-deployment gate; it is not an iterative development blocker. Do not represent A4 as closed.
 
 No merge, release, production key provisioning, runtime activation or deployment follows from this evidence report. A5 remains a separate Owner decision.
 
@@ -154,4 +154,4 @@ Reviewed `.github/workflows/release-attest.yml` at the frozen commit; Git blob S
 
 ## 13. Updated A4 decision
 
-The exact-head software verification and SBOM artifact reconciliation items are evidenced on code-verification commit `d504c54fab04fe36866894c6c1f7f79eea516337`. The A4 evidence update was committed separately as documentation-only commit `9f589502de9c40ba1f572541209d0a8fb70e47dc`; no workflow runs were returned for that documentation-only commit, and it changed only this reconciliation document. The tested code did not change after `d504c54`. This does not close A4. Independent assessment, external witness operations, production trust-root custody/recovery, external restore evidence, production G09 integration, a deployable runtime, and an authorized end-to-end release-attestation run remain outstanding. The workflow/document update itself may advance the PR head and require a fresh exact-head CI reconciliation before a later closure decision.
+The exact-head software verification and SBOM artifact reconciliation items are evidenced on code-verification commit `d504c54fab04fe36866894c6c1f7f79eea516337`. The A4 evidence update was committed separately as documentation-only commit `9f589502de9c40ba1f572541209d0a8fb70e47dc`; no workflow runs were returned for that documentation-only commit, and it changed only this reconciliation document. The tested code did not change after `d504c54`. This does not close A4. External witness operations, production trust-root custody/recovery, external restore evidence, production G09 integration, a deployable runtime, and an authorized end-to-end release-attestation run remain outstanding. The independent security assessment is intentionally deferred until immediately before deployment, to be completed once on a frozen release candidate and recorded on `main` before A5/deployment. The workflow/document update itself may advance the PR head and require a fresh exact-head CI reconciliation before a later closure decision.
