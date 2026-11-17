@@ -75,15 +75,21 @@ pub struct AuthoritySourceInput {
 pub struct AuthoritySourcePolicy {
     allowed_source_types: BTreeSet<AuthoritySourceType>,
     unbounded_source_types: BTreeSet<AuthoritySourceType>,
+    allowed_registration_issuers: BTreeSet<String>,
+    allowed_mandate_issuers: BTreeSet<String>,
 }
 impl AuthoritySourcePolicy {
     pub fn new(
         allowed_source_types: BTreeSet<AuthoritySourceType>,
         unbounded_source_types: BTreeSet<AuthoritySourceType>,
+        allowed_registration_issuers: BTreeSet<String>,
+        allowed_mandate_issuers: BTreeSet<String>,
     ) -> Self {
         Self {
             allowed_source_types,
             unbounded_source_types,
+            allowed_registration_issuers,
+            allowed_mandate_issuers,
         }
     }
 }
@@ -301,7 +307,9 @@ pub fn evaluate_authority_source<R: RevocationChecker>(
             false,
         );
     }
-    if !policy.allowed_source_types.contains(&input.source_type) {
+    if !policy.allowed_source_types.contains(&input.source_type)
+        || !policy.allowed_registration_issuers.contains(&registration.issuer_id)
+        || !policy.allowed_mandate_issuers.contains(&mandate.issuer_id) {
         return decision(
             input,
             now,
@@ -742,6 +750,8 @@ mod tests {
             AuthoritySourcePolicy::new(
                 [AuthoritySourceType::Owner].into_iter().collect(),
                 BTreeSet::new(),
+                [issuer.to_string()].into_iter().collect(),
+                [issuer.to_string()].into_iter().collect(),
             ),
         )
     }
@@ -762,6 +772,17 @@ mod tests {
         assert!(!evaluate_authority_source(&i, &p, &v, 1_767_225_600).source_valid);
     }
     #[test]
+    #[test]
+    fn rejects_unconfigured_mandate_issuer() {
+        let (v, i, _) = fixture();
+        let p = AuthoritySourcePolicy::new(
+            [AuthoritySourceType::Owner].into_iter().collect(),
+            BTreeSet::new(),
+            ["registry:iroka".to_string()].into_iter().collect(),
+            ["other:issuer".to_string()].into_iter().collect(),
+        );
+        assert!(!evaluate_authority_source(&i, &p, &v, 1_767_225_600).source_valid);
+    }
     fn rejects_noncanonical_or_expired_time() {
         let (v, mut i, p) = fixture();
         i.valid_from = "2026-01-01 00:00:00".into();
