@@ -350,6 +350,40 @@ if len(pm_cases) != 6 or len({case.get("case_id") for case in pm_cases}) != 6:
 if pm_vectors.get("chromosome_count") != 12 or pm_vectors.get("gene_count") != 36:
     errors.append("G03 premise-model amendment changes the fixed genome")
 
+
+
+# A3 G03 inference-rules v1.1.0 additive contract audit.
+IR_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g03.inference-rules.input.schema.json"
+IR_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g03.inference-rules.output.schema.json"
+IR_VECTORS = ROOT / "docs/architecture/a3/g03-inference-rules-conformance-v1.1.0.json"
+ir_input, ir_output, ir_vectors = load(IR_INPUT), load(IR_OUTPUT), load(IR_VECTORS)
+for schema_path_obj, document in ((IR_INPUT, ir_input), (IR_OUTPUT, ir_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if ir_input.get("$id") != "https://iroka.dev/schemas/genes/g03.inference-rules/input/1.1.0":
+    errors.append("G03 inference-rules input schema ID/version mismatch")
+if ir_output.get("$id") != "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.1.0":
+    errors.append("G03 inference-rules output schema ID/version mismatch")
+ir_required = set(ir_input.get("required", []))
+for field in ("rules", "premises", "premise_set_digest", "query", "rule_version", "rule_set_digest",
+              "confidence_policy_version", "evaluator_version", "provenance", "version_bound_evidence"):
+    if field not in ir_required:
+        errors.append(f"G03 inference-rules input missing required field: {field}")
+ir_output_props = ir_output.get("properties", {})
+if "conclusion_set" not in ir_output_props or "applied_rule_ids" not in ir_output_props or "unsupported_steps" not in ir_output_props:
+    errors.append("G03 inference-rules output missing conclusion/applied/unsupported trace fields")
+ir_cases = ir_vectors.get("cases", [])
+if ir_vectors.get("gene_id") != "g03.inference-rules" or ir_vectors.get("version") != "1.1.0":
+    errors.append("G03 inference-rules conformance catalog identity/version mismatch")
+if len(ir_cases) != 6 or len({case.get("case_id") for case in ir_cases}) != 6:
+    errors.append(f"G03 inference-rules expected 6 unique conformance vectors, found {len(ir_cases)}")
+if ir_vectors.get("chromosome_count") != 12 or ir_vectors.get("gene_count") != 36:
+    errors.append("G03 inference-rules amendment changes the fixed genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -378,3 +412,5 @@ print("g02_owner_governance_v1_1_0=PASS")
 print(f"g02_owner_governance_a3_conformance_cases={len(og_cases)}")
 print("g03_premise_model_v1_1_0=PASS")
 print(f"g03_premise_model_a3_conformance_cases={len(pm_cases)}")
+print("g03_inference_rules_v1_1_0=PASS")
+print(f"g03_inference_rules_a3_conformance_cases={len(ir_cases)}")
