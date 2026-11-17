@@ -16,6 +16,7 @@ mod igacms;
 mod owner_approval;
 mod policy;
 mod protected_effect;
+mod protected_effect_https;
 mod request;
 mod security_store;
 mod service;
@@ -63,6 +64,9 @@ pub use owner_approval::{
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
+pub use protected_effect_https::{
+    HttpsProtectedEffectExecutor, HttpsProtectedEffectExecutorConfig,
+};
 pub use protected_effect::{
     execute_protected_effect, EffectExecutionError, ExecutionOutcome, ExecutionReceipt,
     ExecutionResultPayload, ExecutionStatus, OwnerEffectGrantPayload, ProtectedEffectError,
