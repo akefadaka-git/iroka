@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use crate::{CredentialError, Ed25519CredentialVerifier, RevocationChecker};
 
+pub const IDENTITY_ROOT_ALGORITHM_POLICY_VERSION: &str = "IROKA-G01-EDDSA-ONLY-1.0.0";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct IdentityRootInput {
@@ -28,15 +30,13 @@ pub struct IdentityRootInput {
 pub enum IdentityRootStatus { Active, Suspended, Revoked }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IdentityRootPolicy { version: String, current_epoch: u64 }
+pub struct IdentityRootPolicy { current_epoch: u64 }
 
 impl IdentityRootPolicy {
-    pub fn new(version: impl Into<String>, current_epoch: u64) -> Result<Self, IdentityRootError> {
-        let version = version.into();
-        if version.trim().is_empty() { return Err(IdentityRootError::InvalidPolicy); }
-        Ok(Self { version, current_epoch })
+    pub fn new(current_epoch: u64) -> Result<Self, IdentityRootError> {
+        Ok(Self { current_epoch })
     }
-    pub fn version(&self) -> &str { &self.version }
+    pub fn version(&self) -> &'static str { IDENTITY_ROOT_ALGORITHM_POLICY_VERSION }
     pub fn current_epoch(&self) -> u64 { self.current_epoch }
 }
 
@@ -48,7 +48,7 @@ pub enum IdentityTrustDecision { Trusted, Untrusted, Revoked }
 #[serde(deny_unknown_fields)]
 pub struct IdentityRootDecisionEvidence {
     pub provenance: BTreeMap<String, serde_json::Value>,
-    pub issuer_chain_verified: bool,
+    pub issuer_trust_verified: bool,
     pub key_fingerprint_match: bool,
     pub algorithm_policy_version: String,
     pub key_revocation_checked: bool,
@@ -78,7 +78,7 @@ pub fn evaluate_identity_root<R: RevocationChecker>(
     verifier: &Ed25519CredentialVerifier<R>,
     now_unix_secs: u64,
 ) -> IdentityRootOutput {
-    let mut issuer_chain_verified = false;
+    let mut issuer_trust_verified = false;
     let mut fingerprint_match = false;
     let mut revocation_checked = false;
     let mut reason = "untrusted".to_owned();
@@ -114,7 +114,7 @@ pub fn evaluate_identity_root<R: RevocationChecker>(
                     } else {
                         match verifier.verify_root_descriptor(&input.issuer_id, &input.key_id, &public_key, now_unix_secs) {
                             Ok(()) => {
-                                issuer_chain_verified = true;
+                                issuer_trust_verified = true;
                                 revocation_checked = true;
                                 decision = IdentityTrustDecision::Trusted;
                                 reason = "trusted_root_verified".into();
@@ -144,7 +144,7 @@ pub fn evaluate_identity_root<R: RevocationChecker>(
         evaluated_epoch: policy.current_epoch,
         evidence: IdentityRootDecisionEvidence {
             provenance: input.provenance.clone(),
-            issuer_chain_verified,
+            issuer_trust_verified,
             key_fingerprint_match: fingerprint_match,
             algorithm_policy_version: policy.version.clone(),
             key_revocation_checked: revocation_checked,
@@ -185,12 +185,12 @@ mod tests {
             root_id: format!("{issuer}::{key_id}"), issuer_id: issuer.into(), key_id: key_id.into(),
             key_fingerprint: hex_sha256(&public_key),
             public_key_base64url: URL_SAFE_NO_PAD.encode(public_key),
-            algorithm: "EdDSA".into(), algorithm_policy_version: "alg-policy-1".into(),
+            algorithm: "EdDSA".into(), algorithm_policy_version: IDENTITY_ROOT_ALGORITHM_POLICY_VERSION.into(),
             activation_epoch: 2, status: IdentityRootStatus::Active,
             provenance: BTreeMap::from([("source".into(), serde_json::json!("signed-root-bundle"))]),
             version_bound_evidence: BTreeMap::from([("genome_digest".into(), serde_json::json!("a".repeat(64)))]),
         };
-        (verifier, input, IdentityRootPolicy::new("alg-policy-1", 3).unwrap())
+        (verifier, input, IdentityRootPolicy::new(3).unwrap())
     }
 
     #[test]
@@ -199,7 +199,7 @@ mod tests {
         let out = evaluate_identity_root(&input, &policy, &verifier, 1_200);
         assert!(out.verified);
         assert_eq!(out.trust_decision, IdentityTrustDecision::Trusted);
-        assert!(out.evidence.issuer_chain_verified && out.evidence.key_fingerprint_match && out.evidence.key_revocation_checked);
+        assert!(out.evidence.issuer_trust_verified && out.evidence.key_fingerprint_match && out.evidence.key_revocation_checked);
     }
 
     #[test]
