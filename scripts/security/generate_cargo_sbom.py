@@ -63,7 +63,10 @@ def main() -> None:
             crate = urllib.parse.quote(package["name"], safe="-_.")
             version = urllib.parse.quote(package["version"], safe="-_.")
             download = f"https://crates.io/api/v1/crates/{crate}/{version}/download"
-        license_declared = package.get("license") or "NOASSERTION"
+        declared_license = package.get("license") or "NOASSERTION"
+        # SPDX custom LicenseRef values need extracted license text; proprietary terms
+        # are not embedded here, so preserve the manifest declaration as a comment.
+        license_declared = "NOASSERTION" if declared_license.startswith("LicenseRef-") else declared_license
         item = {
             "name": package["name"],
             "SPDXID": package_spdx[package["id"]],
@@ -73,6 +76,7 @@ def main() -> None:
             "licenseConcluded": "NOASSERTION",
             "licenseDeclared": license_declared,
             "copyrightText": "NOASSERTION",
+            **({"licenseComments": f"Cargo manifest declares {declared_license}; license text is not included in this SBOM."} if declared_license.startswith("LicenseRef-") else {}),
             "primaryPackagePurpose": "LIBRARY",
             "externalRefs": [{
                 "referenceCategory": "PACKAGE-MANAGER",
@@ -127,7 +131,6 @@ def main() -> None:
         "creationInfo": {
             "created": created.isoformat().replace("+00:00", "Z"),
             "creators": ["Tool: IROKA Cargo SPDX generator 1.0.0"],
-            "licenseListVersion": "3.25",
         },
         "packages": spdx_packages,
         "relationships": relationships,
