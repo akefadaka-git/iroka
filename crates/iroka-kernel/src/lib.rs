@@ -72,8 +72,8 @@ pub use protected_effect::{
 };
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
-pub use sqlite_checkpoint_witness::SqliteCheckpointWitness;
 pub use service::authorize_authenticated_with_owner_approval;
+pub use sqlite_checkpoint_witness::SqliteCheckpointWitness;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
 pub use trust_lifecycle::{
