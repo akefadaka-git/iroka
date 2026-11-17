@@ -71,6 +71,11 @@ jobs:
       - name: Enforce advisory, duplicate, license and source policies
         run: cargo deny check advisories bans licenses sources
 
+      - name: Disposition the locked syn major-version split
+        run: |
+          cargo tree --locked --workspace --invert syn@2.0.119
+          cargo tree --locked --workspace --invert syn@3.0.9
+
       - name: Build optimized workspace with locked dependencies
         run: cargo build --workspace --release --locked
 
