@@ -1000,10 +1000,15 @@ mod tests {
                 Ok(1)
             );
             let record = crate::VersionLineageRegistry::resolve_lineage(
-                &store, "1.0.0", &expected_digest
-            ).unwrap();
+                &store, "1.2.0", &expected_digest
+            )
+            .unwrap();
             assert_eq!(record.registry_revision, 1);
-            assert_eq!(record.ancestry.len(), 1);
+            assert_eq!(record.ancestry.len(), 3);
+            assert_eq!(
+                record.mutation.as_ref().map(|mutation| mutation.mutation_ref.as_str()),
+                Some("mutation-ref-2")
+            );
         }
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(path.with_extension("sqlite-wal"));
