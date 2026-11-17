@@ -14,6 +14,7 @@ mod identity_crypto;
 mod identity_lineage;
 mod identity_root;
 mod igacms;
+mod inference_rules;
 mod owner_approval;
 mod owner_governance;
 mod policy;
@@ -63,6 +64,11 @@ pub use igacms::{
     verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
+};
+pub use inference_rules::{
+    evaluate_inference_rules, DerivationStep, InferenceConclusion, InferenceEvidence,
+    InferencePremise, InferenceRule, InferenceRulePolicy, InferenceRulesInput,
+    InferenceRulesOutput, UnsupportedInferenceStep,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,

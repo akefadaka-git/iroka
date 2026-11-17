@@ -1,0 +1,20 @@
+{
+  "document_id":"IROKA-G03-INFERENCE-RULES-A3-CONFORMANCE-001",
+  "version":"1.1.0",
+  "gene_id":"g03.inference-rules",
+  "chromosome_count":12,
+  "gene_count":36,
+  "execution_policy":"Constrained declarative DSL only (AXIOM or AND premise references); no code execution, scripts, external calls or action dispatch.",
+  "schema_ids":[
+    "https://iroka.dev/schemas/genes/g03.inference-rules/input/1.1.0",
+    "https://iroka.dev/schemas/genes/g03.inference-rules/output/1.1.0"
+  ],
+  "cases":[
+    {"case_id":"G03-INF-P01","polarity":"positive","scenario":"Exact-version registered AND rule consumes admissible source-backed facts from a version-bound premise set and exact query match.","expected":"Deterministic conclusion, conservative minimum-support confidence and complete derivation trace."},
+    {"case_id":"G03-INF-N01","polarity":"negative","scenario":"Rule content digest, rule-set digest, premise-set binding, query digest, evaluator version or confidence policy differs.","expected":"No conclusion; explicit version/binding rejection."},
+    {"case_id":"G03-INF-N02","polarity":"negative","scenario":"Unknown rule, unapproved AXIOM, unsupported expression, executable syntax or template interpolation is supplied.","expected":"No execution; unsupported step recorded."},
+    {"case_id":"G03-INF-N03","polarity":"negative","scenario":"Antecedent is missing, ambiguous, unknown or has an epistemic status not allowed by the rule.","expected":"No derived conclusion; unsupported premise reason retained."},
+    {"case_id":"G03-INF-N04","polarity":"negative","scenario":"Two rules with the same conclusion ID produce different conclusion templates.","expected":"Conflicting derivations rejected; no arbitrary winner selected."},
+    {"case_id":"G03-INF-N05","polarity":"negative","scenario":"Confidence is missing/out of range, duplicate IDs exist, or step limit is exceeded.","expected":"Fail closed with no unsupported confidence inflation."}
+  ]
+}
