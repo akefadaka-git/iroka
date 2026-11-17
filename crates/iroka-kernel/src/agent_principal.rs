@@ -90,7 +90,9 @@ pub fn evaluate_agent_principal(
     if !valid_identifier(&input.agent_id)
         || !valid_identifier(&input.credential_ref)
         || !valid_identifier(&input.runtime_instance_id)
-        || !policy.allowed_principal_classes.contains(&input.principal_class)
+        || !policy
+            .allowed_principal_classes
+            .contains(&input.principal_class)
     {
         return Err("agent_principal_input_invalid".into());
     }
@@ -139,8 +141,7 @@ pub fn evaluate_agent_principal(
     {
         return Err("agent_registry_or_credential_digest_mismatch".into());
     }
-    if canonical(&input.provenance).is_none()
-        || canonical(&input.version_bound_evidence).is_none()
+    if canonical(&input.provenance).is_none() || canonical(&input.version_bound_evidence).is_none()
     {
         return Err("agent_principal_evidence_canonicalization_failed".into());
     }
@@ -192,10 +193,7 @@ mod tests {
 
     fn policy() -> AgentPrincipalPolicy {
         AgentPrincipalPolicy {
-            credential_bindings: BTreeMap::from([(
-                "credential-agent-1".into(),
-                binding(),
-            )]),
+            credential_bindings: BTreeMap::from([("credential-agent-1".into(), binding())]),
             allowed_principal_classes: ["system", "service", "task", "subagent"]
                 .into_iter()
                 .map(str::to_owned)
@@ -213,7 +211,10 @@ mod tests {
             provenance: BTreeMap::from([("issuer".into(), json!("synthetic-test"))]),
             version_bound_evidence: BTreeMap::from([
                 ("agent_registry_digest".into(), json!(registry_digest)),
-                ("agent_policy_digest".into(), json!(digest(&canonical(policy).unwrap()))),
+                (
+                    "agent_policy_digest".into(),
+                    json!(digest(&canonical(policy).unwrap())),
+                ),
                 ("credential_digest".into(), json!("a".repeat(64))),
             ]),
         }
@@ -238,16 +239,29 @@ mod tests {
         assert_eq!(result.identity_status, "invalid");
         let mut value = input(&p);
         value.runtime_instance_id = "runtime-2".into();
-        assert_eq!(evaluate_agent_principal(&value, &p).unwrap().identity_status, "invalid");
+        assert_eq!(
+            evaluate_agent_principal(&value, &p)
+                .unwrap()
+                .identity_status,
+            "invalid"
+        );
         let mut value = input(&p);
         value.principal_class = "service".into();
-        assert_eq!(evaluate_agent_principal(&value, &p).unwrap().identity_status, "invalid");
+        assert_eq!(
+            evaluate_agent_principal(&value, &p)
+                .unwrap()
+                .identity_status,
+            "invalid"
+        );
     }
 
     #[test]
     fn revoked_binding_never_validates() {
         let mut p = policy();
-        p.credential_bindings.get_mut("credential-agent-1").unwrap().revoked = true;
+        p.credential_bindings
+            .get_mut("credential-agent-1")
+            .unwrap()
+            .revoked = true;
         let result = evaluate_agent_principal(&input(&p), &p).unwrap();
         assert!(!result.principal_valid);
         assert_eq!(result.identity_status, "revoked");
@@ -257,11 +271,21 @@ mod tests {
     fn rejects_registry_or_credential_digest_substitution() {
         let p = policy();
         let mut value = input(&p);
-        value.version_bound_evidence.insert("agent_registry_digest".into(), json!("f".repeat(64)));
-        assert_eq!(evaluate_agent_principal(&value, &p), Err("agent_registry_or_credential_digest_mismatch".into()));
+        value
+            .version_bound_evidence
+            .insert("agent_registry_digest".into(), json!("f".repeat(64)));
+        assert_eq!(
+            evaluate_agent_principal(&value, &p),
+            Err("agent_registry_or_credential_digest_mismatch".into())
+        );
         let mut value = input(&p);
-        value.version_bound_evidence.insert("credential_digest".into(), json!("f".repeat(64)));
-        assert_eq!(evaluate_agent_principal(&value, &p), Err("agent_registry_or_credential_digest_mismatch".into()));
+        value
+            .version_bound_evidence
+            .insert("credential_digest".into(), json!("f".repeat(64)));
+        assert_eq!(
+            evaluate_agent_principal(&value, &p),
+            Err("agent_registry_or_credential_digest_mismatch".into())
+        );
     }
 
     #[test]
@@ -269,9 +293,15 @@ mod tests {
         let p = policy();
         let mut value = input(&p);
         value.credential_ref = "credential-unknown".into();
-        assert_eq!(evaluate_agent_principal(&value, &p), Err("credential_binding_not_registered".into()));
+        assert_eq!(
+            evaluate_agent_principal(&value, &p),
+            Err("credential_binding_not_registered".into())
+        );
         let mut value = input(&p);
         value.provenance.clear();
-        assert_eq!(evaluate_agent_principal(&value, &p), Err("provenance_or_version_evidence_missing".into()));
+        assert_eq!(
+            evaluate_agent_principal(&value, &p),
+            Err("provenance_or_version_evidence_missing".into())
+        );
     }
 }
