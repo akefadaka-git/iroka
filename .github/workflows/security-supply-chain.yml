@@ -24,6 +24,7 @@ on:
       - ".github/workflows/**"
       - ".gitleaks.toml"
       - "docs/security/**"
+      - "scripts/security/**"
   workflow_dispatch:
 
 permissions:
@@ -92,6 +93,9 @@ jobs:
 
       - name: Validate release attestation workflow YAML
         run: ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/release-attest.yml")'
+
+      - name: Test SPDX generator package and graph reconciliation
+        run: python3 -m unittest scripts/security/test_generate_cargo_sbom.py -v
 
       - name: Generate SPDX 2.3 dependency SBOM
         run: |
