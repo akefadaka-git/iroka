@@ -2,15 +2,20 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation]
+    branches: [feat/igacms-a3-implementation, feat/a3-security-workstreams]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - "rust-toolchain.toml"
+      - "docs/security/**"
+      - "scripts/security/**"
       - ".github/workflows/rust-kernel.yml"
+      - ".github/workflows/genesis-gene-schemas.yml"
+      - ".github/workflows/release-attest.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base]
+    branches: [main, architecture/igacms-a2-ci-base, architecture/genesis-gene-contract-amendment-proposal]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -18,7 +23,12 @@ on:
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - "rust-toolchain.toml"
+      - "docs/security/**"
+      - "scripts/security/**"
       - ".github/workflows/rust-kernel.yml"
+      - ".github/workflows/genesis-gene-schemas.yml"
+      - ".github/workflows/release-attest.yml"
   workflow_dispatch:
 
 permissions:
@@ -35,18 +45,17 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Install stable Rust toolchain
+      - name: Install pinned Rust toolchain
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-          rustup default stable
+          rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.100.0
           rustc --version
           cargo --version
-
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -55,10 +64,13 @@ jobs:
         run: cargo check --workspace --all-targets --locked
 
       - name: Verify production feature set excludes development bypasses
-        run: cargo check --workspace --all-targets --no-default-features
+        run: cargo check --workspace --all-targets --no-default-features --locked
 
       - name: Run complete unit and contract test suite
         run: cargo test --workspace --all-targets --locked
 
+      - name: Build optimized workspace
+        run: cargo build --workspace --release --locked
+
       - name: Run Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -A clippy::pedantic

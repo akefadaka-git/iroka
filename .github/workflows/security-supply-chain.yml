@@ -1,0 +1,114 @@
+name: Security supply-chain verification
+
+on:
+  pull_request:
+    branches: [main, architecture/genesis-gene-contract-amendment-proposal, feat/a3-security-workstreams]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "deny.toml"
+      - "rust-toolchain.toml"
+      - ".github/workflows/**"
+      - ".gitleaks.toml"
+      - "docs/security/**"
+      - "scripts/security/**"
+  push:
+    branches: [main, architecture/genesis-gene-contract-amendment-proposal]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "deny.toml"
+      - "rust-toolchain.toml"
+      - ".github/workflows/**"
+      - ".gitleaks.toml"
+      - "docs/security/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-supply-chain-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-and-secret-audit:
+    name: Dependency, license, source and secret audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout full history for secret scanning
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.100.0
+          rustc --version
+          cargo --version
+
+
+      - name: Validate locked dependency graph
+        run: |
+          cargo metadata --locked --format-version 1 --no-deps
+          cargo tree --locked --workspace --duplicates
+
+      - name: Install pinned RustSec auditor
+        run: cargo install cargo-audit --version 0.23.0 --locked
+
+      - name: Audit known Rust security advisories
+        run: cargo audit --deny warnings
+
+      - name: Install pinned cargo-deny
+        run: cargo install cargo-deny --version 0.20.2 --locked
+
+      - name: Enforce advisory, duplicate, license and source policies
+        run: cargo deny check advisories bans licenses sources
+
+      - name: Disposition the locked syn major-version split
+        run: |
+          cargo tree --locked --workspace --invert syn@2.0.119
+          cargo tree --locked --workspace --invert syn@3.0.9
+
+      - name: Build optimized workspace with locked dependencies
+        run: cargo build --workspace --release --locked
+
+      - name: Install pinned Gitleaks
+        run: |
+          go version
+          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Scan complete Git history and working tree for secrets
+        run: |
+          gitleaks version
+          gitleaks git --redact --exit-code 1 .
+
+      - name: Validate release attestation workflow YAML
+        run: ruby -e 'require "yaml"; YAML.parse_file(".github/workflows/release-attest.yml")'
+
+      - name: Generate SPDX 2.3 dependency SBOM
+        run: |
+          mkdir -p artifacts target
+          cargo metadata --locked --format-version 1 > target/cargo-metadata.json
+          python3 scripts/security/generate_cargo_sbom.py \
+            --metadata target/cargo-metadata.json \
+            --lockfile Cargo.lock \
+            --output artifacts/iroka-cargo.spdx.json
+          python3 -m json.tool artifacts/iroka-cargo.spdx.json > /dev/null
+          sha256sum artifacts/iroka-cargo.spdx.json
+
+      - name: Retain SPDX SBOM as workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iroka-cargo-sbom-${{ github.sha }}
+          path: artifacts/iroka-cargo.spdx.json
+          if-no-files-found: error
+          retention-days: 90
+

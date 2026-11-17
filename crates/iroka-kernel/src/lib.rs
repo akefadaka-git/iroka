@@ -6,6 +6,8 @@
 mod assurance;
 mod audit_store;
 mod decision;
+mod external_checkpoint;
+mod external_checkpoint_https;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -13,14 +15,27 @@ mod identity_crypto;
 mod igacms;
 mod owner_approval;
 mod policy;
+mod protected_effect;
 mod request;
 mod security_store;
 mod service;
+mod sqlite_checkpoint_witness;
 mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
-pub use audit_store::{AuditStoreError, SqliteAuditSink};
+pub use audit_store::{
+    AuditStoreError, CheckpointEvidenceBytes, SqliteAuditSink, VerifiedAuditHead,
+};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use external_checkpoint::{
+    create_audit_checkpoint, create_checkpoint, verify_and_reconcile_head,
+    verify_checkpoint_evidence, verify_witness_quorum, CheckpointError, CheckpointPayload,
+    CheckpointSigner, CheckpointWitness, Reconciliation, SignedCheckpoint,
+    VerifiedCheckpointEvidence, WitnessReceipt, WitnessReceiptPayload,
+};
+pub use external_checkpoint_https::{
+    publish_witness_quorum, HttpsCheckpointWitness, HttpsWitnessConfig,
+};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
@@ -48,11 +63,19 @@ pub use owner_approval::{
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
+pub use protected_effect::{
+    execute_protected_effect, EffectExecutionError, ExecutionOutcome, ExecutionReceipt,
+    ExecutionResultPayload, ExecutionStatus, OwnerEffectGrantPayload, ProtectedEffectError,
+    ProtectedEffectExecutor, ProtectedEffectRequest, ProtectedExecutionContext,
+    SignedExecutionResult, SignedOwnerEffectGrant, TrustedExecutorKey, VerifiedEffectGrant,
+    VerifiedExecutionReceipt,
+};
 pub use request::AuthorizationRequest;
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
+pub use sqlite_checkpoint_witness::SqliteCheckpointWitness;
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
