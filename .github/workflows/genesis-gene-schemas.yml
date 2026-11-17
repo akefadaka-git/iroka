@@ -21,6 +21,7 @@ on:
       - "crates/iroka-kernel/src/**"
       - "docs/security/**"
       - ".github/workflows/genesis-gene-schemas.yml"
+      - ".github/workflows/rust-kernel.yml"
   workflow_dispatch:
 permissions:
   contents: read
