@@ -505,6 +505,15 @@ mod tests {
                 )
                 .unwrap();
         }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(
+                &backup_path,
+                std::fs::Permissions::from_mode(0o600),
+            )
+            .unwrap();
+        }
         drop(witness);
         std::fs::copy(&backup_path, &restored_path).unwrap();
 
