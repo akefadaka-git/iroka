@@ -546,7 +546,10 @@ mod tests {
                 checkpoint_signer.key.verifying_key(),
             )]),
         );
-        assert!(matches!(reused_checkpoint_key, Err(CheckpointError::Malformed)));
+        assert!(matches!(
+            reused_checkpoint_key,
+            Err(CheckpointError::Malformed)
+        ));
 
         let _ = std::fs::remove_file(&db_path);
         let _ = std::fs::remove_file(db_path.with_extension("sqlite-wal"));
