@@ -4,8 +4,8 @@
 //! implement the durable nonce/idempotency and signed-result contract; a live
 //! business system and its credentials are provisioned separately by the Owner.
 use crate::{
-    EffectExecutionError, ExecutionResultPayload, ProtectedEffectExecutor,
-    ProtectedEffectRequest, SignedExecutionResult,
+    EffectExecutionError, ExecutionResultPayload, ProtectedEffectExecutor, ProtectedEffectRequest,
+    SignedExecutionResult,
 };
 use std::{
     io::{Read, Write},
@@ -35,9 +35,7 @@ pub struct HttpsProtectedEffectExecutor {
 }
 
 impl HttpsProtectedEffectExecutor {
-    pub fn new(
-        config: HttpsProtectedEffectExecutorConfig,
-    ) -> Result<Self, EffectExecutionError> {
+    pub fn new(config: HttpsProtectedEffectExecutorConfig) -> Result<Self, EffectExecutionError> {
         validate_endpoint(&config.endpoint)?;
         if config.executor_subject.trim().is_empty()
             || config.executor_subject.len() > 256
@@ -208,9 +206,7 @@ impl ProtectedEffectExecutor for HttpsProtectedEffectExecutor {
         nonce: &str,
         operation_digest: [u8; 32],
     ) -> Result<SignedExecutionResult, EffectExecutionError> {
-        if effect.executor_subject() != self.config.executor_subject
-            || !valid_nonce(nonce)
-        {
+        if effect.executor_subject() != self.config.executor_subject || !valid_nonce(nonce) {
             return Err(EffectExecutionError::RejectedBeforeEffect);
         }
         let digest = hex_digest(&operation_digest);
@@ -249,25 +245,14 @@ impl ProtectedEffectExecutor for HttpsProtectedEffectExecutor {
         }
     }
 
-    fn lookup(
-        &self,
-        nonce: &str,
-    ) -> Result<Option<SignedExecutionResult>, EffectExecutionError> {
+    fn lookup(&self, nonce: &str) -> Result<Option<SignedExecutionResult>, EffectExecutionError> {
         if !valid_nonce(nonce) {
             return Err(EffectExecutionError::Unavailable);
         }
         let path = format!("v1/protected-effects/{}", percent_encode(nonce.as_bytes()));
-        let (status, response) = self.request(
-            "GET",
-            &self.url(&path),
-            None,
-            nonce,
-            None,
-        )?;
+        let (status, response) = self.request("GET", &self.url(&path), None, nonce, None)?;
         match status {
-            200 => self
-                .decode_result(&response, nonce, None)
-                .map(Some),
+            200 => self.decode_result(&response, nonce, None).map(Some),
             404 => Ok(None),
             _ => Err(EffectExecutionError::Unavailable),
         }
