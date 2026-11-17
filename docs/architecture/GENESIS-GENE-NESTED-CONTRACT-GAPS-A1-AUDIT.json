@@ -1,0 +1,446 @@
+{
+  "audit_id": "IROKA-GENESIS-GENE-NESTED-CONTRACT-GAPS-A1",
+  "version": "1.0.0",
+  "status": "IMPLEMENTATION_GAP_AUDIT_NOT_AN_APPROVED_CONTRACT_AMENDMENT",
+  "basis": {
+    "approved_contract_path": "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
+    "approved_contract_blob": "0dea137514313a2f59bec7be4df53bec05330b45",
+    "gene_count": 36
+  },
+  "summary": {
+    "generic_array_fields": 53,
+    "typed_string_array_fields": 4,
+    "generic_object_fields": 84
+  },
+  "policy": [
+    "Do not infer nested types from field names or examples.",
+    "Do not change the approved contract baseline without Owner approval.",
+    "Amendment must define item types, object properties, required members, enums, nullability, ordering/uniqueness and applicable bounds."
+  ],
+  "unresolved_fields": [
+    {
+      "gene_id": "g03.premise-model",
+      "side": "input",
+      "field": "premises",
+      "required": true,
+      "purpose": "premise statements, source references, confidence values, context",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.input.schema.json"
+    },
+    {
+      "gene_id": "g03.premise-model",
+      "side": "output",
+      "field": "normalized_premises",
+      "required": true,
+      "purpose": "premise statements, source references, confidence values, context",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.output.schema.json"
+    },
+    {
+      "gene_id": "g03.premise-model",
+      "side": "output",
+      "field": "unresolved_premises",
+      "required": true,
+      "purpose": "premise statements, source references, confidence values, context",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.output.schema.json"
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "input",
+      "field": "rules",
+      "required": true,
+      "purpose": "rule set, premise references, inference request, rule version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.input.schema.json"
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "input",
+      "field": "premise_ids",
+      "required": true,
+      "purpose": "rule set, premise references, inference request, rule version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.input.schema.json"
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "conclusion_set",
+      "required": true,
+      "purpose": "rule set, premise references, inference request, rule version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json"
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "applied_rule_ids",
+      "required": true,
+      "purpose": "rule set, premise references, inference request, rule version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json"
+    },
+    {
+      "gene_id": "g03.inference-rules",
+      "side": "output",
+      "field": "unsupported_steps",
+      "required": true,
+      "purpose": "rule set, premise references, inference request, rule version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json"
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "input",
+      "field": "hypotheses",
+      "required": true,
+      "purpose": "hypotheses, evidence weights, calibration profile, calculation method",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.input.schema.json"
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "input",
+      "field": "evidence_items",
+      "required": true,
+      "purpose": "hypotheses, evidence weights, calibration profile, calculation method",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.input.schema.json"
+    },
+    {
+      "gene_id": "g03.uncertainty-calculus",
+      "side": "output",
+      "field": "estimates",
+      "required": true,
+      "purpose": "hypotheses, evidence weights, calibration profile, calculation method",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.output.schema.json"
+    },
+    {
+      "gene_id": "g04.knowledge-schema",
+      "side": "input",
+      "field": "fields",
+      "required": true,
+      "purpose": "knowledge type, field definitions, constraints, schema version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.input.schema.json"
+    },
+    {
+      "gene_id": "g04.knowledge-schema",
+      "side": "input",
+      "field": "constraints",
+      "required": true,
+      "purpose": "knowledge type, field definitions, constraints, schema version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.input.schema.json"
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "side": "input",
+      "field": "events",
+      "required": true,
+      "purpose": "artifact digest, ordered source events, actor references, prior chain digest",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.input.schema.json"
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "side": "input",
+      "field": "actor_ids",
+      "required": true,
+      "purpose": "artifact digest, ordered source events, actor references, prior chain digest",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.input.schema.json"
+    },
+    {
+      "gene_id": "g04.provenance-chain",
+      "side": "output",
+      "field": "broken_links",
+      "required": true,
+      "purpose": "artifact digest, ordered source events, actor references, prior chain digest",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.output.schema.json"
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "claims",
+      "required": true,
+      "purpose": "claims, source identifiers, claim relations, conflict policy",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json"
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "sources",
+      "required": true,
+      "purpose": "claims, source identifiers, claim relations, conflict policy",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json"
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "side": "input",
+      "field": "relations",
+      "required": true,
+      "purpose": "claims, source identifiers, claim relations, conflict policy",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json"
+    },
+    {
+      "gene_id": "g04.conflict-model",
+      "side": "output",
+      "field": "conflicts",
+      "required": true,
+      "purpose": "claims, source identifiers, claim relations, conflict policy",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.output.schema.json"
+    },
+    {
+      "gene_id": "g05.memory-classification",
+      "side": "input",
+      "field": "labels",
+      "required": true,
+      "purpose": "memory item, sensitivity labels, purpose, owner, data class",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.input.schema.json"
+    },
+    {
+      "gene_id": "g05.memory-classification",
+      "side": "output",
+      "field": "handling_controls",
+      "required": true,
+      "purpose": "memory item, sensitivity labels, purpose, owner, data class",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.output.schema.json"
+    },
+    {
+      "gene_id": "g06.perception-transform",
+      "side": "output",
+      "field": "loss_annotations",
+      "required": true,
+      "purpose": "input envelope, transform identifier/version, modality, declared output type",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/perception-transform.output.schema.json"
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "side": "input",
+      "field": "requested_capabilities",
+      "required": true,
+      "purpose": "agent principal, requested capabilities, resource limits, policy version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.input.schema.json"
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "side": "output",
+      "field": "granted_capabilities",
+      "required": true,
+      "purpose": "agent principal, requested capabilities, resource limits, policy version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.output.schema.json"
+    },
+    {
+      "gene_id": "g07.capability-profile",
+      "side": "output",
+      "field": "denied_capabilities",
+      "required": true,
+      "purpose": "agent principal, requested capabilities, resource limits, policy version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.output.schema.json"
+    },
+    {
+      "gene_id": "g07.delegation-boundary",
+      "side": "input",
+      "field": "capability_subset",
+      "required": true,
+      "purpose": "delegator, delegate, capability subset, expiry, delegation proof",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.input.schema.json"
+    },
+    {
+      "gene_id": "g07.delegation-boundary",
+      "side": "output",
+      "field": "effective_capabilities",
+      "required": true,
+      "purpose": "delegator, delegate, capability subset, expiry, delegation proof",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.output.schema.json"
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "side": "input",
+      "field": "nodes",
+      "required": true,
+      "purpose": "workflow identifier, nodes, edges, dependency constraints, graph version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.input.schema.json"
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "side": "input",
+      "field": "edges",
+      "required": true,
+      "purpose": "workflow identifier, nodes, edges, dependency constraints, graph version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.input.schema.json"
+    },
+    {
+      "gene_id": "g08.workflow-graph",
+      "side": "output",
+      "field": "topological_order",
+      "required": true,
+      "purpose": "workflow identifier, nodes, edges, dependency constraints, graph version",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.output.schema.json"
+    },
+    {
+      "gene_id": "g08.scheduler-policy",
+      "side": "input",
+      "field": "task_classes",
+      "required": true,
+      "purpose": "task classes, priorities, quotas, deadlines, scheduling policy",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.input.schema.json"
+    },
+    {
+      "gene_id": "g08.scheduler-policy",
+      "side": "output",
+      "field": "violations",
+      "required": true,
+      "purpose": "task classes, priorities, quotas, deadlines, scheduling policy",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.output.schema.json"
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "side": "input",
+      "field": "participants",
+      "required": true,
+      "purpose": "workflow run, participant states, lease epochs, checkpoint references",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.input.schema.json"
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "side": "input",
+      "field": "checkpoint_refs",
+      "required": true,
+      "purpose": "workflow run, participant states, lease epochs, checkpoint references",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.input.schema.json"
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "side": "output",
+      "field": "conflicts",
+      "required": true,
+      "purpose": "workflow run, participant states, lease epochs, checkpoint references",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.output.schema.json"
+    },
+    {
+      "gene_id": "g08.coordination-state",
+      "side": "output",
+      "field": "stale_participants",
+      "required": true,
+      "purpose": "workflow run, participant states, lease epochs, checkpoint references",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.output.schema.json"
+    },
+    {
+      "gene_id": "g09.effect-contract",
+      "side": "input",
+      "field": "resource_scope",
+      "required": true,
+      "purpose": "requested effect, target, resource scope, risk class, operation digest",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/effect-contract.input.schema.json"
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "side": "input",
+      "field": "observations",
+      "required": true,
+      "purpose": "observations, source trust references, data class, consent/authorization context",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.input.schema.json"
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "side": "input",
+      "field": "source_refs",
+      "required": true,
+      "purpose": "observations, source trust references, data class, consent/authorization context",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.input.schema.json"
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "side": "output",
+      "field": "eligible_observations",
+      "required": true,
+      "purpose": "observations, source trust references, data class, consent/authorization context",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.output.schema.json"
+    },
+    {
+      "gene_id": "g10.learning-input",
+      "side": "output",
+      "field": "excluded_observations",
+      "required": true,
+      "purpose": "observations, source trust references, data class, consent/authorization context",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.output.schema.json"
+    },
+    {
+      "gene_id": "g10.change-proposal",
+      "side": "input",
+      "field": "expected_effects",
+      "required": true,
+      "purpose": "target component/version, proposed diff digest, rationale, expected effects, proposer",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.input.schema.json"
+    },
+    {
+      "gene_id": "g10.change-proposal",
+      "side": "output",
+      "field": "required_evaluations",
+      "required": true,
+      "purpose": "target component/version, proposed diff digest, rationale, expected effects, proposer",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.output.schema.json"
+    },
+    {
+      "gene_id": "g10.evaluation-record",
+      "side": "output",
+      "field": "results",
+      "required": true,
+      "purpose": "proposal, test suite digest, baseline metrics, candidate metrics, evaluator identity",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.output.schema.json"
+    },
+    {
+      "gene_id": "g10.evaluation-record",
+      "side": "output",
+      "field": "regressions",
+      "required": true,
+      "purpose": "proposal, test suite digest, baseline metrics, candidate metrics, evaluator identity",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.output.schema.json"
+    },
+    {
+      "gene_id": "g11.validator",
+      "side": "input",
+      "field": "contract_ids",
+      "required": true,
+      "purpose": "artifact reference, applicable contracts, validator version, policy snapshot",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/validator.input.schema.json"
+    },
+    {
+      "gene_id": "g11.validator",
+      "side": "output",
+      "field": "findings",
+      "required": true,
+      "purpose": "artifact reference, applicable contracts, validator version, policy snapshot",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/validator.output.schema.json"
+    },
+    {
+      "gene_id": "g11.conformance-report",
+      "side": "input",
+      "field": "test_results",
+      "required": true,
+      "purpose": "suite identifier/version, test results, tested commit, environment digest",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conformance-report.input.schema.json"
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "side": "input",
+      "field": "protected_invariants",
+      "required": true,
+      "purpose": "proposed mutation, target gene/version, risk class, protected invariant set, approval reference",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.input.schema.json"
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "side": "output",
+      "field": "required_gates",
+      "required": true,
+      "purpose": "proposed mutation, target gene/version, risk class, protected invariant set, approval reference",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.output.schema.json"
+    },
+    {
+      "gene_id": "g12.mutation-policy",
+      "side": "output",
+      "field": "denial_reasons",
+      "required": true,
+      "purpose": "proposed mutation, target gene/version, risk class, protected invariant set, approval reference",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.output.schema.json"
+    },
+    {
+      "gene_id": "g12.version-lineage",
+      "side": "output",
+      "field": "ancestry",
+      "required": true,
+      "purpose": "candidate artifact digest, parent version/digest, mutation record, epoch",
+      "schema_path": "crates/iroka-kernel/igacms/schemas/genes/version-lineage.output.schema.json"
+    }
+  ]
+}

@@ -2,30 +2,34 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation, implementation/a3-character-genome-v1, implementation/a3-g01-identity-root]
+    branches: [feat/igacms-a3-implementation, feat/a3-security-workstreams, implementation/a3-character-ci-foundation]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
-      - "scripts/a3_schema_baseline_audit.py"
-      - "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json"
-      - "docs/architecture/IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-v1.0.0.json"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - "rust-toolchain.toml"
+      - "docs/security/**"
+      - "scripts/security/**"
       - ".github/workflows/rust-kernel.yml"
+      - ".github/workflows/genesis-gene-schemas.yml"
+      - ".github/workflows/release-attest.yml"
+      - ".github/workflows/security-supply-chain.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base, architecture/a2-character-gene-contracts-v2]
+    branches: [main, architecture/igacms-a2-ci-base, architecture/genesis-gene-contract-amendment-proposal, implementation/a3-character-ci-foundation]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
-      - "scripts/a3_schema_baseline_audit.py"
-      - "docs/architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json"
-      - "docs/architecture/IROKA-A2-CHARACTER-CONFORMANCE-CATALOG-v1.0.0.json"
-      - "docs/architecture/IROKA-A3-CHARACTER-GENE-IMPLEMENTATION-RECORD-v1.0.0.md"
       - "docs/architecture/G01-CREDENTIAL-VERIFICATION.md"
       - "docs/architecture/G01-IDENTITY-CONTRACT.md"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
+      - "rust-toolchain.toml"
+      - "docs/security/**"
+      - "scripts/security/**"
       - ".github/workflows/rust-kernel.yml"
+      - ".github/workflows/genesis-gene-schemas.yml"
+      - ".github/workflows/release-attest.yml"
   workflow_dispatch:
 
 permissions:
@@ -42,15 +46,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Install stable Rust toolchain
+      - name: Install pinned Rust toolchain
         run: |
-          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
-          rustup default stable
+          rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.100.0
           rustc --version
           cargo --version
 
@@ -61,13 +65,13 @@ jobs:
         run: cargo check --workspace --all-targets --locked
 
       - name: Verify production feature set excludes development bypasses
-        run: cargo check --workspace --all-targets --no-default-features
+        run: cargo check --workspace --all-targets --no-default-features --locked
 
       - name: Run complete unit and contract test suite
         run: cargo test --workspace --all-targets --locked
 
-      - name: Run static A3 gene schema and traceability audit
-        run: python3 scripts/a3_schema_baseline_audit.py
+      - name: Build optimized workspace
+        run: cargo build --workspace --release --locked
 
       - name: Run Clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -A clippy::pedantic
