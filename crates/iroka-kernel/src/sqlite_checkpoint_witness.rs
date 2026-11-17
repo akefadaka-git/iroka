@@ -493,12 +493,7 @@ mod tests {
         .unwrap();
         let first = checkpoint(signer.as_ref(), 1, 10, None);
         let first_receipt = witness.publish(&first).unwrap();
-        let second = checkpoint(
-            signer.as_ref(),
-            2,
-            11,
-            Some(hex(&first.digest().unwrap())),
-        );
+        let second = checkpoint(signer.as_ref(), 2, 11, Some(hex(&first.digest().unwrap())));
         let second_receipt = witness.publish(&second).unwrap();
 
         {
@@ -540,7 +535,10 @@ mod tests {
                 )]),
             )
             .unwrap();
-        assert_eq!(restored.publish(&first).unwrap_err(), CheckpointError::SequenceConflict);
+        assert_eq!(
+            restored.publish(&first).unwrap_err(),
+            CheckpointError::SequenceConflict
+        );
         assert_eq!(restored.publish(&second).unwrap(), second_receipt);
         assert_ne!(first_receipt, second_receipt);
 
