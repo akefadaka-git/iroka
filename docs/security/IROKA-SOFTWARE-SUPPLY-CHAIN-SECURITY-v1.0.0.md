@@ -96,3 +96,22 @@ The current dependency inventory is inspectable, but the separately generated SB
 ## 9. Scope limits
 
 No dependency was upgraded solely to silence a scanner. No vulnerability is declared fixed without a tested version change. No secret is added to the repository. No workflow is given write permissions. No release, deployment, production key handling or runtime activation is included.
+
+
+## 10. Current exact-head status and SBOM/provenance implementation
+
+The following exact-head evidence supersedes earlier pending statements in Sections 7–8:
+
+- Supply-chain workflow run #23: https://github.com/akefadaka-git/iroka/actions/runs/43915404788 — SUCCESS on `d51cc78323bfa87ad726d726eb6dc1e1bf872be5`. Cargo metadata/lock validation, RustSec audit, cargo-deny policies, locked release build, pinned Gitleaks installation and full-history/working-tree secret scan passed.
+- Rust kernel run #1721: https://github.com/akefadaka-git/iroka/actions/runs/43915404928 — SUCCESS on the same exact head.
+- GENESIS schema closure run #100: https://github.com/akefadaka-git/iroka/actions/runs/43915404795 — SUCCESS on the same exact head.
+
+Subsequent A3.10 completion work adds:
+- `scripts/security/generate_cargo_sbom.py`, a Python-standard-library generator that maps locked Cargo metadata and Cargo.lock into SPDX 2.3 JSON, including package identifiers, registry package URLs, available Cargo.lock SHA-256 checksums, and resolved dependency relationships.
+- The supply-chain workflow now generates, validates and retains the SPDX SBOM as a 90-day workflow artifact. The SBOM generator and workflow change require fresh exact-head verification; the earlier run #23 does not validate these later changes.
+- `.github/workflows/release-attest.yml` builds the current kernel library for a published GitHub release, generates the SPDX SBOM, creates GitHub/Sigstore build-provenance and SBOM attestations, and attaches the library and SBOM to the release. The workflow is release-triggered and has not been run by this implementation change. It does not deploy software.
+- The attestation action is pinned to the verified `actions/attest` v4 commit SHA; checkout and artifact-upload actions are also pinned to full commit SHAs.
+
+Important scope limitation: the repository currently builds a Rust kernel library (`.rlib`), not a deployable IROKA application/service executable or container image. The release workflow attests that library artifact and its dependency SBOM. It does not establish production runtime packaging or deployment readiness.
+
+**Current status:** The original supply-chain controls are VERIFIED on the earlier exact head. The new SBOM generation and release-attestation additions remain **VERIFICATION PENDING** until their own exact-head workflows pass and a release event actually produces verifiable attestations. No release has been published by this change.
