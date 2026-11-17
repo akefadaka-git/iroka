@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g06.input-envelope/input/1.0.0",
+  "title": "Input envelope — input",
+  "description": "Normative input contract for g06.input-envelope v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "envelope_id": {
+      "type": "string",
+      "description": "envelope_id — approved input field for g06.input-envelope"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "source_id — approved input field for g06.input-envelope"
+    },
+    "media_type": {
+      "type": "string",
+      "description": "media_type — approved input field for g06.input-envelope"
+    },
+    "payload_digest": {
+      "type": "string",
+      "description": "payload_digest — approved input field for g06.input-envelope"
+    },
+    "payload_length": {
+      "type": "integer",
+      "description": "payload_length — approved input field for g06.input-envelope"
+    },
+    "captured_at": {
+      "type": "string",
+      "description": "captured_at — approved input field for g06.input-envelope"
+    },
+    "payload_ref": {
+      "type": "string",
+      "description": "payload_ref — approved input field for g06.input-envelope"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "envelope_id",
+    "source_id",
+    "media_type",
+    "payload_digest",
+    "payload_length",
+    "captured_at",
+    "payload_ref",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

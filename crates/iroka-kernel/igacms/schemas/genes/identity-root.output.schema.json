@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.identity-root/output/1.0.0",
+  "title": "g01.identity-root output contract v1.0.0",
+  "description": "output contract for g01.identity-root: identity root identifier, issuer identity, root key fingerprint, activation epoch, trust status",
+  "type": "object",
+  "properties": {
+    "root_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verified": {
+      "type": "boolean"
+    },
+    "trust_decision": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "untrusted",
+        "revoked"
+      ]
+    },
+    "evaluated_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "root_id",
+    "verified",
+    "trust_decision",
+    "evaluated_epoch",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  }
+}

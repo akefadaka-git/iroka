@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.version-lineage/input/1.0.0",
+  "title": "Version lineage — input",
+  "description": "Normative input contract for g12.version-lineage v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "artifact_digest": {
+      "type": "string",
+      "description": "artifact_digest — approved input field for g12.version-lineage"
+    },
+    "version": {
+      "type": "string",
+      "description": "version — approved input field for g12.version-lineage"
+    },
+    "parent_version": {
+      "type": "string",
+      "description": "parent_version — approved input field for g12.version-lineage"
+    },
+    "parent_digest": {
+      "type": "string",
+      "description": "parent_digest — approved input field for g12.version-lineage"
+    },
+    "mutation_ref": {
+      "type": "string",
+      "description": "mutation_ref — approved input field for g12.version-lineage"
+    },
+    "epoch": {
+      "type": "integer",
+      "description": "epoch — approved input field for g12.version-lineage"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "artifact_digest",
+    "version",
+    "parent_version",
+    "parent_digest",
+    "mutation_ref",
+    "epoch",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

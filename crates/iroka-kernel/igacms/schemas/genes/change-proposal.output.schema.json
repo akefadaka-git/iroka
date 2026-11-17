@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g10.change-proposal/output/1.0.0",
+  "title": "Change proposal — output",
+  "description": "Normative output contract for g10.change-proposal v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "required_evaluations_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g10-change-proposal-output-required_evaluations-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "proposal_id": {
+      "type": "string",
+      "description": "proposal_id — approved output field for g10.change-proposal"
+    },
+    "proposal_digest": {
+      "type": "string",
+      "description": "proposal_digest — approved output field for g10.change-proposal"
+    },
+    "change_class": {
+      "type": "string",
+      "description": "change_class — approved output field for g10.change-proposal"
+    },
+    "required_evaluations": {
+      "type": "array",
+      "description": "required_evaluations — approved output field for g10.change-proposal",
+      "items": {
+        "$ref": "#/$defs/required_evaluations_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "unique evaluation requirement identifiers; approval and independent verification remain separate gates"
+      }
+    },
+    "approval_required": {
+      "type": "boolean",
+      "description": "approval_required — approved output field for g10.change-proposal"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "proposal_id",
+    "proposal_digest",
+    "change_class",
+    "required_evaluations",
+    "approval_required",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

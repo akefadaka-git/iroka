@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/input/1.0.0",
+  "title": "Memory integrity checkpoint — input",
+  "description": "Normative input contract for g05.integrity-checkpoint v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "snapshot_digest": {
+      "type": "string",
+      "description": "snapshot_digest — approved input field for g05.integrity-checkpoint"
+    },
+    "sequence": {
+      "type": "integer",
+      "description": "sequence — approved input field for g05.integrity-checkpoint"
+    },
+    "previous_checkpoint": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "previous_checkpoint — approved input field for g05.integrity-checkpoint"
+    },
+    "authority_ref": {
+      "type": "string",
+      "description": "authority_ref — approved input field for g05.integrity-checkpoint"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "snapshot_digest",
+    "sequence",
+    "previous_checkpoint",
+    "authority_ref",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

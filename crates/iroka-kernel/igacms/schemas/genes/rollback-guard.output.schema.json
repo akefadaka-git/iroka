@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.rollback-guard/output/1.0.0",
+  "title": "Rollback guard — output",
+  "description": "Normative output contract for g12.rollback-guard v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny"
+      ],
+      "description": "decision — approved output field for g12.rollback-guard"
+    },
+    "effective_epoch": {
+      "type": "integer",
+      "description": "effective_epoch — approved output field for g12.rollback-guard"
+    },
+    "effective_digest": {
+      "type": "string",
+      "description": "effective_digest — approved output field for g12.rollback-guard"
+    },
+    "denial_reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "denial_reason — approved output field for g12.rollback-guard"
+    },
+    "guard_digest": {
+      "type": "string",
+      "description": "guard_digest — approved output field for g12.rollback-guard"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "decision",
+    "effective_epoch",
+    "effective_digest",
+    "denial_reason",
+    "guard_digest",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

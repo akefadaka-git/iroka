@@ -1,0 +1,3888 @@
+{
+  "schema_version": "1.0.0",
+  "dialect": "https://json-schema.org/draft/2020-12/schema",
+  "source_contract": "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json",
+  "case_count": 36,
+  "cases": [
+    {
+      "case_id": "G01-GENE-001",
+      "gene_id": "g01.identity-root",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/identity-root.input.schema.json",
+        "positive": {
+          "description": "valid active root accepted; revoked root rejected",
+          "instance": {
+            "root_id": "fixture-root_id",
+            "issuer_id": "fixture-issuer_id",
+            "key_fingerprint": "fixture-key_fingerprint",
+            "algorithm": "fixture-algorithm",
+            "activation_epoch": 1,
+            "status": "active",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g01.identity-root",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.identity-root",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'root_id'; semantic negative scenario: unknown issuer or revoked root",
+          "instance": {
+            "issuer_id": "fixture-issuer_id",
+            "key_fingerprint": "fixture-key_fingerprint",
+            "algorithm": "fixture-algorithm",
+            "activation_epoch": 1,
+            "status": "active",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g01.identity-root",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.identity-root",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/identity-root.output.schema.json",
+        "positive": {
+          "description": "valid active root accepted; revoked root rejected",
+          "instance": {
+            "root_id": "fixture-root_id",
+            "verified": true,
+            "trust_decision": "trusted",
+            "evaluated_epoch": 1,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g01.identity-root",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.identity-root",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'root_id'; semantic negative scenario: unknown issuer or revoked root",
+          "instance": {
+            "verified": true,
+            "trust_decision": "trusted",
+            "evaluated_epoch": 1,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g01.identity-root",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.identity-root",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G01-GENE-002",
+      "gene_id": "g01.lineage",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/lineage.input.schema.json",
+        "positive": {
+          "description": "valid acyclic chain accepted; cycle rejected",
+          "instance": {
+            "subject_id": "fixture-subject_id",
+            "predecessor_id": "fixture-predecessor_id",
+            "relationship": "derived",
+            "proof_digest": "fixture-proof_digest",
+            "epoch": 1,
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g01.lineage",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.lineage",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'subject_id'; semantic negative scenario: cycle or missing succession proof",
+          "instance": {
+            "predecessor_id": "fixture-predecessor_id",
+            "relationship": "derived",
+            "proof_digest": "fixture-proof_digest",
+            "epoch": 1,
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g01.lineage",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.lineage",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/lineage.output.schema.json",
+        "positive": {
+          "description": "valid acyclic chain accepted; cycle rejected",
+          "instance": {
+            "subject_id": "fixture-subject_id",
+            "lineage_valid": true,
+            "chain_digest": "fixture-chain_digest",
+            "verified_depth": 1,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g01.lineage",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.lineage",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'subject_id'; semantic negative scenario: cycle or missing succession proof",
+          "instance": {
+            "lineage_valid": true,
+            "chain_digest": "fixture-chain_digest",
+            "verified_depth": 1,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g01.lineage",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.lineage",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G01-GENE-003",
+      "gene_id": "g01.compatibility",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/compatibility.input.schema.json",
+        "positive": {
+          "description": "explicit compatible pair accepted; undeclared pair rejected",
+          "instance": {
+            "source_version": "fixture-source_version",
+            "target_version": "fixture-target_version",
+            "policy_id": "fixture-policy_id",
+            "declared_compatible": true,
+            "migration_digest": "fixture-migration_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g01.compatibility",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.compatibility",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'source_version'; semantic negative scenario: implicit major-version compatibility",
+          "instance": {
+            "target_version": "fixture-target_version",
+            "policy_id": "fixture-policy_id",
+            "declared_compatible": true,
+            "migration_digest": "fixture-migration_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g01.compatibility",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.compatibility",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/compatibility.output.schema.json",
+        "positive": {
+          "description": "explicit compatible pair accepted; undeclared pair rejected",
+          "instance": {
+            "compatibility": true,
+            "decision": "compatible",
+            "policy_id": "fixture-policy_id",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g01.compatibility",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.compatibility",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'compatibility'; semantic negative scenario: implicit major-version compatibility",
+          "instance": {
+            "decision": "compatible",
+            "policy_id": "fixture-policy_id",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g01.compatibility",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g01.compatibility",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G02-GENE-001",
+      "gene_id": "g02.authority-source",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/authority-source.input.schema.json",
+        "positive": {
+          "description": "valid mandate accepted; expired mandate rejected",
+          "instance": {
+            "authority_id": "fixture-authority_id",
+            "source_type": "owner",
+            "mandate_ref": "fixture-mandate_ref",
+            "valid_from": "fixture-valid_from",
+            "valid_until": "fixture-valid_until",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g02.authority-source",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.authority-source",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'authority_id'; semantic negative scenario: expired or unrecognized authority source",
+          "instance": {
+            "source_type": "owner",
+            "mandate_ref": "fixture-mandate_ref",
+            "valid_from": "fixture-valid_from",
+            "valid_until": "fixture-valid_until",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g02.authority-source",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.authority-source",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/authority-source.output.schema.json",
+        "positive": {
+          "description": "valid mandate accepted; expired mandate rejected",
+          "instance": {
+            "authority_id": "fixture-authority_id",
+            "source_valid": true,
+            "scope": [],
+            "decision": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g02.authority-source",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.authority-source",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'authority_id'; semantic negative scenario: expired or unrecognized authority source",
+          "instance": {
+            "source_valid": true,
+            "scope": [],
+            "decision": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g02.authority-source",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.authority-source",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G02-GENE-002",
+      "gene_id": "g02.owner-governance",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/owner-governance.input.schema.json",
+        "positive": {
+          "description": "valid signed approval accepted; forged signature rejected",
+          "instance": {
+            "owner_id": "fixture-owner_id",
+            "decision_id": "fixture-decision_id",
+            "scope": [],
+            "approval_digest": "fixture-approval_digest",
+            "signature": "fixture-signature",
+            "issued_at": "fixture-issued_at",
+            "expires_at": "fixture-expires_at",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g02.owner-governance",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.owner-governance",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'owner_id'; semantic negative scenario: unsigned or scope-mismatched Owner approval",
+          "instance": {
+            "decision_id": "fixture-decision_id",
+            "scope": [],
+            "approval_digest": "fixture-approval_digest",
+            "signature": "fixture-signature",
+            "issued_at": "fixture-issued_at",
+            "expires_at": "fixture-expires_at",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g02.owner-governance",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.owner-governance",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/owner-governance.output.schema.json",
+        "positive": {
+          "description": "valid signed approval accepted; forged signature rejected",
+          "instance": {
+            "decision_id": "fixture-decision_id",
+            "approval_valid": true,
+            "authorized_scope": [],
+            "decision": "approved",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g02.owner-governance",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.owner-governance",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'decision_id'; semantic negative scenario: unsigned or scope-mismatched Owner approval",
+          "instance": {
+            "approval_valid": true,
+            "authorized_scope": [],
+            "decision": "approved",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g02.owner-governance",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.owner-governance",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G02-GENE-003",
+      "gene_id": "g02.decision-register",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/decision-register.input.schema.json",
+        "positive": {
+          "description": "unique immutable decision recorded; conflicting duplicate rejected",
+          "instance": {
+            "decision_id": "fixture-decision_id",
+            "authority_id": "fixture-authority_id",
+            "decision_digest": "fixture-decision_digest",
+            "status": "proposed",
+            "effective_at": "fixture-effective_at",
+            "supersedes": "fixture-supersedes",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g02.decision-register",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.decision-register",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'decision_id'; semantic negative scenario: duplicate ID with conflicting digest",
+          "instance": {
+            "authority_id": "fixture-authority_id",
+            "decision_digest": "fixture-decision_digest",
+            "status": "proposed",
+            "effective_at": "fixture-effective_at",
+            "supersedes": "fixture-supersedes",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g02.decision-register",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.decision-register",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/decision-register.output.schema.json",
+        "positive": {
+          "description": "unique immutable decision recorded; conflicting duplicate rejected",
+          "instance": {
+            "decision_id": "fixture-decision_id",
+            "recorded": true,
+            "canonical_digest": "fixture-canonical_digest",
+            "register_sequence": 1,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g02.decision-register",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.decision-register",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'decision_id'; semantic negative scenario: duplicate ID with conflicting digest",
+          "instance": {
+            "recorded": true,
+            "canonical_digest": "fixture-canonical_digest",
+            "register_sequence": 1,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g02.decision-register",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g02.decision-register",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G03-GENE-001",
+      "gene_id": "g03.premise-model",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.input.schema.json",
+        "positive": {
+          "description": "well-formed sourced premises normalized; unsupported premise flagged",
+          "instance": {
+            "premises": [
+              {
+                "premise_id": "fixture-value",
+                "statement": "fixture-value",
+                "source_refs": [],
+                "confidence": 0,
+                "context": "fixture-value"
+              }
+            ],
+            "context_id": "fixture-context_id",
+            "model_version": "fixture-model_version",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g03.premise-model",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.premise-model",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'premises'; semantic negative scenario: premise lacks source or invalid confidence",
+          "instance": {
+            "context_id": "fixture-context_id",
+            "model_version": "fixture-model_version",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g03.premise-model",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.premise-model",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/premise-model.output.schema.json",
+        "positive": {
+          "description": "well-formed sourced premises normalized; unsupported premise flagged",
+          "instance": {
+            "model_id": "fixture-model_id",
+            "premise_set_digest": "fixture-premise_set_digest",
+            "normalized_premises": [
+              {
+                "premise_id": "fixture-value",
+                "normalized_statement": "fixture-value",
+                "source_refs": [],
+                "confidence": 0
+              }
+            ],
+            "unresolved_premises": [
+              {
+                "premise_id": "fixture-value",
+                "statement": "fixture-value",
+                "source_refs": [],
+                "unresolved_reason": "fixture-value"
+              }
+            ],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g03.premise-model",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.premise-model",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'model_id'; semantic negative scenario: premise lacks source or invalid confidence",
+          "instance": {
+            "premise_set_digest": "fixture-premise_set_digest",
+            "normalized_premises": [],
+            "unresolved_premises": [],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g03.premise-model",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.premise-model",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G03-GENE-002",
+      "gene_id": "g03.inference-rules",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.input.schema.json",
+        "positive": {
+          "description": "valid rule chain produces trace; unknown rule rejected",
+          "instance": {
+            "rules": [
+              {
+                "rule_id": "fixture-value",
+                "rule_version": "fixture-value",
+                "antecedent_premise_ids": [],
+                "conclusion_template": "fixture-value",
+                "rule_expression": "fixture-value"
+              }
+            ],
+            "premise_ids": [
+              "fixture-value"
+            ],
+            "query": "fixture-query",
+            "rule_version": "fixture-rule_version",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g03.inference-rules",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.inference-rules",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'rules'; semantic negative scenario: rule references missing premise or unknown rule version",
+          "instance": {
+            "premise_ids": [],
+            "query": "fixture-query",
+            "rule_version": "fixture-rule_version",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g03.inference-rules",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.inference-rules",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/inference-rules.output.schema.json",
+        "positive": {
+          "description": "valid rule chain produces trace; unknown rule rejected",
+          "instance": {
+            "inference_id": "fixture-inference_id",
+            "conclusion_set": [
+              {
+                "conclusion_id": "fixture-value",
+                "statement": "fixture-value",
+                "supporting_premise_ids": [],
+                "applied_rule_ids": [],
+                "confidence": 0
+              }
+            ],
+            "applied_rule_ids": [
+              "fixture-value"
+            ],
+            "unsupported_steps": [
+              {
+                "step_id": "fixture-value",
+                "rule_id": "fixture-value",
+                "premise_ids": [],
+                "reason": "fixture-value"
+              }
+            ],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g03.inference-rules",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.inference-rules",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'inference_id'; semantic negative scenario: rule references missing premise or unknown rule version",
+          "instance": {
+            "conclusion_set": [],
+            "applied_rule_ids": [],
+            "unsupported_steps": [],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g03.inference-rules",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.inference-rules",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G03-GENE-003",
+      "gene_id": "g03.uncertainty-calculus",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.input.schema.json",
+        "positive": {
+          "description": "bounded weights calculated; invalid weights rejected",
+          "instance": {
+            "hypotheses": [
+              {
+                "hypothesis_id": "fixture-value",
+                "statement": "fixture-value",
+                "prior_probability": 0
+              }
+            ],
+            "evidence_items": [
+              {
+                "evidence_id": "fixture-value",
+                "hypothesis_id": "fixture-value",
+                "source_ref": "fixture-value",
+                "weight": 0,
+                "polarity": "supports"
+              }
+            ],
+            "calibration_id": "fixture-calibration_id",
+            "method": "bayesian",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g03.uncertainty-calculus",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.uncertainty-calculus",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'hypotheses'; semantic negative scenario: non-finite or out-of-range weights",
+          "instance": {
+            "evidence_items": [],
+            "calibration_id": "fixture-calibration_id",
+            "method": "bayesian",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g03.uncertainty-calculus",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.uncertainty-calculus",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/uncertainty-calculus.output.schema.json",
+        "positive": {
+          "description": "bounded weights calculated; invalid weights rejected",
+          "instance": {
+            "assessment_id": "fixture-assessment_id",
+            "estimates": [
+              {
+                "hypothesis_id": "fixture-value",
+                "estimate": 0,
+                "lower_bound": 0,
+                "upper_bound": 0,
+                "method": "fixture-value"
+              }
+            ],
+            "uncertainty_bounds": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g03.uncertainty-calculus",
+              "gene_version": "1.0.0"
+            },
+            "calibration_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g03.uncertainty-calculus",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.uncertainty-calculus",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'assessment_id'; semantic negative scenario: non-finite or out-of-range weights",
+          "instance": {
+            "estimates": [],
+            "uncertainty_bounds": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g03.uncertainty-calculus",
+              "gene_version": "1.0.0"
+            },
+            "calibration_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g03.uncertainty-calculus",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g03.uncertainty-calculus",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G04-GENE-001",
+      "gene_id": "g04.knowledge-schema",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.input.schema.json",
+        "positive": {
+          "description": "unique typed fields accepted; duplicate fields rejected",
+          "instance": {
+            "knowledge_type": "fixture-knowledge_type",
+            "fields": [
+              {
+                "field_id": "fixture-value",
+                "name": "fixture-value",
+                "value_type": "string",
+                "required": false,
+                "nullable": false,
+                "description": "fixture-value"
+              }
+            ],
+            "constraints": [
+              {
+                "constraint_id": "fixture-value",
+                "field_id": "fixture-value",
+                "constraint_type": "fixture-value",
+                "expression": "fixture-value",
+                "parameters_digest": "fixture-value"
+              }
+            ],
+            "schema_version": "fixture-schema_version",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g04.knowledge-schema",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.knowledge-schema",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'knowledge_type'; semantic negative scenario: duplicate field names or unsupported type",
+          "instance": {
+            "fields": [],
+            "constraints": [],
+            "schema_version": "fixture-schema_version",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g04.knowledge-schema",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.knowledge-schema",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/knowledge-schema.output.schema.json",
+        "positive": {
+          "description": "unique typed fields accepted; duplicate fields rejected",
+          "instance": {
+            "schema_id": "fixture-schema_id",
+            "normalized_schema": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g04.knowledge-schema",
+              "gene_version": "1.0.0"
+            },
+            "schema_digest": "fixture-schema_digest",
+            "validation_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g04.knowledge-schema",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.knowledge-schema",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'schema_id'; semantic negative scenario: duplicate field names or unsupported type",
+          "instance": {
+            "normalized_schema": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g04.knowledge-schema",
+              "gene_version": "1.0.0"
+            },
+            "schema_digest": "fixture-schema_digest",
+            "validation_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g04.knowledge-schema",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.knowledge-schema",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G04-GENE-002",
+      "gene_id": "g04.provenance-chain",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.input.schema.json",
+        "positive": {
+          "description": "continuous chain verifies; broken link rejected",
+          "instance": {
+            "artifact_digest": "fixture-artifact_digest",
+            "events": [
+              {
+                "event_id": "fixture-value",
+                "sequence": 1,
+                "event_type": "fixture-value",
+                "actor_id": "fixture-value",
+                "occurred_at": "2026-01-01T00:00:00Z",
+                "source_ref": "fixture-value",
+                "previous_event_digest": "fixture-value",
+                "event_digest": "fixture-value"
+              }
+            ],
+            "actor_ids": [
+              "fixture-value"
+            ],
+            "previous_chain_digest": "fixture-previous_chain_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g04.provenance-chain",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.provenance-chain",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'artifact_digest'; semantic negative scenario: broken digest link or missing event actor",
+          "instance": {
+            "events": [],
+            "actor_ids": [],
+            "previous_chain_digest": "fixture-previous_chain_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g04.provenance-chain",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.provenance-chain",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/provenance-chain.output.schema.json",
+        "positive": {
+          "description": "continuous chain verifies; broken link rejected",
+          "instance": {
+            "chain_digest": "fixture-chain_digest",
+            "verified": true,
+            "event_count": 1,
+            "broken_links": [
+              {
+                "from_event_id": "fixture-value",
+                "to_event_id": "fixture-value",
+                "expected_digest": "fixture-value",
+                "observed_digest": "fixture-value",
+                "reason": "fixture-value"
+              }
+            ],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g04.provenance-chain",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.provenance-chain",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'chain_digest'; semantic negative scenario: broken digest link or missing event actor",
+          "instance": {
+            "verified": true,
+            "event_count": 1,
+            "broken_links": [],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g04.provenance-chain",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.provenance-chain",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G04-GENE-003",
+      "gene_id": "g04.conflict-model",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.input.schema.json",
+        "positive": {
+          "description": "contradictions surfaced; silent overwrite rejected",
+          "instance": {
+            "claims": [
+              {
+                "claim_id": "fixture-value",
+                "subject": "fixture-value",
+                "predicate": "fixture-value",
+                "object_value": "fixture-value",
+                "source_ids": [],
+                "confidence": 0
+              }
+            ],
+            "sources": [
+              {
+                "source_id": "fixture-value",
+                "source_ref": "fixture-value",
+                "source_digest": "fixture-value",
+                "trust_ref": "fixture-value"
+              }
+            ],
+            "relations": [
+              {
+                "relation_id": "fixture-value",
+                "left_claim_id": "fixture-value",
+                "right_claim_id": "fixture-value",
+                "relation_type": "supports"
+              }
+            ],
+            "policy_id": "fixture-policy_id",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g04.conflict-model",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.conflict-model",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'claims'; semantic negative scenario: conflicting claims silently overwritten",
+          "instance": {
+            "sources": [],
+            "relations": [],
+            "policy_id": "fixture-policy_id",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g04.conflict-model",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.conflict-model",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conflict-model.output.schema.json",
+        "positive": {
+          "description": "contradictions surfaced; silent overwrite rejected",
+          "instance": {
+            "conflict_set_id": "fixture-conflict_set_id",
+            "conflicts": [
+              {
+                "conflict_id": "fixture-value",
+                "claim_ids": [],
+                "source_ids": [],
+                "conflict_type": "fixture-value",
+                "description": "fixture-value",
+                "resolution_state": "unresolved"
+              }
+            ],
+            "resolution_state": "unresolved",
+            "policy_applied": "fixture-policy_applied",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g04.conflict-model",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.conflict-model",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'conflict_set_id'; semantic negative scenario: conflicting claims silently overwritten",
+          "instance": {
+            "conflicts": [],
+            "resolution_state": "unresolved",
+            "policy_applied": "fixture-policy_applied",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g04.conflict-model",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g04.conflict-model",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G05-GENE-001",
+      "gene_id": "g05.memory-classification",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.input.schema.json",
+        "positive": {
+          "description": "recognized class maps to controls; unknown class quarantined",
+          "instance": {
+            "memory_id": "fixture-memory_id",
+            "content_digest": "fixture-content_digest",
+            "labels": [
+              "fixture-value"
+            ],
+            "purpose": "fixture-purpose",
+            "owner_id": "fixture-owner_id",
+            "data_class": "fixture-data_class",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g05.memory-classification",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.memory-classification",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'memory_id'; semantic negative scenario: unknown classification label",
+          "instance": {
+            "content_digest": "fixture-content_digest",
+            "labels": [],
+            "purpose": "fixture-purpose",
+            "owner_id": "fixture-owner_id",
+            "data_class": "fixture-data_class",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g05.memory-classification",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.memory-classification",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/memory-classification.output.schema.json",
+        "positive": {
+          "description": "recognized class maps to controls; unknown class quarantined",
+          "instance": {
+            "memory_id": "fixture-memory_id",
+            "classification": "fixture-classification",
+            "handling_controls": [
+              {
+                "control_id": "fixture-value",
+                "action": "fixture-value",
+                "scope": "fixture-value",
+                "rationale": "fixture-value",
+                "mandatory": false
+              }
+            ],
+            "classification_rationale": "fixture-classification_rationale",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g05.memory-classification",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.memory-classification",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'memory_id'; semantic negative scenario: unknown classification label",
+          "instance": {
+            "classification": "fixture-classification",
+            "handling_controls": [],
+            "classification_rationale": "fixture-classification_rationale",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g05.memory-classification",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.memory-classification",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G05-GENE-002",
+      "gene_id": "g05.retention-control",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/retention-control.input.schema.json",
+        "positive": {
+          "description": "valid policy computes deadline; active hold prevents expiry",
+          "instance": {
+            "memory_id": "fixture-memory_id",
+            "retention_policy_id": "fixture-retention_policy_id",
+            "created_at": "fixture-created_at",
+            "legal_hold": true,
+            "hold_ref": "fixture-hold_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g05.retention-control",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.retention-control",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'memory_id'; semantic negative scenario: deletion despite active legal hold",
+          "instance": {
+            "retention_policy_id": "fixture-retention_policy_id",
+            "created_at": "fixture-created_at",
+            "legal_hold": true,
+            "hold_ref": "fixture-hold_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g05.retention-control",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.retention-control",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/retention-control.output.schema.json",
+        "positive": {
+          "description": "valid policy computes deadline; active hold prevents expiry",
+          "instance": {
+            "memory_id": "fixture-memory_id",
+            "retention_deadline": "fixture-retention_deadline",
+            "disposition": "retain",
+            "policy_digest": "fixture-policy_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g05.retention-control",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.retention-control",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'memory_id'; semantic negative scenario: deletion despite active legal hold",
+          "instance": {
+            "retention_deadline": "fixture-retention_deadline",
+            "disposition": "retain",
+            "policy_digest": "fixture-policy_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g05.retention-control",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.retention-control",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G05-GENE-003",
+      "gene_id": "g05.integrity-checkpoint",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/integrity-checkpoint.input.schema.json",
+        "positive": {
+          "description": "monotonic checkpoint accepted; rollback rejected",
+          "instance": {
+            "snapshot_digest": "fixture-snapshot_digest",
+            "sequence": 1,
+            "previous_checkpoint": "fixture-previous_checkpoint",
+            "authority_ref": "fixture-authority_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g05.integrity-checkpoint",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.integrity-checkpoint",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'snapshot_digest'; semantic negative scenario: sequence rollback or digest mismatch",
+          "instance": {
+            "sequence": 1,
+            "previous_checkpoint": "fixture-previous_checkpoint",
+            "authority_ref": "fixture-authority_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g05.integrity-checkpoint",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.integrity-checkpoint",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/integrity-checkpoint.output.schema.json",
+        "positive": {
+          "description": "monotonic checkpoint accepted; rollback rejected",
+          "instance": {
+            "checkpoint_digest": "fixture-checkpoint_digest",
+            "accepted": true,
+            "sequence": 1,
+            "continuity_verified": true,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g05.integrity-checkpoint",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.integrity-checkpoint",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'checkpoint_digest'; semantic negative scenario: sequence rollback or digest mismatch",
+          "instance": {
+            "accepted": true,
+            "sequence": 1,
+            "continuity_verified": true,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g05.integrity-checkpoint",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g05.integrity-checkpoint",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G06-GENE-001",
+      "gene_id": "g06.input-envelope",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/input-envelope.input.schema.json",
+        "positive": {
+          "description": "matching envelope accepted as untrusted input; tampered envelope rejected",
+          "instance": {
+            "envelope_id": "fixture-envelope_id",
+            "source_id": "fixture-source_id",
+            "media_type": "fixture-media_type",
+            "payload_digest": "fixture-payload_digest",
+            "payload_length": 1,
+            "captured_at": "fixture-captured_at",
+            "payload_ref": "fixture-payload_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g06.input-envelope",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.input-envelope",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'envelope_id'; semantic negative scenario: digest/length mismatch or unsupported media type",
+          "instance": {
+            "source_id": "fixture-source_id",
+            "media_type": "fixture-media_type",
+            "payload_digest": "fixture-payload_digest",
+            "payload_length": 1,
+            "captured_at": "fixture-captured_at",
+            "payload_ref": "fixture-payload_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g06.input-envelope",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.input-envelope",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/input-envelope.output.schema.json",
+        "positive": {
+          "description": "matching envelope accepted as untrusted input; tampered envelope rejected",
+          "instance": {
+            "envelope_id": "fixture-envelope_id",
+            "accepted": true,
+            "normalized_media_type": "fixture-normalized_media_type",
+            "integrity_verified": true,
+            "rejection_reason": "fixture-rejection_reason",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g06.input-envelope",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.input-envelope",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'envelope_id'; semantic negative scenario: digest/length mismatch or unsupported media type",
+          "instance": {
+            "accepted": true,
+            "normalized_media_type": "fixture-normalized_media_type",
+            "integrity_verified": true,
+            "rejection_reason": "fixture-rejection_reason",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g06.input-envelope",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.input-envelope",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G06-GENE-002",
+      "gene_id": "g06.source-trust",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/source-trust.input.schema.json",
+        "positive": {
+          "description": "valid credential assessed; revoked source never trusted",
+          "instance": {
+            "source_id": "fixture-source_id",
+            "credential_ref": "fixture-credential_ref",
+            "policy_id": "fixture-policy_id",
+            "signature": "fixture-signature",
+            "revocation_epoch": 1,
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g06.source-trust",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.source-trust",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'source_id'; semantic negative scenario: revoked credential or stale revocation state",
+          "instance": {
+            "credential_ref": "fixture-credential_ref",
+            "policy_id": "fixture-policy_id",
+            "signature": "fixture-signature",
+            "revocation_epoch": 1,
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g06.source-trust",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.source-trust",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/source-trust.output.schema.json",
+        "positive": {
+          "description": "valid credential assessed; revoked source never trusted",
+          "instance": {
+            "source_id": "fixture-source_id",
+            "trust_level": "trusted",
+            "signature_valid": true,
+            "policy_digest": "fixture-policy_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g06.source-trust",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.source-trust",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'source_id'; semantic negative scenario: revoked credential or stale revocation state",
+          "instance": {
+            "trust_level": "trusted",
+            "signature_valid": true,
+            "policy_digest": "fixture-policy_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g06.source-trust",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.source-trust",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G06-GENE-003",
+      "gene_id": "g06.perception-transform",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/perception-transform.input.schema.json",
+        "positive": {
+          "description": "declared transform yields traceable output; mismatched version rejected",
+          "instance": {
+            "envelope_id": "fixture-envelope_id",
+            "transform_id": "fixture-transform_id",
+            "transform_version": "fixture-transform_version",
+            "modality": "fixture-modality",
+            "output_type": "fixture-output_type",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g06.perception-transform",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.perception-transform",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'envelope_id'; semantic negative scenario: transform version mismatch or undeclared output type",
+          "instance": {
+            "transform_id": "fixture-transform_id",
+            "transform_version": "fixture-transform_version",
+            "modality": "fixture-modality",
+            "output_type": "fixture-output_type",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g06.perception-transform",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.perception-transform",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/perception-transform.output.schema.json",
+        "positive": {
+          "description": "declared transform yields traceable output; mismatched version rejected",
+          "instance": {
+            "transform_id": "fixture-transform_id",
+            "output_digest": "fixture-output_digest",
+            "output_type": "fixture-output_type",
+            "source_envelope_digest": "fixture-source_envelope_digest",
+            "loss_annotations": [
+              {
+                "annotation_id": "fixture-value",
+                "loss_type": "fixture-value",
+                "source_segment": "fixture-value",
+                "description": "fixture-value",
+                "impact": "fixture-value",
+                "severity": "fixture-value"
+              }
+            ],
+            "transform_status": "success",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g06.perception-transform",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.perception-transform",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'transform_id'; semantic negative scenario: transform version mismatch or undeclared output type",
+          "instance": {
+            "output_digest": "fixture-output_digest",
+            "output_type": "fixture-output_type",
+            "source_envelope_digest": "fixture-source_envelope_digest",
+            "loss_annotations": [],
+            "transform_status": "success",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g06.perception-transform",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g06.perception-transform",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G07-GENE-001",
+      "gene_id": "g07.agent-principal",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/agent-principal.input.schema.json",
+        "positive": {
+          "description": "bound principal accepted; revoked identity rejected",
+          "instance": {
+            "agent_id": "fixture-agent_id",
+            "credential_ref": "fixture-credential_ref",
+            "runtime_instance_id": "fixture-runtime_instance_id",
+            "principal_class": "system",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.agent-principal",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.agent-principal",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'agent_id'; semantic negative scenario: revoked or unbound agent identity",
+          "instance": {
+            "credential_ref": "fixture-credential_ref",
+            "runtime_instance_id": "fixture-runtime_instance_id",
+            "principal_class": "system",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.agent-principal",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.agent-principal",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/agent-principal.output.schema.json",
+        "positive": {
+          "description": "bound principal accepted; revoked identity rejected",
+          "instance": {
+            "agent_id": "fixture-agent_id",
+            "principal_valid": true,
+            "principal_digest": "fixture-principal_digest",
+            "identity_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g07.agent-principal",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.agent-principal",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'agent_id'; semantic negative scenario: revoked or unbound agent identity",
+          "instance": {
+            "principal_valid": true,
+            "principal_digest": "fixture-principal_digest",
+            "identity_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g07.agent-principal",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.agent-principal",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G07-GENE-002",
+      "gene_id": "g07.capability-profile",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.input.schema.json",
+        "positive": {
+          "description": "only policy-allowed capabilities listed; escalation denied",
+          "instance": {
+            "agent_id": "fixture-agent_id",
+            "requested_capabilities": [
+              "fixture-value"
+            ],
+            "resource_limits": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            },
+            "policy_id": "fixture-policy_id",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'agent_id'; semantic negative scenario: capability exceeds policy or attempts privilege escalation",
+          "instance": {
+            "requested_capabilities": [],
+            "resource_limits": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            },
+            "policy_id": "fixture-policy_id",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/capability-profile.output.schema.json",
+        "positive": {
+          "description": "only policy-allowed capabilities listed; escalation denied",
+          "instance": {
+            "profile_id": "fixture-profile_id",
+            "granted_capabilities": [
+              "fixture-value"
+            ],
+            "denied_capabilities": [
+              "fixture-value"
+            ],
+            "limits": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            },
+            "authority_granted": true,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g07.capability-profile",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'profile_id'; semantic negative scenario: capability exceeds policy or attempts privilege escalation",
+          "instance": {
+            "granted_capabilities": [],
+            "denied_capabilities": [],
+            "limits": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            },
+            "authority_granted": true,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g07.capability-profile",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.capability-profile",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G07-GENE-003",
+      "gene_id": "g07.delegation-boundary",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.input.schema.json",
+        "positive": {
+          "description": "strict subset accepted; scope escalation rejected",
+          "instance": {
+            "delegator_id": "fixture-delegator_id",
+            "delegate_id": "fixture-delegate_id",
+            "capability_subset": [
+              "fixture-value"
+            ],
+            "expires_at": "fixture-expires_at",
+            "delegation_proof": "fixture-delegation_proof",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.delegation-boundary",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.delegation-boundary",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'delegator_id'; semantic negative scenario: delegate scope exceeds delegator or expired delegation",
+          "instance": {
+            "delegate_id": "fixture-delegate_id",
+            "capability_subset": [],
+            "expires_at": "fixture-expires_at",
+            "delegation_proof": "fixture-delegation_proof",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g07.delegation-boundary",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.delegation-boundary",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/delegation-boundary.output.schema.json",
+        "positive": {
+          "description": "strict subset accepted; scope escalation rejected",
+          "instance": {
+            "delegation_id": "fixture-delegation_id",
+            "accepted": true,
+            "effective_capabilities": [
+              "fixture-value"
+            ],
+            "expiry": "fixture-expiry",
+            "chain_digest": "fixture-chain_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g07.delegation-boundary",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.delegation-boundary",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'delegation_id'; semantic negative scenario: delegate scope exceeds delegator or expired delegation",
+          "instance": {
+            "accepted": true,
+            "effective_capabilities": [],
+            "expiry": "fixture-expiry",
+            "chain_digest": "fixture-chain_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g07.delegation-boundary",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g07.delegation-boundary",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G08-GENE-001",
+      "gene_id": "g08.workflow-graph",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.input.schema.json",
+        "positive": {
+          "description": "acyclic graph ordered; cycle rejected",
+          "instance": {
+            "workflow_id": "fixture-workflow_id",
+            "nodes": [
+              {
+                "node_id": "fixture-value",
+                "node_type": "fixture-value",
+                "operation_ref": "fixture-value",
+                "configuration_digest": "fixture-value"
+              }
+            ],
+            "edges": [
+              {
+                "edge_id": "fixture-value",
+                "from_node_id": "fixture-value",
+                "to_node_id": "fixture-value",
+                "dependency_type": "fixture-value"
+              }
+            ],
+            "graph_version": "fixture-graph_version",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.workflow-graph",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.workflow-graph",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'workflow_id'; semantic negative scenario: cycle or dangling edge",
+          "instance": {
+            "nodes": [],
+            "edges": [],
+            "graph_version": "fixture-graph_version",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.workflow-graph",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.workflow-graph",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/workflow-graph.output.schema.json",
+        "positive": {
+          "description": "acyclic graph ordered; cycle rejected",
+          "instance": {
+            "workflow_id": "fixture-workflow_id",
+            "graph_digest": "fixture-graph_digest",
+            "topological_order": [
+              "fixture-value"
+            ],
+            "validation_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g08.workflow-graph",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.workflow-graph",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'workflow_id'; semantic negative scenario: cycle or dangling edge",
+          "instance": {
+            "graph_digest": "fixture-graph_digest",
+            "topological_order": [],
+            "validation_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g08.workflow-graph",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.workflow-graph",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G08-GENE-002",
+      "gene_id": "g08.scheduler-policy",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.input.schema.json",
+        "positive": {
+          "description": "valid constraints normalized; impossible schedule reported",
+          "instance": {
+            "policy_id": "fixture-policy_id",
+            "task_classes": [
+              {
+                "class_id": "fixture-value",
+                "priority": 1,
+                "quota": 0,
+                "deadline_at": "2026-01-01T00:00:00Z"
+              }
+            ],
+            "priorities": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "quotas": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "deadlines": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'policy_id'; semantic negative scenario: negative quota or impossible deadline silently accepted",
+          "instance": {
+            "task_classes": [],
+            "priorities": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "quotas": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "deadlines": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/scheduler-policy.output.schema.json",
+        "positive": {
+          "description": "valid constraints normalized; impossible schedule reported",
+          "instance": {
+            "policy_id": "fixture-policy_id",
+            "normalized_policy": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "feasibility": "feasible",
+            "violations": [
+              {
+                "violation_id": "fixture-value",
+                "class_id": "fixture-value",
+                "rule_id": "fixture-value",
+                "expected": "fixture-value",
+                "observed": "fixture-value",
+                "severity": "fixture-value"
+              }
+            ],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g08.scheduler-policy",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'policy_id'; semantic negative scenario: negative quota or impossible deadline silently accepted",
+          "instance": {
+            "normalized_policy": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            },
+            "feasibility": "feasible",
+            "violations": [],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g08.scheduler-policy",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.scheduler-policy",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G08-GENE-003",
+      "gene_id": "g08.coordination-state",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.input.schema.json",
+        "positive": {
+          "description": "newer epoch wins; stale writer rejected",
+          "instance": {
+            "run_id": "fixture-run_id",
+            "participants": [
+              {
+                "participant_id": "fixture-value",
+                "state": "fixture-value",
+                "lease_epoch": 0,
+                "checkpoint_ref": "fixture-value",
+                "updated_at": "2026-01-01T00:00:00Z"
+              }
+            ],
+            "lease_epochs": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            },
+            "checkpoint_refs": [
+              "fixture-value"
+            ],
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'run_id'; semantic negative scenario: stale lease epoch overwrites newer state",
+          "instance": {
+            "participants": [],
+            "lease_epochs": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            },
+            "checkpoint_refs": [],
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/coordination-state.output.schema.json",
+        "positive": {
+          "description": "newer epoch wins; stale writer rejected",
+          "instance": {
+            "run_id": "fixture-run_id",
+            "canonical_state": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            },
+            "state_digest": "fixture-state_digest",
+            "conflicts": [
+              {
+                "conflict_id": "fixture-value",
+                "participant_ids": [],
+                "resource_ref": "fixture-value",
+                "conflict_type": "fixture-value",
+                "description": "fixture-value"
+              }
+            ],
+            "stale_participants": [
+              "fixture-value"
+            ],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g08.coordination-state",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'run_id'; semantic negative scenario: stale lease epoch overwrites newer state",
+          "instance": {
+            "canonical_state": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            },
+            "state_digest": "fixture-state_digest",
+            "conflicts": [],
+            "stale_participants": [],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g08.coordination-state",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g08.coordination-state",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G09-GENE-001",
+      "gene_id": "g09.effect-contract",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/effect-contract.input.schema.json",
+        "positive": {
+          "description": "declared effect contract evaluated; undeclared effect rejected",
+          "instance": {
+            "effect_id": "fixture-effect_id",
+            "effect_type": "fixture-effect_type",
+            "target": "fixture-target",
+            "resource_scope": [
+              "fixture-value"
+            ],
+            "risk_class": "fixture-risk_class",
+            "operation_digest": "fixture-operation_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g09.effect-contract",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.effect-contract",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'effect_id'; semantic negative scenario: undeclared or prohibited effect",
+          "instance": {
+            "effect_type": "fixture-effect_type",
+            "target": "fixture-target",
+            "resource_scope": [],
+            "risk_class": "fixture-risk_class",
+            "operation_digest": "fixture-operation_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g09.effect-contract",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.effect-contract",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/effect-contract.output.schema.json",
+        "positive": {
+          "description": "declared effect contract evaluated; undeclared effect rejected",
+          "instance": {
+            "effect_id": "fixture-effect_id",
+            "contract_valid": true,
+            "required_authorization": [],
+            "effect_digest": "fixture-effect_digest",
+            "decision": "admissible",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g09.effect-contract",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.effect-contract",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'effect_id'; semantic negative scenario: undeclared or prohibited effect",
+          "instance": {
+            "contract_valid": true,
+            "required_authorization": [],
+            "effect_digest": "fixture-effect_digest",
+            "decision": "admissible",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g09.effect-contract",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.effect-contract",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G09-GENE-002",
+      "gene_id": "g09.admission-gate",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/admission-gate.input.schema.json",
+        "positive": {
+          "description": "valid scoped authorization admits; invalid/replayed authorization denied",
+          "instance": {
+            "effect_id": "fixture-effect_id",
+            "authorization_ref": "fixture-authorization_ref",
+            "authorization_signature": "fixture-authorization_signature",
+            "policy_digest": "fixture-policy_digest",
+            "expires_at": "fixture-expires_at",
+            "nonce": "fixture-nonce",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g09.admission-gate",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.admission-gate",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'effect_id'; semantic negative scenario: missing, invalid, expired or replayed authorization",
+          "instance": {
+            "authorization_ref": "fixture-authorization_ref",
+            "authorization_signature": "fixture-authorization_signature",
+            "policy_digest": "fixture-policy_digest",
+            "expires_at": "fixture-expires_at",
+            "nonce": "fixture-nonce",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g09.admission-gate",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.admission-gate",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/admission-gate.output.schema.json",
+        "positive": {
+          "description": "valid scoped authorization admits; invalid/replayed authorization denied",
+          "instance": {
+            "admission_id": "fixture-admission_id",
+            "admitted": true,
+            "denial_code": "fixture-denial_code",
+            "authorization_digest": "fixture-authorization_digest",
+            "consumed_nonce": "fixture-consumed_nonce",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g09.admission-gate",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.admission-gate",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'admission_id'; semantic negative scenario: missing, invalid, expired or replayed authorization",
+          "instance": {
+            "admitted": true,
+            "denial_code": "fixture-denial_code",
+            "authorization_digest": "fixture-authorization_digest",
+            "consumed_nonce": "fixture-consumed_nonce",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g09.admission-gate",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.admission-gate",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G09-GENE-003",
+      "gene_id": "g09.execution-receipt",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/execution-receipt.input.schema.json",
+        "positive": {
+          "description": "receipt binds to admission; orphan receipt rejected",
+          "instance": {
+            "admission_id": "fixture-admission_id",
+            "executor_id": "fixture-executor_id",
+            "result_digest": "fixture-result_digest",
+            "started_at": "fixture-started_at",
+            "completed_at": "fixture-completed_at",
+            "outcome": "success",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g09.execution-receipt",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.execution-receipt",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'admission_id'; semantic negative scenario: receipt without admission or mismatched executor",
+          "instance": {
+            "executor_id": "fixture-executor_id",
+            "result_digest": "fixture-result_digest",
+            "started_at": "fixture-started_at",
+            "completed_at": "fixture-completed_at",
+            "outcome": "success",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g09.execution-receipt",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.execution-receipt",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/execution-receipt.output.schema.json",
+        "positive": {
+          "description": "receipt binds to admission; orphan receipt rejected",
+          "instance": {
+            "receipt_id": "fixture-receipt_id",
+            "receipt_digest": "fixture-receipt_digest",
+            "admission_ref": "fixture-admission_ref",
+            "executor_id": "fixture-executor_id",
+            "recorded_at": "fixture-recorded_at",
+            "integrity_verified": true,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g09.execution-receipt",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.execution-receipt",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'receipt_id'; semantic negative scenario: receipt without admission or mismatched executor",
+          "instance": {
+            "receipt_digest": "fixture-receipt_digest",
+            "admission_ref": "fixture-admission_ref",
+            "executor_id": "fixture-executor_id",
+            "recorded_at": "fixture-recorded_at",
+            "integrity_verified": true,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g09.execution-receipt",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g09.execution-receipt",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G10-GENE-001",
+      "gene_id": "g10.learning-input",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.input.schema.json",
+        "positive": {
+          "description": "eligible data isolated; prohibited input excluded",
+          "instance": {
+            "observations": [
+              {
+                "observation_id": "fixture-value",
+                "content_digest": "fixture-value",
+                "source_ref": "fixture-value",
+                "observed_at": "2026-01-01T00:00:00Z",
+                "data_class": "fixture-value",
+                "authorization_ref": "fixture-value"
+              }
+            ],
+            "source_refs": [
+              "fixture-value"
+            ],
+            "data_class": "fixture-data_class",
+            "authorization_ref": "fixture-authorization_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.learning-input",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.learning-input",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'observations'; semantic negative scenario: untrusted, unauthorized or prohibited data class",
+          "instance": {
+            "source_refs": [],
+            "data_class": "fixture-data_class",
+            "authorization_ref": "fixture-authorization_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.learning-input",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.learning-input",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/learning-input.output.schema.json",
+        "positive": {
+          "description": "eligible data isolated; prohibited input excluded",
+          "instance": {
+            "learning_batch_id": "fixture-learning_batch_id",
+            "eligible_observations": [
+              {
+                "observation_id": "fixture-value",
+                "source_ref": "fixture-value",
+                "eligibility_basis": "fixture-value",
+                "authorization_ref": "fixture-value"
+              }
+            ],
+            "excluded_observations": [
+              {
+                "observation_id": "fixture-value",
+                "source_ref": "fixture-value",
+                "exclusion_reason": "fixture-value",
+                "policy_ref": "fixture-value"
+              }
+            ],
+            "eligibility_digest": "fixture-eligibility_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g10.learning-input",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.learning-input",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'learning_batch_id'; semantic negative scenario: untrusted, unauthorized or prohibited data class",
+          "instance": {
+            "eligible_observations": [],
+            "excluded_observations": [],
+            "eligibility_digest": "fixture-eligibility_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g10.learning-input",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.learning-input",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G10-GENE-002",
+      "gene_id": "g10.change-proposal",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.input.schema.json",
+        "positive": {
+          "description": "proposal recorded for evaluation; invariant breach blocked",
+          "instance": {
+            "target_id": "fixture-target_id",
+            "base_version": "fixture-base_version",
+            "proposed_version": "fixture-proposed_version",
+            "diff_digest": "fixture-diff_digest",
+            "rationale": "fixture-rationale",
+            "expected_effects": [
+              {
+                "effect_id": "fixture-value",
+                "effect_type": "fixture-value",
+                "target": "fixture-value",
+                "resource_scope": [],
+                "risk_class": "fixture-value",
+                "operation_digest": "fixture-value"
+              }
+            ],
+            "proposer_id": "fixture-proposer_id",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.change-proposal",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.change-proposal",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'target_id'; semantic negative scenario: proposal changes invariant or bypasses approval",
+          "instance": {
+            "base_version": "fixture-base_version",
+            "proposed_version": "fixture-proposed_version",
+            "diff_digest": "fixture-diff_digest",
+            "rationale": "fixture-rationale",
+            "expected_effects": [],
+            "proposer_id": "fixture-proposer_id",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.change-proposal",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.change-proposal",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/change-proposal.output.schema.json",
+        "positive": {
+          "description": "proposal recorded for evaluation; invariant breach blocked",
+          "instance": {
+            "proposal_id": "fixture-proposal_id",
+            "proposal_digest": "fixture-proposal_digest",
+            "change_class": "fixture-change_class",
+            "required_evaluations": [
+              "fixture-value"
+            ],
+            "approval_required": true,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g10.change-proposal",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.change-proposal",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'proposal_id'; semantic negative scenario: proposal changes invariant or bypasses approval",
+          "instance": {
+            "proposal_digest": "fixture-proposal_digest",
+            "change_class": "fixture-change_class",
+            "required_evaluations": [],
+            "approval_required": true,
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g10.change-proposal",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.change-proposal",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G10-GENE-003",
+      "gene_id": "g10.evaluation-record",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.input.schema.json",
+        "positive": {
+          "description": "complete evaluation recorded; missing evidence is inconclusive",
+          "instance": {
+            "proposal_id": "fixture-proposal_id",
+            "suite_digest": "fixture-suite_digest",
+            "baseline_metrics": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            },
+            "candidate_metrics": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            },
+            "evaluator_id": "fixture-evaluator_id",
+            "environment_digest": "fixture-environment_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'proposal_id'; semantic negative scenario: missing baseline or evaluator provenance",
+          "instance": {
+            "suite_digest": "fixture-suite_digest",
+            "baseline_metrics": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            },
+            "candidate_metrics": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            },
+            "evaluator_id": "fixture-evaluator_id",
+            "environment_digest": "fixture-environment_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/evaluation-record.output.schema.json",
+        "positive": {
+          "description": "complete evaluation recorded; missing evidence is inconclusive",
+          "instance": {
+            "evaluation_id": "fixture-evaluation_id",
+            "results": [
+              {
+                "test_id": "fixture-value",
+                "status": "passed",
+                "baseline_value": 0.5,
+                "candidate_value": 0.5,
+                "unit": "fixture-value",
+                "evidence_ref": "fixture-value"
+              }
+            ],
+            "regressions": [
+              {
+                "regression_id": "fixture-value",
+                "metric_id": "fixture-value",
+                "baseline_value": 0.5,
+                "candidate_value": 0.5,
+                "delta": 0.5,
+                "severity": "fixture-value",
+                "evidence_ref": "fixture-value"
+              }
+            ],
+            "decision": "pass",
+            "evidence_digest": "fixture-evidence_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g10.evaluation-record",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'evaluation_id'; semantic negative scenario: missing baseline or evaluator provenance",
+          "instance": {
+            "results": [],
+            "regressions": [],
+            "decision": "pass",
+            "evidence_digest": "fixture-evidence_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g10.evaluation-record",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g10.evaluation-record",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G11-GENE-001",
+      "gene_id": "g11.validator",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/validator.input.schema.json",
+        "positive": {
+          "description": "known contracts checked; unknown contract fails closed",
+          "instance": {
+            "artifact_ref": "fixture-artifact_ref",
+            "contract_ids": [
+              "fixture-value"
+            ],
+            "validator_version": "fixture-validator_version",
+            "policy_digest": "fixture-policy_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g11.validator",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.validator",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'artifact_ref'; semantic negative scenario: unknown contract or validator version",
+          "instance": {
+            "contract_ids": [],
+            "validator_version": "fixture-validator_version",
+            "policy_digest": "fixture-policy_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g11.validator",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.validator",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/validator.output.schema.json",
+        "positive": {
+          "description": "known contracts checked; unknown contract fails closed",
+          "instance": {
+            "validation_id": "fixture-validation_id",
+            "valid": true,
+            "findings": [
+              {
+                "finding_id": "fixture-value",
+                "contract_id": "fixture-value",
+                "severity": "fixture-value",
+                "code": "fixture-value",
+                "message": "fixture-value",
+                "instance_path": "fixture-value",
+                "disposition": "fixture-value"
+              }
+            ],
+            "validated_digest": "fixture-validated_digest",
+            "validator_version": "fixture-validator_version",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g11.validator",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.validator",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'validation_id'; semantic negative scenario: unknown contract or validator version",
+          "instance": {
+            "valid": true,
+            "findings": [],
+            "validated_digest": "fixture-validated_digest",
+            "validator_version": "fixture-validator_version",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g11.validator",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.validator",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G11-GENE-002",
+      "gene_id": "g11.attestation",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/attestation.input.schema.json",
+        "positive": {
+          "description": "fresh valid signature accepted; replay/revocation rejected",
+          "instance": {
+            "subject_digest": "fixture-subject_digest",
+            "validation_ref": "fixture-validation_ref",
+            "attester_id": "fixture-attester_id",
+            "key_ref": "fixture-key_ref",
+            "challenge_nonce": "fixture-challenge_nonce",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g11.attestation",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.attestation",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'subject_digest'; semantic negative scenario: signature mismatch, replayed challenge or revoked key",
+          "instance": {
+            "validation_ref": "fixture-validation_ref",
+            "attester_id": "fixture-attester_id",
+            "key_ref": "fixture-key_ref",
+            "challenge_nonce": "fixture-challenge_nonce",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g11.attestation",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.attestation",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/attestation.output.schema.json",
+        "positive": {
+          "description": "fresh valid signature accepted; replay/revocation rejected",
+          "instance": {
+            "attestation_id": "fixture-attestation_id",
+            "subject_digest": "fixture-subject_digest",
+            "attester_id": "fixture-attester_id",
+            "signature": "fixture-signature",
+            "issued_at": "fixture-issued_at",
+            "verification_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g11.attestation",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.attestation",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'attestation_id'; semantic negative scenario: signature mismatch, replayed challenge or revoked key",
+          "instance": {
+            "subject_digest": "fixture-subject_digest",
+            "attester_id": "fixture-attester_id",
+            "signature": "fixture-signature",
+            "issued_at": "fixture-issued_at",
+            "verification_status": "valid",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g11.attestation",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.attestation",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G11-GENE-003",
+      "gene_id": "g11.conformance-report",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conformance-report.input.schema.json",
+        "positive": {
+          "description": "complete exact-head report accepted; missing result blocks pass",
+          "instance": {
+            "suite_id": "fixture-suite_id",
+            "suite_version": "fixture-suite_version",
+            "test_results": [
+              {
+                "test_id": "fixture-value",
+                "status": "passed",
+                "duration_ms": 0,
+                "failure_ref": "fixture-value"
+              }
+            ],
+            "tested_commit": "fixture-tested_commit",
+            "environment_digest": "fixture-environment_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g11.conformance-report",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.conformance-report",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'suite_id'; semantic negative scenario: missing test result or SHA mismatch",
+          "instance": {
+            "suite_version": "fixture-suite_version",
+            "test_results": [],
+            "tested_commit": "fixture-tested_commit",
+            "environment_digest": "fixture-environment_digest",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g11.conformance-report",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.conformance-report",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/conformance-report.output.schema.json",
+        "positive": {
+          "description": "complete exact-head report accepted; missing result blocks pass",
+          "instance": {
+            "report_id": "fixture-report_id",
+            "passed_count": 1,
+            "failed_count": 1,
+            "blocked_count": 1,
+            "overall_status": "pass",
+            "report_digest": "fixture-report_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g11.conformance-report",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.conformance-report",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'report_id'; semantic negative scenario: missing test result or SHA mismatch",
+          "instance": {
+            "passed_count": 1,
+            "failed_count": 1,
+            "blocked_count": 1,
+            "overall_status": "pass",
+            "report_digest": "fixture-report_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g11.conformance-report",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g11.conformance-report",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G12-GENE-001",
+      "gene_id": "g12.mutation-policy",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.input.schema.json",
+        "positive": {
+          "description": "policy classifies and gates change; unauthorized mutation denied",
+          "instance": {
+            "mutation_id": "fixture-mutation_id",
+            "target_gene": "fixture-target_gene",
+            "base_version": "fixture-base_version",
+            "proposed_version": "fixture-proposed_version",
+            "risk_class": "fixture-risk_class",
+            "protected_invariants": [
+              "fixture-value"
+            ],
+            "approval_ref": "fixture-approval_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g12.mutation-policy",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.mutation-policy",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'mutation_id'; semantic negative scenario: unapproved protected mutation or invariant weakening",
+          "instance": {
+            "target_gene": "fixture-target_gene",
+            "base_version": "fixture-base_version",
+            "proposed_version": "fixture-proposed_version",
+            "risk_class": "fixture-risk_class",
+            "protected_invariants": [],
+            "approval_ref": "fixture-approval_ref",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g12.mutation-policy",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.mutation-policy",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/mutation-policy.output.schema.json",
+        "positive": {
+          "description": "policy classifies and gates change; unauthorized mutation denied",
+          "instance": {
+            "mutation_id": "fixture-mutation_id",
+            "permitted": true,
+            "required_gates": [
+              {
+                "gate_id": "fixture-value",
+                "stage": "fixture-value",
+                "requirement": "fixture-value",
+                "blocking": false
+              }
+            ],
+            "policy_digest": "fixture-policy_digest",
+            "denial_reasons": [
+              {
+                "code": "fixture-value",
+                "message": "fixture-value",
+                "invariant_ref": "fixture-value"
+              }
+            ],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g12.mutation-policy",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.mutation-policy",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'mutation_id'; semantic negative scenario: unapproved protected mutation or invariant weakening",
+          "instance": {
+            "permitted": true,
+            "required_gates": [],
+            "policy_digest": "fixture-policy_digest",
+            "denial_reasons": [],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g12.mutation-policy",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.mutation-policy",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G12-GENE-002",
+      "gene_id": "g12.version-lineage",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/version-lineage.input.schema.json",
+        "positive": {
+          "description": "linked monotonic lineage accepted; broken ancestry rejected",
+          "instance": {
+            "artifact_digest": "fixture-artifact_digest",
+            "version": "fixture-version",
+            "parent_version": "fixture-parent_version",
+            "parent_digest": "fixture-parent_digest",
+            "mutation_ref": "fixture-mutation_ref",
+            "epoch": 1,
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g12.version-lineage",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.version-lineage",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'artifact_digest'; semantic negative scenario: missing parent digest or non-monotonic epoch",
+          "instance": {
+            "version": "fixture-version",
+            "parent_version": "fixture-parent_version",
+            "parent_digest": "fixture-parent_digest",
+            "mutation_ref": "fixture-mutation_ref",
+            "epoch": 1,
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g12.version-lineage",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.version-lineage",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/version-lineage.output.schema.json",
+        "positive": {
+          "description": "linked monotonic lineage accepted; broken ancestry rejected",
+          "instance": {
+            "lineage_digest": "fixture-lineage_digest",
+            "linked": true,
+            "epoch_monotonic": true,
+            "ancestry": [
+              {
+                "gene_id": "fixture-value",
+                "version": "fixture-value",
+                "artifact_digest": "fixture-value",
+                "parent_digest": "fixture-value",
+                "mutation_id": "fixture-value",
+                "epoch": 0
+              }
+            ],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g12.version-lineage",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.version-lineage",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'lineage_digest'; semantic negative scenario: missing parent digest or non-monotonic epoch",
+          "instance": {
+            "linked": true,
+            "epoch_monotonic": true,
+            "ancestry": [],
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g12.version-lineage",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.version-lineage",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    },
+    {
+      "case_id": "G12-GENE-003",
+      "gene_id": "g12.rollback-guard",
+      "gene_version": "1.0.0",
+      "input": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/rollback-guard.input.schema.json",
+        "positive": {
+          "description": "permitted forward transition accepted; rollback below floor denied",
+          "instance": {
+            "current_epoch": 1,
+            "current_digest": "fixture-current_digest",
+            "candidate_epoch": 1,
+            "candidate_digest": "fixture-candidate_digest",
+            "revocation_floor": 1,
+            "rollback_authorization": "fixture-rollback_authorization",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g12.rollback-guard",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.rollback-guard",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'current_epoch'; semantic negative scenario: candidate below revocation floor or stale epoch",
+          "instance": {
+            "current_digest": "fixture-current_digest",
+            "candidate_epoch": 1,
+            "candidate_digest": "fixture-candidate_digest",
+            "revocation_floor": 1,
+            "rollback_authorization": "fixture-rollback_authorization",
+            "provenance": {
+              "source_id": "synthetic-fixture",
+              "gene_id": "g12.rollback-guard",
+              "gene_version": "1.0.0"
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.rollback-guard",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      },
+      "output": {
+        "schema_path": "crates/iroka-kernel/igacms/schemas/genes/rollback-guard.output.schema.json",
+        "positive": {
+          "description": "permitted forward transition accepted; rollback below floor denied",
+          "instance": {
+            "decision": "allow",
+            "effective_epoch": 1,
+            "effective_digest": "fixture-effective_digest",
+            "denial_reason": "fixture-denial_reason",
+            "guard_digest": "fixture-guard_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g12.rollback-guard",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.rollback-guard",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "ACCEPT"
+        },
+        "negative": {
+          "description": "Missing required property 'decision'; semantic negative scenario: candidate below revocation floor or stale epoch",
+          "instance": {
+            "effective_epoch": 1,
+            "effective_digest": "fixture-effective_digest",
+            "denial_reason": "fixture-denial_reason",
+            "guard_digest": "fixture-guard_digest",
+            "evidence": {
+              "provenance": {
+                "source_id": "synthetic-fixture"
+              },
+              "version_bound_evidence": {
+                "gene_id": "g12.rollback-guard",
+                "gene_version": "1.0.0"
+              }
+            },
+            "version_bound_evidence": {
+              "gene_id": "g12.rollback-guard",
+              "gene_version": "1.0.0"
+            }
+          },
+          "expected": "REJECT"
+        }
+      }
+    }
+  ]
+}

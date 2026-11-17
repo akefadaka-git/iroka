@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g10.evaluation-record/input/1.0.0",
+  "title": "Evaluation record — input",
+  "description": "Normative input contract for g10.evaluation-record v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "proposal_id": {
+      "type": "string",
+      "description": "proposal_id — approved input field for g10.evaluation-record"
+    },
+    "suite_digest": {
+      "type": "string",
+      "description": "suite_digest — approved input field for g10.evaluation-record"
+    },
+    "baseline_metrics": {
+      "type": "object",
+      "description": "baseline_metrics — approved input field for g10.evaluation-record"
+    },
+    "candidate_metrics": {
+      "type": "object",
+      "description": "candidate_metrics — approved input field for g10.evaluation-record"
+    },
+    "evaluator_id": {
+      "type": "string",
+      "description": "evaluator_id — approved input field for g10.evaluation-record"
+    },
+    "environment_digest": {
+      "type": "string",
+      "description": "environment_digest — approved input field for g10.evaluation-record"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "proposal_id",
+    "suite_digest",
+    "baseline_metrics",
+    "candidate_metrics",
+    "evaluator_id",
+    "environment_digest",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g11.attestation/input/1.0.0",
+  "title": "Attestation — input",
+  "description": "Normative input contract for g11.attestation v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "subject_digest": {
+      "type": "string",
+      "description": "subject_digest — approved input field for g11.attestation"
+    },
+    "validation_ref": {
+      "type": "string",
+      "description": "validation_ref — approved input field for g11.attestation"
+    },
+    "attester_id": {
+      "type": "string",
+      "description": "attester_id — approved input field for g11.attestation"
+    },
+    "key_ref": {
+      "type": "string",
+      "description": "key_ref — approved input field for g11.attestation"
+    },
+    "challenge_nonce": {
+      "type": "string",
+      "description": "challenge_nonce — approved input field for g11.attestation"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "subject_digest",
+    "validation_ref",
+    "attester_id",
+    "key_ref",
+    "challenge_nonce",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

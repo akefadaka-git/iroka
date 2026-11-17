@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g06.input-envelope/output/1.0.0",
+  "title": "Input envelope — output",
+  "description": "Normative output contract for g06.input-envelope v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "envelope_id": {
+      "type": "string",
+      "description": "envelope_id — approved output field for g06.input-envelope"
+    },
+    "accepted": {
+      "type": "boolean",
+      "description": "accepted — approved output field for g06.input-envelope"
+    },
+    "normalized_media_type": {
+      "type": "string",
+      "description": "normalized_media_type — approved output field for g06.input-envelope"
+    },
+    "integrity_verified": {
+      "type": "boolean",
+      "description": "integrity_verified — approved output field for g06.input-envelope"
+    },
+    "rejection_reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "rejection_reason — approved output field for g06.input-envelope"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "envelope_id",
+    "accepted",
+    "normalized_media_type",
+    "integrity_verified",
+    "rejection_reason",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

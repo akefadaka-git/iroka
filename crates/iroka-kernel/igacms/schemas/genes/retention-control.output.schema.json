@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g05.retention-control/output/1.0.0",
+  "title": "Retention control — output",
+  "description": "Normative output contract for g05.retention-control v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "description": "memory_id — approved output field for g05.retention-control"
+    },
+    "retention_deadline": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "retention_deadline — approved output field for g05.retention-control"
+    },
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "retain",
+        "eligible_for_deletion",
+        "hold"
+      ],
+      "description": "disposition — approved output field for g05.retention-control"
+    },
+    "policy_digest": {
+      "type": "string",
+      "description": "policy_digest — approved output field for g05.retention-control"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "memory_id",
+    "retention_deadline",
+    "disposition",
+    "policy_digest",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

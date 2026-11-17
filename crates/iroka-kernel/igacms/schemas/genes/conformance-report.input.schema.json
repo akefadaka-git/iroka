@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g11.conformance-report/input/1.0.0",
+  "title": "Conformance report — input",
+  "description": "Normative input contract for g11.conformance-report v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "test_results_item": {
+      "type": "object",
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "skipped",
+            "error",
+            "inconclusive"
+          ]
+        },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "failure_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "test_id",
+        "status",
+        "duration_ms",
+        "failure_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g11-conformance-report-input-test_results-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "suite_id": {
+      "type": "string",
+      "description": "suite_id — approved input field for g11.conformance-report"
+    },
+    "suite_version": {
+      "type": "string",
+      "description": "suite_version — approved input field for g11.conformance-report"
+    },
+    "test_results": {
+      "type": "array",
+      "description": "test_results — approved input field for g11.conformance-report",
+      "items": {
+        "$ref": "#/$defs/test_results_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "test_id"
+        ],
+        "rule": "failed/error/inconclusive statuses cannot be reported as passing conformance"
+      }
+    },
+    "tested_commit": {
+      "type": "string",
+      "description": "tested_commit — approved input field for g11.conformance-report"
+    },
+    "environment_digest": {
+      "type": "string",
+      "description": "environment_digest — approved input field for g11.conformance-report"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "suite_id",
+    "suite_version",
+    "test_results",
+    "tested_commit",
+    "environment_digest",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

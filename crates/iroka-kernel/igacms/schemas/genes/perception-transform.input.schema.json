@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g06.perception-transform/input/1.0.0",
+  "title": "Perception transform — input",
+  "description": "Normative input contract for g06.perception-transform v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "envelope_id": {
+      "type": "string",
+      "description": "envelope_id — approved input field for g06.perception-transform"
+    },
+    "transform_id": {
+      "type": "string",
+      "description": "transform_id — approved input field for g06.perception-transform"
+    },
+    "transform_version": {
+      "type": "string",
+      "description": "transform_version — approved input field for g06.perception-transform"
+    },
+    "modality": {
+      "type": "string",
+      "description": "modality — approved input field for g06.perception-transform"
+    },
+    "output_type": {
+      "type": "string",
+      "description": "output_type — approved input field for g06.perception-transform"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "envelope_id",
+    "transform_id",
+    "transform_version",
+    "modality",
+    "output_type",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
