@@ -29,11 +29,6 @@ pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
 pub use identity::VerifiedPrincipal;
-pub use identity_root::{
-    evaluate_identity_root, IdentityRootDecisionEvidence, IdentityRootError, IdentityRootInput,
-    IdentityRootOutput, IdentityRootPolicy, IdentityRootStatus, IdentityTrustDecision,
-    IDENTITY_ROOT_ALGORITHM_POLICY_VERSION,
-};
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
 #[cfg(any(test, feature = "dev-no-revocations"))]
@@ -41,6 +36,11 @@ pub use identity_crypto::NoRevocations;
 pub use identity_crypto::{
     CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError, TrustStore,
     TrustedKey,
+};
+pub use identity_root::{
+    evaluate_identity_root, IdentityRootDecisionEvidence, IdentityRootError, IdentityRootInput,
+    IdentityRootOutput, IdentityRootPolicy, IdentityRootStatus, IdentityTrustDecision,
+    IDENTITY_ROOT_ALGORITHM_POLICY_VERSION,
 };
 pub use igacms::{
     authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical,
