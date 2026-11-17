@@ -1,0 +1,63 @@
+name: A3 G05 memory-classification verification
+
+on:
+  push:
+    branches:
+      - implementation/a3-g05-memory-classification
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - ".github/workflows/a3-g05-memory-classification-verification.yml"
+  pull_request:
+    branches:
+      - implementation/a3-g04-knowledge-schema
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - ".github/workflows/a3-g05-memory-classification-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a3-g05-memory-classification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: G05 memory policy, type, compile and test verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact triggering commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+          rustc --version
+          cargo --version
+      - name: Apply canonical Rust formatting in verification workspace
+        run: cargo fmt --all
+      - name: Check Rust formatting after normalization
+        run: cargo fmt --all -- --check
+      - name: Emit G05 source for exact-source reconciliation
+        run: |
+          cat crates/iroka-kernel/src/memory_classification.rs
+          cat crates/iroka-kernel/src/lib.rs
+      - name: Compile kernel and all targets
+        run: cargo check -p iroka-kernel --all-targets --locked
+      - name: Verify production feature set
+        run: cargo check --workspace --all-targets --no-default-features --locked
+      - name: Run G05-specific tests
+        run: cargo test -p iroka-kernel memory_classification::tests --locked
+      - name: Run complete workspace tests
+        run: cargo test --workspace --all-targets --locked
+      - name: Run Clippy with warnings denied
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -A clippy::pedantic
