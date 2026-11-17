@@ -31,24 +31,48 @@ def main() -> None:
 
     if metadata.get("version") != 1 or not isinstance(metadata.get("packages"), list):
         raise SystemExit("unsupported or incomplete Cargo metadata")
-    lock_packages = {
-        (p["name"], p["version"], p.get("source")): p
-        for p in lock.get("package", [])
-    }
-    packages = metadata["packages"]
-    package_by_id = {p["id"]: p for p in packages}
-    package_spdx = {
-        p["id"]: spdx_id(p["name"], p["version"], p.get("source"))
-        for p in packages
-    }
     lock_by_key = {
         (p["name"], p["version"], p.get("source")): p
         for p in lock.get("package", [])
     }
+    if len(lock_by_key) != len(lock.get("package", [])):
+        raise SystemExit("Cargo.lock contains duplicate package identities")
 
+    packages = metadata["packages"]
+    package_by_id = {p["id"]: p for p in packages}
+    if len(package_by_id) != len(packages):
+        raise SystemExit("Cargo metadata contains duplicate package IDs")
+    metadata_by_key = {
+        (p["name"], p["version"], p.get("source")): p
+        for p in packages
+    }
+    if len(metadata_by_key) != len(packages):
+        raise SystemExit("Cargo metadata contains duplicate package identities")
+    missing_from_lock = sorted(set(metadata_by_key) - set(lock_by_key))
+    missing_from_metadata = sorted(set(lock_by_key) - set(metadata_by_key))
+    if missing_from_lock or missing_from_metadata:
+        raise SystemExit(
+            "Cargo metadata/Cargo.lock package-set mismatch: "
+            f"missing_from_lock={missing_from_lock}; "
+            f"missing_from_metadata={missing_from_metadata}"
+        )
+    package_spdx = {
+        p["id"]: spdx_id(p["name"], p["version"], p.get("source"))
+        for p in packages
+    }
     workspace_ids = set(metadata.get("workspace_members", []))
-    if not workspace_ids:
-        raise SystemExit("Cargo metadata has no workspace members")
+    if not workspace_ids or not workspace_ids.issubset(package_by_id):
+        raise SystemExit("Cargo metadata has missing or invalid workspace members")
+    resolve = metadata.get("resolve")
+    if not isinstance(resolve, dict) or not isinstance(resolve.get("nodes"), list):
+        raise SystemExit("Cargo metadata must include the resolved dependency graph")
+    resolved_ids = {node.get("id") for node in resolve["nodes"]}
+    if resolved_ids != set(package_by_id):
+        raise SystemExit(
+            "Cargo metadata package set differs from resolved graph: "
+            f"unresolved={sorted(set(package_by_id) - resolved_ids)}; "
+            f"unexpected={sorted(resolved_ids - set(package_by_id))}"
+        )
 
     spdx_packages = []
     for package in sorted(packages, key=lambda p: (p["name"], p["version"], p["id"])):
@@ -103,19 +127,20 @@ def main() -> None:
             "relationshipType": "DESCRIBES",
             "relatedSpdxElement": package_spdx[package_id],
         })
-    resolve = metadata.get("resolve") or {}
-    for node in resolve.get("nodes", []):
+    dependency_edges = set()
+    for node in resolve["nodes"]:
         source_id = node.get("id")
         if source_id not in package_spdx:
             continue
         for dependency in node.get("deps", []):
             target_id = dependency.get("pkg")
             if target_id in package_spdx:
-                relationships.append({
-                    "spdxElementId": package_spdx[source_id],
-                    "relationshipType": "DEPENDS_ON",
-                    "relatedSpdxElement": package_spdx[target_id],
-                })
+                dependency_edges.add((package_spdx[source_id], package_spdx[target_id]))
+    relationships.extend({
+        "spdxElementId": source_id,
+        "relationshipType": "DEPENDS_ON",
+        "relatedSpdxElement": target_id,
+    } for source_id, target_id in dependency_edges)
     relationships.sort(key=lambda r: (
         r["spdxElementId"], r["relationshipType"], r["relatedSpdxElement"]
     ))
