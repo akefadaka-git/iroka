@@ -13,6 +13,7 @@ mod identity;
 mod identity_crypto;
 mod identity_lineage;
 mod identity_root;
+mod inference_rules;
 mod igacms;
 mod owner_approval;
 mod owner_governance;
@@ -50,6 +51,7 @@ pub use identity_lineage::{
     evaluate_identity_lineage, IdentityLineageEvidence, IdentityLineageInput, IdentityLineageNode,
     IdentityLineageOutput, IdentityLineagePolicy, IdentityRelationship,
 };
+pub use inference_rules::{evaluate_inference_rules, DerivationStep, InferenceConclusion, InferenceEvidence, InferencePremise, InferenceRule, InferenceRulePolicy, InferenceRulesInput, InferenceRulesOutput, UnsupportedInferenceStep};
 pub use identity_root::{
     evaluate_identity_root, IdentityRootDecisionEvidence, IdentityRootError, IdentityRootInput,
     IdentityRootOutput, IdentityRootPolicy, IdentityRootStatus, IdentityTrustDecision,
