@@ -308,8 +308,11 @@ pub fn evaluate_authority_source<R: RevocationChecker>(
         );
     }
     if !policy.allowed_source_types.contains(&input.source_type)
-        || !policy.allowed_registration_issuers.contains(&registration.issuer_id)
-        || !policy.allowed_mandate_issuers.contains(&mandate.issuer_id) {
+        || !policy
+            .allowed_registration_issuers
+            .contains(&registration.issuer_id)
+        || !policy.allowed_mandate_issuers.contains(&mandate.issuer_id)
+    {
         return decision(
             input,
             now,
