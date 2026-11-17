@@ -141,7 +141,7 @@ fn unsupported(rule:&InferenceRule,reason:&str)->UnsupportedInferenceStep{
         premise_ids:rule.antecedent_premise_ids.clone(),reason:reason.into()}
 }
 fn evidence(input:&InferenceRulesInput,reason:&str)->InferenceEvidence{
-    let query_digest=canonical(&input.query).map(|b|digest(&b)).unwrap_or_default();
+    let query_digest=query_digest(&input.query).unwrap_or_default();
     let reproducibility_digest=canonical(&serde_json::json!({
         "query_digest":query_digest,"premise_set_digest":input.premise_set_digest,
         "premise_model_version":input.premise_model_version,"rule_version":input.rule_version,
@@ -274,11 +274,25 @@ mod tests{
             premise_model_version:"premise-model-1.1".into(),query:"Is conclusion A supported?".into(),context_id:"ctx-1".into(),
             rule_version:"rules-1.1".into(),rule_set_digest:rules_digest.clone(),confidence_policy_version:"min-support-1.0".into(),
             evaluator_version:"inference-evaluator-1.1".into(),provenance:BTreeMap::from([("rules".into(),serde_json::json!("registry"))]),
-            version_bound_evidence:BTreeMap::from([("premise_set_digest".into(),serde_json::json!("c".repeat(64))),
-                ("premise_model_version".into(),serde_json::json!("premise-model-1.1"))])};
-        let policy=InferenceRulePolicy::new("rules-1.1".into(),"d".repeat(64),"min-support-1.0".into(),
-            "inference-evaluator-1.1".into(),BTreeMap::from([("r-1".into(),"b".repeat(64))]),BTreeSet::new(),32,128);
+            version_bound_evidence:BTreeMap::from([
+                ("premise_set_digest".into(),serde_json::json!("c".repeat(64))),
+                ("premise_model_version".into(),serde_json::json!("premise-model-1.1")),
+                ("rule_set_digest".into(),serde_json::json!(rules_digest)),
+                ("query_digest".into(),serde_json::json!(query_digest)),
+                ("evaluator_version".into(),serde_json::json!("inference-evaluator-1.1"))
+            ])};
+        let policy=InferenceRulePolicy::new("rules-1.1".into(),rules_digest,"min-support-1.0".into(),
+            "inference-evaluator-1.1".into(),BTreeMap::from([("r-1".into(),rule.rule_digest.clone())]),BTreeSet::new(),32,128);
         (input,policy)
+    }
+    fn refresh_bindings(i:&mut InferenceRulesInput,p:&mut InferenceRulePolicy){
+        for rule in &mut i.rules { rule.rule_digest=rule_content_digest(rule).unwrap(); }
+        let rd=rule_set_digest(&i.rules).unwrap();
+        i.rule_set_digest=rd.clone();p.rule_set_digest=rd.clone();
+        p.approved_rule_digests=i.rules.iter().map(|r|(r.rule_id.clone(),r.rule_digest.clone())).collect();
+        i.version_bound_evidence.insert("rule_set_digest".into(),serde_json::json!(rd));
+        i.version_bound_evidence.insert("query_digest".into(),serde_json::json!(query_digest(&i.query).unwrap()));
+        i.version_bound_evidence.insert("evaluator_version".into(),serde_json::json!(i.evaluator_version));
     }
     #[test]fn derives_only_from_registered_exact_version_rule(){
         let(i,p)=fixture();let o=evaluate_inference_rules(&i,&p);
@@ -286,17 +300,19 @@ mod tests{
         assert_eq!(o.conclusion_set[0].confidence,0.9);assert_eq!(o.conclusion_set[0].derivation_trace.len(),1);
     }
     #[test]fn rejects_unapproved_axiom_and_expression_code(){
-        let(mut i,p)=fixture();i.rules[0].antecedent_premise_ids.clear();i.rules[0].rule_expression="AXIOM".into();
+        let(mut i,mut p)=fixture();i.rules[0].antecedent_premise_ids.clear();i.rules[0].rule_expression="AXIOM".into();
+        refresh_bindings(&mut i,&mut p);
         let o=evaluate_inference_rules(&i,&p);assert!(o.conclusion_set.is_empty());assert!(!o.unsupported_steps.is_empty());
-        let(mut i,p)=fixture();i.rules[0].rule_expression="std::process::exit(1)".into();
+        let(mut i,mut p)=fixture();i.rules[0].rule_expression="std::process::exit(1)".into();
+        refresh_bindings(&mut i,&mut p);
         let o=evaluate_inference_rules(&i,&p);assert!(o.conclusion_set.is_empty());assert!(!o.unsupported_steps.is_empty());
     }
     #[test]fn preserves_unsupported_premises_and_conflicts(){
         let(mut i,p)=fixture();i.premises[0].epistemic_status=EpistemicStatus::Hypothesis;
         let o=evaluate_inference_rules(&i,&p);assert!(o.conclusion_set.is_empty());assert_eq!(o.unsupported_steps[0].reason,"premise_epistemic_status_not_admissible");
-        let(mut i,p)=fixture();i.rules[0].conclusion_template="Different conclusion".into();
-        let mut second=i.rules[0].clone();second.rule_id="r-2".into();second.rule_digest="e".repeat(64);second.conclusion_template="Conflicting conclusion".into();
-        i.rules.push(second);p.approved_rule_digests.insert("r-2".into(),"e".repeat(64));
+        let(mut i,mut p)=fixture();i.rules[0].conclusion_template="Different conclusion".into();
+        let mut second=i.rules[0].clone();second.rule_id="r-2".into();second.conclusion_template="Conflicting conclusion".into();
+        i.rules.push(second);refresh_bindings(&mut i,&mut p);
         let o=evaluate_inference_rules(&i,&p);assert!(o.conclusion_set.is_empty());assert_eq!(o.unsupported_steps.len(),2);
     }
 }
