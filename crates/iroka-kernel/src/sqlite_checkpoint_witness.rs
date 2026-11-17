@@ -478,6 +478,80 @@ mod tests {
     }
 
     #[test]
+    fn durable_witness_backup_restore_preserves_checkpoint_and_receipt_chain() {
+        let source_path = path("backup-source");
+        let backup_path = path("backup-copy");
+        let restored_path = path("backup-restored");
+        let (signer, witness_signer, roots) = fixture();
+        let witness = SqliteCheckpointWitness::open(
+            &source_path,
+            "witness:backup-restore",
+            witness_signer.clone(),
+            witness_signer.key.verifying_key(),
+            roots.clone(),
+        )
+        .unwrap();
+        let first = checkpoint(signer.as_ref(), 1, 10, None);
+        let first_receipt = witness.publish(&first).unwrap();
+        let second = checkpoint(
+            signer.as_ref(),
+            2,
+            11,
+            Some(hex(&first.digest().unwrap())),
+        );
+        let second_receipt = witness.publish(&second).unwrap();
+
+        {
+            let connection = witness.connection.lock().unwrap();
+            connection
+                .execute("PRAGMA wal_checkpoint(FULL)", [])
+                .unwrap();
+            connection
+                .execute(
+                    "VACUUM INTO ?1",
+                    params![backup_path.to_string_lossy().as_ref()],
+                )
+                .unwrap();
+        }
+        drop(witness);
+        std::fs::copy(&backup_path, &restored_path).unwrap();
+
+        let restored = SqliteCheckpointWitness::open(
+            &restored_path,
+            "witness:backup-restore",
+            witness_signer.clone(),
+            witness_signer.key.verifying_key(),
+            roots.clone(),
+        )
+        .unwrap();
+        let (stored, receipt) = restored
+            .latest("audit-stream:durable-test")
+            .unwrap()
+            .unwrap();
+        assert_eq!(stored, second);
+        assert_eq!(receipt, second_receipt);
+        receipt
+            .verify(
+                &stored,
+                &roots,
+                &BTreeMap::from([(
+                    witness_signer.id.clone(),
+                    witness_signer.key.verifying_key(),
+                )]),
+            )
+            .unwrap();
+        assert_eq!(restored.publish(&first).unwrap_err(), CheckpointError::SequenceConflict);
+        assert_eq!(restored.publish(&second).unwrap(), second_receipt);
+        assert_ne!(first_receipt, second_receipt);
+
+        for database in [&source_path, &backup_path, &restored_path] {
+            let _ = std::fs::remove_file(database);
+            let _ = std::fs::remove_file(database.with_extension("sqlite-wal"));
+            let _ = std::fs::remove_file(database.with_extension("sqlite-shm"));
+        }
+    }
+
+    #[test]
     fn durable_witness_rejects_sequence_gaps_regressions_and_wrong_predecessors() {
         let path = path("monotonic");
         let (signer, witness_signer, roots) = fixture();
