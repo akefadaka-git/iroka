@@ -10,6 +10,32 @@ use std::time::Duration;
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 
 use crate::identity_crypto::{RevocationChecker, RevocationError};
+use crate::version_lineage::{
+    LineageRegistryError, RegisteredLineageArtifact, RegisteredMutationRecord,
+    VersionLineageRecord, VersionLineageRegistry,
+};
+
+type LineageArtifactRow = (
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    i64,
+);
+type LineageMutationRow = (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    i64,
+    i64,
+    String,
+);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecurityStoreError {
@@ -17,6 +43,10 @@ pub enum SecurityStoreError {
     Rollback,
     ConflictingVersion,
     InvalidVersion,
+    EvidenceReplay,
+    RevokedEvidenceKey,
+    RevocationFloorRollback,
+    ConflictingRevocationFloor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -93,6 +123,28 @@ impl SqliteSecurityStore {
         Self::from_connection(connection)
     }
 
+    /// Run SQLite's full integrity checker before security state is trusted on recovery.
+    pub fn integrity_check(&self) -> Result<(), SecurityStoreError> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let mut statement = connection
+            .prepare("PRAGMA integrity_check")
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let results = rows
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if results.len() == 1 && results[0] == "ok" {
+            Ok(())
+        } else {
+            Err(SecurityStoreError::Unavailable)
+        }
+    }
+
     pub fn open_in_memory() -> Result<Self, SecurityStoreError> {
         let connection =
             Connection::open_in_memory().map_err(|_| SecurityStoreError::Unavailable)?;
@@ -122,6 +174,10 @@ impl SqliteSecurityStore {
                resource TEXT NOT NULL, policy_version TEXT NOT NULL, issued_at INTEGER NOT NULL,
                expires_at INTEGER NOT NULL, consumed_at INTEGER NOT NULL
              );
+             CREATE TABLE IF NOT EXISTS trust_bundle_documents (
+               version INTEGER PRIMARY KEY,
+               bundle_json TEXT NOT NULL
+             );
              CREATE TABLE IF NOT EXISTS trust_bundle_state (
                singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
                version INTEGER NOT NULL,
@@ -144,6 +200,55 @@ impl SqliteSecurityStore {
              );
              CREATE TABLE IF NOT EXISTS approval_consumptions (
                approval_id TEXT PRIMARY KEY, scope_digest BLOB NOT NULL, consumed_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS rollback_evidence_nonces (
+               issuer TEXT NOT NULL, key_id TEXT NOT NULL, nonce TEXT NOT NULL,
+               expires_at INTEGER NOT NULL,
+               PRIMARY KEY (issuer, key_id, nonce)
+             );
+             CREATE TABLE IF NOT EXISTS rollback_evidence_policy_state (
+               singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+               version INTEGER NOT NULL CHECK(version > 0),
+               digest BLOB NOT NULL CHECK(length(digest) = 32),
+               expires_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS rollback_evidence_policy_documents (
+               version INTEGER PRIMARY KEY,
+               policy_json TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS rollback_revocation_floor (
+               singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+               floor INTEGER NOT NULL, revision INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS version_lineage_registry_meta (
+               singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+               revision INTEGER NOT NULL CHECK(revision >= 0)
+             );
+             INSERT OR IGNORE INTO version_lineage_registry_meta(singleton, revision) VALUES(1, 0);
+             CREATE TABLE IF NOT EXISTS version_lineage_registry_history (
+               revision INTEGER PRIMARY KEY CHECK(revision > 0),
+               digest BLOB NOT NULL CHECK(length(digest) = 32),
+               snapshot_json TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS version_lineage_artifacts (
+               gene_id TEXT NOT NULL, version TEXT NOT NULL, artifact_digest TEXT NOT NULL,
+               artifact_json TEXT NOT NULL, parent_version TEXT, parent_digest TEXT,
+               mutation_id TEXT, epoch INTEGER NOT NULL CHECK(epoch >= 0),
+               PRIMARY KEY(gene_id, version, artifact_digest), UNIQUE(gene_id, version),
+               CHECK(
+                 (parent_version IS NULL AND parent_digest IS NULL AND mutation_id IS NULL AND epoch = 0)
+                 OR
+                 (parent_version IS NOT NULL AND parent_digest IS NOT NULL AND mutation_id IS NOT NULL)
+               )
+             );
+             CREATE TABLE IF NOT EXISTS version_lineage_mutations (
+               mutation_ref TEXT PRIMARY KEY, mutation_id TEXT NOT NULL UNIQUE,
+               source_version TEXT NOT NULL, source_digest TEXT NOT NULL,
+               target_version TEXT NOT NULL, target_digest TEXT NOT NULL,
+               approved INTEGER NOT NULL CHECK(approved IN (0, 1)),
+               gates_passed INTEGER NOT NULL CHECK(gates_passed IN (0, 1)),
+               approval_commitment TEXT NOT NULL,
+               UNIQUE(target_version, target_digest)
              );"
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(Self {
@@ -151,8 +256,114 @@ impl SqliteSecurityStore {
         })
     }
 
+    /// Atomically consume a signed rollback-evidence nonce after signature
+    /// verification. Key revocation is rechecked inside the same transaction.
+    pub(crate) fn consume_rollback_evidence_nonce(
+        &self,
+        issuer: &str,
+        key_id: &str,
+        nonce: &str,
+        expires_at: u64,
+        now: u64,
+    ) -> Result<(), SecurityStoreError> {
+        if issuer.trim().is_empty()
+            || key_id.trim().is_empty()
+            || nonce.trim().len() < 16
+            || expires_at <= now
+        {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let expires_i =
+            i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let now_i = i64::try_from(now).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params![issuer, key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if revoked {
+            return Err(SecurityStoreError::RevokedEvidenceKey);
+        }
+        tx.execute(
+            "DELETE FROM rollback_evidence_nonces WHERE expires_at <= ?1",
+            params![now_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        let inserted = tx.execute(
+            "INSERT OR IGNORE INTO rollback_evidence_nonces(issuer, key_id, nonce, expires_at) VALUES(?1, ?2, ?3, ?4)",
+            params![issuer, key_id, nonce, expires_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if inserted == 0 {
+            return Err(SecurityStoreError::EvidenceReplay);
+        }
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Persist an authoritative monotonic revocation-floor high-water mark.
+    /// A higher revision may never lower the floor; an equal revision must be identical.
+    pub(crate) fn advance_rollback_revocation_floor(
+        &self,
+        floor: u64,
+        revision: u64,
+    ) -> Result<(), SecurityStoreError> {
+        let floor_i = i64::try_from(floor).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let revision_i = i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, i64)> = tx
+            .query_row(
+                "SELECT floor, revision FROM rollback_revocation_floor WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        match current {
+            Some((_old_floor, old_revision)) if revision_i < old_revision => {
+                return Err(SecurityStoreError::RevocationFloorRollback);
+            }
+            Some((old_floor, old_revision))
+                if revision_i == old_revision && floor_i != old_floor =>
+            {
+                return Err(SecurityStoreError::ConflictingRevocationFloor);
+            }
+            Some((old_floor, old_revision)) if revision_i > old_revision && floor_i < old_floor => {
+                return Err(SecurityStoreError::RevocationFloorRollback);
+            }
+            Some((old_floor, old_revision))
+                if revision_i == old_revision && floor_i == old_floor =>
+            {
+                tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                return Ok(());
+            }
+            _ => {}
+        }
+        tx.execute(
+            "INSERT INTO rollback_revocation_floor(singleton, floor, revision) VALUES(1, ?1, ?2)
+             ON CONFLICT(singleton) DO UPDATE SET floor=excluded.floor, revision=excluded.revision",
+            params![floor_i, revision_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
     /// Persist the highest accepted, root-signed trust-bundle version.
     /// Same-version retries are idempotent only when the digest is identical.
+    #[rustfmt::skip]
     pub fn install_trust_bundle(
         &self,
         version: u64,
@@ -160,6 +371,21 @@ impl SqliteSecurityStore {
         issued_at: u64,
         expires_at: u64,
         installed_at: u64,
+    ) -> Result<(), SecurityStoreError> {
+        self.install_trust_bundle_with_document(version, digest, issued_at, expires_at, installed_at, None)
+    }
+
+    /// Atomically persist the anti-rollback high-water mark and the complete
+    /// root-signed bundle needed to reconstruct a trust snapshot after restart.
+    #[rustfmt::skip]
+    pub(crate) fn install_trust_bundle_with_document(
+        &self,
+        version: u64,
+        digest: &[u8],
+        issued_at: u64,
+        expires_at: u64,
+        installed_at: u64,
+        bundle_json: Option<&str>,
     ) -> Result<(), SecurityStoreError> {
         if version == 0 || issued_at >= expires_at || digest.len() != 32 {
             return Err(SecurityStoreError::InvalidVersion);
@@ -193,6 +419,20 @@ impl SqliteSecurityStore {
                 if current_digest != digest {
                     return Err(SecurityStoreError::ConflictingVersion);
                 }
+                if let Some(document) = bundle_json {
+                    tx.execute(
+                        "INSERT OR IGNORE INTO trust_bundle_documents(version, bundle_json) VALUES(?1, ?2)",
+                        params![version_i, document],
+                    ).map_err(|_| SecurityStoreError::Unavailable)?;
+                    let stored: String = tx.query_row(
+                        "SELECT bundle_json FROM trust_bundle_documents WHERE version=?1",
+                        params![version_i],
+                        |row| row.get(0),
+                    ).map_err(|_| SecurityStoreError::Unavailable)?;
+                    if stored != document {
+                        return Err(SecurityStoreError::ConflictingVersion);
+                    }
+                }
                 tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
@@ -209,7 +449,91 @@ impl SqliteSecurityStore {
             "INSERT INTO trust_bundle_history(version, digest, issued_at, expires_at, installed_at) VALUES(?1, ?2, ?3, ?4, ?5)",
             params![version_i, digest, issued_i, expires_i, installed_i]
         ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if let Some(document) = bundle_json {
+            tx.execute(
+                "INSERT INTO trust_bundle_documents(version, bundle_json) VALUES(?1, ?2)",
+                params![version_i, document],
+            ).map_err(|_| SecurityStoreError::Unavailable)?;
+        }
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    #[rustfmt::skip]
+    pub(crate) fn latest_trust_bundle_document(&self) -> Result<Option<String>, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        connection.query_row(
+            "SELECT d.bundle_json FROM trust_bundle_documents d
+             JOIN trust_bundle_state s ON s.version=d.version
+             WHERE s.singleton=1",
+            [],
+            |row| row.get(0),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Atomically persist a root-signed, versioned issuer policy after its
+    /// signature and semantic validation have succeeded.
+    #[rustfmt::skip]
+    pub(crate) fn install_rollback_evidence_policy(
+        &self,
+        version: u64,
+        digest: &[u8],
+        expires_at: u64,
+        policy_json: &str,
+    ) -> Result<(), SecurityStoreError> {
+        if version == 0 || digest.len() != 32 || policy_json.trim().is_empty() {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let version_i = i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let expires_i = i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, Vec<u8>)> = tx.query_row(
+            "SELECT version, digest FROM rollback_evidence_policy_state WHERE singleton=1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+        match current {
+            Some((old, _)) if version_i < old => return Err(SecurityStoreError::Rollback),
+            Some((old, old_digest)) if version_i == old => {
+                if old_digest != digest { return Err(SecurityStoreError::ConflictingVersion); }
+                let stored: String = tx.query_row(
+                    "SELECT policy_json FROM rollback_evidence_policy_documents WHERE version=?1",
+                    params![version_i],
+                    |row| row.get(0),
+                ).optional().map_err(|_| SecurityStoreError::Unavailable)?
+                 .ok_or(SecurityStoreError::Unavailable)?;
+                if stored != policy_json { return Err(SecurityStoreError::ConflictingVersion); }
+                tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                return Ok(());
+            }
+            _ => {}
+        }
+        tx.execute(
+            "INSERT INTO rollback_evidence_policy_state(singleton, version, digest, expires_at)
+             VALUES(1, ?1, ?2, ?3)
+             ON CONFLICT(singleton) DO UPDATE SET version=excluded.version, digest=excluded.digest, expires_at=excluded.expires_at",
+            params![version_i, digest, expires_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "INSERT INTO rollback_evidence_policy_documents(version, policy_json) VALUES(?1, ?2)",
+            params![version_i, policy_json],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    #[rustfmt::skip]
+    pub(crate) fn latest_rollback_evidence_policy_document(
+        &self,
+    ) -> Result<Option<String>, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        connection.query_row(
+            "SELECT d.policy_json FROM rollback_evidence_policy_documents d
+             JOIN rollback_evidence_policy_state s ON s.version=d.version
+             WHERE s.singleton=1",
+            [],
+            |row| row.get(0),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)
     }
 
     pub fn trust_bundle_history_count(&self) -> Result<u64, SecurityStoreError> {
@@ -540,6 +864,307 @@ impl SqliteSecurityStore {
     }
 }
 
+#[rustfmt::skip]
+impl SqliteSecurityStore {
+    /// Replace the active lineage registry as one immutable, monotonic snapshot.
+    /// Callers must verify the root signature and all snapshot invariants first.
+    pub(crate) fn install_version_lineage_snapshot(
+        &self,
+        revision: u64,
+        digest: &[u8],
+        snapshot_json: &str,
+        artifacts: &[RegisteredLineageArtifact],
+        mutations: &[RegisteredMutationRecord],
+    ) -> Result<(), SecurityStoreError> {
+        if revision == 0 || digest.len() != 32 || snapshot_json.trim().is_empty() || artifacts.is_empty() {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let revision_i = i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: i64 = tx.query_row(
+            "SELECT revision FROM version_lineage_registry_meta WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if revision_i < current {
+            return Err(SecurityStoreError::Rollback);
+        }
+        if revision_i == current {
+            if current == 0 {
+                return Err(SecurityStoreError::ConflictingVersion);
+            }
+            let existing: Option<(Vec<u8>, String)> = tx.query_row(
+                "SELECT digest, snapshot_json FROM version_lineage_registry_history WHERE revision=?1",
+                params![revision_i],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            ).optional().map_err(|_| SecurityStoreError::Unavailable)?;
+            return match existing {
+                Some((old_digest, old_json)) if old_digest == digest && old_json == snapshot_json => {
+                    tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                    Ok(())
+                }
+                _ => Err(SecurityStoreError::ConflictingVersion),
+            };
+        }
+        tx.execute("DELETE FROM version_lineage_artifacts WHERE gene_id='g12.version-lineage'", [])
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute("DELETE FROM version_lineage_mutations", [])
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        for artifact in artifacts {
+            if artifact.gene_id != "g12.version-lineage" || artifact.version.trim().is_empty()
+                || artifact.artifact_digest.len() != 64 || artifact.epoch > i64::MAX as u64
+            {
+                return Err(SecurityStoreError::InvalidVersion);
+            }
+            let artifact_json = serde_json::to_string(&artifact.artifact)
+                .map_err(|_| SecurityStoreError::InvalidVersion)?;
+            tx.execute(
+                "INSERT INTO version_lineage_artifacts(
+                    gene_id, version, artifact_digest, artifact_json, parent_version,
+                    parent_digest, mutation_id, epoch
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    artifact.gene_id, artifact.version, artifact.artifact_digest,
+                    artifact_json, artifact.parent_version, artifact.parent_digest,
+                    artifact.mutation_id, i64::try_from(artifact.epoch).map_err(|_| SecurityStoreError::InvalidVersion)?
+                ],
+            ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
+        }
+        for mutation in mutations {
+            if mutation.mutation_ref.trim().is_empty() || mutation.mutation_id.trim().is_empty()
+                || mutation.source_version.as_deref().unwrap_or("").trim().is_empty()
+                || mutation.source_digest.as_deref().unwrap_or("").len() != 64
+                || mutation.target_version.trim().is_empty() || mutation.target_digest.len() != 64
+                || mutation.approval_commitment.len() != 64
+            {
+                return Err(SecurityStoreError::InvalidVersion);
+            }
+            tx.execute(
+                "INSERT INTO version_lineage_mutations(
+                    mutation_ref, mutation_id, source_version, source_digest,
+                    target_version, target_digest, approved, gates_passed, approval_commitment
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    mutation.mutation_ref, mutation.mutation_id,
+                    mutation.source_version.as_deref().unwrap_or(""),
+                    mutation.source_digest.as_deref().unwrap_or(""),
+                    mutation.target_version, mutation.target_digest,
+                    if mutation.approved { 1i64 } else { 0i64 }, if mutation.gates_passed { 1i64 } else { 0i64 },
+                    mutation.approval_commitment
+                ],
+            ).map_err(|_| SecurityStoreError::ConflictingVersion)?;
+        }
+        tx.execute(
+            "UPDATE version_lineage_registry_meta SET revision=?1 WHERE singleton=1",
+            params![revision_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "INSERT INTO version_lineage_registry_history(revision, digest, snapshot_json) VALUES(?1, ?2, ?3)",
+            params![revision_i, digest, snapshot_json],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub(crate) fn latest_version_lineage_snapshot_document(
+        &self,
+    ) -> Result<Option<String>, SecurityStoreError> {
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        connection.query_row(
+            "SELECT snapshot_json FROM version_lineage_registry_history
+             WHERE revision=(SELECT revision FROM version_lineage_registry_meta WHERE singleton=1)",
+            [],
+            |row| row.get(0),
+        ).optional().map_err(|_| SecurityStoreError::Unavailable)
+    }
+}
+
+impl VersionLineageRegistry for SqliteSecurityStore {
+    fn resolve_lineage(
+        &self,
+        candidate_version: &str,
+        candidate_digest: &str,
+    ) -> Result<VersionLineageRecord, LineageRegistryError> {
+        const GENE_ID: &str = "g12.version-lineage";
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| LineageRegistryError::Unavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Deferred)
+            .map_err(|_| LineageRegistryError::Unavailable)?;
+        let revision: i64 = transaction
+            .query_row(
+                "SELECT revision FROM version_lineage_registry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| LineageRegistryError::Unavailable)?;
+        if revision < 0 {
+            return Err(LineageRegistryError::IntegrityFailure);
+        }
+
+        fn load_artifact(
+            connection: &Connection,
+            gene_id: &str,
+            version: &str,
+            digest: &str,
+        ) -> Result<RegisteredLineageArtifact, LineageRegistryError> {
+            let row: Option<LineageArtifactRow> = connection
+                .query_row(
+                    "SELECT gene_id, version, artifact_digest, artifact_json,
+                            parent_version, parent_digest, mutation_id, epoch
+                     FROM version_lineage_artifacts
+                     WHERE gene_id=?1 AND version=?2 AND artifact_digest=?3",
+                    params![gene_id, version, digest],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                            row.get(6)?,
+                            row.get(7)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|_| LineageRegistryError::Unavailable)?;
+            let Some((
+                gene_id,
+                version,
+                artifact_digest,
+                artifact_json,
+                parent_version,
+                parent_digest,
+                mutation_id,
+                epoch,
+            )) = row
+            else {
+                return Err(LineageRegistryError::UnknownVersion);
+            };
+            let artifact = serde_json::from_str(&artifact_json)
+                .map_err(|_| LineageRegistryError::IntegrityFailure)?;
+            let epoch = u64::try_from(epoch).map_err(|_| LineageRegistryError::IntegrityFailure)?;
+            Ok(RegisteredLineageArtifact {
+                gene_id,
+                version,
+                artifact_digest,
+                artifact,
+                parent_version,
+                parent_digest,
+                mutation_id,
+                epoch,
+            })
+        }
+
+        let mut current =
+            load_artifact(&transaction, GENE_ID, candidate_version, candidate_digest)?;
+        let mut ancestry = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        loop {
+            if !seen.insert(current.artifact_digest.clone()) || ancestry.len() >= 128 {
+                return Err(LineageRegistryError::IntegrityFailure);
+            }
+            let parent_version = current.parent_version.clone();
+            let parent_digest = current.parent_digest.clone();
+            ancestry.push(current);
+            match (parent_version, parent_digest) {
+                (None, None) => break,
+                (Some(version), Some(digest)) => {
+                    current = load_artifact(&transaction, GENE_ID, &version, &digest)?;
+                }
+                _ => return Err(LineageRegistryError::IntegrityFailure),
+            }
+        }
+        ancestry.reverse();
+
+        let candidate = ancestry
+            .last()
+            .ok_or(LineageRegistryError::IntegrityFailure)?;
+        let mutation = if let Some(mutation_id) = candidate.mutation_id.as_deref() {
+            let row: Option<LineageMutationRow> = transaction
+                .query_row(
+                    "SELECT mutation_ref, mutation_id, source_version, source_digest,
+                            target_version, target_digest, approved, gates_passed,
+                            approval_commitment
+                     FROM version_lineage_mutations
+                     WHERE mutation_id=?1 AND target_version=?2 AND target_digest=?3",
+                    params![mutation_id, candidate.version, candidate.artifact_digest],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                            row.get(6)?,
+                            row.get(7)?,
+                            row.get(8)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|_| LineageRegistryError::Unavailable)?;
+            let Some((
+                mutation_ref,
+                mutation_id,
+                source_version,
+                source_digest,
+                target_version,
+                target_digest,
+                approved,
+                gates_passed,
+                approval_commitment,
+            )) = row
+            else {
+                return Err(LineageRegistryError::IntegrityFailure);
+            };
+            Some(RegisteredMutationRecord {
+                mutation_ref,
+                mutation_id,
+                source_version: Some(source_version),
+                source_digest: Some(source_digest),
+                target_version,
+                target_digest,
+                approved: approved == 1,
+                gates_passed: gates_passed == 1,
+                approval_commitment,
+            })
+        } else {
+            None
+        };
+
+        let record = VersionLineageRecord {
+            ancestry,
+            mutation,
+            registry_revision: u64::try_from(revision)
+                .map_err(|_| LineageRegistryError::IntegrityFailure)?,
+        };
+        transaction
+            .commit()
+            .map_err(|_| LineageRegistryError::Unavailable)?;
+        Ok(record)
+    }
+}
+
+impl RevocationChecker for std::sync::Arc<SqliteSecurityStore> {
+    fn credential_revoked(
+        &self,
+        issuer: &str,
+        credential_id: &str,
+    ) -> Result<bool, RevocationError> {
+        self.as_ref().credential_revoked(issuer, credential_id)
+    }
+    fn key_revoked(&self, issuer: &str, key_id: &str) -> Result<bool, RevocationError> {
+        self.as_ref().key_revoked(issuer, key_id)
+    }
+}
+
 impl RevocationChecker for SqliteSecurityStore {
     fn credential_revoked(
         &self,
@@ -808,6 +1433,51 @@ mod tests {
     }
 
     #[test]
+    fn rollback_nonce_and_revocation_floor_survive_file_store_reopen() {
+        use std::fs;
+        let path = std::env::temp_dir().join(format!(
+            "iroka-rollback-state-recovery-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            store
+                .consume_rollback_evidence_nonce(
+                    "issuer:persist",
+                    "key:persist",
+                    "nonce-persisted-evidence-proof-0001",
+                    500,
+                    100,
+                )
+                .unwrap();
+            store.advance_rollback_revocation_floor(20, 7).unwrap();
+        }
+        {
+            let store = SqliteSecurityStore::open(&path).unwrap();
+            assert_eq!(
+                store.consume_rollback_evidence_nonce(
+                    "issuer:persist",
+                    "key:persist",
+                    "nonce-persisted-evidence-proof-0001",
+                    500,
+                    101,
+                ),
+                Err(SecurityStoreError::EvidenceReplay)
+            );
+            assert_eq!(
+                store.advance_rollback_revocation_floor(19, 8),
+                Err(SecurityStoreError::RevocationFloorRollback)
+            );
+            assert_eq!(store.advance_rollback_revocation_floor(20, 7), Ok(()));
+            assert_eq!(store.integrity_check(), Ok(()));
+        }
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+
+    #[test]
     fn busy_lock_exhaustion_fails_closed_without_partial_trust_write() {
         use std::fs;
 
@@ -987,5 +1657,279 @@ mod tests {
         );
         assert_eq!(store.highest_trust_bundle_version(), Ok(None));
         assert_eq!(store.trust_bundle_history_count(), Ok(before_count));
+    }
+
+    #[test]
+    fn rollback_evidence_nonces_are_single_use_and_key_revocation_is_rechecked() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:test",
+                "key:test",
+                "nonce-evidence-proof-0001",
+                200,
+                100
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:test",
+                "key:test",
+                "nonce-evidence-proof-0001",
+                200,
+                101
+            ),
+            Err(SecurityStoreError::EvidenceReplay)
+        );
+        store
+            .revoke_key("issuer:test", "key:test", 102, "compromised")
+            .unwrap();
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:test",
+                "key:test",
+                "nonce-evidence-proof-0002",
+                200,
+                103
+            ),
+            Err(SecurityStoreError::RevokedEvidenceKey)
+        );
+    }
+
+    #[test]
+    fn rollback_evidence_nonce_is_atomically_single_use_under_concurrency() {
+        let store = std::sync::Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let workers = (0..8)
+            .map(|_| {
+                let store = std::sync::Arc::clone(&store);
+                std::thread::spawn(move || {
+                    store.consume_rollback_evidence_nonce(
+                        "issuer:concurrent",
+                        "key:concurrent",
+                        "nonce-concurrent-evidence-proof-0001",
+                        500,
+                        100,
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        let results = workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            results.iter().filter(|result| **result == Ok(())).count(),
+            1
+        );
+        assert_eq!(
+            results
+                .iter()
+                .filter(|result| **result == Err(SecurityStoreError::EvidenceReplay))
+                .count(),
+            7
+        );
+    }
+
+    #[test]
+    fn expired_rollback_evidence_nonce_can_be_reissued_after_expiry() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:expiry",
+                "key:expiry",
+                "nonce-expiring-evidence-proof-0001",
+                200,
+                100,
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            store.consume_rollback_evidence_nonce(
+                "issuer:expiry",
+                "key:expiry",
+                "nonce-expiring-evidence-proof-0001",
+                300,
+                200,
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn rollback_revocation_floor_is_monotonic_and_revision_bound() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(store.advance_rollback_revocation_floor(10, 5), Ok(()));
+        assert_eq!(store.advance_rollback_revocation_floor(10, 5), Ok(()));
+        assert_eq!(
+            store.advance_rollback_revocation_floor(9, 6),
+            Err(SecurityStoreError::RevocationFloorRollback)
+        );
+        assert_eq!(
+            store.advance_rollback_revocation_floor(11, 5),
+            Err(SecurityStoreError::ConflictingRevocationFloor)
+        );
+        assert_eq!(store.advance_rollback_revocation_floor(11, 6), Ok(()));
+        assert_eq!(
+            store.advance_rollback_revocation_floor(10, 7),
+            Err(SecurityStoreError::RevocationFloorRollback)
+        );
+    }
+
+    fn artifact_digest(value: &serde_json::Value) -> String {
+        use sha2::{Digest, Sha256};
+        let bytes = crate::canonical_json(value).unwrap();
+        format!("{:x}", Sha256::digest(bytes))
+    }
+
+    fn insert_lineage_artifact(
+        store: &SqliteSecurityStore,
+        version: &str,
+        value: &serde_json::Value,
+        parent_version: Option<&str>,
+        parent_digest: Option<&str>,
+        mutation_id: Option<&str>,
+        epoch: i64,
+    ) -> String {
+        let digest = artifact_digest(value);
+        let connection = store.connection.lock().unwrap();
+        connection
+            .execute(
+                "INSERT INTO version_lineage_artifacts(
+                    gene_id, version, artifact_digest, artifact_json,
+                    parent_version, parent_digest, mutation_id, epoch
+                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    "g12.version-lineage",
+                    version,
+                    digest,
+                    serde_json::to_string(value).unwrap(),
+                    parent_version,
+                    parent_digest,
+                    mutation_id,
+                    epoch
+                ],
+            )
+            .unwrap();
+        digest
+    }
+
+    #[test]
+    fn sqlite_version_lineage_registry_resolves_immutable_chain_and_mutation() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        let root_value = serde_json::json!({"version":1});
+        let middle_value = serde_json::json!({"version":2});
+        let candidate_value = serde_json::json!({"version":3});
+        let root_digest =
+            insert_lineage_artifact(&store, "1.0.0", &root_value, None, None, None, 0);
+        let middle_digest = insert_lineage_artifact(
+            &store,
+            "1.1.0",
+            &middle_value,
+            Some("1.0.0"),
+            Some(&root_digest),
+            Some("mutation-1"),
+            1,
+        );
+        let candidate_digest = insert_lineage_artifact(
+            &store,
+            "1.2.0",
+            &candidate_value,
+            Some("1.1.0"),
+            Some(&middle_digest),
+            Some("mutation-2"),
+            2,
+        );
+        {
+            let connection = store.connection.lock().unwrap();
+            connection
+                .execute(
+                    "INSERT INTO version_lineage_mutations(
+                        mutation_ref, mutation_id, source_version, source_digest,
+                        target_version, target_digest, approved, gates_passed, approval_commitment
+                     ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, 1, 1, ?7)",
+                    params![
+                        "mutation-ref-2",
+                        "mutation-2",
+                        "1.1.0",
+                        middle_digest,
+                        "1.2.0",
+                        candidate_digest,
+                        "a".repeat(64)
+                    ],
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "UPDATE version_lineage_registry_meta SET revision=42 WHERE singleton=1",
+                    [],
+                )
+                .unwrap();
+        }
+
+        let record = store.resolve_lineage("1.2.0", &candidate_digest).unwrap();
+        assert_eq!(record.ancestry.len(), 3);
+        assert_eq!(record.ancestry[0].version, "1.0.0");
+        assert_eq!(record.ancestry[1].version, "1.1.0");
+        assert_eq!(record.ancestry[2].version, "1.2.0");
+        assert_eq!(record.registry_revision, 42);
+        assert_eq!(
+            record
+                .mutation
+                .as_ref()
+                .map(|mutation| mutation.mutation_ref.as_str()),
+            Some("mutation-ref-2")
+        );
+        assert!(record.mutation.as_ref().unwrap().approved);
+        assert!(record.mutation.as_ref().unwrap().gates_passed);
+    }
+
+    #[test]
+    fn sqlite_version_lineage_registry_rejects_unknown_and_cyclic_ancestry() {
+        let store = SqliteSecurityStore::open_in_memory().unwrap();
+        assert_eq!(
+            store.resolve_lineage("9.9.9", &"a".repeat(64)),
+            Err(LineageRegistryError::UnknownVersion)
+        );
+
+        let value_a = serde_json::json!({"node":"a"});
+        let value_b = serde_json::json!({"node":"b"});
+        let digest_a = artifact_digest(&value_a);
+        let digest_b = artifact_digest(&value_b);
+        {
+            let connection = store.connection.lock().unwrap();
+            connection
+                .execute(
+                    "INSERT INTO version_lineage_artifacts(
+                        gene_id, version, artifact_digest, artifact_json,
+                        parent_version, parent_digest, mutation_id, epoch
+                     ) VALUES(?1, '1.0.0', ?2, ?3, '1.1.0', ?4, 'mutation-a', 1)",
+                    params![
+                        "g12.version-lineage",
+                        digest_a,
+                        serde_json::to_string(&value_a).unwrap(),
+                        digest_b
+                    ],
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "INSERT INTO version_lineage_artifacts(
+                        gene_id, version, artifact_digest, artifact_json,
+                        parent_version, parent_digest, mutation_id, epoch
+                     ) VALUES(?1, '1.1.0', ?2, ?3, '1.0.0', ?4, 'mutation-b', 2)",
+                    params![
+                        "g12.version-lineage",
+                        digest_b,
+                        serde_json::to_string(&value_b).unwrap(),
+                        digest_a
+                    ],
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            store.resolve_lineage("1.1.0", &digest_b),
+            Err(LineageRegistryError::IntegrityFailure)
+        );
     }
 }

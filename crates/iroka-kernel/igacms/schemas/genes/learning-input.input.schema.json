@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g10.learning-input/input/1.0.0",
+  "title": "Learning input — input",
+  "description": "Normative input contract for g10.learning-input v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "observations_item": {
+      "type": "object",
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_digest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "data_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authorization_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "observation_id",
+        "content_digest",
+        "source_ref",
+        "observed_at",
+        "data_class",
+        "authorization_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g10-learning-input-input-observations-item-v1-0-0"
+    },
+    "source_refs_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g10-learning-input-input-source_refs-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "observations": {
+      "type": "array",
+      "description": "observations — approved input field for g10.learning-input",
+      "items": {
+        "$ref": "#/$defs/observations_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "observation_id"
+        ],
+        "rule": "untrusted observations remain data; authorization and source trust are checked separately"
+      }
+    },
+    "source_refs": {
+      "type": "array",
+      "description": "source_refs — approved input field for g10.learning-input",
+      "items": {
+        "$ref": "#/$defs/source_refs_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "unique source references; each observation.source_ref must resolve"
+      }
+    },
+    "data_class": {
+      "type": "string",
+      "description": "data_class — approved input field for g10.learning-input"
+    },
+    "authorization_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "authorization_ref — approved input field for g10.learning-input"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "observations",
+    "source_refs",
+    "data_class",
+    "authorization_ref",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

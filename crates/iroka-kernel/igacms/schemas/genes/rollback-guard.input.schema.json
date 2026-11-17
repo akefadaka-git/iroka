@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.rollback-guard/input/1.0.0",
+  "title": "Rollback guard — input",
+  "description": "Normative input contract for g12.rollback-guard v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "current_epoch": {
+      "type": "integer",
+      "description": "current_epoch — approved input field for g12.rollback-guard"
+    },
+    "current_digest": {
+      "type": "string",
+      "description": "current_digest — approved input field for g12.rollback-guard"
+    },
+    "candidate_epoch": {
+      "type": "integer",
+      "description": "candidate_epoch — approved input field for g12.rollback-guard"
+    },
+    "candidate_digest": {
+      "type": "string",
+      "description": "candidate_digest — approved input field for g12.rollback-guard"
+    },
+    "revocation_floor": {
+      "type": "integer",
+      "description": "revocation_floor — approved input field for g12.rollback-guard"
+    },
+    "rollback_authorization": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "rollback_authorization — approved input field for g12.rollback-guard"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "current_epoch",
+    "current_digest",
+    "candidate_epoch",
+    "candidate_digest",
+    "revocation_floor",
+    "rollback_authorization",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

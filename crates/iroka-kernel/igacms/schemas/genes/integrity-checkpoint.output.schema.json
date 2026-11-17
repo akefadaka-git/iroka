@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g05.integrity-checkpoint/output/1.0.0",
+  "title": "Memory integrity checkpoint — output",
+  "description": "Normative output contract for g05.integrity-checkpoint v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "checkpoint_digest": {
+      "type": "string",
+      "description": "checkpoint_digest — approved output field for g05.integrity-checkpoint"
+    },
+    "accepted": {
+      "type": "boolean",
+      "description": "accepted — approved output field for g05.integrity-checkpoint"
+    },
+    "sequence": {
+      "type": "integer",
+      "description": "sequence — approved output field for g05.integrity-checkpoint"
+    },
+    "continuity_verified": {
+      "type": "boolean",
+      "description": "continuity_verified — approved output field for g05.integrity-checkpoint"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "checkpoint_digest",
+    "accepted",
+    "sequence",
+    "continuity_verified",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

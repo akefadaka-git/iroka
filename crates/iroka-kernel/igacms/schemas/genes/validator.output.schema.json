@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g11.validator/output/1.0.0",
+  "title": "Validator — output",
+  "description": "Normative output contract for g11.validator v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "findings_item": {
+      "type": "object",
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contract_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instance_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "disposition": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "finding_id",
+        "contract_id",
+        "severity",
+        "code",
+        "message",
+        "instance_path",
+        "disposition"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g11-validator-output-findings-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "validation_id": {
+      "type": "string",
+      "description": "validation_id — approved output field for g11.validator"
+    },
+    "valid": {
+      "type": "boolean",
+      "description": "valid — approved output field for g11.validator"
+    },
+    "findings": {
+      "type": "array",
+      "description": "findings — approved output field for g11.validator",
+      "items": {
+        "$ref": "#/$defs/findings_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "finding_id"
+        ],
+        "rule": "contract references resolve; valid=true requires no blocking findings"
+      }
+    },
+    "validated_digest": {
+      "type": "string",
+      "description": "validated_digest — approved output field for g11.validator"
+    },
+    "validator_version": {
+      "type": "string",
+      "description": "validator_version — approved output field for g11.validator"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "validation_id",
+    "valid",
+    "findings",
+    "validated_digest",
+    "validator_version",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

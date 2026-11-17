@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g07.capability-profile/input/1.0.0",
+  "title": "Capability profile — input",
+  "description": "Normative input contract for g07.capability-profile v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "requested_capabilities_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g07-capability-profile-input-requested_capabilities-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "agent_id — approved input field for g07.capability-profile"
+    },
+    "requested_capabilities": {
+      "type": "array",
+      "description": "requested_capabilities — approved input field for g07.capability-profile",
+      "items": {
+        "$ref": "#/$defs/requested_capabilities_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "capability identifiers are requests only, not grants"
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "description": "resource_limits — approved input field for g07.capability-profile"
+    },
+    "policy_id": {
+      "type": "string",
+      "description": "policy_id — approved input field for g07.capability-profile"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "agent_id",
+    "requested_capabilities",
+    "resource_limits",
+    "policy_id",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

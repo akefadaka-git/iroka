@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.mutation-policy/input/1.0.0",
+  "title": "Mutation policy — input",
+  "description": "Normative input contract for g12.mutation-policy v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "protected_invariants_item": {
+      "type": "string",
+      "minLength": 1,
+      "$anchor": "g12-mutation-policy-input-protected_invariants-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "mutation_id": {
+      "type": "string",
+      "description": "mutation_id — approved input field for g12.mutation-policy"
+    },
+    "target_gene": {
+      "type": "string",
+      "description": "target_gene — approved input field for g12.mutation-policy"
+    },
+    "base_version": {
+      "type": "string",
+      "description": "base_version — approved input field for g12.mutation-policy"
+    },
+    "proposed_version": {
+      "type": "string",
+      "description": "proposed_version — approved input field for g12.mutation-policy"
+    },
+    "risk_class": {
+      "type": "string",
+      "description": "risk_class — approved input field for g12.mutation-policy"
+    },
+    "protected_invariants": {
+      "type": "array",
+      "description": "protected_invariants — approved input field for g12.mutation-policy",
+      "items": {
+        "$ref": "#/$defs/protected_invariants_item"
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "rule": "unique invariant IDs; each resolves to a versioned protected invariant; omission cannot waive an invariant"
+      }
+    },
+    "approval_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "approval_ref — approved input field for g12.mutation-policy"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "mutation_id",
+    "target_gene",
+    "base_version",
+    "proposed_version",
+    "risk_class",
+    "protected_invariants",
+    "approval_ref",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

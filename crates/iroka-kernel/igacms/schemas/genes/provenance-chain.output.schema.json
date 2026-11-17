@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g04.provenance-chain/output/1.0.0",
+  "title": "Provenance chain — output",
+  "description": "Normative output contract for g04.provenance-chain v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "broken_links_item": {
+      "type": "object",
+      "properties": {
+        "from_event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to_event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_digest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "from_event_id",
+        "to_event_id",
+        "expected_digest",
+        "observed_digest",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g04-provenance-chain-output-broken_links-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "chain_digest": {
+      "type": "string",
+      "description": "chain_digest — approved output field for g04.provenance-chain"
+    },
+    "verified": {
+      "type": "boolean",
+      "description": "verified — approved output field for g04.provenance-chain"
+    },
+    "event_count": {
+      "type": "integer",
+      "description": "event_count — approved output field for g04.provenance-chain"
+    },
+    "broken_links": {
+      "type": "array",
+      "description": "broken_links — approved output field for g04.provenance-chain",
+      "items": {
+        "$ref": "#/$defs/broken_links_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "from_event_id",
+          "to_event_id"
+        ],
+        "rule": "empty only when chain verification finds no broken links"
+      }
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "chain_digest",
+    "verified",
+    "event_count",
+    "broken_links",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

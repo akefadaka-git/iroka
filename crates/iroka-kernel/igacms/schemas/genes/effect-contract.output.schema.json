@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g09.effect-contract/output/1.0.0",
+  "title": "Effect contract — output",
+  "description": "Normative output contract for g09.effect-contract v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "effect_id": {
+      "type": "string",
+      "description": "effect_id — approved output field for g09.effect-contract"
+    },
+    "contract_valid": {
+      "type": "boolean",
+      "description": "contract_valid — approved output field for g09.effect-contract"
+    },
+    "required_authorization": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "required_authorization — approved output field for g09.effect-contract"
+    },
+    "effect_digest": {
+      "type": "string",
+      "description": "effect_digest — approved output field for g09.effect-contract"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "admissible",
+        "inadmissible"
+      ],
+      "description": "decision — approved output field for g09.effect-contract"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "effect_id",
+    "contract_valid",
+    "required_authorization",
+    "effect_digest",
+    "decision",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

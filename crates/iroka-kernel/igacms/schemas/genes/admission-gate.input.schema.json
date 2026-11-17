@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g09.admission-gate/input/1.0.0",
+  "title": "Admission gate — input",
+  "description": "Normative input contract for g09.admission-gate v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    }
+  },
+  "properties": {
+    "effect_id": {
+      "type": "string",
+      "description": "effect_id — approved input field for g09.admission-gate"
+    },
+    "authorization_ref": {
+      "type": "string",
+      "description": "authorization_ref — approved input field for g09.admission-gate"
+    },
+    "authorization_signature": {
+      "type": "string",
+      "description": "authorization_signature — approved input field for g09.admission-gate"
+    },
+    "policy_digest": {
+      "type": "string",
+      "description": "policy_digest — approved input field for g09.admission-gate"
+    },
+    "expires_at": {
+      "type": "string",
+      "description": "expires_at — approved input field for g09.admission-gate"
+    },
+    "nonce": {
+      "type": "string",
+      "description": "nonce — approved input field for g09.admission-gate"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "effect_id",
+    "authorization_ref",
+    "authorization_signature",
+    "policy_digest",
+    "expires_at",
+    "nonce",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

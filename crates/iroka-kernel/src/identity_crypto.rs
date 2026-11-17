@@ -230,6 +230,35 @@ impl<R: RevocationChecker> Ed25519CredentialVerifier<R> {
         Ok(Self::new(trust, revocations))
     }
 
+    /// Verify an arbitrary canonical payload with a key from the same immutable
+    /// signed trust snapshot used for credential verification.
+    pub(crate) fn verify_detached_payload(
+        &self,
+        issuer: &str,
+        key_id: &str,
+        payload: &[u8],
+        signature_bytes: &[u8],
+        now: u64,
+    ) -> Result<(), CredentialError> {
+        if issuer.trim().is_empty() || key_id.trim().is_empty() || signature_bytes.len() != 64 {
+            return Err(CredentialError::Malformed);
+        }
+        let key = self.trust.key(issuer, key_id, now)?;
+        let signature =
+            Signature::from_slice(signature_bytes).map_err(|_| CredentialError::Malformed)?;
+        key.key
+            .verify(payload, &signature)
+            .map_err(|_| CredentialError::InvalidSignature)?;
+        if self
+            .revocations
+            .key_revoked(issuer, key_id)
+            .map_err(|_| CredentialError::RevocationUnavailable)?
+        {
+            return Err(CredentialError::RevokedKey);
+        }
+        Ok(())
+    }
+
     /// Verifies signature, issuer/key trust, time claims, exact audience and
     /// revocation before creating the opaque principal. Token format is
     /// base64url(header).base64url(claims).base64url(signature).
