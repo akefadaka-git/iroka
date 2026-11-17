@@ -1,5 +1,5 @@
 //! G02 Owner-governance evidence evaluator. Read-only: it never authorizes or executes.
-use crate::{canonical_json, OwnerApprovalVerifier, OwnerApprovalError};
+use crate::{canonical_json, OwnerApprovalVerifier};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
