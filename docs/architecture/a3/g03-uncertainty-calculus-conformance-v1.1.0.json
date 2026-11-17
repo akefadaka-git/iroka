@@ -1,0 +1,21 @@
+{
+  "document_id":"IROKA-G03-UNCERTAINTY-CALCULUS-A3-CONFORMANCE-001",
+  "version":"1.1.0",
+  "gene_id":"g03.uncertainty-calculus",
+  "chromosome_count":12,
+  "gene_count":36,
+  "execution_policy":"Registered calibration profile and weighted log-odds only; independent hypothesis estimates, no cross-hypothesis normalization or autonomous decisions.",
+  "schema_ids":[
+    "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/input/1.1.0",
+    "https://iroka.dev/schemas/genes/g03.uncertainty-calculus/output/1.1.0"
+  ],
+  "cases":[
+    {"case_id":"G03-UNC-P01","polarity":"positive","scenario":"Validated registered calibration profile, exact inference/premise bindings, and source-backed fact evidence with bounded weights and reliability.","expected":"Bounded posterior and normalized entropy with reproducible calculation digest."},
+    {"case_id":"G03-UNC-N01","polarity":"negative","scenario":"Calibration profile is unvalidated, expired, substituted, missing its dataset digest or outside policy bounds.","expected":"No calibrated posterior; all evidence disposition is explicit."},
+    {"case_id":"G03-UNC-N02","polarity":"negative","scenario":"Evidence is an assumption, hypothesis or unknown rather than a source-backed fact.","expected":"Evidence remains unresolved and does not affect the posterior."},
+    {"case_id":"G03-UNC-N03","polarity":"negative","scenario":"Evidence source digest is malformed, observation time is future/noncanonical, or validity has expired.","expected":"Evidence remains unresolved; no stale/future evidence influence."},
+    {"case_id":"G03-UNC-N04","polarity":"negative","scenario":"Weights/reliability are nonfinite/out of range, duplicate IDs exist or likelihood ratios are invalid.","expected":"Fail closed without probability inflation."},
+    {"case_id":"G03-UNC-N05","polarity":"negative","scenario":"Inference ID, premise-set digest, method version, calculation method or calibration profile digest is substituted.","expected":"Reject calculation and emit no calibrated probability."},
+    {"case_id":"G03-UNC-N06","polarity":"negative","scenario":"Support and refutation evidence coexist for a hypothesis.","expected":"Preserve both counts and explicitly flag evidence_conflict; do not silently discard either side."}
+  ]
+}
