@@ -290,7 +290,6 @@ impl CheckpointWitness for SqliteCheckpointWitness {
     }
 }
 
-
 #[cfg(unix)]
 fn prepare_database_file(path: &Path) -> Result<(), CheckpointError> {
     use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -465,12 +464,7 @@ mod tests {
             key: SigningKey::from_bytes(&[42; 32]),
         });
         assert!(matches!(
-            SqliteCheckpointWitness::open(
-                &path,
-                "witness:operator-b",
-                other_signer,
-                roots,
-            ),
+            SqliteCheckpointWitness::open(&path, "witness:operator-b", other_signer, roots,),
             Err(CheckpointError::Malformed)
         ));
         let _ = std::fs::remove_file(&path);
