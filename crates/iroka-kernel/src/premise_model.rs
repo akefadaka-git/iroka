@@ -132,7 +132,7 @@ fn source_problem(p:&PremiseInput,now:u64)->Option<String>{
         }
         let observed=match &src.observed_at{
             Some(v)=>match parse_utc(v){Some(t)=>t,None=>return Some("source_observation_time_noncanonical".into())},
-            None=>if src.observation_time_unknown_reason.as_ref().is_none_or(|r|r.trim().is_empty()){return Some("source_observation_time_unknown_without_reason".into())}else{return Some("source_observation_time_unknown".into())},
+            None=>if src.observation_time_unknown_reason.as_ref().map_or(true, |r|r.trim().is_empty()){return Some("source_observation_time_unknown_without_reason".into())}else{return Some("source_observation_time_unknown".into())},
         };
         if observed>now{return Some("source_observation_time_in_future".into());}
         if let Some(until)=&src.valid_until{
