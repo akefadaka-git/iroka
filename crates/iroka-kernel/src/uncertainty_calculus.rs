@@ -182,6 +182,9 @@ pub fn evaluate_uncertainty(input:&UncertaintyInput,policy:&UncertaintyPolicy,no
         &&input.calculation_method==UncertaintyMethod::WeightedLogOddsV1
         &&profile.profile_id==policy.calibration_profile_id
         &&profile_hash==policy.calibration_profile_digest
+        &&input.version_bound_evidence.get("calibration_profile_digest").and_then(Value::as_str)==Some(profile_hash.as_str())
+        &&input.version_bound_evidence.get("method_version").and_then(Value::as_str)==Some(input.method_version.as_str())
+        &&input.version_bound_evidence.get("calculation_method").and_then(Value::as_str)==Some("weighted_log_odds_v1")
         &&input.version_bound_evidence.get("inference_id").and_then(Value::as_str)==Some(input.inference_id.as_str())
         &&input.version_bound_evidence.get("premise_set_digest").and_then(Value::as_str)==Some(input.premise_set_digest.as_str())
         &&valid_digest(&input.premise_set_digest)&&!input.inference_id.trim().is_empty()
@@ -221,7 +224,7 @@ pub fn evaluate_uncertainty(input:&UncertaintyInput,policy:&UncertaintyPolicy,no
             else if e.epistemic_status!=EpistemicStatus::Fact{"non_fact_evidence_not_admissible"}
             else if !valid_digest(&e.source_digest)||e.provenance_ref.trim().is_empty(){"source_provenance_invalid"}
             else if parse_utc(&e.observed_at).map_or(true, |t|t>now){"observation_time_invalid_or_future"}
-            else if e.valid_until.as_ref().is_some_and(|v|parse_utc(v).map_or(true, |t|t<=now)){"evidence_expired_or_invalid"}
+            else if e.valid_until.as_ref().is_some_and(|v|parse_utc(v).map_or(true, |t|t<=now||parse_utc(&e.observed_at).map_or(true, |observed|t<=observed))){"evidence_expired_or_invalid"}
             else {""};
             if !reason.is_empty(){unresolved_items.push(UnresolvedEvidence{hypothesis_id:h.hypothesis_id.clone(),evidence_id:e.evidence_id.clone(),reason:reason.into()});continue;}
             used.push(e.evidence_id.clone());used_total+=1;
@@ -280,7 +283,10 @@ mod tests{
             calibration_profile:profile,hypotheses:vec![hypothesis],
             provenance:BTreeMap::from([("inference".into(),serde_json::json!("synthetic"))]),
             version_bound_evidence:BTreeMap::from([("inference_id".into(),serde_json::json!("inference:123")),
-                ("premise_set_digest".into(),serde_json::json!("e".repeat(64)))])};
+                ("premise_set_digest".into(),serde_json::json!("e".repeat(64))),
+                ("calibration_profile_digest".into(),serde_json::json!(ph)),
+                ("method_version".into(),serde_json::json!("uncertainty-1.1.0")),
+                ("calculation_method".into(),serde_json::json!("weighted_log_odds_v1"))])};
         let policy=UncertaintyPolicy::new("uncertainty-1.1.0".into(),"calibration:profile-1".into(),ph,32,128);
         (input,policy)
     }
