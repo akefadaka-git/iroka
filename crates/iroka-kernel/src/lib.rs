@@ -16,6 +16,7 @@ mod identity_root;
 mod igacms;
 mod owner_approval;
 mod owner_governance;
+mod premise_model;
 mod policy;
 mod request;
 mod rollback_guard;
@@ -67,6 +68,7 @@ pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
+pub use premise_model::{evaluate_premise_model, EpistemicStatus, NormalizedPremise, PremiseInput, PremiseModelEvidence, PremiseModelInput, PremiseModelOutput, PremiseModelPolicy, PremiseSourceReference, UnresolvedPremise};
 pub use owner_governance::{
     evaluate_owner_governance, OwnerDecision, OwnerDecisionRegisterEntry,
     OwnerGovernanceApprovalPayload, OwnerGovernanceDecision, OwnerGovernanceEvidence,
