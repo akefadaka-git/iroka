@@ -13,7 +13,7 @@ on:
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base, architecture/a2-character-gene-contracts-v2, implementation/a3-g01-identity-root]
+    branches: [main, architecture/igacms-a2-ci-base, architecture/a2-character-gene-contracts-v2, implementation/a3-character-genome-v1]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
