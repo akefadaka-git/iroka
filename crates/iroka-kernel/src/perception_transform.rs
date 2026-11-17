@@ -1,9 +1,7 @@
 //! G06 perception-transform registry and provenance validation.
 //! This module validates registered transform metadata and receipts; it never executes transforms.
-use crate::canonical_json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -65,10 +63,6 @@ pub struct PerceptionTransformOutput {
     pub transform_status: String,
     pub evidence: PerceptionTransformEvidence,
     pub version_bound_evidence: BTreeMap<String, Value>,
-}
-
-fn digest(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn canonical<T: Serialize>(value: &T) -> Option<Vec<u8>> {
@@ -187,7 +181,6 @@ pub fn evaluate_perception_transform(
     {
         return Err("transform_evidence_canonicalization_failed".into());
     }
-    let _policy_digest = digest(&canonical(policy).expect("canonical policy checked"));
     Ok(PerceptionTransformOutput {
         transform_id: input.transform_id.clone(),
         output_digest: output_digest.to_owned(),
