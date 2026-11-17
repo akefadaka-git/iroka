@@ -28,7 +28,7 @@ pub struct MemoryHandlingControl {
     pub mandatory: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MemoryClassificationPolicy {
     pub classification_by_data_class: BTreeMap<String, String>,
     pub classification_rank: BTreeMap<String, u32>,
@@ -61,14 +61,8 @@ impl MemoryClassificationPolicy {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct MemoryClassificationEvidence {
-    pub content_digest: String,
-    pub label_digest: String,
-    pub provenance_digest: String,
-    pub version_bound_evidence_digest: String,
-    pub policy_digest: String,
-    pub owner_id: String,
-    pub purpose: String,
-    pub decision_reason: String,
+    pub provenance: BTreeMap<String, Value>,
+    pub version_bound_evidence: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -189,18 +183,9 @@ pub fn evaluate_memory_classification(
             return fail(input, "handling_control_malformed_or_duplicate");
         }
     }
-    let Some(policy_digest) = policy_digest(policy) else {
-        return fail(input, "policy_canonicalization_failed");
-    };
-    let Some(label_bytes) = canonical(&input.labels) else {
-        return fail(input, "label_canonicalization_failed");
-    };
-    let Some(provenance_bytes) = canonical(&input.provenance) else {
-        return fail(input, "provenance_canonicalization_failed");
-    };
-    let Some(version_bytes) = canonical(&input.version_bound_evidence) else {
-        return fail(input, "version_evidence_canonicalization_failed");
-    };
+    if policy_digest(policy).is_none() || canonical(&input.labels).is_none() {
+        return fail(input, "policy_or_label_canonicalization_failed");
+    }
     Ok(MemoryClassificationOutput {
         memory_id: input.memory_id.clone(),
         classification: classification.to_owned(),
@@ -210,14 +195,8 @@ pub fn evaluate_memory_classification(
             input.owner_id
         ),
         evidence: MemoryClassificationEvidence {
-            content_digest: input.content_digest.clone(),
-            label_digest: digest(&label_bytes),
-            provenance_digest: digest(&provenance_bytes),
-            version_bound_evidence_digest: digest(&version_bytes),
-            policy_digest,
-            owner_id: input.owner_id.clone(),
-            purpose: input.purpose.clone(),
-            decision_reason: "owner_policy_highest_classification_applied".into(),
+            provenance: input.provenance.clone(),
+            version_bound_evidence: input.version_bound_evidence.clone(),
         },
         version_bound_evidence: input.version_bound_evidence.clone(),
     })
@@ -285,7 +264,7 @@ mod tests {
         let result = evaluate_memory_classification(&input(), &policy()).unwrap();
         assert_eq!(result.classification, "internal");
         assert_eq!(result.handling_controls.len(), 1);
-        assert_eq!(result.evidence.label_digest.len(), 64);
+        assert!(!result.evidence.provenance.is_empty());
     }
 
     #[test]
