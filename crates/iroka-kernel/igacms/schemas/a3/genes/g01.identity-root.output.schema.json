@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.identity-root/output/1.1.0",
+  "title": "G01 identity-root A3 output contract v1.1.0",
+  "description": "A3 output makes trust evidence explicit and prohibits contradictory verification decisions.",
+  "type": "object",
+  "properties": {
+    "root_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verified": {
+      "type": "boolean"
+    },
+    "trust_decision": {
+      "enum": [
+        "trusted",
+        "untrusted",
+        "revoked"
+      ]
+    },
+    "evaluated_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "type": "object",
+          "minProperties": 1
+        },
+        "issuer_chain_verified": {
+          "type": "boolean"
+        },
+        "key_fingerprint_match": {
+          "type": "boolean"
+        },
+        "algorithm_policy_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key_revocation_checked": {
+          "type": "boolean"
+        },
+        "decision_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "root_status": {
+          "enum": [
+            "active",
+            "suspended",
+            "revoked"
+          ]
+        }
+      },
+      "required": [
+        "provenance",
+        "issuer_chain_verified",
+        "key_fingerprint_match",
+        "algorithm_policy_version",
+        "key_revocation_checked",
+        "decision_reason",
+        "root_status"
+      ]
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    }
+  },
+  "required": [
+    "root_id",
+    "verified",
+    "trust_decision",
+    "evaluated_epoch",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "trust_decision": {
+            "const": "trusted"
+          }
+        },
+        "required": [
+          "trust_decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verified": {
+            "const": true
+          },
+          "evidence": {
+            "properties": {
+              "issuer_chain_verified": {
+                "const": true
+              },
+              "key_fingerprint_match": {
+                "const": true
+              },
+              "key_revocation_checked": {
+                "const": true
+              },
+              "root_status": {
+                "const": "active"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verified": {
+            "const": true
+          }
+        },
+        "required": [
+          "verified"
+        ]
+      },
+      "then": {
+        "properties": {
+          "trust_decision": {
+            "const": "trusted"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "trust_decision": {
+            "const": "revoked"
+          }
+        },
+        "required": [
+          "trust_decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verified": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "trust_decision": {
+            "const": "untrusted"
+          }
+        },
+        "required": [
+          "trust_decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verified": {
+            "const": false
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
