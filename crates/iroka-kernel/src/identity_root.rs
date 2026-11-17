@@ -222,6 +222,21 @@ mod tests {
     }
 
     #[test]
+    fn rejects_unknown_and_expired_keys() {
+        let (verifier, mut input, policy) = fixture();
+        input.key_id = "unknown-key".into();
+        input.root_id = format!("{}::{}", input.issuer_id, input.key_id);
+        let out = evaluate_identity_root(&input, &policy, &verifier, 1_200);
+        assert!(!out.verified);
+        assert_eq!(out.evidence.decision_reason, "key_not_in_signed_trust_snapshot");
+        input.key_id = "root-key-1".into();
+        input.root_id = format!("{}::{}", input.issuer_id, input.key_id);
+        let out = evaluate_identity_root(&input, &policy, &verifier, 10_001);
+        assert!(!out.verified);
+        assert_eq!(out.evidence.decision_reason, "key_outside_validity_window");
+    }
+
+    #[test]
     fn rejects_revoked_suspended_future_and_noncanonical_roots() {
         let (verifier, mut input, policy) = fixture();
         input.status = IdentityRootStatus::Revoked;
