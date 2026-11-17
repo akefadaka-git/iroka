@@ -775,7 +775,6 @@ mod tests {
         assert!(!evaluate_authority_source(&i, &p, &v, 1_767_225_600).source_valid);
     }
     #[test]
-    #[test]
     fn rejects_unconfigured_mandate_issuer() {
         let (v, i, _) = fixture();
         let p = AuthoritySourcePolicy::new(
@@ -786,6 +785,7 @@ mod tests {
         );
         assert!(!evaluate_authority_source(&i, &p, &v, 1_767_225_600).source_valid);
     }
+    #[test]
     fn rejects_noncanonical_or_expired_time() {
         let (v, mut i, p) = fixture();
         i.valid_from = "2026-01-01 00:00:00".into();
