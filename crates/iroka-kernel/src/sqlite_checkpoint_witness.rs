@@ -50,7 +50,7 @@ impl SqliteCheckpointWitness {
         {
             return Err(CheckpointError::Malformed);
         }
-        let mut challenge = b"IROKA:G11:WITNESS-KEY-CHECK:V1\\0".to_vec();
+        let mut challenge = b"IROKA:G11:WITNESS-KEY-CHECK:V1\0".to_vec();
         challenge.extend_from_slice(witness_id.as_bytes());
         challenge.extend_from_slice(signer.key_id().as_bytes());
         let signature = signer.sign(&challenge)?;
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn durable_witness_binds_database_to_one_identity_and_signing_key() {
         let path = path("identity");
-        let (signer, witness_signer, roots) = fixture();
+        let (_signer, witness_signer, roots) = fixture();
         let witness = SqliteCheckpointWitness::open(
             &path,
             "witness:operator-a",
