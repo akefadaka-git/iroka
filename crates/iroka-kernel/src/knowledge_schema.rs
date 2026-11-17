@@ -95,18 +95,6 @@ fn valid_slug(s:&str)->bool{
 fn valid_semver(s:&str)->bool{
     let parts:Vec<_>=s.split('.').collect();parts.len()==3&&parts.iter().all(|p|!p.is_empty()&&p.bytes().all(|b|b.is_ascii_digit())&&(p=="0"||!p.starts_with('0')))
 }
-fn parse_utc(s:&str)->Option<u64>{
-    let b=s.as_bytes();
-    if b.len()!=20||b[4]!=b'-'||b[7]!=b'-'||b[10]!=b'T'||b[13]!=b':'||b[16]!=b':'||b[19]!=b'Z'{return None;}
-    let p=|a:usize,z:usize|->Option<i64>{let v=std::str::from_utf8(&b[a..z]).ok()?;if !v.bytes().all(|c|c.is_ascii_digit()){return None;}v.parse().ok()};
-    let y=p(0,4)?;let m=p(5,7)?;let d=p(8,10)?;let h=p(11,13)?;let mi=p(14,16)?;let se=p(17,19)?;
-    if !(1970..=9999).contains(&y)||!(1..=12).contains(&m)||!(0..=23).contains(&h)||!(0..=59).contains(&mi)||!(0..=59).contains(&se){return None;}
-    let leap=y%4==0&&(y%100!=0||y%400==0);let md=[31,if leap{29}else{28},31,30,31,30,31,31,30,31,30,31];
-    if d<1||d>md[(m-1) as usize]{return None;}
-    let yy=y-if m<=2{1}else{0};let era=yy/400;let yoe=yy-era*400;let mp=m+if m>2{-3}else{9};
-    let doy=(153*mp+2)/5+d-1;let doe=yoe*365+yoe/4-yoe/100+doy;
-    u64::try_from((era*146097+doe-719468)*86400+h*3600+mi*60+se).ok()
-}
 fn parameters_digest(p:&BTreeMap<String,Value>)->Option<String>{
     let mut bytes=b"IROKA-KNOWLEDGE-CONSTRAINT-PARAMETERS-V1\0".to_vec();
     bytes.extend(canonical(p)?);Some(digest(&bytes))
