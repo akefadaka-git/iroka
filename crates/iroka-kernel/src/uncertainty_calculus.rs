@@ -425,11 +425,11 @@ pub fn evaluate_uncertainty(
                 "non_fact_evidence_not_admissible"
             } else if !valid_digest(&e.source_digest) || e.provenance_ref.trim().is_empty() {
                 "source_provenance_invalid"
-            } else if parse_utc(&e.observed_at).map_or(true, |t| t > now) {
+            } else if parse_utc(&e.observed_at).is_none_or(|t| t > now) {
                 "observation_time_invalid_or_future"
             } else if e.valid_until.as_ref().is_some_and(|v| {
-                parse_utc(v).map_or(true, |t| {
-                    t <= now || parse_utc(&e.observed_at).map_or(true, |observed| t <= observed)
+                parse_utc(v).is_none_or(|t| {
+                    t <= now || parse_utc(&e.observed_at).is_none_or(|observed| t <= observed)
                 })
             }) {
                 "evidence_expired_or_invalid"

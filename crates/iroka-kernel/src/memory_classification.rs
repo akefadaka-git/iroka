@@ -157,7 +157,7 @@ pub fn evaluate_memory_classification(
         let Some(rank) = policy.classification_rank.get(classification) else {
             return fail(input, "classification_rank_missing");
         };
-        if selected.map_or(true, |(_, current_rank)| *rank > current_rank) {
+        if selected.is_none_or(|(_, current_rank)| *rank > current_rank) {
             selected = Some((classification, *rank));
         }
     }
