@@ -709,3 +709,15 @@ mod tests {
             Err(CheckpointError::SequenceConflict)
         );
         assert_eq!(
+            witness
+                .latest("audit-stream:durable-test")
+                .unwrap()
+                .unwrap()
+                .0,
+            first
+        );
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = std::fs::remove_file(path.with_extension("sqlite-shm"));
+    }
+}
