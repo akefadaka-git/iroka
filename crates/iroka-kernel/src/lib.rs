@@ -15,6 +15,7 @@ mod identity_lineage;
 mod identity_root;
 mod igacms;
 mod inference_rules;
+mod uncertainty_calculus;
 mod owner_approval;
 mod owner_governance;
 mod policy;
@@ -65,6 +66,7 @@ pub use igacms::{
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
 };
+pub use uncertainty_calculus::{evaluate_uncertainty, CalibrationProfile, CalibrationStatus, EvidenceDirection, HypothesisEstimate, UncertaintyEvidence, UncertaintyHypothesis, UncertaintyInput, UncertaintyMethod, UncertaintyOutput, UncertaintyPolicy, UnresolvedEvidence, WeightedEvidence};
 pub use inference_rules::{
     evaluate_inference_rules, DerivationStep, InferenceConclusion, InferenceEvidence,
     InferencePremise, InferenceRule, InferenceRulePolicy, InferenceRulesInput,
