@@ -11,6 +11,7 @@ mod governance;
 mod identity;
 mod identity_crypto;
 mod identity_root;
+mod identity_lineage;
 mod igacms;
 mod owner_approval;
 mod policy;
@@ -37,6 +38,7 @@ pub use identity_crypto::{
     CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError, TrustStore,
     TrustedKey,
 };
+pub use identity_lineage::{evaluate_identity_lineage, IdentityLineageEvidence, IdentityLineageInput, IdentityLineageNode, IdentityLineageOutput, IdentityLineagePolicy, IdentityRelationship};
 pub use identity_root::{
     evaluate_identity_root, IdentityRootDecisionEvidence, IdentityRootError, IdentityRootInput,
     IdentityRootOutput, IdentityRootPolicy, IdentityRootStatus, IdentityTrustDecision,
