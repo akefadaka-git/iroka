@@ -1,0 +1,50 @@
+name: GENESIS gene schema closure
+on:
+  push:
+    branches: [architecture/genesis-gene-contract-amendment-proposal, feat/a3-security-workstreams, implementation/a3-g07-ci-matrix]
+    paths:
+      - "crates/iroka-kernel/igacms/genome-v1.0.0.json"
+      - "crates/iroka-kernel/igacms/schemas/genes/**"
+      - "crates/iroka-kernel/igacms/conformance/**"
+      - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
+      - "tools/genesis/**"
+      - "crates/iroka-kernel/src/**"
+      - "docs/security/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [main, architecture/genesis-gene-contract-amendment-proposal, implementation/a3-g07-agent-principal, implementation/a3-g07-ci-matrix]
+    paths:
+      - "crates/iroka-kernel/igacms/genome-v1.0.0.json"
+      - "crates/iroka-kernel/igacms/schemas/genes/**"
+      - "crates/iroka-kernel/igacms/conformance/**"
+      - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
+      - "tools/genesis/**"
+      - "crates/iroka-kernel/src/**"
+      - "docs/security/**"
+      - ".github/workflows/genesis-gene-schemas.yml"
+      - ".github/workflows/rust-kernel.yml"
+      - ".github/workflows/security-supply-chain.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: genesis-gene-schemas-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  resolve-and-conform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact triggering commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install pinned JSON Schema validator
+        run: python3 -m pip install --disable-pip-version-check jsonschema==4.23.0
+      - name: Resolve all 72 references and execute conformance vectors
+        run: python3 tools/genesis/validate_gene_schemas.py
+      - name: Validate approved 53 collection item contracts
+        run: python3 tools/genesis/validate_collection_item_amendment.py
+      - name: Execute cross-collection semantic integration conformance
+        run: python3 tools/genesis/validate_semantic_integration.py

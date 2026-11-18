@@ -615,8 +615,8 @@ pub fn evaluate_authority_source<R: RevocationChecker>(
             delegation_ok,
         );
     }
-    let temporal = (now >= reg_from && reg_until.map_or(true, |v| now < v))
-        && (now >= mandate_from && mandate_until.map_or(true, |v| now < v));
+    let temporal = (now >= reg_from && reg_until.is_none_or(|v| now < v))
+        && (now >= mandate_from && mandate_until.is_none_or(|v| now < v));
     if !temporal {
         let expired =
             reg_until.is_some_and(|v| now >= v) || mandate_until.is_some_and(|v| now >= v);

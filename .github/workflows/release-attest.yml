@@ -1,0 +1,91 @@
+name: IROKA release artifact and attestations
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: iroka-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-attest:
+    if: github.event.release.draft == false && github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require stable release tag to be on main
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.100.0
+          rustc --version
+          cargo --version
+
+      - name: Verify release source
+        run: |
+          cargo fmt --all -- --check
+          cargo check --workspace --all-targets --locked
+          cargo check --workspace --all-targets --no-default-features --locked
+          cargo test --workspace --all-targets --locked
+          cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -A clippy::pedantic
+          cargo build --workspace --release --locked
+
+      - name: Generate release SBOM
+        run: |
+          mkdir -p artifacts target
+          cargo metadata --locked --format-version 1 > target/cargo-metadata.json
+          python3 scripts/security/generate_cargo_sbom.py \
+            --metadata target/cargo-metadata.json \
+            --lockfile Cargo.lock \
+            --output artifacts/iroka-cargo.spdx.json
+          python3 -m json.tool artifacts/iroka-cargo.spdx.json > /dev/null
+          cp target/release/libiroka_kernel.rlib "artifacts/iroka-kernel-${{ github.event.release.tag_name }}.rlib"
+          sha256sum artifacts/*
+
+      - name: Attest release library build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: artifacts/iroka-kernel-${{ github.event.release.tag_name }}.rlib
+
+      - name: Attest release library SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: artifacts/iroka-kernel-${{ github.event.release.tag_name }}.rlib
+          sbom-path: artifacts/iroka-cargo.spdx.json
+
+      - name: Verify generated provenance and SBOM attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh attestation verify "artifacts/iroka-kernel-${{ github.event.release.tag_name }}.rlib" \
+            -R "${{ github.repository }}"
+          gh attestation verify "artifacts/iroka-kernel-${{ github.event.release.tag_name }}.rlib" \
+            -R "${{ github.repository }}" \
+            --predicate-type https://spdx.dev/Document/v2.3
+
+      - name: Attach verified build outputs to the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" --clobber \
+            artifacts/iroka-kernel-${{ github.event.release.tag_name }}.rlib \
+            artifacts/iroka-cargo.spdx.json

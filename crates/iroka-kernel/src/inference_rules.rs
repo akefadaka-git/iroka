@@ -274,7 +274,7 @@ pub fn evaluate_inference_rules(
             || p.context_id != input.context_id
             || !valid_digest(&p.source_digest)
             || p.confidence
-                .map_or(true, |v| !v.is_finite() || !(0.0..=1.0).contains(&v))
+                .is_none_or(|v| !v.is_finite() || !(0.0..=1.0).contains(&v))
             || premise_map.insert(p.premise_id.as_str(), p).is_some()
         {
             return empty_output(input, "premise_set_invalid_or_ambiguous", vec![]);

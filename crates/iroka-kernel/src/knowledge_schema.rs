@@ -237,7 +237,7 @@ fn constraint_error(
     }
     let err = match c.constraint_type.as_str() {
         "min_length" | "max_length" if field.value_type == KnowledgeValueType::String => {
-            if integer_param(c).map_or(true, |v| v as usize > policy.maximum_collection_size) {
+            if integer_param(c).is_none_or(|v| v as usize > policy.maximum_collection_size) {
                 Some("length_constraint_invalid_or_exceeds_policy".into())
             } else {
                 None
@@ -257,7 +257,7 @@ fn constraint_error(
         }
         "enum" if field.value_type == KnowledgeValueType::String => {
             let values = c.parameters.get("values").and_then(Value::as_array);
-            if values.map_or(true, |v| {
+            if values.is_none_or(|v| {
                 v.is_empty()
                     || v.len() > policy.maximum_collection_size
                     || v.iter().any(|x| !x.is_string())
@@ -272,7 +272,7 @@ fn constraint_error(
             }
         }
         "min_items" | "max_items" if field.value_type == KnowledgeValueType::Array => {
-            if integer_param(c).map_or(true, |v| v as usize > policy.maximum_collection_size) {
+            if integer_param(c).is_none_or(|v| v as usize > policy.maximum_collection_size) {
                 Some("array_bound_invalid_or_exceeds_policy".into())
             } else {
                 None
@@ -292,7 +292,7 @@ fn constraint_error(
             }
         }
         "min_properties" | "max_properties" if field.value_type == KnowledgeValueType::Object => {
-            if integer_param(c).map_or(true, |v| v as usize > policy.maximum_collection_size) {
+            if integer_param(c).is_none_or(|v| v as usize > policy.maximum_collection_size) {
                 Some("object_property_bound_invalid_or_exceeds_policy".into())
             } else {
                 None
@@ -300,11 +300,10 @@ fn constraint_error(
         }
         "required_properties" if field.value_type == KnowledgeValueType::Object => {
             let values = c.parameters.get("names").and_then(Value::as_array);
-            if values.map_or(true, |v| {
+            if values.is_none_or(|v| {
                 v.is_empty()
                     || v.len() > policy.maximum_collection_size
-                    || v.iter()
-                        .any(|x| x.as_str().map_or(true, |s| !valid_slug(s)))
+                    || v.iter().any(|x| x.as_str().is_none_or(|s| !valid_slug(s)))
                     || {
                         let mut s = BTreeSet::new();
                         v.iter().any(|x| !s.insert(x.as_str().unwrap_or_default()))

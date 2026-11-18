@@ -246,7 +246,7 @@ fn source_problem(p: &PremiseInput, now: u64) -> Option<String> {
                 if src
                     .observation_time_unknown_reason
                     .as_ref()
-                    .map_or(true, |r| r.trim().is_empty())
+                    .is_none_or(|r| r.trim().is_empty())
                 {
                     return Some("source_observation_time_unknown_without_reason".into());
                 } else {
