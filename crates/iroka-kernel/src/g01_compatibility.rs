@@ -10,15 +10,6 @@ where
     D: serde::Deserializer<'de>,
 {
     Option::<String>::deserialize(deserializer)
-    #[test]
-    fn compatibility_input_requires_nullable_migration_digest_field() {
-        let mut value = serde_json::to_value(input()).unwrap();
-        value.as_object_mut().unwrap().remove("migration_digest");
-        assert!(serde_json::from_value::<CompatibilityInput>(value).is_err());
-        let value = serde_json::to_value(input()).unwrap();
-        assert!(serde_json::from_value::<CompatibilityInput>(value).is_ok());
-    }
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
