@@ -158,6 +158,7 @@ struct GraphDigestMaterial<'a> {
     workflow_registry_digest: &'a str,
     operation_registry_digest: &'a str,
     dependency_registry_digest: &'a str,
+    checkpoint_registry_digest: &'a str,
     validator_version: &'a str,
     configuration_digest_algorithm: &'static str,
 }
@@ -210,18 +211,11 @@ fn required_evidence<'a>(
         .ok_or_else(|| format!("workflow_graph_evidence_missing:{key}"))
 }
 
-fn sorted_graph<'a>(
-    input: &'a WorkflowGraphInput,
+fn sorted_graph_digest(
+    input: &WorkflowGraphInput,
     revision: &WorkflowRevisionBinding,
     registry: &impl WorkflowGraphRegistry,
-) -> Result<
-    (
-        String,
-        Vec<&'a WorkflowGraphNode>,
-        Vec<&'a WorkflowGraphEdge>,
-    ),
-    String,
-> {
+) -> Result<String, String> {
     let mut nodes: Vec<_> = input.nodes.iter().collect();
     let mut edges: Vec<_> = input.edges.iter().collect();
     nodes.sort_by(|left, right| left.node_id.cmp(&right.node_id));
@@ -248,28 +242,96 @@ fn sorted_graph<'a>(
         workflow_registry_digest: registry.workflow_registry_digest(),
         operation_registry_digest: registry.operation_registry_digest(),
         dependency_registry_digest: registry.dependency_registry_digest(),
+        checkpoint_registry_digest: registry.checkpoint_registry_digest(),
         validator_version: WORKFLOW_GRAPH_VALIDATOR_VERSION,
         configuration_digest_algorithm: CONFIGURATION_DIGEST_ALGORITHM,
     };
-    let graph_digest = digest(&material)?;
-    let mut nodes: Vec<_> = input.nodes.iter().collect();
-    let mut edges: Vec<_> = input.edges.iter().collect();
-    nodes.sort_by(|left, right| left.node_id.cmp(&right.node_id));
-    edges.sort_by(|left, right| {
-        (
-            &left.edge_id,
-            &left.from_node_id,
-            &left.to_node_id,
-            &left.dependency_type,
-        )
-            .cmp(&(
-                &right.edge_id,
-                &right.from_node_id,
-                &right.to_node_id,
-                &right.dependency_type,
-            ))
-    });
-    Ok((graph_digest, nodes, edges))
+    digest(&material)
+}
+
+fn validate_provenance(
+    input: &WorkflowGraphInput,
+    registry: &impl WorkflowGraphRegistry,
+) -> Result<(), String> {
+    let provenance = &input.provenance;
+    for value in [
+        provenance.source_ref.as_str(),
+        provenance.revision_ref.as_str(),
+        provenance.workflow_registry_ref.as_str(),
+        provenance.operation_registry_ref.as_str(),
+        provenance.dependency_registry_ref.as_str(),
+        provenance.checkpoint_registry_ref.as_str(),
+    ] {
+        if value.is_empty() || value.len() > 512 {
+            return Err("workflow_graph_provenance_invalid".into());
+        }
+    }
+    if provenance.validation_input_refs.is_empty()
+        || provenance.validation_input_refs.len() > 256
+        || provenance.validation_input_refs.iter().any(|value| {
+            value.is_empty() || value.len() > 512
+        })
+        || provenance.validation_input_refs.iter().collect::<BTreeSet<_>>().len()
+            != provenance.validation_input_refs.len()
+    {
+        return Err("workflow_graph_validation_input_provenance_invalid".into());
+    }
+    if provenance.node_operations.len() != input.nodes.len()
+        || provenance.dependency_edges.len() != input.edges.len()
+    {
+        return Err("workflow_graph_provenance_coverage_incomplete".into());
+    }
+    let mut node_provenance = BTreeMap::new();
+    for item in &provenance.node_operations {
+        if item.operation_provenance_ref.is_empty()
+            || item.configuration_provenance_ref.is_empty()
+            || node_provenance.insert(item.node_id.as_str(), item).is_some()
+        {
+            return Err("workflow_graph_node_provenance_invalid".into());
+        }
+    }
+    for node in &input.nodes {
+        let Some(item) = node_provenance.get(node.node_id.as_str()) else {
+            return Err("workflow_graph_node_provenance_missing".into());
+        };
+        let Some(operation) = registry.operation_binding(&node.operation_ref) else {
+            return Err("workflow_graph_operation_provenance_unresolved".into());
+        };
+        if item.operation_ref != node.operation_ref
+            || item.implementation_digest != operation.implementation_digest
+            || item.configuration_digest != node.configuration_digest
+        {
+            return Err("workflow_graph_node_provenance_binding_mismatch".into());
+        }
+    }
+    let mut edge_provenance = BTreeMap::new();
+    for item in &provenance.dependency_edges {
+        if item.provenance_ref.is_empty()
+            || edge_provenance.insert(item.edge_id.as_str(), item).is_some()
+        {
+            return Err("workflow_graph_edge_provenance_invalid".into());
+        }
+    }
+    for edge in &input.edges {
+        let Some(item) = edge_provenance.get(edge.edge_id.as_str()) else {
+            return Err("workflow_graph_edge_provenance_missing".into());
+        };
+        if item.dependency_type != edge.dependency_type {
+            return Err("workflow_graph_edge_provenance_binding_mismatch".into());
+        }
+    }
+    if provenance.workflow_registry_ref.is_empty()
+        || provenance.operation_registry_ref.is_empty()
+        || provenance.dependency_registry_ref.is_empty()
+        || provenance.checkpoint_registry_ref.is_empty()
+        || registry.workflow_registry_digest().is_empty()
+        || registry.operation_registry_digest().is_empty()
+        || registry.dependency_registry_digest().is_empty()
+        || registry.checkpoint_registry_digest().is_empty()
+    {
+        return Err("workflow_graph_registry_provenance_missing".into());
+    }
+    Ok(())
 }
 
 fn topological_order(
@@ -292,18 +354,47 @@ fn topological_order(
             findings.push(format!("operation_not_registered:{}", node.operation_ref));
             continue;
         };
+        let configuration_matches = operation
+            .configurations
+            .get(&node.configuration_digest)
+            .and_then(|configuration| digest(configuration).ok())
+            .is_some_and(|actual_digest| actual_digest == node.configuration_digest);
         if operation.operation_ref != node.operation_ref
             || operation.node_type != node.node_type
             || !valid_digest(&operation.implementation_digest)
-            || !matches!(
-                operation.effect_class.as_str(),
-                "none" | "read" | "write" | "external" | "protected"
-            )
-            || !operation
-                .configuration_digests
-                .contains(&node.configuration_digest)
+            || !valid_identifier(&operation.effect_class)
+            || !registry.effect_class_registered(&operation.effect_class)
+            || !configuration_matches
         {
             findings.push(format!("operation_binding_mismatch:{}", node.node_id));
+        }
+        if let Some(checkpoint_ref) = &node.checkpoint_ref {
+            let checkpoint_matches = registry
+                .checkpoint_binding(checkpoint_ref)
+                .is_some_and(|checkpoint| {
+                    checkpoint.checkpoint_ref == *checkpoint_ref
+                        && checkpoint.workflow_id == input.workflow_id
+                        && checkpoint.graph_version == input.graph_version
+                        && checkpoint.node_id == node.node_id
+                        && checkpoint.configuration_digest == node.configuration_digest
+                        && checkpoint.immutable
+                });
+            if !valid_identifier(checkpoint_ref) || !checkpoint_matches {
+                findings.push(format!("checkpoint_binding_invalid:{}", node.node_id));
+            }
+        } else if node.safe_stop {
+            findings.push(format!("safe_stop_checkpoint_missing:{}", node.node_id));
+        }
+        match (&node.safe_stop, &node.recovery_node_id) {
+            (true, Some(recovery_id))
+                if valid_identifier(recovery_id)
+                    && recovery_id != &node.node_id
+                    && node_ids.contains(recovery_id.as_str()) => {}
+            (true, _) => findings.push(format!("safe_stop_recovery_path_invalid:{}", node.node_id)),
+            (false, Some(_)) => {
+                findings.push(format!("unexpected_recovery_path:{}", node.node_id));
+            }
+            (false, None) => {}
         }
     }
     if node_ids.len() != input.nodes.len() {
@@ -343,9 +434,17 @@ fn topological_order(
             continue;
         };
         let semantics_match = match edge.dependency_type.as_str() {
-            "required" => kind.satisfaction_rule == "success" && kind.failure_behavior == "block",
+            "required" => {
+                kind.mandatory
+                    && kind.conditionality == "unconditional"
+                    && kind.satisfaction_rule == "success"
+                    && kind.failure_behavior == "block"
+            }
             "ordering" => {
-                kind.satisfaction_rule == "completion" && kind.failure_behavior == "continue"
+                kind.mandatory
+                    && kind.conditionality == "unconditional"
+                    && kind.satisfaction_rule == "completion"
+                    && kind.failure_behavior == "continue"
             }
             _ => false,
         };
