@@ -27,11 +27,11 @@ pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use g01_authority_registry::{
     evaluate_identity_root_production, AlgorithmPolicyRecord, CompatibilityContract,
-    CompatibilityPolicy, G01RegistryError, IdentityRootRecord, IdentitySuccessionProof,
-    MigrationArtifactError, MigrationArtifactResolver, SignedCompatibilityRegistryEnvelope,
-    IdentityRootProductionContext, SignedG01AuthoritySnapshot, SignedIdentityRootRegistryEnvelope,
-    SignedIdentitySuccessionProof, SignedSuccessionRegistryEnvelope, SqliteG01AuthorityStore,
-    SuccessionResolutionContext,
+    CompatibilityPolicy, G01RegistryError, IdentityRootProductionContext, IdentityRootRecord,
+    IdentitySuccessionProof, MigrationArtifactError, MigrationArtifactResolver,
+    SignedCompatibilityRegistryEnvelope, SignedG01AuthoritySnapshot,
+    SignedIdentityRootRegistryEnvelope, SignedIdentitySuccessionProof,
+    SignedSuccessionRegistryEnvelope, SqliteG01AuthorityStore, SuccessionResolutionContext,
 };
 #[cfg(test)]
 pub(crate) use governance::{
