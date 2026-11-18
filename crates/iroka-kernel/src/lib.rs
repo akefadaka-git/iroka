@@ -66,7 +66,7 @@ pub use rollback_guard::{
     RollbackEvidenceSummary, RollbackEvidenceTrustPolicy, RollbackEvidenceVerifier,
     RollbackGuardDecision, RollbackGuardInput,
 };
-pub use security_store::{SecurityStoreError, SqliteSecurityStore};
+pub use security_store::{AuthorityCheckpointStore, SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
