@@ -33,20 +33,41 @@ def main() -> None:
     output_validator = Draft202012Validator(output_schema)
 
     digest = "a" * 64
-    provenance = {"source_ref": "synthetic:test", "revision_ref": "revision:demo:1"}
+    provenance = {
+        "source_ref": "synthetic:test",
+        "revision_ref": "revision:demo:1",
+        "workflow_registry_ref": "registry:workflow:1",
+        "operation_registry_ref": "registry:operation:1",
+        "dependency_registry_ref": "registry:dependency:1",
+        "checkpoint_registry_ref": "registry:checkpoint:1",
+        "node_operations": [{
+            "node_id": "node.fetch",
+            "operation_ref": "operation.fetch",
+            "implementation_digest": "b" * 64,
+            "configuration_digest": digest,
+            "operation_provenance_ref": "operation-source:node.fetch",
+            "configuration_provenance_ref": "configuration-source:node.fetch"
+        }],
+        "dependency_edges": [],
+        "validation_input_refs": ["input:workflow", "input:operations"]
+    }
     evidence = {
-        "workflow_registry_digest": "b" * 64,
-        "operation_registry_digest": "c" * 64,
-        "dependency_registry_digest": "d" * 64,
-        "graph_revision_digest": "e" * 64,
+        "workflow_registry_digest": "c" * 64,
+        "operation_registry_digest": "d" * 64,
+        "dependency_registry_digest": "e" * 64,
+        "checkpoint_registry_digest": "f" * 64,
+        "graph_revision_digest": "1" * 64,
         "configuration_digest_algorithm": "SHA-256",
-        "graph_validator_version": "1.0.0",
+        "graph_validator_version": "1.0.0"
     }
     node = {
         "node_id": "node.fetch",
         "node_type": "fetch",
         "operation_ref": "operation.fetch",
         "configuration_digest": digest,
+        "checkpoint_ref": None,
+        "safe_stop": False,
+        "recovery_node_id": None
     }
     positive_input = {
         "workflow_id": "workflow.demo",
@@ -54,7 +75,7 @@ def main() -> None:
         "edges": [],
         "graph_version": "1.0.0",
         "provenance": provenance,
-        "version_bound_evidence": evidence,
+        "version_bound_evidence": evidence
     }
     assert_valid(input_validator, positive_input)
 
@@ -63,8 +84,9 @@ def main() -> None:
         lambda value: value["nodes"][0].update({"unexpected": True}),
         lambda value: value["nodes"][0].update({"configuration_digest": "NOT-A-DIGEST"}),
         lambda value: value["version_bound_evidence"].pop("graph_revision_digest"),
+        lambda value: value["provenance"].pop("node_operations"),
         lambda value: value.update({"unapproved_field": True}),
-        lambda value: value.update({"graph_version": "latest"}),
+        lambda value: value.update({"graph_version": "latest"})
     ):
         candidate = json.loads(json.dumps(positive_input))
         mutate(candidate)
@@ -78,9 +100,9 @@ def main() -> None:
         "evidence": {
             "findings": [],
             "provenance": provenance,
-            "version_bound_evidence": evidence,
+            "version_bound_evidence": evidence
         },
-        "version_bound_evidence": evidence,
+        "version_bound_evidence": evidence
     }
     assert_valid(output_validator, positive_output)
     for mutate in (
@@ -88,15 +110,16 @@ def main() -> None:
         lambda value: value.update({"graph_digest": "invalid"}),
         lambda value: value["topological_order"].append("node.fetch"),
         lambda value: value["evidence"].update({"extra": True}),
-        lambda value: value.pop("evidence"),
+        lambda value: value["evidence"]["provenance"].pop("dependency_edges"),
+        lambda value: value.pop("evidence")
     ):
         candidate = json.loads(json.dumps(positive_output))
         mutate(candidate)
         assert_invalid(output_validator, candidate)
 
     print("PASS: G08 workflow-graph input/output Draft 2020-12 schemas")
-    print("PASS: 1 positive input + 6 negative input schema vectors")
-    print("PASS: 1 positive output + 5 negative output schema vectors")
+    print("PASS: 1 positive input + 7 negative input schema vectors")
+    print("PASS: 1 positive output + 6 negative output schema vectors")
 
 if __name__ == "__main__":
     main()
