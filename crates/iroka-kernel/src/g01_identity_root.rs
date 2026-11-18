@@ -145,13 +145,16 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
     }
 
     let record = registry.resolve_root(input)?;
+    if record.key_fingerprint != input.key_fingerprint {
+        return Err(IdentityRootError::FingerprintMismatch);
+    }
+    if record.key_material_ref != input.key_material_ref {
+        return Err(IdentityRootError::KeyMaterialUnavailable);
+    }
     if record.root_id != input.root_id
         || record.issuer_id != input.issuer_id
-        || record.key_material_ref != input.key_material_ref
-        || record.key_fingerprint != input.key_fingerprint
         || record.algorithm != input.algorithm
         || record.activation_epoch != input.activation_epoch
-        || record.status != input.status
     {
         return Err(IdentityRootError::RootRecordMismatch);
     }
@@ -186,13 +189,16 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
         .any(|link| link.status != RootTrustDecision::Trusted);
 
     let (trust_decision, decision_rationale) = if record.status == RootStatus::Revoked
+        || input.status == RootStatus::Revoked
         || revoked_issuer
     {
         (
             RootTrustDecision::Revoked,
             "root or issuer chain is revoked".to_owned(),
         )
-    } else if record.status == RootStatus::Suspended {
+    } else if record.status == RootStatus::Suspended
+        || input.status != record.status
+    {
         (
             RootTrustDecision::Untrusted,
             "root is suspended".to_owned(),
@@ -245,6 +251,8 @@ mod tests {
         status: RootStatus,
         policy_allowed: bool,
         issuer_status: RootTrustDecision,
+        provenance_verified: bool,
+        version_evidence_verified: bool,
     }
 
     impl IdentityRootRegistry for CanonicalRegistry {
@@ -258,11 +266,19 @@ mod tests {
             if input.issuer_id != "issuer:trusted" {
                 return Err(IdentityRootError::UnknownIssuer);
             }
+            if input.key_fingerprint
+                != "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            {
+                return Err(IdentityRootError::FingerprintMismatch);
+            }
+            if input.key_material_ref != "key-material:canonical-root" {
+                return Err(IdentityRootError::KeyMaterialUnavailable);
+            }
             Ok(IdentityRootRegistryRecord {
                 root_id: input.root_id.clone(),
                 issuer_id: input.issuer_id.clone(),
-                key_fingerprint: input.key_fingerprint.clone(),
-                key_material_ref: input.key_material_ref.clone(),
+                key_fingerprint: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+                key_material_ref: "key-material:canonical-root".into(),
                 algorithm: input.algorithm.clone(),
                 algorithm_policy: AlgorithmPolicyEvidence {
                     policy_id: input.algorithm_policy_id.clone(),
@@ -277,8 +293,8 @@ mod tests {
                     key_fingerprint: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
                     status: self.issuer_status,
                 }],
-                provenance_verified: true,
-                version_evidence_verified: true,
+                provenance_verified: self.provenance_verified,
+                version_evidence_verified: self.version_evidence_verified,
             })
         }
     }
@@ -304,6 +320,8 @@ mod tests {
             status: RootStatus::Active,
             policy_allowed: true,
             issuer_status: RootTrustDecision::Trusted,
+            provenance_verified: true,
+            version_evidence_verified: true,
         }
     }
 
@@ -324,7 +342,10 @@ mod tests {
             status: RootStatus::Active,
             ..registry()
         };
-        assert!(evaluate_identity_root(&registry, &candidate, 10).is_ok());
+        assert_eq!(
+            evaluate_identity_root(&registry, &candidate, 10),
+            Err(IdentityRootError::FingerprintMismatch)
+        );
         let mut candidate = input();
         candidate.root_id = "root:alias".into();
         assert_eq!(
@@ -387,7 +408,10 @@ mod tests {
             provenance_verified: false,
             ..registry()
         };
-        let _ = invalid;
+        assert_eq!(
+            evaluate_identity_root(&invalid, &input(), 10),
+            Err(IdentityRootError::ProvenanceInvalid)
+        );
     }
 
     #[test]
