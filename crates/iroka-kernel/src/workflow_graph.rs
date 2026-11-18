@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const WORKFLOW_GRAPH_SCHEMA_VERSION: &str = "1.0.0";
 pub const WORKFLOW_GRAPH_VALIDATOR_VERSION: &str = "1.0.0";
 const CONFIGURATION_DIGEST_ALGORITHM: &str = "SHA-256";
+const CONFIGURATION_CANONICALIZATION: &str = "JCS-RFC8785";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -168,6 +169,7 @@ struct GraphDigestMaterial<'a> {
     checkpoint_registry_digest: &'a str,
     validator_version: &'a str,
     configuration_digest_algorithm: &'static str,
+    configuration_canonicalization: &'static str,
 }
 
 fn digest<T: Serialize>(value: &T) -> Result<String, String> {
@@ -253,6 +255,7 @@ fn sorted_graph_digest(
         checkpoint_registry_digest: registry.checkpoint_registry_digest(),
         validator_version: WORKFLOW_GRAPH_VALIDATOR_VERSION,
         configuration_digest_algorithm: CONFIGURATION_DIGEST_ALGORITHM,
+        configuration_canonicalization: CONFIGURATION_CANONICALIZATION,
     };
     digest(&material)
 }
@@ -578,6 +581,7 @@ pub fn evaluate_workflow_graph(
         "graph_revision_digest",
         "schema_version",
         "configuration_digest_algorithm",
+        "configuration_canonicalization",
         "graph_validator_version",
     ];
     if bound.len() != expected_keys.len()
@@ -592,6 +596,8 @@ pub fn evaluate_workflow_graph(
         || required_evidence(bound, "schema_version")? != WORKFLOW_GRAPH_SCHEMA_VERSION
         || required_evidence(bound, "configuration_digest_algorithm")?
             != CONFIGURATION_DIGEST_ALGORITHM
+        || required_evidence(bound, "configuration_canonicalization")?
+            != CONFIGURATION_CANONICALIZATION
         || required_evidence(bound, "graph_validator_version")? != WORKFLOW_GRAPH_VALIDATOR_VERSION
     {
         return Err("workflow_graph_version_binding_mismatch".into());
@@ -885,6 +891,7 @@ mod tests {
                 ),
                 ("graph_revision_digest".into(), json!("c".repeat(64))),
                 ("schema_version".into(), json!(WORKFLOW_GRAPH_SCHEMA_VERSION)),
+                ("configuration_canonicalization".into(), json!(CONFIGURATION_CANONICALIZATION)),
                 (
                     "configuration_digest_algorithm".into(),
                     json!(CONFIGURATION_DIGEST_ALGORITHM),
