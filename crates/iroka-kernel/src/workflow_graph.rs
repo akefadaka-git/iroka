@@ -19,6 +19,9 @@ pub struct WorkflowGraphNode {
     pub node_type: String,
     pub operation_ref: String,
     pub configuration_digest: String,
+    pub checkpoint_ref: Option<String>,
+    pub safe_stop: bool,
+    pub recovery_node_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -37,8 +40,41 @@ pub struct WorkflowGraphInput {
     pub nodes: Vec<WorkflowGraphNode>,
     pub edges: Vec<WorkflowGraphEdge>,
     pub graph_version: String,
-    pub provenance: BTreeMap<String, Value>,
+    pub provenance: WorkflowGraphProvenance,
     pub version_bound_evidence: BTreeMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct WorkflowNodeOperationProvenance {
+    pub node_id: String,
+    pub operation_ref: String,
+    pub implementation_digest: String,
+    pub configuration_digest: String,
+    pub operation_provenance_ref: String,
+    pub configuration_provenance_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct WorkflowDependencyEdgeProvenance {
+    pub edge_id: String,
+    pub dependency_type: String,
+    pub provenance_ref: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct WorkflowGraphProvenance {
+    pub source_ref: String,
+    pub revision_ref: String,
+    pub workflow_registry_ref: String,
+    pub operation_registry_ref: String,
+    pub dependency_registry_ref: String,
+    pub checkpoint_registry_ref: String,
+    pub node_operations: Vec<WorkflowNodeOperationProvenance>,
+    pub dependency_edges: Vec<WorkflowDependencyEdgeProvenance>,
+    pub validation_input_refs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -55,16 +91,28 @@ pub struct WorkflowOperationBinding {
     pub node_type: String,
     pub implementation_digest: String,
     pub effect_class: String,
-    pub configuration_digests: BTreeSet<String>,
+    pub configurations: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkflowDependencyKind {
     pub dependency_type: String,
+    pub mandatory: bool,
+    pub conditionality: String,
     /// "success" means the prerequisite must succeed; "completion" means terminal completion.
     pub satisfaction_rule: String,
     /// "block" prevents dependent progression on prerequisite failure; "continue" is ordering-only.
     pub failure_behavior: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkflowCheckpointBinding {
+    pub checkpoint_ref: String,
+    pub workflow_id: String,
+    pub graph_version: String,
+    pub node_id: String,
+    pub configuration_digest: String,
+    pub immutable: bool,
 }
 
 /// Implementations must resolve from authenticated, immutable, versioned snapshots.
@@ -73,16 +121,19 @@ pub trait WorkflowGraphRegistry {
     fn workflow_revision(&self, workflow_id: &str) -> Option<&WorkflowRevisionBinding>;
     fn operation_binding(&self, operation_ref: &str) -> Option<&WorkflowOperationBinding>;
     fn dependency_kind(&self, dependency_type: &str) -> Option<&WorkflowDependencyKind>;
+    fn checkpoint_binding(&self, checkpoint_ref: &str) -> Option<&WorkflowCheckpointBinding>;
+    fn effect_class_registered(&self, effect_class: &str) -> bool;
     fn workflow_registry_digest(&self) -> &str;
     fn operation_registry_digest(&self) -> &str;
     fn dependency_registry_digest(&self) -> &str;
+    fn checkpoint_registry_digest(&self) -> &str;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct WorkflowGraphEvidence {
     pub findings: Vec<String>,
-    pub provenance: BTreeMap<String, Value>,
+    pub provenance: WorkflowGraphProvenance,
     pub version_bound_evidence: BTreeMap<String, Value>,
 }
 
