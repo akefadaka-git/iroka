@@ -364,6 +364,48 @@ impl SqliteG01AuthorityStore {
                digest BLOB NOT NULL CHECK(length(digest)=32),
                expires_at INTEGER NOT NULL,
                document TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS g01_identity_root_registry(
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               revision INTEGER NOT NULL CHECK(revision>0),
+               digest BLOB NOT NULL CHECK(length(digest)=32),
+               expires_at INTEGER NOT NULL,
+               document TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS g01_succession_registry(
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               revision INTEGER NOT NULL CHECK(revision>0),
+               digest BLOB NOT NULL CHECK(length(digest)=32),
+               expires_at INTEGER NOT NULL,
+               document TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS g01_compatibility_registry(
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               revision INTEGER NOT NULL CHECK(revision>0),
+               digest BLOB NOT NULL CHECK(length(digest)=32),
+               expires_at INTEGER NOT NULL,
+               document TEXT NOT NULL
+             );
+             CREATE TABLE g01_identity_root_registry(
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               revision INTEGER NOT NULL CHECK(revision>0),
+               digest BLOB NOT NULL CHECK(length(digest)=32),
+               expires_at INTEGER NOT NULL,
+               document TEXT NOT NULL
+             );
+             CREATE TABLE g01_succession_registry(
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               revision INTEGER NOT NULL CHECK(revision>0),
+               digest BLOB NOT NULL CHECK(length(digest)=32),
+               expires_at INTEGER NOT NULL,
+               document TEXT NOT NULL
+             );
+             CREATE TABLE g01_compatibility_registry(
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               revision INTEGER NOT NULL CHECK(revision>0),
+               digest BLOB NOT NULL CHECK(length(digest)=32),
+               expires_at INTEGER NOT NULL,
+               document TEXT NOT NULL
              );",
             )
             .map_err(|_| G01RegistryError::StoreUnavailable)?;
@@ -860,6 +902,169 @@ fn valid_sha256(value: &str) -> bool {
             && s.bytes()
                 .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
     })
+}
+
+fn verify_root_signed_envelope(
+    root_key_id: &str,
+    revision: u64,
+    issued_at: u64,
+    expires_at: u64,
+    signature: &[u8],
+    signing_bytes: &[u8],
+    roots: &TrustRootSet,
+    now: u64,
+) -> Result<(), G01RegistryError> {
+    let root = roots
+        .get(root_key_id)
+        .map_err(|_| G01RegistryError::UnknownRoot)?;
+    if now < root.not_before || issued_at > now.saturating_add(MAX_CLOCK_SKEW) {
+        return Err(G01RegistryError::NotYetValid);
+    }
+    if now >= root.not_after || expires_at <= now || issued_at >= expires_at {
+        return Err(G01RegistryError::Expired);
+    }
+    if revision == 0 {
+        return Err(G01RegistryError::InvalidSnapshot);
+    }
+    if expires_at - issued_at > MAX_SNAPSHOT_LIFETIME {
+        return Err(G01RegistryError::ExcessiveLifetime);
+    }
+    let key = VerifyingKey::from_bytes(&root.public_key)
+        .map_err(|_| G01RegistryError::UnknownRoot)?;
+    let signature = Signature::from_slice(signature).map_err(|_| G01RegistryError::Malformed)?;
+    key.verify(signing_bytes, &signature)
+        .map_err(|_| G01RegistryError::InvalidRootSignature)
+}
+
+fn validate_identity_root_envelope(
+    envelope: &SignedIdentityRootRegistryEnvelope,
+) -> Result<(), G01RegistryError> {
+    if envelope.identity_roots.is_empty()
+        || envelope.identity_roots.len() > 4096
+        || envelope.algorithm_policies.is_empty()
+        || envelope.algorithm_policies.len() > 10_000
+    {
+        return Err(G01RegistryError::InvalidSnapshot);
+    }
+    let mut ids = BTreeSet::new();
+    for policy in &envelope.algorithm_policies {
+        if policy.policy_id.trim().is_empty()
+            || policy.version.trim().is_empty()
+            || policy.allowed_algorithms.is_empty()
+            || policy.allowed_algorithms.iter().any(|a| a.trim().is_empty())
+            || !ids.insert(format!("{}@{}", policy.policy_id, policy.version))
+        {
+            return Err(G01RegistryError::InvalidSnapshot);
+        }
+    }
+    ids.clear();
+    for root in &envelope.identity_roots {
+        if root.root_id.trim().is_empty()
+            || root.issuer_id.trim().is_empty()
+            || root.key_id.trim().is_empty()
+            || root.key_material_ref.trim().is_empty()
+            || !valid_sha256(&root.key_fingerprint)
+            || root.algorithm.trim().is_empty()
+            || root.issuer_chain.is_empty()
+            || !root.provenance.is_object()
+            || !root.version_bound_evidence.is_object()
+            || !envelope.algorithm_policies.iter().any(|p| {
+                p.policy_id == root.algorithm_policy_id
+                    && p.version == root.algorithm_policy_version
+                    && p.allowed_algorithms.contains(&root.algorithm)
+            })
+            || !ids.insert(root.root_id.clone())
+        {
+            return Err(G01RegistryError::InvalidSnapshot);
+        }
+    }
+    Ok(())
+}
+
+fn validate_succession_envelope(
+    envelope: &SignedSuccessionRegistryEnvelope,
+) -> Result<(), G01RegistryError> {
+    if envelope.proofs.len() > 100_000 {
+        return Err(G01RegistryError::InvalidSnapshot);
+    }
+    let mut ids = BTreeSet::new();
+    for signed in &envelope.proofs {
+        let proof = &signed.proof;
+        if proof.proof_id.trim().is_empty()
+            || proof.predecessor_identity.trim().is_empty()
+            || proof.successor_identity.trim().is_empty()
+            || proof.predecessor_identity == proof.successor_identity
+            || proof.issuer_id.trim().is_empty()
+            || proof.signing_key_id.trim().is_empty()
+            || !valid_sha256(&proof.proof_digest)
+            || proof.effective_epoch < proof.issued_epoch
+            || proof.status != "active"
+            || signed.signature.len() != 64
+            || !ids.insert(proof.proof_id.clone())
+        {
+            return Err(G01RegistryError::InvalidSnapshot);
+        }
+    }
+    Ok(())
+}
+
+fn validate_compatibility_envelope(
+    envelope: &SignedCompatibilityRegistryEnvelope,
+) -> Result<(), G01RegistryError> {
+    if envelope.contracts.is_empty()
+        || envelope.policies.is_empty()
+        || envelope.contracts.len() > 10_000
+        || envelope.policies.len() > 10_000
+    {
+        return Err(G01RegistryError::InvalidSnapshot);
+    }
+    let mut ids = BTreeSet::new();
+    for contract in &envelope.contracts {
+        if contract.contract_id.trim().is_empty()
+            || contract.version.trim().is_empty()
+            || !valid_sha256(&contract.digest)
+            || contract.issuer_id.trim().is_empty()
+            || contract.status != "active"
+            || !ids.insert(format!("{}@{}", contract.contract_id, contract.version))
+        {
+            return Err(G01RegistryError::InvalidSnapshot);
+        }
+    }
+    ids.clear();
+    for policy in &envelope.policies {
+        if policy.policy_id.trim().is_empty()
+            || policy.version.trim().is_empty()
+            || policy.issuer_id.trim().is_empty()
+            || policy.contract_id.trim().is_empty()
+            || policy.contract_version.trim().is_empty()
+            || !valid_sha256(&policy.contract_digest)
+            || policy.valid_from >= policy.valid_until
+            || !ids.insert(format!("{}@{}", policy.policy_id, policy.version))
+        {
+            return Err(G01RegistryError::InvalidSnapshot);
+        }
+        match (
+            policy.migration_required,
+            policy.migration_ref.as_deref(),
+            policy.migration_digest.as_deref(),
+        ) {
+            (true, Some(reference), Some(digest))
+                if !reference.trim().is_empty() && valid_sha256(digest) => {}
+            (false, None, None) => {}
+            _ => return Err(G01RegistryError::InvalidSnapshot),
+        }
+        if policy.compatible_contracts.values().any(|d| !valid_sha256(d)) {
+            return Err(G01RegistryError::InvalidSnapshot);
+        }
+        if !envelope.contracts.iter().any(|contract| {
+            contract.contract_id == policy.contract_id
+                && contract.version == policy.contract_version
+                && contract.digest == policy.contract_digest
+        }) {
+            return Err(G01RegistryError::UnknownContract);
+        }
+    }
+    Ok(())
 }
 
 fn validate_snapshot(s: &SignedG01AuthoritySnapshot) -> Result<(), G01RegistryError> {
