@@ -723,6 +723,7 @@ impl SqliteG01AuthorityStore {
         Ok((contract, policy))
     }
 
+    #[deprecated(note = "Use the three independent signed registry envelope installers")]
     pub fn install_signed_snapshot(
         &self,
         signed: &SignedG01AuthoritySnapshot,
@@ -847,6 +848,7 @@ impl SqliteG01AuthorityStore {
         Ok(snapshot)
     }
 
+    #[deprecated(note = "Use resolve_verified_succession to verify the issuer signature")]
     pub fn resolve_succession(
         &self,
         proof_id: &str,
@@ -861,6 +863,7 @@ impl SqliteG01AuthorityStore {
             .ok_or(G01RegistryError::UnknownProof)
     }
 
+    #[deprecated(note = "Use resolve_compatibility_with_migration to authenticate migration bytes")]
     pub fn resolve_compatibility(
         &self,
         policy_id: &str,
@@ -1198,71 +1201,12 @@ fn validate_snapshot(s: &SignedG01AuthoritySnapshot) -> Result<(), G01RegistryEr
 impl IdentityRootRegistry for SqliteG01AuthorityStore {
     fn resolve_root(
         &self,
-        input: &IdentityRootInput,
+        _: &IdentityRootInput,
     ) -> Result<IdentityRootRegistryRecord, IdentityRootError> {
-        let snapshot = self
-            .latest_snapshot()
-            .map_err(|_| IdentityRootError::RegistryUnavailable)?;
-        let record = snapshot
-            .identity_roots
-            .into_iter()
-            .find(|r| r.root_id == input.root_id)
-            .ok_or(IdentityRootError::UnknownRoot)?;
-        if record.issuer_id != input.issuer_id {
-            return Err(IdentityRootError::UnknownIssuer);
-        }
-        if record.key_material_ref != input.key_material_ref {
-            return Err(IdentityRootError::KeyMaterialUnavailable);
-        }
-        if record.key_fingerprint != input.key_fingerprint {
-            return Err(IdentityRootError::FingerprintMismatch);
-        }
-        if record.algorithm_policy_id != input.algorithm_policy_id
-            || record.algorithm_policy_version != input.algorithm_policy_version
-            || record.algorithm != input.algorithm
-        {
-            return Err(IdentityRootError::PolicyVersionMismatch);
-        }
-        if record.activation_epoch != input.activation_epoch
-            || record.status != input.status
-            || record.provenance != input.provenance
-            || record.version_bound_evidence != input.version_bound_evidence
-        {
-            return Err(IdentityRootError::RootRecordMismatch);
-        }
-        let chain = record.issuer_chain.clone();
-        if chain.last().map(|x| x.issuer_id.as_str()) != Some(record.issuer_id.as_str()) {
-            return Err(IdentityRootError::UnknownIssuer);
-        }
-        let policy_record = snapshot
-            .algorithm_policies
-            .iter()
-            .find(|p| {
-                p.policy_id == record.algorithm_policy_id
-                    && p.version == record.algorithm_policy_version
-            })
-            .ok_or(IdentityRootError::PolicyUnavailable)?;
-        let algorithm_allowed = policy_record.allowed_algorithms.contains(&record.algorithm);
-        let policy = AlgorithmPolicyEvidence {
-            policy_id: record.algorithm_policy_id.clone(),
-            policy_version: record.algorithm_policy_version.clone(),
-            algorithm: record.algorithm.clone(),
-            allowed: algorithm_allowed,
-        };
-        Ok(IdentityRootRegistryRecord {
-            root_id: record.root_id,
-            issuer_id: record.issuer_id,
-            key_fingerprint: record.key_fingerprint,
-            key_material_ref: record.key_material_ref,
-            algorithm: record.algorithm,
-            algorithm_policy: policy,
-            activation_epoch: record.activation_epoch,
-            status: record.status,
-            key_status: record.key_status,
-            issuer_chain: chain,
-            provenance_verified: true,
-            version_evidence_verified: true,
-        })
+        // This trait has no trusted-root, issuer-key or revocation inputs.
+        // The legacy combined snapshot must not be treated as a verified root
+        // registry here. Production callers use the gated evaluator below.
+        Err(IdentityRootError::RegistryUnavailable)
     }
 }
 
@@ -1280,7 +1224,7 @@ pub fn evaluate_identity_root_production(
     now_unix: u64,
 ) -> Result<crate::g01_identity_root::IdentityRootOutput, IdentityRootError> {
     let snapshot = registry
-        .active_verified_snapshot(roots, now_unix)
+        .latest_identity_root_registry(roots, now_unix)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
     let record = snapshot
         .identity_roots
