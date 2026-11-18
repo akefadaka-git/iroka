@@ -285,6 +285,12 @@ mod tests {
             if input.key_material_ref != "key-material:canonical-root" {
                 return Err(IdentityRootError::KeyMaterialUnavailable);
             }
+            if input.algorithm_policy_id != "crypto-policy:root-keys" {
+                return Err(IdentityRootError::PolicyUnavailable);
+            }
+            if input.algorithm_policy_version != "2.1.0" {
+                return Err(IdentityRootError::PolicyVersionMismatch);
+            }
             Ok(IdentityRootRegistryRecord {
                 root_id: input.root_id.clone(),
                 issuer_id: input.issuer_id.clone(),
@@ -368,6 +374,22 @@ mod tests {
         assert_eq!(
             evaluate_identity_root(&registry(), &candidate, 10),
             Err(IdentityRootError::UnknownRoot)
+        );
+    }
+
+    #[test]
+    fn identity_root_rejects_unknown_or_wrong_version_algorithm_policy() {
+        let mut candidate = input();
+        candidate.algorithm_policy_id = "policy:untrusted".into();
+        assert_eq!(
+            evaluate_identity_root(&registry(), &candidate, 10),
+            Err(IdentityRootError::PolicyUnavailable)
+        );
+        let mut candidate = input();
+        candidate.algorithm_policy_version = "9.9.9".into();
+        assert_eq!(
+            evaluate_identity_root(&registry(), &candidate, 10),
+            Err(IdentityRootError::PolicyVersionMismatch)
         );
     }
 
