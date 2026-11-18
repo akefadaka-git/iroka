@@ -460,9 +460,9 @@ mod tests {
                 ("revision_ref".into(), json!("revision:demo:1")),
             ]),
             version_bound_evidence: BTreeMap::from([
-                ("workflow_registry_digest".into(), json!(registry.workflow_digest)),
-                ("operation_registry_digest".into(), json!(registry.operation_digest)),
-                ("dependency_registry_digest".into(), json!(registry.dependency_digest)),
+                ("workflow_registry_digest".into(), json!(registry.workflow_digest.clone())),
+                ("operation_registry_digest".into(), json!(registry.operation_digest.clone())),
+                ("dependency_registry_digest".into(), json!(registry.dependency_digest.clone())),
                 ("graph_revision_digest".into(), json!("c".repeat(64))),
                 ("configuration_digest_algorithm".into(), json!(CONFIGURATION_DIGEST_ALGORITHM)),
                 ("graph_validator_version".into(), json!(WORKFLOW_GRAPH_VALIDATOR_VERSION)),
