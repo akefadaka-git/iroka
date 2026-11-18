@@ -8,9 +8,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-fn deserialize_required_nullable_string<'de, D>(
-    deserializer: D,
-) -> Result<Option<String>, D::Error>
+fn deserialize_required_nullable_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -202,7 +200,8 @@ pub fn evaluate_compatibility<R: CompatibilityResolver>(
 
     match (&input.migration_ref, &input.migration_digest) {
         (None, None) => {
-            if !proof.no_migration_required || proof.migration_verified
+            if !proof.no_migration_required
+                || proof.migration_verified
                 || proof.migration_ref.is_some()
                 || proof.migration_digest.is_some()
             {
@@ -221,9 +220,7 @@ pub fn evaluate_compatibility<R: CompatibilityResolver>(
         _ => return Err(CompatibilityError::Malformed),
     }
 
-    if proof.policy_decision == CompatibilityDecision::Compatible
-        && input.migration_ref.is_some()
-    {
+    if proof.policy_decision == CompatibilityDecision::Compatible && input.migration_ref.is_some() {
         return Err(CompatibilityError::MigrationInvalid);
     }
     if proof.policy_decision == CompatibilityDecision::MigrationRequired
@@ -318,7 +315,8 @@ mod tests {
             policy_id: "compatibility-policy:stable".into(),
             policy_version: "3.2.0".into(),
             policy_issuer_id: "issuer:policy-authority".into(),
-            policy_digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            policy_digest:
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             declared_compatible: true,
             migration_digest: None,
             migration_ref: None,
@@ -341,7 +339,8 @@ mod tests {
             policy_digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             policy_scope_verified: true,
             policy_validity_verified: true,
-            comparison_digest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            comparison_digest:
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
             policy_decision: CompatibilityDecision::Compatible,
             migration_ref: None,
             migration_digest: None,
@@ -376,14 +375,21 @@ mod tests {
         let mut candidate = input();
         candidate.declared_compatible = false;
         candidate.migration_ref = Some("migration:source-to-target".into());
-        candidate.migration_digest = Some("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into());
+        candidate.migration_digest =
+            Some("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into());
         let mut migration_proof = proof();
         migration_proof.policy_decision = CompatibilityDecision::MigrationRequired;
         migration_proof.migration_ref = candidate.migration_ref.clone();
         migration_proof.migration_digest = candidate.migration_digest.clone();
         migration_proof.migration_verified = true;
         migration_proof.no_migration_required = false;
-        let output = evaluate_compatibility(&TestResolver { proof: migration_proof }, &candidate).unwrap();
+        let output = evaluate_compatibility(
+            &TestResolver {
+                proof: migration_proof,
+            },
+            &candidate,
+        )
+        .unwrap();
         assert!(!output.compatibility);
         assert_eq!(output.decision, CompatibilityDecision::MigrationRequired);
         assert!(output.evidence.migration_verified);
@@ -430,7 +436,12 @@ mod tests {
         let mut no_migration = proof();
         no_migration.no_migration_required = false;
         assert_eq!(
-            evaluate_compatibility(&TestResolver { proof: no_migration }, &input()),
+            evaluate_compatibility(
+                &TestResolver {
+                    proof: no_migration,
+                },
+                &input()
+            ),
             Err(CompatibilityError::MigrationMissing)
         );
         let mut candidate = input();
@@ -471,14 +482,26 @@ mod tests {
             candidate_proof.policy_decision = decision;
             if decision == CompatibilityDecision::MigrationRequired {
                 candidate.migration_ref = Some("migration:source-to-target".into());
-                candidate.migration_digest = Some("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into());
+                candidate.migration_digest = Some(
+                    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                        .into(),
+                );
                 candidate_proof.migration_ref = candidate.migration_ref.clone();
                 candidate_proof.migration_digest = candidate.migration_digest.clone();
                 candidate_proof.migration_verified = true;
                 candidate_proof.no_migration_required = false;
             }
-            let output = evaluate_compatibility(&TestResolver { proof: candidate_proof }, &candidate).unwrap();
-            assert_eq!(output.compatibility, output.decision == CompatibilityDecision::Compatible);
+            let output = evaluate_compatibility(
+                &TestResolver {
+                    proof: candidate_proof,
+                },
+                &candidate,
+            )
+            .unwrap();
+            assert_eq!(
+                output.compatibility,
+                output.decision == CompatibilityDecision::Compatible
+            );
         }
     }
 }
