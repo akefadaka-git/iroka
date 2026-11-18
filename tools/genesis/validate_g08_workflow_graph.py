@@ -63,6 +63,7 @@ def main() -> None:
         "dependency_registry_digest": "e" * 64,
         "checkpoint_registry_digest": "f" * 64,
         "graph_revision_digest": "1" * 64,
+        "schema_version": "1.0.0",
         "configuration_digest_algorithm": "SHA-256",
         "graph_validator_version": "1.0.0"
     }
