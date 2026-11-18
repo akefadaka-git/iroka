@@ -19,9 +19,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     g01_identity_root::{
-        AlgorithmPolicyEvidence, IdentityEvidenceVerifier, IdentityKeyMaterialResolver,
-        IdentityRootError, IdentityRootInput, IdentityRootRegistry, IdentityRootRegistryRecord,
-        IssuerLinkEvidence, RootStatus,
+        AlgorithmPolicyEvidence, IdentityEvidenceContext, IdentityEvidenceVerifier,
+        IdentityKeyMaterialResolver, IdentityRootError, IdentityRootInput, IdentityRootRegistry,
+        IdentityRootRegistryRecord, IssuerLinkEvidence, RootStatus,
     },
     AuthorityCheckpointStore, RevocationChecker, SecurityStoreError, SqliteSecurityStore,
     TrustRootSet, TrustStore,
@@ -361,6 +361,28 @@ pub enum G01RegistryError {
     MigrationArtifactMismatch,
 }
 
+/// Inputs required to resolve an issuer-signed succession proof.
+pub struct SuccessionResolutionContext<'a> {
+    pub roots: &'a TrustRootSet,
+    pub checkpoint: &'a dyn AuthorityCheckpointStore,
+    pub trust: &'a TrustStore,
+    pub revocations: &'a dyn RevocationChecker,
+    pub evaluated_epoch: u64,
+    pub now: u64,
+}
+
+/// Security dependencies and evaluation clock for production identity-root verification.
+pub struct IdentityRootProductionContext<'a> {
+    pub trust: &'a TrustStore,
+    pub roots: &'a TrustRootSet,
+    pub checkpoint: &'a dyn AuthorityCheckpointStore,
+    pub revocations: &'a SqliteSecurityStore,
+    pub key_material: &'a dyn IdentityKeyMaterialResolver,
+    pub evidence_verifier: &'a dyn IdentityEvidenceVerifier,
+    pub evaluated_epoch: u64,
+    pub now_unix: u64,
+}
+
 pub struct SqliteG01AuthorityStore {
     connection: Mutex<Connection>,
 }
@@ -642,13 +664,16 @@ impl SqliteG01AuthorityStore {
     pub fn resolve_verified_succession(
         &self,
         proof_id: &str,
-        roots: &TrustRootSet,
-        checkpoint: &dyn AuthorityCheckpointStore,
-        trust: &TrustStore,
-        revocations: &dyn RevocationChecker,
-        evaluated_epoch: u64,
-        now: u64,
+        context: SuccessionResolutionContext<'_>,
     ) -> Result<IdentitySuccessionProof, G01RegistryError> {
+        let SuccessionResolutionContext {
+            roots,
+            checkpoint,
+            trust,
+            revocations,
+            evaluated_epoch,
+            now,
+        } = context;
         let envelope: SignedSuccessionRegistryEnvelope =
             self.load_independent_envelope("g01_succession_registry")?;
         let bytes = envelope.signing_bytes()?;
@@ -1313,16 +1338,19 @@ impl IdentityRootRegistry for SqliteG01AuthorityStore {
 /// snapshot, and a revoked/unavailable revocation store cannot yield trust.
 pub fn evaluate_identity_root_production(
     registry: &SqliteG01AuthorityStore,
-    trust: &TrustStore,
-    roots: &TrustRootSet,
-    checkpoint: &dyn AuthorityCheckpointStore,
-    revocations: &SqliteSecurityStore,
-    key_material: &dyn IdentityKeyMaterialResolver,
-    evidence_verifier: &dyn IdentityEvidenceVerifier,
     input: &IdentityRootInput,
-    evaluated_epoch: u64,
-    now_unix: u64,
+    context: IdentityRootProductionContext<'_>,
 ) -> Result<crate::g01_identity_root::IdentityRootOutput, IdentityRootError> {
+    let IdentityRootProductionContext {
+        trust,
+        roots,
+        checkpoint,
+        revocations,
+        key_material,
+        evidence_verifier,
+        evaluated_epoch,
+        now_unix,
+    } = context;
     let snapshot = registry
         .latest_identity_root_registry(roots, checkpoint, now_unix)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
@@ -1364,23 +1392,17 @@ pub fn evaluate_identity_root_production(
         trust,
         now_unix,
     )?;
-    evidence_verifier.verify_provenance(
-        &record.provenance,
-        &record.root_id,
-        &record.issuer_id,
-        &record.key_fingerprint,
+    let evidence_context = IdentityEvidenceContext {
+        root_id: &record.root_id,
+        issuer_id: &record.issuer_id,
+        key_fingerprint: &record.key_fingerprint,
+        activation_epoch: record.activation_epoch,
         trust,
-        now_unix,
-    )?;
-    evidence_verifier.verify_version_bound_evidence(
-        &record.version_bound_evidence,
-        &record.root_id,
-        &record.issuer_id,
-        &record.key_fingerprint,
-        record.activation_epoch,
-        trust,
-        now_unix,
-    )?;
+        now: now_unix,
+    };
+    evidence_verifier.verify_provenance(&record.provenance, &evidence_context)?;
+    evidence_verifier
+        .verify_version_bound_evidence(&record.version_bound_evidence, &evidence_context)?;
     let revoked = revocations
         .key_revoked(&record.issuer_id, &record.key_id)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
