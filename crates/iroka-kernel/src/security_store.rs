@@ -47,6 +47,8 @@ pub enum SecurityStoreError {
     RevokedEvidenceKey,
     RevocationFloorRollback,
     ConflictingRevocationFloor,
+    AuthorityCheckpointRollback,
+    AuthorityCheckpointConflict,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,6 +125,87 @@ impl SqliteSecurityStore {
         Self::from_connection(connection)
     }
 
+    /// Advance a monotonic checkpoint held in this security database, which MUST
+    /// be provisioned and backed up independently from the authority-registry database.
+    pub(crate) fn advance_authority_checkpoint(
+        &self,
+        registry: &str,
+        revision: u64,
+        digest: &[u8],
+    ) -> Result<(), SecurityStoreError> {
+        if !matches!(registry, "identity_roots" | "identity_succession" | "compatibility")
+            || revision == 0
+            || digest.len() != 32
+        {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let revision = i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, Vec<u8>)> = transaction
+            .query_row(
+                "SELECT revision,digest FROM authority_registry_checkpoints WHERE registry=?1",
+                params![registry],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if let Some((old_revision, old_digest)) = current {
+            if revision < old_revision {
+                return Err(SecurityStoreError::AuthorityCheckpointRollback);
+            }
+            if revision == old_revision {
+                if old_digest.as_slice() != digest {
+                    return Err(SecurityStoreError::AuthorityCheckpointConflict);
+                }
+                transaction.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                return Ok(());
+            }
+        }
+        transaction.execute(
+            "INSERT INTO authority_registry_checkpoints(registry,revision,digest)
+             VALUES(?1,?2,?3)
+             ON CONFLICT(registry) DO UPDATE SET revision=excluded.revision,digest=excluded.digest",
+            params![registry, revision, digest],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        transaction.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Require exact agreement with the independently stored monotonic checkpoint.
+    pub(crate) fn verify_authority_checkpoint(
+        &self,
+        registry: &str,
+        revision: u64,
+        digest: &[u8],
+    ) -> Result<(), SecurityStoreError> {
+        if !matches!(registry, "identity_roots" | "identity_succession" | "compatibility")
+            || revision == 0
+            || digest.len() != 32
+        {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let current: Option<(i64, Vec<u8>)> = connection
+            .query_row(
+                "SELECT revision,digest FROM authority_registry_checkpoints WHERE registry=?1",
+                params![registry],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        match current {
+            Some((stored_revision, stored_digest))
+                if stored_revision == i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)?
+                    && stored_digest.as_slice() == digest => Ok(()),
+            Some((stored_revision, _)) if stored_revision > i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)? =>
+                Err(SecurityStoreError::AuthorityCheckpointRollback),
+            Some(_) => Err(SecurityStoreError::AuthorityCheckpointConflict),
+            None => Err(SecurityStoreError::Unavailable),
+        }
+    }
+
     /// Run SQLite's full integrity checker before security state is trusted on recovery.
     pub fn integrity_check(&self) -> Result<(), SecurityStoreError> {
         let connection = self
@@ -184,6 +267,11 @@ impl SqliteSecurityStore {
                digest BLOB NOT NULL,
                issued_at INTEGER NOT NULL,
                expires_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS authority_registry_checkpoints (
+               registry TEXT PRIMARY KEY,
+               revision INTEGER NOT NULL CHECK(revision > 0),
+               digest BLOB NOT NULL CHECK(length(digest) = 32)
              );
              CREATE TABLE IF NOT EXISTS revoked_credentials (
                issuer TEXT NOT NULL, credential_id TEXT NOT NULL,
