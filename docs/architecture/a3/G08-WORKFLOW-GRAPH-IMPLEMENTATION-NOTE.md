@@ -29,6 +29,7 @@ The implementation addresses G08-WG-SEM-01 through G08-WG-SEM-08. It does not su
 
 - Rust unit tests cover deterministic ordering and digest reproducibility; revision/version and registry substitution; canonical configuration digest recomputation; effect-class and dependency semantics; missing/duplicate node and edge identities; invalid endpoints, self-edges and cycles; complete provenance; checkpoint immutability/binding; and safe-stop/recovery paths.
 - Python schema validator checks Draft 2020-12 meta-schema validity and positive/negative input/output vectors.
+- A branch-scoped formatter applies `cargo fmt --all`; the verification workflows still check the committed source head.
 - The three-workflow exact-SHA matrix is required on the final candidate. Do not claim verification until Rust, GENESIS and supply-chain runs all identify the same source SHA and succeed. The G08-specific workflow must also pass on that SHA.
 
 ## Not implemented in this slice
