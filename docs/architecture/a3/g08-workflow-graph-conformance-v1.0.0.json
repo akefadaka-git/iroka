@@ -1,0 +1,55 @@
+{
+  "document_id": "IROKA-G08-WORKFLOW-GRAPH-A3-CONFORMANCE-001",
+  "version": "1.0.0",
+  "gene_id": "g08.workflow-graph",
+  "status": "A3_IMPLEMENTATION_CONFORMANCE",
+  "a2_contract": "architecture/IROKA-A2-CHARACTER-GENE-CONTRACTS-v1.0.0.json",
+  "a2_semantic_review": "A2-G08-WORKFLOW-GRAPH-SEMANTIC-REVIEW-001",
+  "preserved_architecture": {"chromosomes": 12, "genes": 36},
+  "a2_gaps_addressed": [
+    "G08-WG-SEM-01",
+    "G08-WG-SEM-02",
+    "G08-WG-SEM-03",
+    "G08-WG-SEM-04",
+    "G08-WG-SEM-05",
+    "G08-WG-SEM-06",
+    "G08-WG-SEM-07",
+    "G08-WG-SEM-08"
+  ],
+  "implementation": {
+    "module": "crates/iroka-kernel/src/workflow_graph.rs",
+    "input_schema": "crates/iroka-kernel/igacms/schemas/a3/genes/g08.workflow-graph.input.schema.json",
+    "output_schema": "crates/iroka-kernel/igacms/schemas/a3/genes/g08.workflow-graph.output.schema.json",
+    "validator_version": "1.0.0",
+    "digest_algorithm": "SHA-256",
+    "topological_order": "Deterministic Kahn traversal with lexicographic ready-set tie-breaking"
+  },
+  "runtime_vectors": [
+    "complete deterministic topological order",
+    "digest independent of node/edge input vector order",
+    "unknown or mismatched immutable workflow revision",
+    "registry digest substitution",
+    "operation identity and configuration digest substitution",
+    "missing node endpoint",
+    "self-edge",
+    "unknown dependency kind",
+    "duplicate node identity",
+    "dependency cycle emits no topological order",
+    "missing provenance or version-bound evidence"
+  ],
+  "authority_boundary": {
+    "permitted_effects": ["none"],
+    "execution_authorized": false,
+    "description": "Graph validation is structural evidence only. It does not schedule, authorize, invoke, or execute referenced operations. Registry adapters must resolve authenticated immutable snapshots."
+  },
+  "remaining_g08_genes": [
+    "g08.scheduler-policy",
+    "g08.coordination-state"
+  ],
+  "execution_status": {
+    "schema_validation": "PENDING_EXACT_SHA_CI",
+    "runtime_tests": "PENDING_EXACT_SHA_CI",
+    "merge": "NOT_AUTHORIZED",
+    "deployment": "NOT_AUTHORIZED"
+  }
+}
