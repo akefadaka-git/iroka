@@ -706,7 +706,7 @@ mod tests {
     }
 
     fn input(registry: &TestRegistry) -> WorkflowGraphInput {
-        let mut nodes = vec![
+        let nodes = vec![
             WorkflowGraphNode {
                 node_id: "node.fetch".into(),
                 node_type: "fetch".into(),
@@ -804,15 +804,15 @@ mod tests {
         };
         WorkflowGraphInput {
             workflow_id: "workflow.demo".into(),
-            nodes: std::mem::take(&mut nodes),
+            nodes,
             edges,
             graph_version: "1.0.0".into(),
             provenance,
             version_bound_evidence: BTreeMap::from([
-                ("workflow_registry_digest".into(), json!(registry.workflow_digest)),
-                ("operation_registry_digest".into(), json!(registry.operation_digest)),
-                ("dependency_registry_digest".into(), json!(registry.dependency_digest)),
-                ("checkpoint_registry_digest".into(), json!(registry.checkpoint_digest)),
+                ("workflow_registry_digest".into(), json!(registry.workflow_digest.clone())),
+                ("operation_registry_digest".into(), json!(registry.operation_digest.clone())),
+                ("dependency_registry_digest".into(), json!(registry.dependency_digest.clone())),
+                ("checkpoint_registry_digest".into(), json!(registry.checkpoint_digest.clone())),
                 ("graph_revision_digest".into(), json!("c".repeat(64))),
                 ("configuration_digest_algorithm".into(), json!(CONFIGURATION_DIGEST_ALGORITHM)),
                 ("graph_validator_version".into(), json!(WORKFLOW_GRAPH_VALIDATOR_VERSION)),
@@ -952,17 +952,18 @@ mod tests {
 
         let mut value = input(&registry);
         value.nodes.push(value.nodes[0].clone());
+        value.provenance.node_operations.push(value.provenance.node_operations[0].clone());
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
-            "invalid_reference"
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_graph_node_provenance_invalid".into())
         );
 
         let mut value = input(&registry);
         value.edges[1].edge_id = value.edges[0].edge_id.clone();
         value.provenance.dependency_edges[1].edge_id = value.edges[0].edge_id.clone();
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
-            "invalid_reference"
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_graph_edge_provenance_invalid".into())
         );
     }
 
