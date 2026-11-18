@@ -244,6 +244,10 @@ fn topological_order(
         if operation.operation_ref != node.operation_ref
             || operation.node_type != node.node_type
             || !valid_digest(&operation.implementation_digest)
+            || !matches!(
+                operation.effect_class.as_str(),
+                "none" | "read" | "write" | "external" | "protected"
+            )
             || !operation
                 .configuration_digests
                 .contains(&node.configuration_digest)
