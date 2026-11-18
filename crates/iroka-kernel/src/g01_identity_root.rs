@@ -119,7 +119,6 @@ pub enum IdentityRootError {
     RegistryUnavailable,
 }
 
-
 fn valid_fingerprint(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(|hex| {
         hex.len() == 64
@@ -184,7 +183,10 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
         || record.issuer_chain.iter().any(|link| {
             link.issuer_id.trim().is_empty() || !valid_fingerprint(&link.key_fingerprint)
         })
-        || record.issuer_chain.last().map(|link| link.issuer_id.as_str())
+        || record
+            .issuer_chain
+            .last()
+            .map(|link| link.issuer_id.as_str())
             != Some(input.issuer_id.as_str())
     {
         return Err(IdentityRootError::UnknownIssuer);
@@ -207,13 +209,8 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
             RootTrustDecision::Revoked,
             "root or issuer chain is revoked".to_owned(),
         )
-    } else if record.status == RootStatus::Suspended
-        || input.status != record.status
-    {
-        (
-            RootTrustDecision::Untrusted,
-            "root is suspended".to_owned(),
-        )
+    } else if record.status == RootStatus::Suspended || input.status != record.status {
+        (RootTrustDecision::Untrusted, "root is suspended".to_owned())
     } else if untrusted_issuer {
         (
             RootTrustDecision::Untrusted,
@@ -294,7 +291,8 @@ mod tests {
             Ok(IdentityRootRegistryRecord {
                 root_id: input.root_id.clone(),
                 issuer_id: input.issuer_id.clone(),
-                key_fingerprint: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+                key_fingerprint:
+                    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
                 key_material_ref: "key-material:canonical-root".into(),
                 algorithm: input.algorithm.clone(),
                 algorithm_policy: AlgorithmPolicyEvidence {
@@ -307,7 +305,9 @@ mod tests {
                 status: self.status,
                 issuer_chain: vec![IssuerLinkEvidence {
                     issuer_id: "issuer:trusted".into(),
-                    key_fingerprint: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+                    key_fingerprint:
+                        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                            .into(),
                     status: self.issuer_status,
                 }],
                 provenance_verified: self.provenance_verified,
@@ -320,7 +320,8 @@ mod tests {
         IdentityRootInput {
             root_id: "root:canonical".into(),
             issuer_id: "issuer:trusted".into(),
-            key_fingerprint: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            key_fingerprint:
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
             key_material_ref: "key-material:canonical-root".into(),
             algorithm: "EdDSA".into(),
             algorithm_policy_id: "crypto-policy:root-keys".into(),
@@ -354,7 +355,8 @@ mod tests {
     #[test]
     fn identity_root_rejects_registry_fingerprint_or_key_reference_mismatch() {
         let mut candidate = input();
-        candidate.key_fingerprint = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into();
+        candidate.key_fingerprint =
+            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into();
         let registry = CanonicalRegistry {
             status: RootStatus::Active,
             ..registry()
@@ -463,7 +465,11 @@ mod tests {
 
     #[test]
     fn identity_root_output_never_contradicts_verified_and_trust_decision() {
-        for status in [RootStatus::Active, RootStatus::Suspended, RootStatus::Revoked] {
+        for status in [
+            RootStatus::Active,
+            RootStatus::Suspended,
+            RootStatus::Revoked,
+        ] {
             let mut candidate = input();
             candidate.status = status;
             let registry = CanonicalRegistry {
@@ -484,7 +490,10 @@ mod tests {
         value.as_object_mut().unwrap().remove("key_material_ref");
         assert!(serde_json::from_value::<IdentityRootInput>(value).is_err());
         let mut value = serde_json::to_value(input()).unwrap();
-        value.as_object_mut().unwrap().remove("algorithm_policy_version");
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("algorithm_policy_version");
         assert!(serde_json::from_value::<IdentityRootInput>(value).is_err());
     }
 }
