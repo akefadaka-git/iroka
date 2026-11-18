@@ -54,6 +54,7 @@ pub struct WorkflowOperationBinding {
     pub operation_ref: String,
     pub node_type: String,
     pub implementation_digest: String,
+    pub effect_class: String,
     pub configuration_digests: BTreeSet<String>,
 }
 
@@ -286,9 +287,12 @@ fn topological_order(
             ));
             continue;
         };
-        if kind.dependency_type != edge.dependency_type
-            || !matches!(kind.satisfaction_rule.as_str(), "success" | "completion")
-            || !matches!(kind.failure_behavior.as_str(), "block" | "continue")
+        let semantics_match = match edge.dependency_type.as_str() {
+            "required" => kind.satisfaction_rule == "success" && kind.failure_behavior == "block",
+            "ordering" => kind.satisfaction_rule == "completion" && kind.failure_behavior == "continue",
+            _ => false,
+        };
+        if kind.dependency_type != edge.dependency_type || !semantics_match
         {
             findings.push(format!(
                 "dependency_kind_binding_invalid:{}",
@@ -454,6 +458,7 @@ mod tests {
             operation_ref: format!("operation.{node_type}"),
             node_type: node_type.into(),
             implementation_digest: "a".repeat(64),
+            effect_class: "none".into(),
             configuration_digests: ["b".repeat(64)].into_iter().collect(),
         };
         TestRegistry {
@@ -687,6 +692,41 @@ mod tests {
             .evidence
             .findings
             .contains(&"dependency_cycle_detected".into()));
+    }
+
+    #[test]
+    fn rejects_non_semver_versions_and_revision_reference_substitution() {
+        let registry = registry();
+        let mut value = input(&registry);
+        value.graph_version = "latest".into();
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_graph_input_invalid".into())
+        );
+        let mut value = input(&registry);
+        value.provenance.insert("revision_ref".into(), json!("revision:other:2"));
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_revision_binding_mismatch".into())
+        );
+    }
+
+    #[test]
+    fn rejects_dependency_semantics_substitution_and_unknown_effect_class() {
+        let mut registry = registry();
+        registry.dependencies.get_mut("required").unwrap().failure_behavior = "continue".into();
+        let value = input(&registry);
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "invalid_reference"
+        );
+        let mut registry = registry();
+        registry.operations.get_mut("operation.fetch").unwrap().effect_class = "unregistered".into();
+        let value = input(&registry);
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "invalid_reference"
+        );
     }
 
     #[test]
