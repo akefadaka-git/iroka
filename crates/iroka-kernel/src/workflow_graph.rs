@@ -1157,8 +1157,7 @@ mod tests {
             "valid"
         );
         value.nodes[2].checkpoint_ref = Some("checkpoint.unknown".into());
-        value.provenance.node_operations[2].checkpoint_ref =
-            Some("checkpoint.unknown".into());
+        value.provenance.node_operations[2].checkpoint_ref = Some("checkpoint.unknown".into());
         assert_eq!(
             evaluate_workflow_graph(&value, &registry)
                 .unwrap()
