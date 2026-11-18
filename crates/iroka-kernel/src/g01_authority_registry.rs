@@ -1550,6 +1550,47 @@ mod independent_registry_tests {
             .expect("verified succession");
         assert_eq!(resolved.successor_identity, "identity-new");
 
+        let rotated_issuer = SigningKey::from_bytes(&[9; 32]);
+        let overlap_trust = TrustStore::new(
+            ["issuer-1"],
+            vec![
+                TrustedKey {
+                    issuer: "issuer-1".to_owned(),
+                    key_id: "succession-key-1".to_owned(),
+                    public_key: issuer.verifying_key().to_bytes(),
+                    not_before: 1,
+                    not_after: 1_000,
+                },
+                TrustedKey {
+                    issuer: "issuer-1".to_owned(),
+                    key_id: "succession-key-2".to_owned(),
+                    public_key: rotated_issuer.verifying_key().to_bytes(),
+                    not_before: 20,
+                    not_after: 1_000,
+                },
+            ],
+        )
+        .expect("overlapping rotation trust");
+        assert!(store
+            .resolve_verified_succession("succession-1", &roots, &overlap_trust, 20)
+            .is_ok());
+
+        let rotated_only_trust = TrustStore::new(
+            ["issuer-1"],
+            vec![TrustedKey {
+                issuer: "issuer-1".to_owned(),
+                key_id: "succession-key-2".to_owned(),
+                public_key: rotated_issuer.verifying_key().to_bytes(),
+                not_before: 20,
+                not_after: 1_000,
+            }],
+        )
+        .expect("rotated key trust");
+        assert_eq!(
+            store.resolve_verified_succession("succession-1", &roots, &rotated_only_trust, 20),
+            Err(G01RegistryError::UnknownIssuerKey)
+        );
+
         let artifact = b"immutable migration artifact v1".to_vec();
         let mut compatibility = SignedCompatibilityRegistryEnvelope {
             root_key_id: "owner-root-1".to_owned(),
@@ -1594,6 +1635,13 @@ mod independent_registry_tests {
                 .expect("identity registry survives restart")
                 .revision,
             2
+        );
+        assert_eq!(
+            store
+                .resolve_verified_succession("succession-1", &roots, &trust, 20)
+                .expect("succession survives restart")
+                .successor_identity,
+            "identity-new"
         );
         let resolver = StaticMigration(artifact);
         let (contract, policy) = store
