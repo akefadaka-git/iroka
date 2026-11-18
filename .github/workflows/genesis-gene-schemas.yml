@@ -5,6 +5,7 @@ on:
     paths:
       - "crates/iroka-kernel/igacms/genome-v1.0.0.json"
       - "crates/iroka-kernel/igacms/schemas/genes/**"
+      - "crates/iroka-kernel/igacms/schemas/a3/genes/**"
       - "crates/iroka-kernel/igacms/conformance/**"
       - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
       - "tools/genesis/**"
