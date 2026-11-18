@@ -19,8 +19,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     g01_identity_root::{
-        AlgorithmPolicyEvidence, IdentityRootError, IdentityRootInput, IdentityRootRegistry,
-        IdentityRootRegistryRecord, IssuerLinkEvidence, RootStatus,
+        AlgorithmPolicyEvidence, IdentityEvidenceVerifier, IdentityKeyMaterialResolver,
+        IdentityRootError, IdentityRootInput, IdentityRootRegistry, IdentityRootRegistryRecord,
+        IssuerLinkEvidence, RootStatus,
     },
     RevocationChecker, SecurityStoreError, SqliteSecurityStore, TrustRootSet, TrustStore,
 };
@@ -1316,6 +1317,8 @@ pub fn evaluate_identity_root_production(
     roots: &TrustRootSet,
     checkpoint: &SqliteSecurityStore,
     revocations: &SqliteSecurityStore,
+    key_material: &dyn IdentityKeyMaterialResolver,
+    evidence_verifier: &dyn IdentityEvidenceVerifier,
     input: &IdentityRootInput,
     evaluated_epoch: u64,
     now_unix: u64,
@@ -1328,10 +1331,16 @@ pub fn evaluate_identity_root_production(
         .iter()
         .find(|r| r.root_id == input.root_id)
         .ok_or(IdentityRootError::UnknownRoot)?;
-    let public_key = trust
+    let trusted_public_key = trust
         .trusted_public_key(&record.issuer_id, &record.key_id, now_unix)
         .map_err(|_| IdentityRootError::KeyMaterialUnavailable)?;
-    let digest = Sha256::digest(public_key);
+    let resolved_public_key = key_material
+        .resolve_public_key(&record.key_material_ref)
+        .map_err(|_| IdentityRootError::KeyMaterialUnavailable)?;
+    if resolved_public_key != trusted_public_key {
+        return Err(IdentityRootError::KeyMaterialUnavailable);
+    }
+    let digest = Sha256::digest(resolved_public_key);
     let fingerprint = format!("sha256:{digest:x}");
     if fingerprint != record.key_fingerprint || fingerprint != input.key_fingerprint {
         return Err(IdentityRootError::FingerprintMismatch);
@@ -1348,6 +1357,30 @@ pub fn evaluate_identity_root_production(
     {
         return Err(IdentityRootError::RootRecordMismatch);
     }
+    let verified_issuer_chain = evidence_verifier.verify_issuer_chain(
+        &record.issuer_chain,
+        &record.issuer_id,
+        &record.key_fingerprint,
+        trust,
+        now_unix,
+    )?;
+    evidence_verifier.verify_provenance(
+        &record.provenance,
+        &record.root_id,
+        &record.issuer_id,
+        &record.key_fingerprint,
+        trust,
+        now_unix,
+    )?;
+    evidence_verifier.verify_version_bound_evidence(
+        &record.version_bound_evidence,
+        &record.root_id,
+        &record.issuer_id,
+        &record.key_fingerprint,
+        record.activation_epoch,
+        trust,
+        now_unix,
+    )?;
     let revoked = revocations
         .key_revoked(&record.issuer_id, &record.key_id)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
@@ -1380,7 +1413,7 @@ pub fn evaluate_identity_root_production(
         activation_epoch: adapter.activation_epoch,
         status: adapter.status,
         key_status: adapter.key_status,
-        issuer_chain: adapter.issuer_chain.clone(),
+        issuer_chain: verified_issuer_chain,
         provenance_verified: true,
         version_evidence_verified: true,
     };
