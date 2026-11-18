@@ -657,8 +657,8 @@ pub fn evaluate_identity_root_production(
         provenance_verified: true,
         version_evidence_verified: true,
     };
-    struct Bound<'a>(IdentityRootRegistryRecord, &'a IdentityRootInput);
-    impl IdentityRootRegistry for Bound<'_> {
+    struct Bound(IdentityRootRegistryRecord);
+    impl IdentityRootRegistry for Bound {
         fn resolve_root(
             &self,
             _: &IdentityRootInput,
@@ -666,6 +666,6 @@ pub fn evaluate_identity_root_production(
             Ok(self.0.clone())
         }
     }
-    let bound = Bound(registry_record, input);
+    let bound = Bound(registry_record);
     crate::g01_identity_root::evaluate_identity_root(&bound, input, evaluated_epoch)
 }
