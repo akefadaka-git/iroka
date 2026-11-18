@@ -353,7 +353,6 @@ pub enum G01RegistryError {
     UnknownPolicy,
     RevokedKey,
     RevocationUnavailable,
-    RevokedKey,
     NotYetEffective,
     InvalidSuccessionDigest,
     InvalidSuccessionSignature,
