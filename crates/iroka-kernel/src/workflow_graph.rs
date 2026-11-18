@@ -800,6 +800,11 @@ mod tests {
                     configuration_digest: node.configuration_digest.clone(),
                     operation_provenance_ref: format!("operation-source:{}", node.node_id),
                     configuration_provenance_ref: format!("configuration-source:{}", node.node_id),
+                    checkpoint_ref: node.checkpoint_ref.clone(),
+                    checkpoint_provenance_ref: node
+                        .checkpoint_ref
+                        .as_ref()
+                        .map(|_| format!("checkpoint-source:{}", node.node_id)),
                 }
             })
             .collect();
@@ -821,6 +826,12 @@ mod tests {
             node_operations,
             dependency_edges,
             validation_input_refs: vec![
+                "synthetic:test".into(),
+                "revision:demo:1".into(),
+                "registry:workflow:1".into(),
+                "registry:operation:1".into(),
+                "registry:dependency:1".into(),
+                "registry:checkpoint:1".into(),
                 "input:workflow".into(),
                 "input:operations".into(),
                 "input:dependencies".into(),
@@ -1035,6 +1046,10 @@ mod tests {
         };
         registry.checkpoints.insert(checkpoint.checkpoint_ref.clone(), checkpoint);
         value.nodes[2].checkpoint_ref = Some("checkpoint.review".into());
+        value.provenance.node_operations[2].checkpoint_ref =
+            Some("checkpoint.review".into());
+        value.provenance.node_operations[2].checkpoint_provenance_ref =
+            Some("checkpoint-source:node.review".into());
         assert_eq!(
             evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
             "valid"
