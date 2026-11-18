@@ -25,9 +25,11 @@
               "implementation_digest": {"$ref": "#/$defs/digest"},
               "configuration_digest": {"$ref": "#/$defs/digest"},
               "operation_provenance_ref": {"type": "string", "minLength": 1, "maxLength": 512},
-              "configuration_provenance_ref": {"type": "string", "minLength": 1, "maxLength": 512}
+              "configuration_provenance_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+              "checkpoint_ref": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"},
+              "checkpoint_provenance_ref": {"type": ["string", "null"], "minLength": 1, "maxLength": 512}
             },
-            "required": ["node_id", "operation_ref", "implementation_digest", "configuration_digest", "operation_provenance_ref", "configuration_provenance_ref"],
+            "required": ["node_id", "operation_ref", "implementation_digest", "configuration_digest", "operation_provenance_ref", "configuration_provenance_ref", "checkpoint_ref", "checkpoint_provenance_ref"],
             "additionalProperties": false
           },
           "uniqueItems": true
