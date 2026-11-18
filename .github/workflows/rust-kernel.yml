@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation, implementation/a3-character-genome-v1, implementation/a3-1-production-authority-registries]
+    branches: [feat/igacms-a3-implementation, implementation/a3-character-genome-v1]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -36,35 +36,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  format:
-    if: github.ref == 'refs/heads/implementation/a3-1-production-authority-registries' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout exact PR head
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: true
-      - name: Install stable Rust formatter
-        run: |
-          rustup toolchain install stable --profile minimal --component rustfmt
-          rustup default stable
-      - name: Apply canonical Rust formatting
-        run: cargo fmt --all
-      - name: Commit formatting only to the authorized A3.1 branch
-        run: |
-          if git diff --quiet; then
-            echo "Rust formatting is already canonical."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add crates/iroka-kernel/src
-          git commit -m "style(g01): apply canonical Rust formatting"
-          git push origin HEAD:refs/heads/implementation/a3-1-production-authority-registries
-
   verify:
     name: Format, compile, test and lint
     runs-on: ubuntu-latest
