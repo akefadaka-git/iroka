@@ -6,11 +6,11 @@
 mod assurance;
 mod audit_store;
 mod decision;
+pub mod g01_character;
 #[cfg(test)]
 mod governance;
 mod identity;
 mod identity_crypto;
-pub mod g01_character;
 mod igacms;
 mod owner_approval;
 mod policy;
