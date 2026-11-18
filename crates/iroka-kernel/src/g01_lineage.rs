@@ -274,8 +274,7 @@ mod tests {
             subject_id: "subject:current".into(),
             predecessor_id: "subject:previous".into(),
             relationship: LineageRelationship::Successor,
-            proof_digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                .into(),
+            proof_digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             proof_ref: "proof:succession:current".into(),
             proof_issuer_id: "issuer:succession".into(),
             proof_signature_ref: "signature:succession:current".into(),
