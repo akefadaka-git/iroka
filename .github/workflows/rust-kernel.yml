@@ -2,7 +2,7 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation, implementation/a3-character-genome-v1]
+    branches: [feat/igacms-a3-implementation, implementation/a3-character-genome-v1, implementation/a3-1-production-authority-registries]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   format:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'implementation/a3-1-production-authority-registries'
+    if: github.ref == 'refs/heads/implementation/a3-1-production-authority-registries' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -45,7 +45,7 @@ jobs:
       - name: Checkout exact PR head
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: true
       - name: Install stable Rust formatter
         run: |
