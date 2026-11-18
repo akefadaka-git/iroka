@@ -20,9 +20,9 @@ use sha2::{Digest, Sha256};
 use crate::{
     g01_identity_root::{
         AlgorithmPolicyEvidence, IdentityRootError, IdentityRootInput, IdentityRootRegistry,
-        IdentityRootRegistryRecord, IssuerLinkEvidence, RootStatus, RootTrustDecision,
+        IdentityRootRegistryRecord, IssuerLinkEvidence, RootStatus,
     },
-    SqliteSecurityStore, TrustRootSet, TrustStore,
+    RevocationChecker, SqliteSecurityStore, TrustRootSet, TrustStore,
 };
 
 const MAX_SNAPSHOT_LIFETIME: u64 = 31_536_000;
@@ -39,6 +39,7 @@ pub struct SignedG01AuthoritySnapshot {
     pub succession_proofs: Vec<IdentitySuccessionProof>,
     pub contracts: Vec<CompatibilityContract>,
     pub compatibility_policies: Vec<CompatibilityPolicy>,
+    pub algorithm_policies: Vec<AlgorithmPolicyRecord>,
     pub signature: Vec<u8>,
 }
 
@@ -54,6 +55,7 @@ impl SignedG01AuthoritySnapshot {
             succession_proofs: &'a [IdentitySuccessionProof],
             contracts: &'a [CompatibilityContract],
             compatibility_policies: &'a [CompatibilityPolicy],
+            algorithm_policies: &'a [AlgorithmPolicyRecord],
         }
         serde_json::to_vec(&Envelope {
             root_key_id: &self.root_key_id,
@@ -64,6 +66,7 @@ impl SignedG01AuthoritySnapshot {
             succession_proofs: &self.succession_proofs,
             contracts: &self.contracts,
             compatibility_policies: &self.compatibility_policies,
+            algorithm_policies: &self.algorithm_policies,
         })
         .map_err(|_| G01RegistryError::Malformed)
     }
@@ -401,10 +404,12 @@ fn validate_snapshot(s: &SignedG01AuthoritySnapshot) -> Result<(), G01RegistryEr
     if s.identity_roots.is_empty()
         || s.contracts.is_empty()
         || s.compatibility_policies.is_empty()
+        || s.algorithm_policies.is_empty()
         || s.identity_roots.len() > 4096
         || s.succession_proofs.len() > 100_000
         || s.contracts.len() > 10_000
         || s.compatibility_policies.len() > 10_000
+        || s.algorithm_policies.len() > 10_000
     {
         return Err(G01RegistryError::InvalidSnapshot);
     }
@@ -423,6 +428,25 @@ fn validate_snapshot(s: &SignedG01AuthoritySnapshot) -> Result<(), G01RegistryEr
             || !r.version_bound_evidence.is_object()
             || !ids.insert(r.root_id.clone())
         {
+            return Err(G01RegistryError::InvalidSnapshot);
+        }
+    }
+    ids.clear();
+    for p in &s.algorithm_policies {
+        if p.policy_id.trim().is_empty()
+            || p.version.trim().is_empty()
+            || p.allowed_algorithms.is_empty()
+            || p.allowed_algorithms.iter().any(|algorithm| algorithm.trim().is_empty())
+            || !ids.insert(format!("{}@{}", p.policy_id, p.version))
+        {
+            return Err(G01RegistryError::InvalidSnapshot);
+        }
+    }
+    for root in &s.identity_roots {
+        if !s.algorithm_policies.iter().any(|policy| {
+            policy.policy_id == root.algorithm_policy_id
+                && policy.version == root.algorithm_policy_version
+        }) {
             return Err(G01RegistryError::InvalidSnapshot);
         }
     }
