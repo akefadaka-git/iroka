@@ -538,10 +538,19 @@ impl SqliteG01AuthorityStore {
         &self,
         envelope: &SignedIdentityRootRegistryEnvelope,
         roots: &TrustRootSet,
+        checkpoint: &SqliteSecurityStore,
         now: u64,
     ) -> Result<(), G01RegistryError> {
         validate_identity_root_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
+        advance_registry_checkpoint(checkpoint, "identity_roots", &RootSignedEnvelope {
+            root_key_id: &envelope.root_key_id,
+            revision: envelope.revision,
+            issued_at: envelope.issued_at,
+            expires_at: envelope.expires_at,
+            signature: &envelope.signature,
+            signing_bytes: &bytes,
+        }, roots, now)?;
         self.persist_independent_envelope(IndependentEnvelopeInstall {
             table: "g01_identity_root_registry",
             metadata: RootSignedEnvelope {
@@ -561,6 +570,7 @@ impl SqliteG01AuthorityStore {
     pub fn latest_identity_root_registry(
         &self,
         roots: &TrustRootSet,
+        checkpoint: &SqliteSecurityStore,
         now: u64,
     ) -> Result<SignedIdentityRootRegistryEnvelope, G01RegistryError> {
         let envelope: SignedIdentityRootRegistryEnvelope =
@@ -578,6 +588,7 @@ impl SqliteG01AuthorityStore {
             roots,
             now,
         )?;
+        verify_registry_checkpoint(checkpoint, "identity_roots", envelope.revision, &bytes)?;
         validate_identity_root_envelope(&envelope)?;
         Ok(envelope)
     }
@@ -586,10 +597,19 @@ impl SqliteG01AuthorityStore {
         &self,
         envelope: &SignedSuccessionRegistryEnvelope,
         roots: &TrustRootSet,
+        checkpoint: &SqliteSecurityStore,
         now: u64,
     ) -> Result<(), G01RegistryError> {
         validate_succession_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
+        advance_registry_checkpoint(checkpoint, "identity_succession", &RootSignedEnvelope {
+            root_key_id: &envelope.root_key_id,
+            revision: envelope.revision,
+            issued_at: envelope.issued_at,
+            expires_at: envelope.expires_at,
+            signature: &envelope.signature,
+            signing_bytes: &bytes,
+        }, roots, now)?;
         self.persist_independent_envelope(IndependentEnvelopeInstall {
             table: "g01_succession_registry",
             metadata: RootSignedEnvelope {
@@ -610,6 +630,7 @@ impl SqliteG01AuthorityStore {
         &self,
         proof_id: &str,
         roots: &TrustRootSet,
+        checkpoint: &SqliteSecurityStore,
         trust: &TrustStore,
         revocations: &dyn RevocationChecker,
         evaluated_epoch: u64,
@@ -630,6 +651,7 @@ impl SqliteG01AuthorityStore {
             roots,
             now,
         )?;
+        verify_registry_checkpoint(checkpoint, "identity_succession", envelope.revision, &bytes)?;
         validate_succession_envelope(&envelope)?;
         let signed = envelope
             .proofs
@@ -653,10 +675,19 @@ impl SqliteG01AuthorityStore {
         &self,
         envelope: &SignedCompatibilityRegistryEnvelope,
         roots: &TrustRootSet,
+        checkpoint: &SqliteSecurityStore,
         now: u64,
     ) -> Result<(), G01RegistryError> {
         validate_compatibility_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
+        advance_registry_checkpoint(checkpoint, "compatibility", &RootSignedEnvelope {
+            root_key_id: &envelope.root_key_id,
+            revision: envelope.revision,
+            issued_at: envelope.issued_at,
+            expires_at: envelope.expires_at,
+            signature: &envelope.signature,
+            signing_bytes: &bytes,
+        }, roots, now)?;
         self.persist_independent_envelope(IndependentEnvelopeInstall {
             table: "g01_compatibility_registry",
             metadata: RootSignedEnvelope {
@@ -678,6 +709,7 @@ impl SqliteG01AuthorityStore {
         policy_id: &str,
         version: &str,
         roots: &TrustRootSet,
+        checkpoint: &SqliteSecurityStore,
         resolver: &dyn MigrationArtifactResolver,
         now: u64,
     ) -> Result<(CompatibilityContract, CompatibilityPolicy), G01RegistryError> {
@@ -696,6 +728,7 @@ impl SqliteG01AuthorityStore {
             roots,
             now,
         )?;
+        verify_registry_checkpoint(checkpoint, "compatibility", envelope.revision, &bytes)?;
         validate_compatibility_envelope(&envelope)?;
         let policy = envelope
             .policies
@@ -962,6 +995,32 @@ fn verify_root_signed_envelope(
         Signature::from_slice(metadata.signature).map_err(|_| G01RegistryError::Malformed)?;
     key.verify(metadata.signing_bytes, &signature)
         .map_err(|_| G01RegistryError::InvalidRootSignature)
+}
+
+fn advance_registry_checkpoint(
+    checkpoint: &SqliteSecurityStore,
+    registry: &str,
+    metadata: &RootSignedEnvelope<'_>,
+    roots: &TrustRootSet,
+    now: u64,
+) -> Result<(), G01RegistryError> {
+    verify_root_signed_envelope(metadata, roots, now)?;
+    let digest = Sha256::digest(metadata.signing_bytes);
+    checkpoint
+        .advance_authority_checkpoint(registry, metadata.revision, digest.as_slice())
+        .map_err(|_| G01RegistryError::StoreUnavailable)
+}
+
+fn verify_registry_checkpoint(
+    checkpoint: &SqliteSecurityStore,
+    registry: &str,
+    revision: u64,
+    signing_bytes: &[u8],
+) -> Result<(), G01RegistryError> {
+    let digest = Sha256::digest(signing_bytes);
+    checkpoint
+        .verify_authority_checkpoint(registry, revision, digest.as_slice())
+        .map_err(|_| G01RegistryError::Rollback)
 }
 
 fn validate_identity_root_envelope(
@@ -1231,13 +1290,14 @@ pub fn evaluate_identity_root_production(
     registry: &SqliteG01AuthorityStore,
     trust: &TrustStore,
     roots: &TrustRootSet,
+    checkpoint: &SqliteSecurityStore,
     revocations: &SqliteSecurityStore,
     input: &IdentityRootInput,
     evaluated_epoch: u64,
     now_unix: u64,
 ) -> Result<crate::g01_identity_root::IdentityRootOutput, IdentityRootError> {
     let snapshot = registry
-        .latest_identity_root_registry(roots, now_unix)
+        .latest_identity_root_registry(roots, checkpoint, now_unix)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
     let record = snapshot
         .identity_roots
