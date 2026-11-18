@@ -111,8 +111,10 @@ struct GraphDigestMaterial<'a> {
 }
 
 fn digest<T: Serialize>(value: &T) -> Result<String, String> {
-    let bytes = canonical_json(&serde_json::to_value(value).map_err(|_| "workflow_graph_serialization_failed")?)
-        .map_err(|_| "workflow_graph_canonicalization_failed")?;
+    let bytes = canonical_json(
+        &serde_json::to_value(value).map_err(|_| "workflow_graph_serialization_failed")?,
+    )
+    .map_err(|_| "workflow_graph_canonicalization_failed")?;
     Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 
@@ -145,7 +147,10 @@ fn valid_identifier(value: &str) -> bool {
         })
 }
 
-fn required_evidence<'a>(evidence: &'a BTreeMap<String, Value>, key: &str) -> Result<&'a str, String> {
+fn required_evidence<'a>(
+    evidence: &'a BTreeMap<String, Value>,
+    key: &str,
+) -> Result<&'a str, String> {
     evidence
         .get(key)
         .and_then(Value::as_str)
@@ -157,13 +162,30 @@ fn sorted_graph<'a>(
     input: &'a WorkflowGraphInput,
     revision: &WorkflowRevisionBinding,
     registry: &impl WorkflowGraphRegistry,
-) -> Result<(String, Vec<&'a WorkflowGraphNode>, Vec<&'a WorkflowGraphEdge>), String> {
+) -> Result<
+    (
+        String,
+        Vec<&'a WorkflowGraphNode>,
+        Vec<&'a WorkflowGraphEdge>,
+    ),
+    String,
+> {
     let mut nodes: Vec<_> = input.nodes.iter().collect();
     let mut edges: Vec<_> = input.edges.iter().collect();
     nodes.sort_by(|left, right| left.node_id.cmp(&right.node_id));
     edges.sort_by(|left, right| {
-        (&left.edge_id, &left.from_node_id, &left.to_node_id, &left.dependency_type)
-            .cmp(&(&right.edge_id, &right.from_node_id, &right.to_node_id, &right.dependency_type))
+        (
+            &left.edge_id,
+            &left.from_node_id,
+            &left.to_node_id,
+            &left.dependency_type,
+        )
+            .cmp(&(
+                &right.edge_id,
+                &right.from_node_id,
+                &right.to_node_id,
+                &right.dependency_type,
+            ))
     });
     let material = GraphDigestMaterial {
         workflow_id: &input.workflow_id,
@@ -182,8 +204,18 @@ fn sorted_graph<'a>(
     let mut edges: Vec<_> = input.edges.iter().collect();
     nodes.sort_by(|left, right| left.node_id.cmp(&right.node_id));
     edges.sort_by(|left, right| {
-        (&left.edge_id, &left.from_node_id, &left.to_node_id, &left.dependency_type)
-            .cmp(&(&right.edge_id, &right.from_node_id, &right.to_node_id, &right.dependency_type))
+        (
+            &left.edge_id,
+            &left.from_node_id,
+            &left.to_node_id,
+            &left.dependency_type,
+        )
+            .cmp(&(
+                &right.edge_id,
+                &right.from_node_id,
+                &right.to_node_id,
+                &right.dependency_type,
+            ))
     });
     Ok((graph_digest, nodes, edges))
 }
@@ -211,7 +243,9 @@ fn topological_order(
         if operation.operation_ref != node.operation_ref
             || operation.node_type != node.node_type
             || !valid_digest(&operation.implementation_digest)
-            || !operation.configuration_digests.contains(&node.configuration_digest)
+            || !operation
+                .configuration_digests
+                .contains(&node.configuration_digest)
         {
             findings.push(format!("operation_binding_mismatch:{}", node.node_id));
         }
@@ -222,8 +256,10 @@ fn topological_order(
 
     let mut edge_ids = BTreeSet::new();
     let mut edge_pairs = BTreeSet::new();
-    let mut indegree: BTreeMap<String, usize> =
-        node_ids.iter().map(|node_id| ((*node_id).to_owned(), 0)).collect();
+    let mut indegree: BTreeMap<String, usize> = node_ids
+        .iter()
+        .map(|node_id| ((*node_id).to_owned(), 0))
+        .collect();
     let mut outgoing: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for edge in &input.edges {
         let valid_edge = valid_identifier(&edge.edge_id)
@@ -237,21 +273,32 @@ fn topological_order(
             || !node_ids.contains(edge.from_node_id.as_str())
             || !node_ids.contains(edge.to_node_id.as_str())
         {
-            findings.push(format!("edge_reference_or_identity_invalid:{}", edge.edge_id));
+            findings.push(format!(
+                "edge_reference_or_identity_invalid:{}",
+                edge.edge_id
+            ));
             continue;
         }
         let Some(kind) = registry.dependency_kind(&edge.dependency_type) else {
-            findings.push(format!("dependency_kind_not_registered:{}", edge.dependency_type));
+            findings.push(format!(
+                "dependency_kind_not_registered:{}",
+                edge.dependency_type
+            ));
             continue;
         };
         if kind.dependency_type != edge.dependency_type
             || !matches!(kind.satisfaction_rule.as_str(), "success" | "completion")
             || !matches!(kind.failure_behavior.as_str(), "block" | "continue")
         {
-            findings.push(format!("dependency_kind_binding_invalid:{}", edge.dependency_type));
+            findings.push(format!(
+                "dependency_kind_binding_invalid:{}",
+                edge.dependency_type
+            ));
             continue;
         }
-        *indegree.get_mut(&edge.to_node_id).expect("validated endpoint") += 1;
+        *indegree
+            .get_mut(&edge.to_node_id)
+            .expect("validated endpoint") += 1;
         outgoing
             .entry(edge.from_node_id.clone())
             .or_default()
@@ -310,7 +357,11 @@ pub fn evaluate_workflow_graph(
     let workflow_registry_digest = registry.workflow_registry_digest();
     let operation_registry_digest = registry.operation_registry_digest();
     let dependency_registry_digest = registry.dependency_registry_digest();
-    for value in [workflow_registry_digest, operation_registry_digest, dependency_registry_digest] {
+    for value in [
+        workflow_registry_digest,
+        operation_registry_digest,
+        dependency_registry_digest,
+    ] {
         if !valid_digest(value) {
             return Err("workflow_graph_registry_digest_invalid".into());
         }
@@ -319,7 +370,8 @@ pub fn evaluate_workflow_graph(
     if required_evidence(bound, "workflow_registry_digest")? != workflow_registry_digest
         || required_evidence(bound, "operation_registry_digest")? != operation_registry_digest
         || required_evidence(bound, "dependency_registry_digest")? != dependency_registry_digest
-        || required_evidence(bound, "configuration_digest_algorithm")? != CONFIGURATION_DIGEST_ALGORITHM
+        || required_evidence(bound, "configuration_digest_algorithm")?
+            != CONFIGURATION_DIGEST_ALGORITHM
         || required_evidence(bound, "graph_validator_version")? != WORKFLOW_GRAPH_VALIDATOR_VERSION
     {
         return Err("workflow_graph_version_binding_mismatch".into());
@@ -336,14 +388,18 @@ pub fn evaluate_workflow_graph(
         return Err("workflow_revision_binding_mismatch".into());
     }
     let (graph_digest, _nodes, _edges) = sorted_graph(input, revision, registry)?;
-    let (validation_status, topological_order, findings) =
-        match topological_order(input, registry) {
-            Ok(order) => ("valid".to_owned(), order, Vec::new()),
-            Err(findings) if findings.iter().any(|item| item == "dependency_cycle_detected") => {
-                ("cycle".to_owned(), Vec::new(), findings)
-            }
-            Err(findings) => ("invalid_reference".to_owned(), Vec::new(), findings),
-        };
+    let (validation_status, topological_order, findings) = match topological_order(input, registry)
+    {
+        Ok(order) => ("valid".to_owned(), order, Vec::new()),
+        Err(findings)
+            if findings
+                .iter()
+                .any(|item| item == "dependency_cycle_detected") =>
+        {
+            ("cycle".to_owned(), Vec::new(), findings)
+        }
+        Err(findings) => ("invalid_reference".to_owned(), Vec::new(), findings),
+    };
     Ok(WorkflowGraphOutput {
         workflow_id: input.workflow_id.clone(),
         graph_digest,
@@ -413,16 +469,22 @@ mod tests {
                 ("operation.review".into(), operation("review")),
             ]),
             dependencies: BTreeMap::from([
-                ("required".into(), WorkflowDependencyKind {
-                    dependency_type: "required".into(),
-                    satisfaction_rule: "success".into(),
-                    failure_behavior: "block".into(),
-                }),
-                ("ordering".into(), WorkflowDependencyKind {
-                    dependency_type: "ordering".into(),
-                    satisfaction_rule: "completion".into(),
-                    failure_behavior: "continue".into(),
-                }),
+                (
+                    "required".into(),
+                    WorkflowDependencyKind {
+                        dependency_type: "required".into(),
+                        satisfaction_rule: "success".into(),
+                        failure_behavior: "block".into(),
+                    },
+                ),
+                (
+                    "ordering".into(),
+                    WorkflowDependencyKind {
+                        dependency_type: "ordering".into(),
+                        satisfaction_rule: "completion".into(),
+                        failure_behavior: "continue".into(),
+                    },
+                ),
             ]),
             workflow_digest: "d".repeat(64),
             operation_digest: "e".repeat(64),
@@ -473,12 +535,27 @@ mod tests {
                 ("revision_ref".into(), json!("revision:demo:1")),
             ]),
             version_bound_evidence: BTreeMap::from([
-                ("workflow_registry_digest".into(), json!(registry.workflow_digest.clone())),
-                ("operation_registry_digest".into(), json!(registry.operation_digest.clone())),
-                ("dependency_registry_digest".into(), json!(registry.dependency_digest.clone())),
+                (
+                    "workflow_registry_digest".into(),
+                    json!(registry.workflow_digest.clone()),
+                ),
+                (
+                    "operation_registry_digest".into(),
+                    json!(registry.operation_digest.clone()),
+                ),
+                (
+                    "dependency_registry_digest".into(),
+                    json!(registry.dependency_digest.clone()),
+                ),
                 ("graph_revision_digest".into(), json!("c".repeat(64))),
-                ("configuration_digest_algorithm".into(), json!(CONFIGURATION_DIGEST_ALGORITHM)),
-                ("graph_validator_version".into(), json!(WORKFLOW_GRAPH_VALIDATOR_VERSION)),
+                (
+                    "configuration_digest_algorithm".into(),
+                    json!(CONFIGURATION_DIGEST_ALGORITHM),
+                ),
+                (
+                    "graph_validator_version".into(),
+                    json!(WORKFLOW_GRAPH_VALIDATOR_VERSION),
+                ),
             ]),
         }
     }
@@ -505,12 +582,18 @@ mod tests {
         second.nodes.reverse();
         second.edges.reverse();
         assert_eq!(
-            evaluate_workflow_graph(&first, &registry).unwrap().graph_digest,
-            evaluate_workflow_graph(&second, &registry).unwrap().graph_digest
+            evaluate_workflow_graph(&first, &registry)
+                .unwrap()
+                .graph_digest,
+            evaluate_workflow_graph(&second, &registry)
+                .unwrap()
+                .graph_digest
         );
         first.nodes.swap(0, 1);
         assert_eq!(
-            evaluate_workflow_graph(&first, &registry).unwrap().topological_order,
+            evaluate_workflow_graph(&first, &registry)
+                .unwrap()
+                .topological_order,
             vec!["node.fetch", "node.transform", "node.review"]
         );
     }
@@ -530,7 +613,9 @@ mod tests {
     fn rejects_registry_digest_substitution() {
         let registry = registry();
         let mut value = input(&registry);
-        value.version_bound_evidence.insert("operation_registry_digest".into(), json!("0".repeat(64)));
+        value
+            .version_bound_evidence
+            .insert("operation_registry_digest".into(), json!("0".repeat(64)));
         assert_eq!(
             evaluate_workflow_graph(&value, &registry),
             Err("workflow_graph_version_binding_mismatch".into())
@@ -562,19 +647,25 @@ mod tests {
         let mut value = input(&registry);
         value.edges[0].from_node_id = value.edges[0].to_node_id.clone();
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
         let mut value = input(&registry);
         value.edges[0].dependency_type = "unregistered".into();
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
         let mut value = input(&registry);
         value.nodes.push(value.nodes[0].clone());
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
     }
@@ -592,7 +683,10 @@ mod tests {
         let output = evaluate_workflow_graph(&value, &registry).unwrap();
         assert_eq!(output.validation_status, "cycle");
         assert!(output.topological_order.is_empty());
-        assert!(output.evidence.findings.contains(&"dependency_cycle_detected".into()));
+        assert!(output
+            .evidence
+            .findings
+            .contains(&"dependency_cycle_detected".into()));
     }
 
     #[test]
@@ -600,7 +694,10 @@ mod tests {
         let registry = registry();
         let mut value = input(&registry);
         value.provenance.clear();
-        assert_eq!(evaluate_workflow_graph(&value, &registry), Err("workflow_graph_input_invalid".into()));
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_graph_input_invalid".into())
+        );
         let mut value = input(&registry);
         value.version_bound_evidence.remove("graph_revision_digest");
         assert_eq!(

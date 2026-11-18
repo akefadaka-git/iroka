@@ -15,7 +15,6 @@ mod identity_crypto;
 mod identity_lineage;
 mod identity_root;
 mod igacms;
-mod workflow_graph;
 mod inference_rules;
 mod knowledge_schema;
 mod memory_classification;
@@ -31,6 +30,7 @@ mod service;
 mod trust_lifecycle;
 mod uncertainty_calculus;
 mod version_lineage;
+mod workflow_graph;
 
 pub use agent_principal::{
     evaluate_agent_principal, AgentCredentialBinding, AgentPrincipalEvidence, AgentPrincipalInput,
@@ -129,11 +129,6 @@ pub use trust_lifecycle::{
     SignedTrustBundle, TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet,
     TrustSnapshotManager,
 };
-pub use workflow_graph::{
-    evaluate_workflow_graph, WorkflowDependencyKind, WorkflowGraphEdge, WorkflowGraphEvidence,
-    WorkflowGraphInput, WorkflowGraphNode, WorkflowGraphOutput, WorkflowGraphRegistry,
-    WorkflowOperationBinding, WorkflowRevisionBinding, WORKFLOW_GRAPH_VALIDATOR_VERSION,
-};
 pub use uncertainty_calculus::{
     evaluate_uncertainty, CalibrationProfile, CalibrationStatus, EvidenceDirection,
     HypothesisEstimate, UncertaintyEvidence, UncertaintyHypothesis, UncertaintyInput,
@@ -145,6 +140,11 @@ pub use version_lineage::{
     SignedVersionLineageRegistrySnapshot, VersionLineageError, VersionLineageInput,
     VersionLineageRecord, VersionLineageRegistry, VersionLineageRegistrySnapshotPayload,
     VersionLineageResult,
+};
+pub use workflow_graph::{
+    evaluate_workflow_graph, WorkflowDependencyKind, WorkflowGraphEdge, WorkflowGraphEvidence,
+    WorkflowGraphInput, WorkflowGraphNode, WorkflowGraphOutput, WorkflowGraphRegistry,
+    WorkflowOperationBinding, WorkflowRevisionBinding, WORKFLOW_GRAPH_VALIDATOR_VERSION,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
