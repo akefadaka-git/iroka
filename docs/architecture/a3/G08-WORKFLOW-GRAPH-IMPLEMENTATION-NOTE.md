@@ -8,9 +8,9 @@
 
 ## Implemented controls
 
-1. Workflow identity and graph version resolve against a trusted immutable workflow-revision registry.
-2. Node IDs, node types, operation references and configuration digests are validated against an operation registry.
-3. Edge IDs, endpoints, self-edges, duplicate endpoint pairs and dependency-kind semantics are validated against a dependency registry.
+1. Workflow identity, strict semantic graph version and exact revision reference resolve against a trusted immutable workflow-revision registry.
+2. Node IDs, node types, operation references, implementation/configuration digests and registered effect classes are validated against an operation registry.
+3. Edge IDs, endpoints, self-edges, duplicate endpoint pairs and exact required-success/block versus ordering-completion/continue semantics are validated against a dependency registry.
 4. Canonical graph digest binds graph revision, normalized node/edge ordering, operation registry, dependency registry, workflow registry, validator version and SHA-256 configuration digest semantics.
 5. Deterministic Kahn topological traversal uses lexicographic tie-breaking. Every node appears exactly once on valid graphs; cycles and invalid references emit no topological order.
 6. Provenance and version-bound evidence are required and checked against the registry snapshot digests.
@@ -26,7 +26,7 @@ The implementation addresses G08-WG-SEM-01 through G08-WG-SEM-08. Dependency typ
 
 ## Verification
 
-- Rust unit tests cover positive ordering, order-independent digest, revision and registry substitution, operation/configuration substitution, invalid references, self-edges, duplicate nodes, unknown dependency kinds and cycles.
+- Rust unit tests cover positive ordering, order-independent digest, strict semantic versions, exact revision-reference binding, registry substitution, operation/configuration/effect-class substitution, dependency semantic substitution, invalid references, self-edges, duplicate nodes, unknown dependency kinds and cycles.
 - Python schema validator checks Draft 2020-12 meta-schema validity and positive/negative input/output vectors.
 - The three-workflow exact-SHA matrix is required on the final code-bearing candidate. Do not claim verification until Rust, GENESIS and supply-chain runs all identify the same source SHA and succeed.
 
