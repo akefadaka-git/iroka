@@ -16,8 +16,7 @@ use crate::{
     g01_identity_root::{AlgorithmPolicyEvidence, IdentityRootError, IdentityRootInput,
         IdentityRootRegistry, IdentityRootRegistryRecord, IssuerLinkEvidence, RootStatus,
         RootTrustDecision},
-    RevocationChecker, SecurityStoreError, SqliteSecurityStore, TrustBundleError, TrustRootSet,
-    TrustStore,
+    SqliteSecurityStore, TrustRootSet, TrustStore,
 };
 
 const MAX_SNAPSHOT_LIFETIME: u64 = 31_536_000;
@@ -239,15 +238,18 @@ impl SqliteG01AuthorityStore {
         tx.commit().map_err(|_| G01RegistryError::StoreUnavailable)
     }
 
-    fn active_snapshot(&self, now: u64) -> Result<SignedG01AuthoritySnapshot, G01RegistryError> {
+    fn latest_snapshot(&self) -> Result<SignedG01AuthoritySnapshot, G01RegistryError> {
         let conn = self.connection.lock().map_err(|_| G01RegistryError::StoreUnavailable)?;
         let doc: String = conn.query_row(
             "SELECT document FROM g01_authority_snapshot WHERE singleton=1",
             [], |r| r.get(0)
         ).optional().map_err(|_| G01RegistryError::StoreUnavailable)?
             .ok_or(G01RegistryError::StoreUnavailable)?;
-        let snapshot: SignedG01AuthoritySnapshot =
-            serde_json::from_str(&doc).map_err(|_| G01RegistryError::Malformed)?;
+        serde_json::from_str(&doc).map_err(|_| G01RegistryError::Malformed)
+    }
+
+    fn active_snapshot(&self, now: u64) -> Result<SignedG01AuthoritySnapshot, G01RegistryError> {
+        let snapshot = self.latest_snapshot()?;
         if now < snapshot.issued_at || now >= snapshot.expires_at {
             return Err(G01RegistryError::Expired);
         }
@@ -350,7 +352,7 @@ fn validate_snapshot(s: &SignedG01AuthoritySnapshot) -> Result<(), G01RegistryEr
 
 impl IdentityRootRegistry for SqliteG01AuthorityStore {
     fn resolve_root(&self, input: &IdentityRootInput) -> Result<IdentityRootRegistryRecord, IdentityRootError> {
-        let snapshot = self.active_snapshot(input.activation_epoch)
+        let snapshot = self.latest_snapshot()
             .map_err(|_| IdentityRootError::RegistryUnavailable)?;
         let record = snapshot.identity_roots.into_iter()
             .find(|r| r.root_id==input.root_id)
@@ -411,7 +413,7 @@ pub fn evaluate_identity_root_production(
     }
     let revoked = revocations.key_revoked(&record.issuer_id, &record.key_id)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
-    let mut adapter = *record;
+    let mut adapter = record.clone();
     if revoked { adapter.key_status = RootStatus::Revoked; }
     let registry_record = IdentityRootRegistryRecord {
         root_id: adapter.root_id.clone(), issuer_id: adapter.issuer_id.clone(),
@@ -437,9 +439,3 @@ pub fn evaluate_identity_root_production(
     crate::g01_identity_root::evaluate_identity_root(&bound,input,evaluated_epoch)
 }
 
-impl From<SecurityStoreError> for G01RegistryError {
-    fn from(_: SecurityStoreError) -> Self { Self::StoreUnavailable }
-}
-impl From<TrustBundleError> for G01RegistryError {
-    fn from(_: TrustBundleError) -> Self { Self::InvalidRootSignature }
-}
