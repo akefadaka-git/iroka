@@ -119,6 +119,16 @@ pub enum IdentityRootError {
     RegistryUnavailable,
 }
 
+
+fn valid_fingerprint(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|hex| {
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
 pub fn evaluate_identity_root<R: IdentityRootRegistry>(
     registry: &R,
     input: &IdentityRootInput,
@@ -126,7 +136,7 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
 ) -> Result<IdentityRootOutput, IdentityRootError> {
     if input.root_id.trim().is_empty()
         || input.issuer_id.trim().is_empty()
-        || input.key_fingerprint.trim().is_empty()
+        || !valid_fingerprint(&input.key_fingerprint)
         || input.key_material_ref.trim().is_empty()
         || input.algorithm.trim().is_empty()
         || input.algorithm_policy_id.trim().is_empty()
@@ -171,10 +181,11 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
         return Err(IdentityRootError::VersionEvidenceInvalid);
     }
     if record.issuer_chain.is_empty()
-        || record
-            .issuer_chain
-            .iter()
-            .any(|link| link.issuer_id.trim().is_empty() || link.key_fingerprint.trim().is_empty())
+        || record.issuer_chain.iter().any(|link| {
+            link.issuer_id.trim().is_empty() || !valid_fingerprint(&link.key_fingerprint)
+        })
+        || record.issuer_chain.last().map(|link| link.issuer_id.as_str())
+            != Some(input.issuer_id.as_str())
     {
         return Err(IdentityRootError::UnknownIssuer);
     }
@@ -347,6 +358,12 @@ mod tests {
             Err(IdentityRootError::FingerprintMismatch)
         );
         let mut candidate = input();
+        candidate.key_material_ref = "key-material:attacker-controlled".into();
+        assert_eq!(
+            evaluate_identity_root(&registry, &candidate, 10),
+            Err(IdentityRootError::KeyMaterialUnavailable)
+        );
+        let mut candidate = input();
         candidate.root_id = "root:alias".into();
         assert_eq!(
             evaluate_identity_root(&registry(), &candidate, 10),
@@ -411,6 +428,14 @@ mod tests {
         assert_eq!(
             evaluate_identity_root(&invalid, &input(), 10),
             Err(IdentityRootError::ProvenanceInvalid)
+        );
+        let invalid_version = CanonicalRegistry {
+            version_evidence_verified: false,
+            ..registry()
+        };
+        assert_eq!(
+            evaluate_identity_root(&invalid_version, &input(), 10),
+            Err(IdentityRootError::VersionEvidenceInvalid)
         );
     }
 
