@@ -58,8 +58,11 @@
     "g08.coordination-state"
   ],
   "execution_status": {
-    "schema_validation": "PENDING_EXACT_SHA_CI",
-    "runtime_tests": "PENDING_EXACT_SHA_CI",
+    "schema_validation": "PASS",
+    "runtime_tests": "PASS",
+    "three_workflow_exact_sha_matrix": "PASS",
+    "g08_specific_verification": "PASS",
+    "verified_code_candidate_sha": "bab9e8fc194d3336ce5a18f4a5e26682276319ea",
     "merge": "NOT_AUTHORIZED",
     "deployment": "NOT_AUTHORIZED"
   }
