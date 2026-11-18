@@ -23,7 +23,8 @@ use crate::{
         IdentityRootError, IdentityRootInput, IdentityRootRegistry, IdentityRootRegistryRecord,
         IssuerLinkEvidence, RootStatus,
     },
-    RevocationChecker, SecurityStoreError, SqliteSecurityStore, TrustRootSet, TrustStore,
+    AuthorityCheckpointStore, RevocationChecker, SecurityStoreError, SqliteSecurityStore,
+    TrustRootSet, TrustStore,
 };
 
 const MAX_SNAPSHOT_LIFETIME: u64 = 31_536_000;
@@ -539,7 +540,7 @@ impl SqliteG01AuthorityStore {
         &self,
         envelope: &SignedIdentityRootRegistryEnvelope,
         roots: &TrustRootSet,
-        checkpoint: &SqliteSecurityStore,
+        checkpoint: &dyn AuthorityCheckpointStore,
         now: u64,
     ) -> Result<(), G01RegistryError> {
         validate_identity_root_envelope(envelope)?;
@@ -577,7 +578,7 @@ impl SqliteG01AuthorityStore {
     pub fn latest_identity_root_registry(
         &self,
         roots: &TrustRootSet,
-        checkpoint: &SqliteSecurityStore,
+        checkpoint: &dyn AuthorityCheckpointStore,
         now: u64,
     ) -> Result<SignedIdentityRootRegistryEnvelope, G01RegistryError> {
         let envelope: SignedIdentityRootRegistryEnvelope =
@@ -604,7 +605,7 @@ impl SqliteG01AuthorityStore {
         &self,
         envelope: &SignedSuccessionRegistryEnvelope,
         roots: &TrustRootSet,
-        checkpoint: &SqliteSecurityStore,
+        checkpoint: &dyn AuthorityCheckpointStore,
         now: u64,
     ) -> Result<(), G01RegistryError> {
         validate_succession_envelope(envelope)?;
@@ -643,7 +644,7 @@ impl SqliteG01AuthorityStore {
         &self,
         proof_id: &str,
         roots: &TrustRootSet,
-        checkpoint: &SqliteSecurityStore,
+        checkpoint: &dyn AuthorityCheckpointStore,
         trust: &TrustStore,
         revocations: &dyn RevocationChecker,
         evaluated_epoch: u64,
@@ -688,7 +689,7 @@ impl SqliteG01AuthorityStore {
         &self,
         envelope: &SignedCompatibilityRegistryEnvelope,
         roots: &TrustRootSet,
-        checkpoint: &SqliteSecurityStore,
+        checkpoint: &dyn AuthorityCheckpointStore,
         now: u64,
     ) -> Result<(), G01RegistryError> {
         validate_compatibility_envelope(envelope)?;
@@ -728,7 +729,7 @@ impl SqliteG01AuthorityStore {
         policy_id: &str,
         version: &str,
         roots: &TrustRootSet,
-        checkpoint: &SqliteSecurityStore,
+        checkpoint: &dyn AuthorityCheckpointStore,
         resolver: &dyn MigrationArtifactResolver,
         now: u64,
     ) -> Result<(CompatibilityContract, CompatibilityPolicy), G01RegistryError> {
@@ -1017,7 +1018,7 @@ fn verify_root_signed_envelope(
 }
 
 fn advance_registry_checkpoint(
-    checkpoint: &SqliteSecurityStore,
+    checkpoint: &dyn AuthorityCheckpointStore,
     registry: &str,
     metadata: &RootSignedEnvelope<'_>,
     roots: &TrustRootSet,
@@ -1026,7 +1027,7 @@ fn advance_registry_checkpoint(
     verify_root_signed_envelope(metadata, roots, now)?;
     let digest = Sha256::digest(metadata.signing_bytes);
     checkpoint
-        .advance_authority_checkpoint(registry, metadata.revision, digest.as_slice())
+        .advance_checkpoint(registry, metadata.revision, digest.as_slice())
         .map_err(|error| match error {
             SecurityStoreError::AuthorityCheckpointRollback => G01RegistryError::Rollback,
             SecurityStoreError::AuthorityCheckpointConflict => {
@@ -1037,14 +1038,14 @@ fn advance_registry_checkpoint(
 }
 
 fn verify_registry_checkpoint(
-    checkpoint: &SqliteSecurityStore,
+    checkpoint: &dyn AuthorityCheckpointStore,
     registry: &str,
     revision: u64,
     signing_bytes: &[u8],
 ) -> Result<(), G01RegistryError> {
     let digest = Sha256::digest(signing_bytes);
     checkpoint
-        .verify_authority_checkpoint(registry, revision, digest.as_slice())
+        .verify_checkpoint(registry, revision, digest.as_slice())
         .map_err(|_| G01RegistryError::Rollback)
 }
 
@@ -1315,7 +1316,7 @@ pub fn evaluate_identity_root_production(
     registry: &SqliteG01AuthorityStore,
     trust: &TrustStore,
     roots: &TrustRootSet,
-    checkpoint: &SqliteSecurityStore,
+    checkpoint: &dyn AuthorityCheckpointStore,
     revocations: &SqliteSecurityStore,
     key_material: &dyn IdentityKeyMaterialResolver,
     evidence_verifier: &dyn IdentityEvidenceVerifier,
