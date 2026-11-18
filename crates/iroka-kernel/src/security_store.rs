@@ -191,8 +191,10 @@ impl SqliteSecurityStore {
         revision: u64,
         digest: &[u8],
     ) -> Result<(), SecurityStoreError> {
-        if !matches!(registry, "identity_roots" | "identity_succession" | "compatibility")
-            || revision == 0
+        if !matches!(
+            registry,
+            "identity_roots" | "identity_succession" | "compatibility"
+        ) || revision == 0
             || digest.len() != 32
         {
             return Err(SecurityStoreError::InvalidVersion);
