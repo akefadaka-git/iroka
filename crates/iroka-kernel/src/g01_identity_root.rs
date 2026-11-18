@@ -392,7 +392,7 @@ mod tests {
         let mut candidate = input();
         candidate.key_material_ref = "key-material:attacker-controlled".into();
         assert_eq!(
-            evaluate_identity_root(&registry, &candidate, 10),
+            evaluate_identity_root(&registry(), &candidate, 10),
             Err(IdentityRootError::KeyMaterialUnavailable)
         );
         let mut candidate = input();
