@@ -1,0 +1,88 @@
+{
+  "gene_id": "g01.identity-root",
+  "version": "1.1.0",
+  "chromosome_count": 12,
+  "gene_count": 36,
+  "cases": [
+    {
+      "case_id": "G01-IR-A3-P01",
+      "polarity": "positive",
+      "name": "canonical active root with verified issuer chain and allowed algorithm",
+      "expected": {
+        "verified": true,
+        "trust_decision": "trusted"
+      }
+    },
+    {
+      "case_id": "G01-IR-A3-N01",
+      "polarity": "negative",
+      "name": "key fingerprint differs from canonical public key material",
+      "expected": {
+        "decision": "reject",
+        "reason": "fingerprint_mismatch"
+      }
+    },
+    {
+      "case_id": "G01-IR-A3-N02",
+      "polarity": "negative",
+      "name": "algorithm is not permitted by authenticated versioned policy",
+      "expected": {
+        "verified": false,
+        "trust_decision": "untrusted"
+      }
+    },
+    {
+      "case_id": "G01-IR-A3-N03",
+      "polarity": "negative",
+      "name": "issuer is unknown or cannot be resolved",
+      "expected": {
+        "decision": "reject",
+        "reason": "unknown_issuer"
+      }
+    },
+    {
+      "case_id": "G01-IR-A3-N04",
+      "polarity": "negative",
+      "name": "issuer chain contains a revoked issuer",
+      "expected": {
+        "verified": false,
+        "trust_decision": "revoked"
+      }
+    },
+    {
+      "case_id": "G01-IR-A3-N05",
+      "polarity": "negative",
+      "name": "root is revoked",
+      "expected": {
+        "verified": false,
+        "trust_decision": "revoked"
+      }
+    },
+    {
+      "case_id": "G01-IR-A3-N06",
+      "polarity": "negative",
+      "name": "root is suspended",
+      "expected": {
+        "verified": false,
+        "trust_decision": "untrusted"
+      }
+    },
+    {
+      "case_id": "G01-IR-A3-N07",
+      "polarity": "negative",
+      "name": "activation epoch has not been reached",
+      "expected": {
+        "verified": false,
+        "trust_decision": "untrusted"
+      }
+    },
+    {
+      "case_id": "G01-IR-A3-N08",
+      "polarity": "negative",
+      "name": "contradictory verified and trust_decision output",
+      "expected": {
+        "schema_valid": false
+      }
+    }
+  ]
+}

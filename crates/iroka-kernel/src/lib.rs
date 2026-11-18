@@ -6,6 +6,8 @@
 mod assurance;
 mod audit_store;
 mod decision;
+pub mod g01_authority_registry;
+pub mod g01_identity_root;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -23,6 +25,17 @@ mod version_lineage;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use g01_authority_registry::{
+    evaluate_identity_root_production, AlgorithmPolicyRecord, CompatibilityContract,
+    CompatibilityPolicy, G01RegistryError, IdentityRootProductionContext, IdentityRootRecord,
+    IdentitySuccessionProof, MigrationArtifactError, MigrationArtifactResolver,
+    SignedCompatibilityRegistryEnvelope, SignedG01AuthoritySnapshot,
+    SignedIdentityRootRegistryEnvelope, SignedIdentitySuccessionProof,
+    SignedSuccessionRegistryEnvelope, SqliteG01AuthorityStore, SuccessionResolutionContext,
+};
+pub use g01_identity_root::{
+    IdentityEvidenceContext, IdentityEvidenceVerifier, IdentityKeyMaterialResolver,
+};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
@@ -57,7 +70,7 @@ pub use rollback_guard::{
     RollbackEvidenceSummary, RollbackEvidenceTrustPolicy, RollbackEvidenceVerifier,
     RollbackGuardDecision, RollbackGuardInput,
 };
-pub use security_store::{SecurityStoreError, SqliteSecurityStore};
+pub use security_store::{AuthorityCheckpointStore, SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
