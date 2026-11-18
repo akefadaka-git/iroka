@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/a3/g08.workflow-graph/input/1.0.0",
+  "title": "G08 workflow graph A3 input",
+  "type": "object",
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"},
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "source_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "revision_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "workflow_registry_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "operation_registry_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "dependency_registry_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "checkpoint_registry_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "node_operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "node_id": {"$ref": "#/$defs/identifier"},
+              "operation_ref": {"$ref": "#/$defs/identifier"},
+              "implementation_digest": {"$ref": "#/$defs/digest"},
+              "configuration_digest": {"$ref": "#/$defs/digest"},
+              "operation_provenance_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+              "configuration_provenance_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+              "checkpoint_ref": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"},
+              "checkpoint_provenance_ref": {"type": ["string", "null"], "minLength": 1, "maxLength": 512}
+            },
+            "required": ["node_id", "operation_ref", "implementation_digest", "configuration_digest", "operation_provenance_ref", "configuration_provenance_ref", "checkpoint_ref", "checkpoint_provenance_ref"],
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "dependency_edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "edge_id": {"$ref": "#/$defs/identifier"},
+              "dependency_type": {"enum": ["required", "ordering"]},
+              "provenance_ref": {"type": "string", "minLength": 1, "maxLength": 512}
+            },
+            "required": ["edge_id", "dependency_type", "provenance_ref"],
+            "additionalProperties": false
+          },
+          "uniqueItems": true
+        },
+        "validation_input_refs": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 512}, "minItems": 1, "uniqueItems": true}
+      },
+      "required": ["source_ref", "revision_ref", "workflow_registry_ref", "operation_registry_ref", "dependency_registry_ref", "checkpoint_registry_ref", "node_operations", "dependency_edges", "validation_input_refs"],
+      "additionalProperties": false
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "properties": {
+        "workflow_registry_digest": {"$ref": "#/$defs/digest"},
+        "operation_registry_digest": {"$ref": "#/$defs/digest"},
+        "dependency_registry_digest": {"$ref": "#/$defs/digest"},
+        "checkpoint_registry_digest": {"$ref": "#/$defs/digest"},
+        "graph_revision_digest": {"$ref": "#/$defs/digest"},
+        "schema_version": {"const": "1.0.0"},
+        "configuration_digest_algorithm": {"const": "SHA-256"},
+        "configuration_canonicalization": {"const": "JCS-RFC8785"},
+        "graph_validator_version": {"const": "1.0.0"}
+      },
+      "required": ["workflow_registry_digest", "operation_registry_digest", "dependency_registry_digest", "checkpoint_registry_digest", "graph_revision_digest", "schema_version", "configuration_digest_algorithm", "configuration_canonicalization", "graph_validator_version"],
+      "additionalProperties": false
+    },
+    "node": {
+      "type": "object",
+      "properties": {
+        "node_id": {"$ref": "#/$defs/identifier"},
+        "node_type": {"$ref": "#/$defs/identifier"},
+        "operation_ref": {"$ref": "#/$defs/identifier"},
+        "configuration_digest": {"$ref": "#/$defs/digest"},
+        "checkpoint_ref": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"},
+        "safe_stop": {"type": "boolean"},
+        "recovery_node_id": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"}
+      },
+      "required": ["node_id", "node_type", "operation_ref", "configuration_digest", "checkpoint_ref", "safe_stop", "recovery_node_id"],
+      "additionalProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "properties": {
+        "edge_id": {"$ref": "#/$defs/identifier"},
+        "from_node_id": {"$ref": "#/$defs/identifier"},
+        "to_node_id": {"$ref": "#/$defs/identifier"},
+        "dependency_type": {"enum": ["required", "ordering"]}
+      },
+      "required": ["edge_id", "from_node_id", "to_node_id", "dependency_type"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "workflow_id": {"$ref": "#/$defs/identifier"},
+    "nodes": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/node"}, "uniqueItems": true},
+    "edges": {"type": "array", "maxItems": 50000, "items": {"$ref": "#/$defs/edge"}, "uniqueItems": true},
+    "graph_version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "version_bound_evidence": {"$ref": "#/$defs/version_bound_evidence"}
+  },
+  "required": ["workflow_id", "nodes", "edges", "graph_version", "provenance", "version_bound_evidence"],
+  "additionalProperties": false
+}

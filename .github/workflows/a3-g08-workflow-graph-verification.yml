@@ -1,0 +1,63 @@
+name: A3 G08 workflow-graph verification
+
+on:
+  push:
+    branches:
+      - implementation/a3-g08-character-workflow-graph
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "docs/architecture/a3/**"
+      - "tools/genesis/validate_g08_workflow_graph.py"
+      - ".github/workflows/a3-g08-workflow-graph-verification.yml"
+  pull_request:
+    branches:
+      - implementation/a3-g07-ci-matrix
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "docs/architecture/a3/**"
+      - "tools/genesis/validate_g08_workflow_graph.py"
+      - ".github/workflows/a3-g08-workflow-graph-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a3-g08-workflow-graph-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: G08 workflow graph schema, registry and DAG verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact source head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+          rustc --version
+          cargo --version
+      - name: Install pinned JSON Schema validator
+        run: python3 -m pip install --disable-pip-version-check jsonschema==4.23.0
+      - name: Validate G08 Draft 2020-12 schemas and schema vectors
+        run: python3 tools/genesis/validate_g08_workflow_graph.py
+      - name: Check committed Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Compile kernel and all targets
+        run: cargo check -p iroka-kernel --all-targets --locked
+      - name: Run G08 workflow graph unit tests
+        run: cargo test -p iroka-kernel workflow_graph::tests --locked
+      - name: Run complete workspace tests
+        run: cargo test --workspace --all-targets --locked
+      - name: Run Clippy with warnings denied
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings -A clippy::pedantic
