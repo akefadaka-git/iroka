@@ -182,12 +182,31 @@
         "decision_rationale": {
           "type": "string",
           "minLength": 1
+        },
+        "key_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "key_material_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "root_status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "suspended",
+            "revoked"
+          ]
         }
       },
       "required": [
         "provenance",
         "version_bound_evidence",
         "issuer_chain",
+        "key_fingerprint",
+        "key_material_ref",
+        "root_status",
         "key_status",
         "algorithm_policy",
         "decision_rationale"
