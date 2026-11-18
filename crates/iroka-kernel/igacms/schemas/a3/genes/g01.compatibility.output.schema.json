@@ -82,6 +82,114 @@
           "compatibility"
         ]
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "compatible"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "properties": {
+              "declaration_conflict": {
+                "const": false
+              }
+            },
+            "required": [
+              "declaration_conflict"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidence": {
+            "properties": {
+              "migration_ref": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "migration_ref"
+            ]
+          }
+        },
+        "required": [
+          "evidence"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "properties": {
+              "migration_digest": {
+                "type": "null"
+              },
+              "migration_verified": {
+                "const": false
+              },
+              "no_migration_required": {
+                "const": true
+              }
+            },
+            "required": [
+              "migration_digest",
+              "migration_verified",
+              "no_migration_required"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidence": {
+            "properties": {
+              "migration_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "migration_ref"
+            ]
+          }
+        },
+        "required": [
+          "evidence"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "properties": {
+              "migration_digest": {
+                "type": "string"
+              },
+              "migration_verified": {
+                "const": true
+              },
+              "no_migration_required": {
+                "const": false
+              }
+            },
+            "required": [
+              "migration_digest",
+              "migration_verified",
+              "no_migration_required"
+            ]
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -139,10 +247,10 @@
           "pattern": "^sha256:[a-f0-9]{64}$"
         },
         "policy_scope_verified": {
-          "type": "boolean"
+          "const": true
         },
         "policy_validity_verified": {
-          "type": "boolean"
+          "const": true
         },
         "comparison_digest": {
           "type": "string",
