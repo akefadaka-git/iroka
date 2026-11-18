@@ -23,6 +23,6 @@ fn registry_checkpoints_are_independent() {
     );
     assert_eq!(
         checkpoint.verify_checkpoint("identity_roots", 8, &succession_digest),
-        Err(SecurityStoreError::AuthorityCheckpointRollback)
+        Err(SecurityStoreError::AuthorityCheckpointConflict)
     );
 }
