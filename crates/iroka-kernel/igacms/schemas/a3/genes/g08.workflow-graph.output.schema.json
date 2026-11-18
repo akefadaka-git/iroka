@@ -5,13 +5,21 @@
   "type": "object",
   "$defs": {
     "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"},
     "provenance": {
       "type": "object",
       "properties": {
         "source_ref": {"type": "string", "minLength": 1, "maxLength": 512},
-        "revision_ref": {"type": "string", "minLength": 1, "maxLength": 512}
+        "revision_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "workflow_registry_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "operation_registry_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "dependency_registry_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "checkpoint_registry_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "node_operations": {"type": "array", "items": {"type": "object"}, "uniqueItems": true},
+        "dependency_edges": {"type": "array", "items": {"type": "object"}, "uniqueItems": true},
+        "validation_input_refs": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 512}, "minItems": 1, "uniqueItems": true}
       },
-      "required": ["source_ref", "revision_ref"],
+      "required": ["source_ref", "revision_ref", "workflow_registry_ref", "operation_registry_ref", "dependency_registry_ref", "checkpoint_registry_ref", "node_operations", "dependency_edges", "validation_input_refs"],
       "additionalProperties": false
     },
     "version_bound_evidence": {
@@ -20,11 +28,12 @@
         "workflow_registry_digest": {"$ref": "#/$defs/digest"},
         "operation_registry_digest": {"$ref": "#/$defs/digest"},
         "dependency_registry_digest": {"$ref": "#/$defs/digest"},
+        "checkpoint_registry_digest": {"$ref": "#/$defs/digest"},
         "graph_revision_digest": {"$ref": "#/$defs/digest"},
         "configuration_digest_algorithm": {"const": "SHA-256"},
         "graph_validator_version": {"const": "1.0.0"}
       },
-      "required": ["workflow_registry_digest", "operation_registry_digest", "dependency_registry_digest", "graph_revision_digest", "configuration_digest_algorithm", "graph_validator_version"],
+      "required": ["workflow_registry_digest", "operation_registry_digest", "dependency_registry_digest", "checkpoint_registry_digest", "graph_revision_digest", "configuration_digest_algorithm", "graph_validator_version"],
       "additionalProperties": false
     },
     "evidence": {
@@ -39,9 +48,9 @@
     }
   },
   "properties": {
-    "workflow_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"},
+    "workflow_id": {"$ref": "#/$defs/identifier"},
     "graph_digest": {"$ref": "#/$defs/digest"},
-    "topological_order": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_.:-]{0,127}$"}, "uniqueItems": true},
+    "topological_order": {"type": "array", "items": {"$ref": "#/$defs/identifier"}, "uniqueItems": true},
     "validation_status": {"enum": ["valid", "cycle", "invalid_reference"]},
     "evidence": {"$ref": "#/$defs/evidence"},
     "version_bound_evidence": {"$ref": "#/$defs/version_bound_evidence"}
