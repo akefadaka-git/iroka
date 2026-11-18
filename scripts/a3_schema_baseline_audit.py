@@ -181,6 +181,50 @@ if len(vl_cases) != 12 or len(vl_case_ids) != 12:
 if vl_vectors.get("chromosome_count") != 12 or vl_vectors.get("gene_count") != 36:
     errors.append("G12 version-lineage A3 amendment changes the fixed genome")
 
+
+# A3 G01 identity-root v1.1.0 bounded semantic amendment audit. The frozen
+# A2 v1.0.0 schemas remain unchanged; this additive version closes G01-SEM-01..04.
+IR_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g01.identity-root.input.schema.json"
+IR_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g01.identity-root.output.schema.json"
+IR_VECTORS = ROOT / "docs/architecture/a3/g01-identity-root-conformance-v1.1.0.json"
+ir_input = load(IR_INPUT)
+ir_output = load(IR_OUTPUT)
+ir_vectors = load(IR_VECTORS)
+for schema_path_obj, document in ((IR_INPUT, ir_input), (IR_OUTPUT, ir_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if ir_input.get("$id") != "https://iroka.dev/schemas/genes/g01.identity-root/input/1.1.0":
+    errors.append("G01 identity-root A3 input schema ID/version mismatch")
+if ir_output.get("$id") != "https://iroka.dev/schemas/genes/g01.identity-root/output/1.1.0":
+    errors.append("G01 identity-root A3 output schema ID/version mismatch")
+ir_required = set(ir_input.get("required", []))
+for field in ("root_id", "issuer_id", "key_fingerprint", "key_material_ref", "algorithm",
+              "algorithm_policy_id", "algorithm_policy_version", "activation_epoch", "status",
+              "provenance", "version_bound_evidence"):
+    if field not in ir_required:
+        errors.append(f"G01 identity-root A3 input missing required field: {field}")
+if ir_input.get("properties", {}).get("key_fingerprint", {}).get("pattern") != "^sha256:[a-f0-9]{64}$":
+    errors.append("G01 identity-root A3 fingerprint must be a canonical lowercase SHA-256 fingerprint")
+if len(ir_output.get("allOf", [])) < 2:
+    errors.append("G01 identity-root A3 verified/trust_decision consistency constraints missing")
+ir_evidence = ir_output.get("$defs", {}).get("evidence", {})
+for field in ("issuer_chain", "key_fingerprint", "key_material_ref", "root_status",
+              "key_status", "algorithm_policy", "decision_rationale"):
+    if field not in ir_evidence.get("required", []):
+        errors.append(f"G01 identity-root A3 evidence missing required field: {field}")
+if ir_vectors.get("gene_id") != "g01.identity-root" or ir_vectors.get("version") != "1.1.0":
+    errors.append("G01 identity-root A3 conformance catalog identity/version mismatch")
+ir_cases = ir_vectors.get("cases", [])
+ir_case_ids = {case.get("case_id") for case in ir_cases}
+if len(ir_cases) != 9 or len(ir_case_ids) != 9:
+    errors.append(f"G01 identity-root A3 expected 9 unique conformance cases, found {len(ir_cases)}")
+if ir_vectors.get("chromosome_count") != 12 or ir_vectors.get("gene_count") != 36:
+    errors.append("G01 identity-root A3 amendment changes the fixed 12-chromosome/36-gene genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -199,3 +243,5 @@ print("g12_rollback_guard_v1_1_0=PASS")
 print(f"g12_a3_conformance_cases={len(a3_cases)}")
 print("g12_version_lineage_v1_1_0=PASS")
 print(f"g12_version_lineage_a3_conformance_cases={len(vl_cases)}")
+print("g01_identity_root_v1_1_0=PASS")
+print(f"g01_identity_root_a3_conformance_cases={len(ir_cases)}")
