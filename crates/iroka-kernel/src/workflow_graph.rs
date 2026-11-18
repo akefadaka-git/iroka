@@ -601,39 +601,63 @@ mod tests {
         revision: WorkflowRevisionBinding,
         operations: BTreeMap<String, WorkflowOperationBinding>,
         dependencies: BTreeMap<String, WorkflowDependencyKind>,
+        checkpoints: BTreeMap<String, WorkflowCheckpointBinding>,
+        effect_classes: BTreeSet<String>,
         workflow_digest: String,
         operation_digest: String,
         dependency_digest: String,
+        checkpoint_digest: String,
     }
 
     impl WorkflowGraphRegistry for TestRegistry {
         fn workflow_revision(&self, workflow_id: &str) -> Option<&WorkflowRevisionBinding> {
             (workflow_id == self.revision.workflow_id).then_some(&self.revision)
         }
+
         fn operation_binding(&self, operation_ref: &str) -> Option<&WorkflowOperationBinding> {
             self.operations.get(operation_ref)
         }
+
         fn dependency_kind(&self, dependency_type: &str) -> Option<&WorkflowDependencyKind> {
             self.dependencies.get(dependency_type)
         }
+
+        fn checkpoint_binding(&self, checkpoint_ref: &str) -> Option<&WorkflowCheckpointBinding> {
+            self.checkpoints.get(checkpoint_ref)
+        }
+
+        fn effect_class_registered(&self, effect_class: &str) -> bool {
+            self.effect_classes.contains(effect_class)
+        }
+
         fn workflow_registry_digest(&self) -> &str {
             &self.workflow_digest
         }
+
         fn operation_registry_digest(&self) -> &str {
             &self.operation_digest
         }
+
         fn dependency_registry_digest(&self) -> &str {
             &self.dependency_digest
+        }
+
+        fn checkpoint_registry_digest(&self) -> &str {
+            &self.checkpoint_digest
         }
     }
 
     fn registry() -> TestRegistry {
-        let operation = |node_type: &str| WorkflowOperationBinding {
-            operation_ref: format!("operation.{node_type}"),
-            node_type: node_type.into(),
-            implementation_digest: "a".repeat(64),
-            effect_class: "none".into(),
-            configuration_digests: ["b".repeat(64)].into_iter().collect(),
+        let operation = |node_type: &str| {
+            let configuration = json!({"mode": node_type, "version": 1});
+            let configuration_digest = digest(&configuration).unwrap();
+            WorkflowOperationBinding {
+                operation_ref: format!("operation.{node_type}"),
+                node_type: node_type.into(),
+                implementation_digest: "a".repeat(64),
+                effect_class: "none".into(),
+                configurations: BTreeMap::from([(configuration_digest, configuration)]),
+            }
         };
         TestRegistry {
             revision: WorkflowRevisionBinding {
@@ -652,6 +676,8 @@ mod tests {
                     "required".into(),
                     WorkflowDependencyKind {
                         dependency_type: "required".into(),
+                        mandatory: true,
+                        conditionality: "unconditional".into(),
                         satisfaction_rule: "success".into(),
                         failure_behavior: "block".into(),
                     },
@@ -660,81 +686,136 @@ mod tests {
                     "ordering".into(),
                     WorkflowDependencyKind {
                         dependency_type: "ordering".into(),
+                        mandatory: true,
+                        conditionality: "unconditional".into(),
                         satisfaction_rule: "completion".into(),
                         failure_behavior: "continue".into(),
                     },
                 ),
             ]),
+            checkpoints: BTreeMap::new(),
+            effect_classes: ["none", "read", "write", "external", "protected"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
             workflow_digest: "d".repeat(64),
             operation_digest: "e".repeat(64),
             dependency_digest: "f".repeat(64),
+            checkpoint_digest: "1".repeat(64),
         }
     }
 
     fn input(registry: &TestRegistry) -> WorkflowGraphInput {
+        let mut nodes = vec![
+            WorkflowGraphNode {
+                node_id: "node.fetch".into(),
+                node_type: "fetch".into(),
+                operation_ref: "operation.fetch".into(),
+                configuration_digest: registry.operations["operation.fetch"]
+                    .configurations
+                    .keys()
+                    .next()
+                    .unwrap()
+                    .clone(),
+                checkpoint_ref: None,
+                safe_stop: false,
+                recovery_node_id: None,
+            },
+            WorkflowGraphNode {
+                node_id: "node.transform".into(),
+                node_type: "transform".into(),
+                operation_ref: "operation.transform".into(),
+                configuration_digest: registry.operations["operation.transform"]
+                    .configurations
+                    .keys()
+                    .next()
+                    .unwrap()
+                    .clone(),
+                checkpoint_ref: None,
+                safe_stop: false,
+                recovery_node_id: None,
+            },
+            WorkflowGraphNode {
+                node_id: "node.review".into(),
+                node_type: "review".into(),
+                operation_ref: "operation.review".into(),
+                configuration_digest: registry.operations["operation.review"]
+                    .configurations
+                    .keys()
+                    .next()
+                    .unwrap()
+                    .clone(),
+                checkpoint_ref: None,
+                safe_stop: false,
+                recovery_node_id: None,
+            },
+        ];
+        let edges = vec![
+            WorkflowGraphEdge {
+                edge_id: "edge.fetch-transform".into(),
+                from_node_id: "node.fetch".into(),
+                to_node_id: "node.transform".into(),
+                dependency_type: "required".into(),
+            },
+            WorkflowGraphEdge {
+                edge_id: "edge.transform-review".into(),
+                from_node_id: "node.transform".into(),
+                to_node_id: "node.review".into(),
+                dependency_type: "required".into(),
+            },
+        ];
+        let node_operations = nodes
+            .iter()
+            .map(|node| {
+                let operation = &registry.operations[&node.operation_ref];
+                WorkflowNodeOperationProvenance {
+                    node_id: node.node_id.clone(),
+                    operation_ref: node.operation_ref.clone(),
+                    implementation_digest: operation.implementation_digest.clone(),
+                    configuration_digest: node.configuration_digest.clone(),
+                    operation_provenance_ref: format!("operation-source:{}", node.node_id),
+                    configuration_provenance_ref: format!("configuration-source:{}", node.node_id),
+                }
+            })
+            .collect();
+        let dependency_edges = edges
+            .iter()
+            .map(|edge| WorkflowDependencyEdgeProvenance {
+                edge_id: edge.edge_id.clone(),
+                dependency_type: edge.dependency_type.clone(),
+                provenance_ref: format!("dependency-source:{}", edge.edge_id),
+            })
+            .collect();
+        let provenance = WorkflowGraphProvenance {
+            source_ref: "synthetic:test".into(),
+            revision_ref: "revision:demo:1".into(),
+            workflow_registry_ref: "registry:workflow:1".into(),
+            operation_registry_ref: "registry:operation:1".into(),
+            dependency_registry_ref: "registry:dependency:1".into(),
+            checkpoint_registry_ref: "registry:checkpoint:1".into(),
+            node_operations,
+            dependency_edges,
+            validation_input_refs: vec![
+                "input:workflow".into(),
+                "input:operations".into(),
+                "input:dependencies".into(),
+                "input:checkpoints".into(),
+            ],
+        };
         WorkflowGraphInput {
             workflow_id: "workflow.demo".into(),
-            nodes: vec![
-                WorkflowGraphNode {
-                    node_id: "node.fetch".into(),
-                    node_type: "fetch".into(),
-                    operation_ref: "operation.fetch".into(),
-                    configuration_digest: "b".repeat(64),
-                },
-                WorkflowGraphNode {
-                    node_id: "node.transform".into(),
-                    node_type: "transform".into(),
-                    operation_ref: "operation.transform".into(),
-                    configuration_digest: "b".repeat(64),
-                },
-                WorkflowGraphNode {
-                    node_id: "node.review".into(),
-                    node_type: "review".into(),
-                    operation_ref: "operation.review".into(),
-                    configuration_digest: "b".repeat(64),
-                },
-            ],
-            edges: vec![
-                WorkflowGraphEdge {
-                    edge_id: "edge.fetch-transform".into(),
-                    from_node_id: "node.fetch".into(),
-                    to_node_id: "node.transform".into(),
-                    dependency_type: "required".into(),
-                },
-                WorkflowGraphEdge {
-                    edge_id: "edge.transform-review".into(),
-                    from_node_id: "node.transform".into(),
-                    to_node_id: "node.review".into(),
-                    dependency_type: "required".into(),
-                },
-            ],
+            nodes: std::mem::take(&mut nodes),
+            edges,
             graph_version: "1.0.0".into(),
-            provenance: BTreeMap::from([
-                ("source_ref".into(), json!("synthetic:test")),
-                ("revision_ref".into(), json!("revision:demo:1")),
-            ]),
+            provenance,
             version_bound_evidence: BTreeMap::from([
-                (
-                    "workflow_registry_digest".into(),
-                    json!(registry.workflow_digest.clone()),
-                ),
-                (
-                    "operation_registry_digest".into(),
-                    json!(registry.operation_digest.clone()),
-                ),
-                (
-                    "dependency_registry_digest".into(),
-                    json!(registry.dependency_digest.clone()),
-                ),
+                ("workflow_registry_digest".into(), json!(registry.workflow_digest)),
+                ("operation_registry_digest".into(), json!(registry.operation_digest)),
+                ("dependency_registry_digest".into(), json!(registry.dependency_digest)),
+                ("checkpoint_registry_digest".into(), json!(registry.checkpoint_digest)),
                 ("graph_revision_digest".into(), json!("c".repeat(64))),
-                (
-                    "configuration_digest_algorithm".into(),
-                    json!(CONFIGURATION_DIGEST_ALGORITHM),
-                ),
-                (
-                    "graph_validator_version".into(),
-                    json!(WORKFLOW_GRAPH_VALIDATOR_VERSION),
-                ),
+                ("configuration_digest_algorithm".into(), json!(CONFIGURATION_DIGEST_ALGORITHM)),
+                ("graph_validator_version".into(), json!(WORKFLOW_GRAPH_VALIDATOR_VERSION)),
             ]),
         }
     }
@@ -742,8 +823,8 @@ mod tests {
     #[test]
     fn accepts_complete_deterministic_topological_order() {
         let registry = registry();
-        let input = input(&registry);
-        let output = evaluate_workflow_graph(&input, &registry).unwrap();
+        let value = input(&registry);
+        let output = evaluate_workflow_graph(&value, &registry).unwrap();
         assert_eq!(output.validation_status, "valid");
         assert_eq!(
             output.topological_order,
@@ -761,18 +842,12 @@ mod tests {
         second.nodes.reverse();
         second.edges.reverse();
         assert_eq!(
-            evaluate_workflow_graph(&first, &registry)
-                .unwrap()
-                .graph_digest,
-            evaluate_workflow_graph(&second, &registry)
-                .unwrap()
-                .graph_digest
+            evaluate_workflow_graph(&first, &registry).unwrap().graph_digest,
+            evaluate_workflow_graph(&second, &registry).unwrap().graph_digest
         );
         first.nodes.swap(0, 1);
         assert_eq!(
-            evaluate_workflow_graph(&first, &registry)
-                .unwrap()
-                .topological_order,
+            evaluate_workflow_graph(&first, &registry).unwrap().topological_order,
             vec!["node.fetch", "node.transform", "node.review"]
         );
     }
@@ -802,17 +877,52 @@ mod tests {
     }
 
     #[test]
-    fn rejects_operation_substitution_and_configuration_drift() {
+    fn rejects_operation_substitution_and_configuration_digest_drift() {
         let registry = registry();
         let mut value = input(&registry);
         value.nodes[0].operation_ref = "operation.review".into();
-        let output = evaluate_workflow_graph(&value, &registry).unwrap();
-        assert_eq!(output.validation_status, "invalid_reference");
-        assert!(output.topological_order.is_empty());
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_graph_node_provenance_binding_mismatch".into())
+        );
         let mut value = input(&registry);
         value.nodes[0].configuration_digest = "0".repeat(64);
-        let output = evaluate_workflow_graph(&value, &registry).unwrap();
-        assert_eq!(output.validation_status, "invalid_reference");
+        value.provenance.node_operations[0].configuration_digest = "0".repeat(64);
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "invalid_reference"
+        );
+    }
+
+    #[test]
+    fn rejects_unregistered_effect_class_and_dependency_semantics() {
+        let mut operation_registry = registry();
+        operation_registry
+            .operations
+            .get_mut("operation.fetch")
+            .unwrap()
+            .effect_class = "unregistered".into();
+        let value = input(&operation_registry);
+        assert_eq!(
+            evaluate_workflow_graph(&value, &operation_registry)
+                .unwrap()
+                .validation_status,
+            "invalid_reference"
+        );
+
+        let mut dependency_registry = registry();
+        dependency_registry
+            .dependencies
+            .get_mut("required")
+            .unwrap()
+            .conditionality = "conditional".into();
+        let value = input(&dependency_registry);
+        assert_eq!(
+            evaluate_workflow_graph(&value, &dependency_registry)
+                .unwrap()
+                .validation_status,
+            "invalid_reference"
+        );
     }
 
     #[test]
@@ -820,31 +930,38 @@ mod tests {
         let registry = registry();
         let mut value = input(&registry);
         value.edges[0].to_node_id = "node.unknown".into();
-        let output = evaluate_workflow_graph(&value, &registry).unwrap();
-        assert_eq!(output.validation_status, "invalid_reference");
-        assert!(output.topological_order.is_empty());
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "invalid_reference"
+        );
+
         let mut value = input(&registry);
         value.edges[0].from_node_id = value.edges[0].to_node_id.clone();
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry)
-                .unwrap()
-                .validation_status,
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
             "invalid_reference"
         );
+
         let mut value = input(&registry);
         value.edges[0].dependency_type = "unregistered".into();
+        value.provenance.dependency_edges[0].dependency_type = "unregistered".into();
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry)
-                .unwrap()
-                .validation_status,
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
             "invalid_reference"
         );
+
         let mut value = input(&registry);
         value.nodes.push(value.nodes[0].clone());
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry)
-                .unwrap()
-                .validation_status,
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "invalid_reference"
+        );
+
+        let mut value = input(&registry);
+        value.edges[1].edge_id = value.edges[0].edge_id.clone();
+        value.provenance.dependency_edges[1].edge_id = value.edges[0].edge_id.clone();
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
             "invalid_reference"
         );
     }
@@ -859,13 +976,71 @@ mod tests {
             to_node_id: "node.fetch".into(),
             dependency_type: "required".into(),
         });
+        value.provenance.dependency_edges.push(WorkflowDependencyEdgeProvenance {
+            edge_id: "edge.review-fetch".into(),
+            dependency_type: "required".into(),
+            provenance_ref: "dependency-source:edge.review-fetch".into(),
+        });
         let output = evaluate_workflow_graph(&value, &registry).unwrap();
         assert_eq!(output.validation_status, "cycle");
         assert!(output.topological_order.is_empty());
-        assert!(output
-            .evidence
-            .findings
-            .contains(&"dependency_cycle_detected".into()));
+        assert!(output.evidence.findings.contains(&"dependency_cycle_detected".into()));
+    }
+
+    #[test]
+    fn requires_checkpoint_and_registered_recovery_path_for_safe_stop() {
+        let mut registry = registry();
+        let mut value = input(&registry);
+        value.nodes[2].safe_stop = true;
+        value.nodes[2].recovery_node_id = Some("node.fetch".into());
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "invalid_reference"
+        );
+
+        let config_digest = value.nodes[2].configuration_digest.clone();
+        let checkpoint = WorkflowCheckpointBinding {
+            checkpoint_ref: "checkpoint.review".into(),
+            workflow_id: "workflow.demo".into(),
+            graph_version: "1.0.0".into(),
+            node_id: "node.review".into(),
+            configuration_digest: config_digest,
+            immutable: true,
+        };
+        registry.checkpoints.insert(checkpoint.checkpoint_ref.clone(), checkpoint);
+        value.nodes[2].checkpoint_ref = Some("checkpoint.review".into());
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "valid"
+        );
+        value.nodes[2].checkpoint_ref = Some("checkpoint.unknown".into());
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "invalid_reference"
+        );
+    }
+
+    #[test]
+    fn rejects_incomplete_or_mismatched_provenance_and_unknown_evidence_keys() {
+        let registry = registry();
+        let mut value = input(&registry);
+        value.provenance.node_operations.pop();
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_graph_provenance_coverage_incomplete".into())
+        );
+        let mut value = input(&registry);
+        value.provenance.validation_input_refs.push("input:workflow".into());
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_graph_validation_input_provenance_invalid".into())
+        );
+        let mut value = input(&registry);
+        value.version_bound_evidence.insert("unexpected".into(), json!("x"));
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry),
+            Err("workflow_graph_version_evidence_invalid".into())
+        );
     }
 
     #[test]
@@ -878,59 +1053,10 @@ mod tests {
             Err("workflow_graph_input_invalid".into())
         );
         let mut value = input(&registry);
-        value
-            .provenance
-            .insert("revision_ref".into(), json!("revision:other:2"));
+        value.provenance.revision_ref = "revision:other:2".into();
         assert_eq!(
             evaluate_workflow_graph(&value, &registry),
             Err("workflow_revision_binding_mismatch".into())
-        );
-    }
-
-    #[test]
-    fn rejects_dependency_semantics_substitution_and_unknown_effect_class() {
-        let mut dependency_registry = registry();
-        dependency_registry
-            .dependencies
-            .get_mut("required")
-            .unwrap()
-            .failure_behavior = "continue".into();
-        let value = input(&dependency_registry);
-        assert_eq!(
-            evaluate_workflow_graph(&value, &dependency_registry)
-                .unwrap()
-                .validation_status,
-            "invalid_reference"
-        );
-        let mut operation_registry = registry();
-        operation_registry
-            .operations
-            .get_mut("operation.fetch")
-            .unwrap()
-            .effect_class = "unregistered".into();
-        let value = input(&operation_registry);
-        assert_eq!(
-            evaluate_workflow_graph(&value, &operation_registry)
-                .unwrap()
-                .validation_status,
-            "invalid_reference"
-        );
-    }
-
-    #[test]
-    fn rejects_missing_provenance_and_non_version_bound_evidence() {
-        let registry = registry();
-        let mut value = input(&registry);
-        value.provenance.clear();
-        assert_eq!(
-            evaluate_workflow_graph(&value, &registry),
-            Err("workflow_graph_input_invalid".into())
-        );
-        let mut value = input(&registry);
-        value.version_bound_evidence.remove("graph_revision_digest");
-        assert_eq!(
-            evaluate_workflow_graph(&value, &registry),
-            Err("workflow_graph_evidence_missing:graph_revision_digest".into())
         );
     }
 }
