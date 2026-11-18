@@ -1,6 +1,7 @@
 //! G08 workflow-graph contract evaluator.
 //!
 //! Formatter pass: G08 A2 provenance and recovery contracts.
+//! Configuration fingerprints use the kernel's RFC 8785 canonical JSON primitive.
 //! This module validates immutable workflow graph structure only. It never schedules,
 //! invokes, authorizes, or performs a node operation. Registry adapters are trusted
 //! boundaries and must return only authenticated, immutable registry snapshots.
