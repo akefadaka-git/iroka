@@ -101,6 +101,49 @@ pub struct IdentityRootRegistryRecord {
     pub version_evidence_verified: bool,
 }
 
+/// Resolves a key-material reference through an authenticated key-material
+/// service. Implementations must not fall back to caller-supplied or mutable
+/// "latest" key material.
+pub trait IdentityKeyMaterialResolver: Send + Sync {
+    fn resolve_public_key(&self, reference: &str) -> Result<[u8; 32], IdentityRootError>;
+}
+
+/// Cryptographic verifier for issuer-chain, provenance and version-bound
+/// attestations. Implementations MUST validate signatures against trusted
+/// issuer keys, subject/key binding, validity windows and chain anchoring.
+/// A signed owner registry assertion alone is not a substitute for these checks.
+pub trait IdentityEvidenceVerifier: Send + Sync {
+    fn verify_issuer_chain(
+        &self,
+        chain: &[IssuerLinkEvidence],
+        expected_issuer: &str,
+        expected_key_fingerprint: &str,
+        trust: &crate::TrustStore,
+        now: u64,
+    ) -> Result<Vec<IssuerLinkEvidence>, IdentityRootError>;
+
+    fn verify_provenance(
+        &self,
+        evidence: &Value,
+        root_id: &str,
+        issuer_id: &str,
+        key_fingerprint: &str,
+        trust: &crate::TrustStore,
+        now: u64,
+    ) -> Result<(), IdentityRootError>;
+
+    fn verify_version_bound_evidence(
+        &self,
+        evidence: &Value,
+        root_id: &str,
+        issuer_id: &str,
+        key_fingerprint: &str,
+        activation_epoch: u64,
+        trust: &crate::TrustStore,
+        now: u64,
+    ) -> Result<(), IdentityRootError>;
+}
+
 pub trait IdentityRootRegistry: Send + Sync {
     fn resolve_root(
         &self,
