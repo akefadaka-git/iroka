@@ -91,6 +91,27 @@ pub(crate) struct ApprovalReceipt<'a> {
     pub consumed_at: u64,
 }
 
+/// Independent monotonic witness for authority-registry revision/digest state.
+/// Production deployments should implement this against a separately protected
+/// service, hardware-backed monotonic counter, or append-only witness. The local
+/// SQLite implementation is suitable only when its database and backup domain
+/// are independently protected from the authority-registry database.
+pub trait AuthorityCheckpointStore: Send + Sync {
+    fn advance_checkpoint(
+        &self,
+        registry: &str,
+        revision: u64,
+        digest: &[u8],
+    ) -> Result<(), SecurityStoreError>;
+
+    fn verify_checkpoint(
+        &self,
+        registry: &str,
+        revision: u64,
+        digest: &[u8],
+    ) -> Result<(), SecurityStoreError>;
+}
+
 pub struct SqliteSecurityStore {
     connection: Mutex<Connection>,
 }
@@ -1263,6 +1284,26 @@ impl VersionLineageRegistry for SqliteSecurityStore {
             .commit()
             .map_err(|_| LineageRegistryError::Unavailable)?;
         Ok(record)
+    }
+}
+
+impl AuthorityCheckpointStore for SqliteSecurityStore {
+    fn advance_checkpoint(
+        &self,
+        registry: &str,
+        revision: u64,
+        digest: &[u8],
+    ) -> Result<(), SecurityStoreError> {
+        self.advance_authority_checkpoint(registry, revision, digest)
+    }
+
+    fn verify_checkpoint(
+        &self,
+        registry: &str,
+        revision: u64,
+        digest: &[u8],
+    ) -> Result<(), SecurityStoreError> {
+        self.verify_authority_checkpoint(registry, revision, digest)
     }
 }
 
