@@ -44,6 +44,7 @@ pub struct WorkflowGraphInput {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkflowRevisionBinding {
     pub workflow_id: String,
+    pub revision_ref: String,
     pub graph_version: String,
     pub revision_digest: String,
 }
@@ -120,6 +121,16 @@ fn valid_digest(value: &str) -> bool {
         && value
             .bytes()
             .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+}
+
+fn valid_semver(value: &str) -> bool {
+    let parts: Vec<_> = value.split('.').collect();
+    parts.len() == 3
+        && parts.iter().all(|part| {
+            !part.is_empty()
+                && part.bytes().all(|byte| byte.is_ascii_digit())
+                && (part == &"0" || !part.starts_with('0'))
+        })
 }
 
 fn valid_identifier(value: &str) -> bool {
@@ -282,7 +293,7 @@ pub fn evaluate_workflow_graph(
     registry: &impl WorkflowGraphRegistry,
 ) -> Result<WorkflowGraphOutput, String> {
     if !valid_identifier(&input.workflow_id)
-        || !valid_identifier(&input.graph_version)
+        || !valid_semver(&input.graph_version)
         || input.nodes.is_empty()
         || input.nodes.len() > 10_000
         || input.edges.len() > 50_000
@@ -317,6 +328,7 @@ pub fn evaluate_workflow_graph(
         return Err("workflow_revision_not_registered".into());
     };
     if revision.workflow_id != input.workflow_id
+        || revision.revision_ref != revision_ref
         || revision.graph_version != input.graph_version
         || !valid_digest(&revision.revision_digest)
         || required_evidence(bound, "graph_revision_digest")? != revision.revision_digest
@@ -391,6 +403,7 @@ mod tests {
         TestRegistry {
             revision: WorkflowRevisionBinding {
                 workflow_id: "workflow.demo".into(),
+                revision_ref: "revision:demo:1".into(),
                 graph_version: "1.0.0".into(),
                 revision_digest: "c".repeat(64),
             },
