@@ -22,6 +22,7 @@ on:
       - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
       - "tools/genesis/**"
       - "crates/iroka-kernel/src/**"
+      - "docs/architecture/a3/**"
       - "docs/security/**"
       - ".github/workflows/genesis-gene-schemas.yml"
       - ".github/workflows/rust-kernel.yml"
