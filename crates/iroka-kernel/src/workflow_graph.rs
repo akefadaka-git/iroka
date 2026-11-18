@@ -271,10 +271,15 @@ fn validate_provenance(
     }
     if provenance.validation_input_refs.is_empty()
         || provenance.validation_input_refs.len() > 256
-        || provenance.validation_input_refs.iter().any(|value| {
-            value.is_empty() || value.len() > 512
-        })
-        || provenance.validation_input_refs.iter().collect::<BTreeSet<_>>().len()
+        || provenance
+            .validation_input_refs
+            .iter()
+            .any(|value| value.is_empty() || value.len() > 512)
+        || provenance
+            .validation_input_refs
+            .iter()
+            .collect::<BTreeSet<_>>()
+            .len()
             != provenance.validation_input_refs.len()
     {
         return Err("workflow_graph_validation_input_provenance_invalid".into());
@@ -288,7 +293,9 @@ fn validate_provenance(
     for item in &provenance.node_operations {
         if item.operation_provenance_ref.is_empty()
             || item.configuration_provenance_ref.is_empty()
-            || node_provenance.insert(item.node_id.as_str(), item).is_some()
+            || node_provenance
+                .insert(item.node_id.as_str(), item)
+                .is_some()
         {
             return Err("workflow_graph_node_provenance_invalid".into());
         }
@@ -318,7 +325,9 @@ fn validate_provenance(
     let mut edge_provenance = BTreeMap::new();
     for item in &provenance.dependency_edges {
         if item.provenance_ref.is_empty()
-            || edge_provenance.insert(item.edge_id.as_str(), item).is_some()
+            || edge_provenance
+                .insert(item.edge_id.as_str(), item)
+                .is_some()
         {
             return Err("workflow_graph_edge_provenance_invalid".into());
         }
@@ -395,16 +404,17 @@ fn topological_order(
             findings.push(format!("operation_binding_mismatch:{}", node.node_id));
         }
         if let Some(checkpoint_ref) = &node.checkpoint_ref {
-            let checkpoint_matches = registry
-                .checkpoint_binding(checkpoint_ref)
-                .is_some_and(|checkpoint| {
-                    checkpoint.checkpoint_ref == *checkpoint_ref
-                        && checkpoint.workflow_id == input.workflow_id
-                        && checkpoint.graph_version == input.graph_version
-                        && checkpoint.node_id == node.node_id
-                        && checkpoint.configuration_digest == node.configuration_digest
-                        && checkpoint.immutable
-                });
+            let checkpoint_matches =
+                registry
+                    .checkpoint_binding(checkpoint_ref)
+                    .is_some_and(|checkpoint| {
+                        checkpoint.checkpoint_ref == *checkpoint_ref
+                            && checkpoint.workflow_id == input.workflow_id
+                            && checkpoint.graph_version == input.graph_version
+                            && checkpoint.node_id == node.node_id
+                            && checkpoint.configuration_digest == node.configuration_digest
+                            && checkpoint.immutable
+                    });
             if !valid_identifier(checkpoint_ref) || !checkpoint_matches {
                 findings.push(format!("checkpoint_binding_invalid:{}", node.node_id));
             }
@@ -846,13 +856,31 @@ mod tests {
             graph_version: "1.0.0".into(),
             provenance,
             version_bound_evidence: BTreeMap::from([
-                ("workflow_registry_digest".into(), json!(registry.workflow_digest.clone())),
-                ("operation_registry_digest".into(), json!(registry.operation_digest.clone())),
-                ("dependency_registry_digest".into(), json!(registry.dependency_digest.clone())),
-                ("checkpoint_registry_digest".into(), json!(registry.checkpoint_digest.clone())),
+                (
+                    "workflow_registry_digest".into(),
+                    json!(registry.workflow_digest.clone()),
+                ),
+                (
+                    "operation_registry_digest".into(),
+                    json!(registry.operation_digest.clone()),
+                ),
+                (
+                    "dependency_registry_digest".into(),
+                    json!(registry.dependency_digest.clone()),
+                ),
+                (
+                    "checkpoint_registry_digest".into(),
+                    json!(registry.checkpoint_digest.clone()),
+                ),
                 ("graph_revision_digest".into(), json!("c".repeat(64))),
-                ("configuration_digest_algorithm".into(), json!(CONFIGURATION_DIGEST_ALGORITHM)),
-                ("graph_validator_version".into(), json!(WORKFLOW_GRAPH_VALIDATOR_VERSION)),
+                (
+                    "configuration_digest_algorithm".into(),
+                    json!(CONFIGURATION_DIGEST_ALGORITHM),
+                ),
+                (
+                    "graph_validator_version".into(),
+                    json!(WORKFLOW_GRAPH_VALIDATOR_VERSION),
+                ),
             ]),
         }
     }
@@ -879,12 +907,18 @@ mod tests {
         second.nodes.reverse();
         second.edges.reverse();
         assert_eq!(
-            evaluate_workflow_graph(&first, &registry).unwrap().graph_digest,
-            evaluate_workflow_graph(&second, &registry).unwrap().graph_digest
+            evaluate_workflow_graph(&first, &registry)
+                .unwrap()
+                .graph_digest,
+            evaluate_workflow_graph(&second, &registry)
+                .unwrap()
+                .graph_digest
         );
         first.nodes.swap(0, 1);
         assert_eq!(
-            evaluate_workflow_graph(&first, &registry).unwrap().topological_order,
+            evaluate_workflow_graph(&first, &registry)
+                .unwrap()
+                .topological_order,
             vec!["node.fetch", "node.transform", "node.review"]
         );
     }
@@ -926,7 +960,9 @@ mod tests {
         value.nodes[0].configuration_digest = "0".repeat(64);
         value.provenance.node_operations[0].configuration_digest = "0".repeat(64);
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
     }
@@ -968,14 +1004,18 @@ mod tests {
         let mut value = input(&registry);
         value.edges[0].to_node_id = "node.unknown".into();
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
 
         let mut value = input(&registry);
         value.edges[0].from_node_id = value.edges[0].to_node_id.clone();
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
 
@@ -983,13 +1023,18 @@ mod tests {
         value.edges[0].dependency_type = "unregistered".into();
         value.provenance.dependency_edges[0].dependency_type = "unregistered".into();
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
 
         let mut value = input(&registry);
         value.nodes.push(value.nodes[0].clone());
-        value.provenance.node_operations.push(value.provenance.node_operations[0].clone());
+        value
+            .provenance
+            .node_operations
+            .push(value.provenance.node_operations[0].clone());
         assert_eq!(
             evaluate_workflow_graph(&value, &registry),
             Err("workflow_graph_node_provenance_invalid".into())
@@ -1006,14 +1051,19 @@ mod tests {
         let mut value = input(&registry);
         let mut duplicate = value.edges[0].clone();
         duplicate.edge_id = "edge.fetch-transform-duplicate".into();
-        value.provenance.dependency_edges.push(WorkflowDependencyEdgeProvenance {
-            edge_id: duplicate.edge_id.clone(),
-            dependency_type: duplicate.dependency_type.clone(),
-            provenance_ref: "dependency-source:duplicate".into(),
-        });
+        value
+            .provenance
+            .dependency_edges
+            .push(WorkflowDependencyEdgeProvenance {
+                edge_id: duplicate.edge_id.clone(),
+                dependency_type: duplicate.dependency_type.clone(),
+                provenance_ref: "dependency-source:duplicate".into(),
+            });
         value.edges.push(duplicate);
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
     }
@@ -1028,15 +1078,21 @@ mod tests {
             to_node_id: "node.fetch".into(),
             dependency_type: "required".into(),
         });
-        value.provenance.dependency_edges.push(WorkflowDependencyEdgeProvenance {
-            edge_id: "edge.review-fetch".into(),
-            dependency_type: "required".into(),
-            provenance_ref: "dependency-source:edge.review-fetch".into(),
-        });
+        value
+            .provenance
+            .dependency_edges
+            .push(WorkflowDependencyEdgeProvenance {
+                edge_id: "edge.review-fetch".into(),
+                dependency_type: "required".into(),
+                provenance_ref: "dependency-source:edge.review-fetch".into(),
+            });
         let output = evaluate_workflow_graph(&value, &registry).unwrap();
         assert_eq!(output.validation_status, "cycle");
         assert!(output.topological_order.is_empty());
-        assert!(output.evidence.findings.contains(&"dependency_cycle_detected".into()));
+        assert!(output
+            .evidence
+            .findings
+            .contains(&"dependency_cycle_detected".into()));
     }
 
     #[test]
@@ -1046,7 +1102,9 @@ mod tests {
         value.nodes[2].safe_stop = true;
         value.nodes[2].recovery_node_id = Some("node.fetch".into());
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
 
@@ -1059,19 +1117,24 @@ mod tests {
             configuration_digest: config_digest,
             immutable: true,
         };
-        registry.checkpoints.insert(checkpoint.checkpoint_ref.clone(), checkpoint);
+        registry
+            .checkpoints
+            .insert(checkpoint.checkpoint_ref.clone(), checkpoint);
         value.nodes[2].checkpoint_ref = Some("checkpoint.review".into());
-        value.provenance.node_operations[2].checkpoint_ref =
-            Some("checkpoint.review".into());
+        value.provenance.node_operations[2].checkpoint_ref = Some("checkpoint.review".into());
         value.provenance.node_operations[2].checkpoint_provenance_ref =
             Some("checkpoint-source:node.review".into());
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "valid"
         );
         value.nodes[2].checkpoint_ref = Some("checkpoint.unknown".into());
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
     }
@@ -1084,8 +1147,7 @@ mod tests {
         value.nodes[0].checkpoint_ref = Some("checkpoint.fetch".into());
         value.nodes[0].safe_stop = true;
         value.nodes[0].recovery_node_id = Some("node.review".into());
-        value.provenance.node_operations[0].checkpoint_ref =
-            Some("checkpoint.fetch".into());
+        value.provenance.node_operations[0].checkpoint_ref = Some("checkpoint.fetch".into());
         value.provenance.node_operations[0].checkpoint_provenance_ref =
             Some("checkpoint-source:node.fetch".into());
         registry.checkpoints.insert(
@@ -1100,7 +1162,9 @@ mod tests {
             },
         );
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "valid"
         );
     }
@@ -1115,13 +1179,18 @@ mod tests {
             Err("workflow_graph_provenance_coverage_incomplete".into())
         );
         let mut value = input(&registry);
-        value.provenance.validation_input_refs.push("input:workflow".into());
+        value
+            .provenance
+            .validation_input_refs
+            .push("input:workflow".into());
         assert_eq!(
             evaluate_workflow_graph(&value, &registry),
             Err("workflow_graph_validation_input_provenance_invalid".into())
         );
         let mut value = input(&registry);
-        value.version_bound_evidence.insert("unexpected".into(), json!("x"));
+        value
+            .version_bound_evidence
+            .insert("unexpected".into(), json!("x"));
         assert_eq!(
             evaluate_workflow_graph(&value, &registry),
             Err("workflow_graph_version_evidence_invalid".into())
