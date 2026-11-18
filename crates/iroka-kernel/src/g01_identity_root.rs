@@ -206,6 +206,7 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
         .any(|link| link.status != RootTrustDecision::Trusted);
 
     let (trust_decision, decision_rationale) = if record.status == RootStatus::Revoked
+        || record.key_status == RootStatus::Revoked
         || input.status == RootStatus::Revoked
         || revoked_issuer
     {
@@ -218,8 +219,6 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
         || input.status != record.status
     {
         (RootTrustDecision::Untrusted, "root or key is suspended or status claim conflicts".to_owned())
-    } else if record.key_status == RootStatus::Revoked {
-        (RootTrustDecision::Revoked, "root key is revoked".to_owned())
     } else if untrusted_issuer {
         (
             RootTrustDecision::Untrusted,
@@ -432,7 +431,7 @@ mod tests {
         assert!(!output.verified);
         assert_eq!(output.trust_decision, RootTrustDecision::Revoked);
 
-        let mut candidate = input();
+        let candidate = input();
         let revoked_key = CanonicalRegistry {
             key_status: RootStatus::Revoked,
             ..registry()
