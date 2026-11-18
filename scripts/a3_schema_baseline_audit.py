@@ -181,6 +181,49 @@ if len(vl_cases) != 12 or len(vl_case_ids) != 12:
 if vl_vectors.get("chromosome_count") != 12 or vl_vectors.get("gene_count") != 36:
     errors.append("G12 version-lineage A3 amendment changes the fixed genome")
 
+
+# A3 G01 lineage v1.1.0 bounded semantic amendment audit. The frozen A2
+# v1.0.0 contract remains intact; this version binds proof, graph and epoch evidence.
+LIN_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g01.lineage.input.schema.json"
+LIN_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g01.lineage.output.schema.json"
+LIN_VECTORS = ROOT / "docs/architecture/a3/g01-lineage-conformance-v1.1.0.json"
+lin_input = load(LIN_INPUT)
+lin_output = load(LIN_OUTPUT)
+lin_vectors = load(LIN_VECTORS)
+for schema_path_obj, document in ((LIN_INPUT, lin_input), (LIN_OUTPUT, lin_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if lin_input.get("$id") != "https://iroka.dev/schemas/genes/g01.lineage/input/1.1.0":
+    errors.append("G01 lineage A3 input schema ID/version mismatch")
+if lin_output.get("$id") != "https://iroka.dev/schemas/genes/g01.lineage/output/1.1.0":
+    errors.append("G01 lineage A3 output schema ID/version mismatch")
+lin_required = set(lin_input.get("required", []))
+for field in ("proof_ref", "proof_issuer_id", "proof_signature_ref", "proof_policy_id",
+              "proof_policy_version", "proof_digest", "epoch"):
+    if field not in lin_required:
+        errors.append(f"G01 lineage A3 input missing required proof/epoch field: {field}")
+relationships = lin_input.get("properties", {}).get("relationship", {}).get("enum", [])
+if "merged" in relationships or set(relationships) != {"derived", "successor"}:
+    errors.append("G01 lineage A3 v1.1.0 must fail closed on merged until multi-parent schema exists")
+if len(lin_output.get("allOf", [])) < 2:
+    errors.append("G01 lineage A3 output lineage_valid/depth/evidence consistency constraints missing")
+lin_evidence = lin_output.get("$defs", {}).get("evidence", {})
+for field in ("proof_verification", "graph_integrity", "parent_resolution", "epoch_validation"):
+    if field not in lin_evidence.get("required", []):
+        errors.append(f"G01 lineage A3 evidence missing required field: {field}")
+if lin_vectors.get("gene_id") != "g01.lineage" or lin_vectors.get("version") != "1.1.0":
+    errors.append("G01 lineage A3 conformance catalog identity/version mismatch")
+lin_cases = lin_vectors.get("cases", [])
+lin_case_ids = {case.get("case_id") for case in lin_cases}
+if len(lin_cases) != 11 or len(lin_case_ids) != 11:
+    errors.append(f"G01 lineage A3 expected 11 unique conformance cases, found {len(lin_cases)}")
+if lin_vectors.get("chromosome_count") != 12 or lin_vectors.get("gene_count") != 36:
+    errors.append("G01 lineage A3 amendment changes the fixed 12-chromosome/36-gene genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
