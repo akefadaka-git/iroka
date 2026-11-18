@@ -142,9 +142,11 @@ pub use version_lineage::{
     VersionLineageResult,
 };
 pub use workflow_graph::{
-    evaluate_workflow_graph, WorkflowDependencyKind, WorkflowGraphEdge, WorkflowGraphEvidence,
-    WorkflowGraphInput, WorkflowGraphNode, WorkflowGraphOutput, WorkflowGraphRegistry,
-    WorkflowOperationBinding, WorkflowRevisionBinding, WORKFLOW_GRAPH_VALIDATOR_VERSION,
+    evaluate_workflow_graph, WorkflowCheckpointBinding, WorkflowDependencyEdgeProvenance,
+    WorkflowDependencyKind, WorkflowGraphEdge, WorkflowGraphEvidence, WorkflowGraphInput,
+    WorkflowGraphNode, WorkflowGraphOutput, WorkflowGraphProvenance, WorkflowGraphRegistry,
+    WorkflowNodeOperationProvenance, WorkflowOperationBinding, WorkflowRevisionBinding,
+    WORKFLOW_GRAPH_VALIDATOR_VERSION,
 };
 
 /// Low-level deterministic policy primitive. It does not authenticate subjects,
