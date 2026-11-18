@@ -313,7 +313,7 @@ mod tests {
         let output = evaluate_lineage(&TestResolver { record: record() }, &input()).unwrap();
         assert!(output.lineage_valid);
         assert_eq!(output.verified_depth, 2);
-        assert_eq!(output.evidence.proof_verification.verified, true);
+        assert!(output.evidence.proof_verification.verified);
         assert!(output.evidence.graph_integrity.cycle_free);
         assert!(output.evidence.graph_integrity.conflict_free);
         assert!(output.evidence.graph_integrity.complete);
