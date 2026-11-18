@@ -153,7 +153,11 @@ mod lineage_tests {
         );
         let mut candidate = input();
         candidate.relationship = LineageRelationship::Merged;
-        assert!(evaluate_lineage(&ValidLineage, &candidate).unwrap().lineage_valid);
+        assert!(
+            evaluate_lineage(&ValidLineage, &candidate)
+                .unwrap()
+                .lineage_valid
+        );
     }
 
     #[test]
@@ -176,4 +180,3 @@ mod lineage_tests {
         );
     }
 }
-
