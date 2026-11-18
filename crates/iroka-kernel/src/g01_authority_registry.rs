@@ -22,7 +22,7 @@ use crate::{
         AlgorithmPolicyEvidence, IdentityRootError, IdentityRootInput, IdentityRootRegistry,
         IdentityRootRegistryRecord, IssuerLinkEvidence, RootStatus,
     },
-    RevocationChecker, SqliteSecurityStore, TrustRootSet, TrustStore,
+    RevocationChecker, SecurityStoreError, SqliteSecurityStore, TrustRootSet, TrustStore,
 };
 
 const MAX_SNAPSHOT_LIFETIME: u64 = 31_536_000;
@@ -1008,7 +1008,11 @@ fn advance_registry_checkpoint(
     let digest = Sha256::digest(metadata.signing_bytes);
     checkpoint
         .advance_authority_checkpoint(registry, metadata.revision, digest.as_slice())
-        .map_err(|_| G01RegistryError::StoreUnavailable)
+        .map_err(|error| match error {
+            SecurityStoreError::AuthorityCheckpointRollback => G01RegistryError::Rollback,
+            SecurityStoreError::AuthorityCheckpointConflict => G01RegistryError::ConflictingRevision,
+            _ => G01RegistryError::StoreUnavailable,
+        })
 }
 
 fn verify_registry_checkpoint(
@@ -1512,6 +1516,8 @@ mod independent_registry_tests {
         ));
         let _ = std::fs::remove_file(&database_path);
         let store = SqliteG01AuthorityStore::open(&database_path).expect("file-backed store");
+        let checkpoint = SqliteSecurityStore::open_in_memory().expect("independent checkpoint store");
+        let revocations = SqliteSecurityStore::open_in_memory().expect("revocation store");
         let mut identity = signed_identity_roots(&root);
         identity.revision = 2;
         identity.signature = root
@@ -1519,11 +1525,11 @@ mod independent_registry_tests {
             .to_bytes()
             .to_vec();
         store
-            .install_identity_root_registry(&identity, &roots, 20)
+            .install_identity_root_registry(&identity, &roots, &checkpoint, 20)
             .expect("install identity registry");
         assert_eq!(
             store
-                .latest_identity_root_registry(&roots, 20)
+                .latest_identity_root_registry(&roots, &checkpoint, 20)
                 .expect("load identity registry")
                 .revision,
             2
@@ -1536,14 +1542,14 @@ mod independent_registry_tests {
             .to_bytes()
             .to_vec();
         assert_eq!(
-            store.install_identity_root_registry(&stale_identity, &roots, 20),
+            store.install_identity_root_registry(&stale_identity, &roots, &checkpoint, 20),
             Err(G01RegistryError::Rollback)
         );
 
         let mut tampered_identity = identity.clone();
         tampered_identity.identity_roots[0].root_id = "substituted-root".to_owned();
         assert_eq!(
-            store.install_identity_root_registry(&tampered_identity, &roots, 20),
+            store.install_identity_root_registry(&tampered_identity, &roots, &checkpoint, 20),
             Err(G01RegistryError::InvalidRootSignature)
         );
 
@@ -1554,16 +1560,16 @@ mod independent_registry_tests {
             .to_bytes()
             .to_vec();
         assert_eq!(
-            store.install_identity_root_registry(&expired_identity, &roots, 20),
+            store.install_identity_root_registry(&expired_identity, &roots, &checkpoint, 20),
             Err(G01RegistryError::Expired)
         );
 
         let succession = signed_succession(&root, &issuer);
         store
-            .install_succession_registry(&succession, &roots, 20)
+            .install_succession_registry(&succession, &roots, &checkpoint, 20)
             .expect("install succession registry");
         let resolved = store
-            .resolve_verified_succession("succession-1", &roots, &trust, &SqliteSecurityStore::open_in_memory().expect("revocation store"), 11, 20)
+            .resolve_verified_succession("succession-1", &roots, &checkpoint, &trust, &revocations, 11, 20)
             .expect("verified succession");
         assert_eq!(resolved.successor_identity, "identity-new");
 
@@ -1589,7 +1595,7 @@ mod independent_registry_tests {
         )
         .expect("overlapping rotation trust");
         assert!(store
-            .resolve_verified_succession("succession-1", &roots, &overlap_trust, &SqliteSecurityStore::open_in_memory().expect("revocation store"), 11, 20)
+            .resolve_verified_succession("succession-1", &roots, &checkpoint, &overlap_trust, &revocations, 11, 20)
             .is_ok());
 
         let rotated_only_trust = TrustStore::new(
@@ -1604,7 +1610,7 @@ mod independent_registry_tests {
         )
         .expect("rotated key trust");
         assert_eq!(
-            store.resolve_verified_succession("succession-1", &roots, &rotated_only_trust, &SqliteSecurityStore::open_in_memory().expect("revocation store"), 11, 20),
+            store.resolve_verified_succession("succession-1", &roots, &checkpoint, &rotated_only_trust, &revocations, 11, 20),
             Err(G01RegistryError::UnknownIssuerKey)
         );
 
@@ -1616,6 +1622,7 @@ mod independent_registry_tests {
             store.resolve_verified_succession(
                 "succession-1",
                 &roots,
+                &checkpoint,
                 &trust,
                 &revoked_store,
                 11,
@@ -1627,6 +1634,7 @@ mod independent_registry_tests {
             store.resolve_verified_succession(
                 "succession-1",
                 &roots,
+                &checkpoint,
                 &trust,
                 &revoked_store,
                 10,
@@ -1669,7 +1677,7 @@ mod independent_registry_tests {
             .to_bytes()
             .to_vec();
         store
-            .install_compatibility_registry(&compatibility, &roots, 20)
+            .install_compatibility_registry(&compatibility, &roots, &checkpoint, 20)
             .expect("install compatibility registry");
         drop(store);
         let store = SqliteG01AuthorityStore::open(&database_path).expect("reopened durable store");
@@ -1682,14 +1690,14 @@ mod independent_registry_tests {
         );
         assert_eq!(
             store
-                .resolve_verified_succession("succession-1", &roots, &trust, &SqliteSecurityStore::open_in_memory().expect("revocation store"), 11, 20)
+                .resolve_verified_succession("succession-1", &roots, &checkpoint, &trust, &revocations, 11, 20)
                 .expect("succession survives restart")
                 .successor_identity,
             "identity-new"
         );
         let resolver = StaticMigration(artifact);
         let (contract, policy) = store
-            .resolve_compatibility_with_migration("migration-policy", "1", &roots, &resolver, 20)
+            .resolve_compatibility_with_migration("migration-policy", "1", &roots, &checkpoint, &resolver, 20)
             .expect("authenticated migration bytes after restart");
         assert_eq!(contract.contract_id, "compat-contract");
         assert_eq!(policy.policy_id, "migration-policy");
@@ -1734,13 +1742,15 @@ mod independent_registry_tests {
             .to_bytes()
             .to_vec();
         let store = SqliteG01AuthorityStore::open_in_memory().expect("store");
+        let checkpoint = SqliteSecurityStore::open_in_memory().expect("independent checkpoint store");
         store
-            .install_compatibility_registry(&envelope, &roots, 20)
+            .install_compatibility_registry(&envelope, &roots, &checkpoint, 20)
             .expect("install");
         let result = store.resolve_compatibility_with_migration(
             "policy",
             "1",
             &roots,
+            &checkpoint,
             &StaticMigration(b"substituted migration bytes".to_vec()),
             20,
         );
