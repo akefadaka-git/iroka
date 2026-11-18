@@ -436,7 +436,9 @@ fn validate_snapshot(s: &SignedG01AuthoritySnapshot) -> Result<(), G01RegistryEr
         if p.policy_id.trim().is_empty()
             || p.version.trim().is_empty()
             || p.allowed_algorithms.is_empty()
-            || p.allowed_algorithms.iter().any(|algorithm| algorithm.trim().is_empty())
+            || p.allowed_algorithms
+                .iter()
+                .any(|algorithm| algorithm.trim().is_empty())
             || !ids.insert(format!("{}@{}", p.policy_id, p.version))
         {
             return Err(G01RegistryError::InvalidSnapshot);
