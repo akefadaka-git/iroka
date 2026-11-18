@@ -595,8 +595,7 @@ mod compatibility_tests {
         fn evaluate(
             &self,
             _: &CompatibilityInput,
-        ) -> Result<(CompatibilityDecision, CompatibilityProof), CompatibilityError>
-            {
+        ) -> Result<(CompatibilityDecision, CompatibilityProof), CompatibilityError> {
             Ok((
                 CompatibilityDecision::Compatible,
                 CompatibilityProof {
