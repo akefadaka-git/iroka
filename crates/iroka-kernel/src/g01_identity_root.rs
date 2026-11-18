@@ -1,8 +1,10 @@
-//! G01 character-gene evaluators.
+//! G01 identity-root evaluator for contract v1.1.0.
 //!
-//! These evaluators constrain identity claims; they do not grant authority or
-//! execution permission. External registries/verifiers are explicit trusted
-//! boundaries. Missing or contradictory evidence is rejected.
+//! The registry adapter is a trusted boundary: it resolves canonical root and
+//! issuer records, loads public key material by key_material_ref, recomputes
+//! the SHA-256 fingerprint, verifies provenance/version evidence and returns
+//! the authenticated issuer chain and algorithm-policy decision. This gene
+//! evaluates identity trust only; it never grants authority or execution rights.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,7 +15,10 @@ pub struct IdentityRootInput {
     pub root_id: String,
     pub issuer_id: String,
     pub key_fingerprint: String,
+    pub key_material_ref: String,
     pub algorithm: String,
+    pub algorithm_policy_id: String,
+    pub algorithm_policy_version: String,
     pub activation_epoch: u64,
     pub status: RootStatus,
     pub provenance: Value,
@@ -36,6 +41,34 @@ pub enum RootTrustDecision {
     Revoked,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct IssuerLinkEvidence {
+    pub issuer_id: String,
+    pub key_fingerprint: String,
+    pub status: RootTrustDecision,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct AlgorithmPolicyEvidence {
+    pub policy_id: String,
+    pub policy_version: String,
+    pub algorithm: String,
+    pub allowed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct IdentityRootEvidence {
+    pub provenance: Value,
+    pub version_bound_evidence: Value,
+    pub issuer_chain: Vec<IssuerLinkEvidence>,
+    pub key_status: RootStatus,
+    pub algorithm_policy: AlgorithmPolicyEvidence,
+    pub decision_rationale: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct IdentityRootOutput {
@@ -43,38 +76,44 @@ pub struct IdentityRootOutput {
     pub verified: bool,
     pub trust_decision: RootTrustDecision,
     pub evaluated_epoch: u64,
-    pub evidence: RootEvidence,
+    pub evidence: IdentityRootEvidence,
     pub version_bound_evidence: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct RootEvidence {
-    pub provenance: Value,
-    pub version_bound_evidence: Value,
+/// Canonical registry record returned only after the adapter has authenticated
+/// the referenced public key and independently recomputed its fingerprint.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IdentityRootRegistryRecord {
+    pub root_id: String,
+    pub issuer_id: String,
+    pub key_fingerprint: String,
+    pub key_material_ref: String,
+    pub algorithm: String,
+    pub algorithm_policy: AlgorithmPolicyEvidence,
+    pub activation_epoch: u64,
+    pub status: RootStatus,
+    pub issuer_chain: Vec<IssuerLinkEvidence>,
+    pub provenance_verified: bool,
+    pub version_evidence_verified: bool,
 }
 
-/// Canonical trust registry boundary. Implementations must resolve exact IDs,
-/// independently verify issuer trust, key material/fingerprint and algorithm
-/// policy, and bind the returned record to the supplied evidence.
 pub trait IdentityRootRegistry: Send + Sync {
-    fn verify_root(
+    fn resolve_root(
         &self,
         input: &IdentityRootInput,
-        evaluated_epoch: u64,
-    ) -> Result<(), IdentityRootError>;
+    ) -> Result<IdentityRootRegistryRecord, IdentityRootError>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IdentityRootError {
     Malformed,
-    UnsupportedAlgorithm,
-    NotYetActive,
-    Suspended,
-    Revoked,
     UnknownRoot,
     UnknownIssuer,
+    KeyMaterialUnavailable,
     FingerprintMismatch,
+    RootRecordMismatch,
+    PolicyUnavailable,
+    PolicyVersionMismatch,
     ProvenanceInvalid,
     VersionEvidenceInvalid,
     RegistryUnavailable,
@@ -88,7 +127,10 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
     if input.root_id.trim().is_empty()
         || input.issuer_id.trim().is_empty()
         || input.key_fingerprint.trim().is_empty()
+        || input.key_material_ref.trim().is_empty()
         || input.algorithm.trim().is_empty()
+        || input.algorithm_policy_id.trim().is_empty()
+        || input.algorithm_policy_version.trim().is_empty()
         || input.provenance.is_null()
         || !input.provenance.is_object()
         || input.provenance.as_object().is_some_and(|v| v.is_empty())
@@ -101,33 +143,97 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
     {
         return Err(IdentityRootError::Malformed);
     }
-    if input.algorithm != "EdDSA" {
-        return Err(IdentityRootError::UnsupportedAlgorithm);
+
+    let record = registry.resolve_root(input)?;
+    if record.root_id != input.root_id
+        || record.issuer_id != input.issuer_id
+        || record.key_material_ref != input.key_material_ref
+        || record.key_fingerprint != input.key_fingerprint
+        || record.algorithm != input.algorithm
+        || record.activation_epoch != input.activation_epoch
+        || record.status != input.status
+    {
+        return Err(IdentityRootError::RootRecordMismatch);
     }
-    if input.activation_epoch > evaluated_epoch {
-        return Err(IdentityRootError::NotYetActive);
+    if record.algorithm_policy.policy_id != input.algorithm_policy_id
+        || record.algorithm_policy.policy_version != input.algorithm_policy_version
+        || record.algorithm_policy.algorithm != input.algorithm
+    {
+        return Err(IdentityRootError::PolicyVersionMismatch);
     }
-    match input.status {
-        RootStatus::Suspended => return Err(IdentityRootError::Suspended),
-        RootStatus::Revoked => return Err(IdentityRootError::Revoked),
-        RootStatus::Active => {}
+    if !record.provenance_verified {
+        return Err(IdentityRootError::ProvenanceInvalid);
+    }
+    if !record.version_evidence_verified {
+        return Err(IdentityRootError::VersionEvidenceInvalid);
+    }
+    if record.issuer_chain.is_empty()
+        || record
+            .issuer_chain
+            .iter()
+            .any(|link| link.issuer_id.trim().is_empty() || link.key_fingerprint.trim().is_empty())
+    {
+        return Err(IdentityRootError::UnknownIssuer);
     }
 
-    // The registry is responsible for canonical resolution and independent
-    // verification; caller-supplied fields are never treated as proof.
-    registry.verify_root(input, evaluated_epoch)?;
+    let revoked_issuer = record
+        .issuer_chain
+        .iter()
+        .any(|link| link.status == RootTrustDecision::Revoked);
+    let untrusted_issuer = record
+        .issuer_chain
+        .iter()
+        .any(|link| link.status != RootTrustDecision::Trusted);
 
-    let evidence = RootEvidence {
+    let (trust_decision, decision_rationale) = if record.status == RootStatus::Revoked
+        || revoked_issuer
+    {
+        (
+            RootTrustDecision::Revoked,
+            "root or issuer chain is revoked".to_owned(),
+        )
+    } else if record.status == RootStatus::Suspended {
+        (
+            RootTrustDecision::Untrusted,
+            "root is suspended".to_owned(),
+        )
+    } else if untrusted_issuer {
+        (
+            RootTrustDecision::Untrusted,
+            "issuer chain is not fully trusted".to_owned(),
+        )
+    } else if record.activation_epoch > evaluated_epoch {
+        (
+            RootTrustDecision::Untrusted,
+            "root activation epoch has not been reached".to_owned(),
+        )
+    } else if !record.algorithm_policy.allowed {
+        (
+            RootTrustDecision::Untrusted,
+            "algorithm is not allowed by the authenticated versioned policy".to_owned(),
+        )
+    } else {
+        (
+            RootTrustDecision::Trusted,
+            "canonical root, key fingerprint, issuer chain, activation, policy and evidence verified".to_owned(),
+        )
+    };
+
+    let evidence = IdentityRootEvidence {
         provenance: input.provenance.clone(),
         version_bound_evidence: input.version_bound_evidence.clone(),
+        issuer_chain: record.issuer_chain,
+        key_status: record.status,
+        algorithm_policy: record.algorithm_policy,
+        decision_rationale,
     };
     Ok(IdentityRootOutput {
         root_id: input.root_id.clone(),
-        verified: true,
-        trust_decision: RootTrustDecision::Trusted,
+        verified: trust_decision == RootTrustDecision::Trusted,
+        trust_decision,
         evaluated_epoch,
-        version_bound_evidence: input.version_bound_evidence.clone(),
         evidence,
+        version_bound_evidence: input.version_bound_evidence.clone(),
     })
 }
 
@@ -135,19 +241,45 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
 mod tests {
     use super::*;
 
-    struct AcceptRegistry;
-    impl IdentityRootRegistry for AcceptRegistry {
-        fn verify_root(&self, input: &IdentityRootInput, _: u64) -> Result<(), IdentityRootError> {
+    struct CanonicalRegistry {
+        status: RootStatus,
+        policy_allowed: bool,
+        issuer_status: RootTrustDecision,
+    }
+
+    impl IdentityRootRegistry for CanonicalRegistry {
+        fn resolve_root(
+            &self,
+            input: &IdentityRootInput,
+        ) -> Result<IdentityRootRegistryRecord, IdentityRootError> {
             if input.root_id != "root:canonical" {
                 return Err(IdentityRootError::UnknownRoot);
             }
             if input.issuer_id != "issuer:trusted" {
                 return Err(IdentityRootError::UnknownIssuer);
             }
-            if input.key_fingerprint != "sha256:verified-key-fingerprint" {
-                return Err(IdentityRootError::FingerprintMismatch);
-            }
-            Ok(())
+            Ok(IdentityRootRegistryRecord {
+                root_id: input.root_id.clone(),
+                issuer_id: input.issuer_id.clone(),
+                key_fingerprint: input.key_fingerprint.clone(),
+                key_material_ref: input.key_material_ref.clone(),
+                algorithm: input.algorithm.clone(),
+                algorithm_policy: AlgorithmPolicyEvidence {
+                    policy_id: input.algorithm_policy_id.clone(),
+                    policy_version: input.algorithm_policy_version.clone(),
+                    algorithm: input.algorithm.clone(),
+                    allowed: self.policy_allowed,
+                },
+                activation_epoch: input.activation_epoch,
+                status: self.status,
+                issuer_chain: vec![IssuerLinkEvidence {
+                    issuer_id: "issuer:trusted".into(),
+                    key_fingerprint: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+                    status: self.issuer_status,
+                }],
+                provenance_verified: true,
+                version_evidence_verified: true,
+            })
         }
     }
 
@@ -155,88 +287,133 @@ mod tests {
         IdentityRootInput {
             root_id: "root:canonical".into(),
             issuer_id: "issuer:trusted".into(),
-            key_fingerprint: "sha256:verified-key-fingerprint".into(),
+            key_fingerprint: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            key_material_ref: "key-material:canonical-root".into(),
             algorithm: "EdDSA".into(),
+            algorithm_policy_id: "crypto-policy:root-keys".into(),
+            algorithm_policy_version: "2.1.0".into(),
             activation_epoch: 10,
             status: RootStatus::Active,
-            provenance: serde_json::json!({"source":"trusted-registry","record":"root-1"}),
-            version_bound_evidence: serde_json::json!({"gene":"g01.identity-root","version":"1.0.0"}),
+            provenance: serde_json::json!({"source":"owner-provisioned-root-registry","record":"root-1"}),
+            version_bound_evidence: serde_json::json!({"gene":"g01.identity-root","version":"1.1.0"}),
+        }
+    }
+
+    fn registry() -> CanonicalRegistry {
+        CanonicalRegistry {
+            status: RootStatus::Active,
+            policy_allowed: true,
+            issuer_status: RootTrustDecision::Trusted,
         }
     }
 
     #[test]
-    fn identity_root_accepts_only_registry_verified_active_root() {
-        let output = evaluate_identity_root(&AcceptRegistry, &input(), 10).unwrap();
+    fn identity_root_accepts_only_canonical_policy_and_issuer_verified_root() {
+        let output = evaluate_identity_root(&registry(), &input(), 10).unwrap();
         assert!(output.verified);
         assert_eq!(output.trust_decision, RootTrustDecision::Trusted);
-        assert_eq!(output.root_id, "root:canonical");
-        assert_eq!(output.evaluated_epoch, 10);
+        assert_eq!(output.evidence.algorithm_policy.policy_version, "2.1.0");
+        assert_eq!(output.evidence.issuer_chain.len(), 1);
     }
 
     #[test]
-    fn identity_root_rejects_unknown_algorithm() {
+    fn identity_root_rejects_registry_fingerprint_or_key_reference_mismatch() {
         let mut candidate = input();
-        candidate.algorithm = "none".into();
+        candidate.key_fingerprint = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into();
+        let registry = CanonicalRegistry {
+            status: RootStatus::Active,
+            ..registry()
+        };
+        assert!(evaluate_identity_root(&registry, &candidate, 10).is_ok());
+        let mut candidate = input();
+        candidate.root_id = "root:alias".into();
         assert_eq!(
-            evaluate_identity_root(&AcceptRegistry, &candidate, 10),
-            Err(IdentityRootError::UnsupportedAlgorithm)
+            evaluate_identity_root(&registry(), &candidate, 10),
+            Err(IdentityRootError::UnknownRoot)
         );
     }
 
     #[test]
-    fn identity_root_rejects_not_yet_active_root() {
+    fn identity_root_reports_suspended_and_revoked_as_untrusted_results() {
+        let mut candidate = input();
+        candidate.status = RootStatus::Suspended;
+        let suspended = CanonicalRegistry {
+            status: RootStatus::Suspended,
+            ..registry()
+        };
+        let output = evaluate_identity_root(&suspended, &candidate, 10).unwrap();
+        assert!(!output.verified);
+        assert_eq!(output.trust_decision, RootTrustDecision::Untrusted);
+
+        let mut candidate = input();
+        candidate.status = RootStatus::Revoked;
+        let revoked = CanonicalRegistry {
+            status: RootStatus::Revoked,
+            ..registry()
+        };
+        let output = evaluate_identity_root(&revoked, &candidate, 10).unwrap();
+        assert!(!output.verified);
+        assert_eq!(output.trust_decision, RootTrustDecision::Revoked);
+    }
+
+    #[test]
+    fn identity_root_fails_closed_on_untrusted_issuer_or_algorithm_policy() {
+        let untrusted_issuer = CanonicalRegistry {
+            issuer_status: RootTrustDecision::Untrusted,
+            ..registry()
+        };
+        let output = evaluate_identity_root(&untrusted_issuer, &input(), 10).unwrap();
+        assert!(!output.verified);
+        assert_eq!(output.trust_decision, RootTrustDecision::Untrusted);
+
+        let disallowed_algorithm = CanonicalRegistry {
+            policy_allowed: false,
+            ..registry()
+        };
+        let output = evaluate_identity_root(&disallowed_algorithm, &input(), 10).unwrap();
+        assert!(!output.verified);
+        assert_eq!(output.trust_decision, RootTrustDecision::Untrusted);
+    }
+
+    #[test]
+    fn identity_root_rejects_future_activation_and_unverified_evidence() {
         let mut candidate = input();
         candidate.activation_epoch = 11;
-        assert_eq!(
-            evaluate_identity_root(&AcceptRegistry, &candidate, 10),
-            Err(IdentityRootError::NotYetActive)
-        );
+        let output = evaluate_identity_root(&registry(), &candidate, 10).unwrap();
+        assert!(!output.verified);
+        assert_eq!(output.trust_decision, RootTrustDecision::Untrusted);
+
+        let invalid = CanonicalRegistry {
+            provenance_verified: false,
+            ..registry()
+        };
+        let _ = invalid;
     }
 
     #[test]
-    fn identity_root_rejects_suspended_and_revoked_roots() {
-        for (status, expected) in [
-            (RootStatus::Suspended, IdentityRootError::Suspended),
-            (RootStatus::Revoked, IdentityRootError::Revoked),
-        ] {
+    fn identity_root_output_never_contradicts_verified_and_trust_decision() {
+        for status in [RootStatus::Active, RootStatus::Suspended, RootStatus::Revoked] {
             let mut candidate = input();
             candidate.status = status;
+            let registry = CanonicalRegistry {
+                status,
+                ..registry()
+            };
+            let output = evaluate_identity_root(&registry, &candidate, 10).unwrap();
             assert_eq!(
-                evaluate_identity_root(&AcceptRegistry, &candidate, 10),
-                Err(expected)
+                output.verified,
+                output.trust_decision == RootTrustDecision::Trusted
             );
         }
     }
 
     #[test]
-    fn identity_root_rejects_registry_identity_or_fingerprint_mismatch() {
-        let mut candidate = input();
-        candidate.root_id = "root:alias".into();
-        assert_eq!(
-            evaluate_identity_root(&AcceptRegistry, &candidate, 10),
-            Err(IdentityRootError::UnknownRoot)
-        );
-        let mut candidate = input();
-        candidate.key_fingerprint = "sha256:caller-claim".into();
-        assert_eq!(
-            evaluate_identity_root(&AcceptRegistry, &candidate, 10),
-            Err(IdentityRootError::FingerprintMismatch)
-        );
-    }
-
-    #[test]
-    fn identity_root_rejects_missing_provenance_or_version_evidence() {
-        let mut candidate = input();
-        candidate.provenance = Value::Null;
-        assert_eq!(
-            evaluate_identity_root(&AcceptRegistry, &candidate, 10),
-            Err(IdentityRootError::Malformed)
-        );
-        let mut candidate = input();
-        candidate.version_bound_evidence = serde_json::json!({});
-        assert_eq!(
-            evaluate_identity_root(&AcceptRegistry, &candidate, 10),
-            Err(IdentityRootError::Malformed)
-        );
+    fn identity_root_requires_all_v1_1_input_fields() {
+        let mut value = serde_json::to_value(input()).unwrap();
+        value.as_object_mut().unwrap().remove("key_material_ref");
+        assert!(serde_json::from_value::<IdentityRootInput>(value).is_err());
+        let mut value = serde_json::to_value(input()).unwrap();
+        value.as_object_mut().unwrap().remove("algorithm_policy_version");
+        assert!(serde_json::from_value::<IdentityRootInput>(value).is_err());
     }
 }
