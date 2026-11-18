@@ -1,0 +1,105 @@
+{
+  "gene_id": "g01.compatibility",
+  "version": "1.1.0",
+  "chromosome_count": 12,
+  "gene_count": 36,
+  "cases": [
+    {
+      "case_id": "G01-COMP-A3-P01",
+      "polarity": "positive",
+      "name": "canonical versions and authenticated policy establish compatibility with no migration",
+      "expected": {
+        "compatibility": true,
+        "decision": "compatible"
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-P02",
+      "polarity": "positive",
+      "name": "migration-required result bound to authenticated migration artifact",
+      "expected": {
+        "compatibility": false,
+        "decision": "migration_required"
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N01",
+      "polarity": "negative",
+      "name": "unknown or ambiguous source/target version",
+      "expected": {
+        "decision": "reject",
+        "reason": "unknown_or_ambiguous_version"
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N02",
+      "polarity": "negative",
+      "name": "version grammar or canonical contract registry mismatch",
+      "expected": {
+        "decision": "reject",
+        "reason": "version_resolution_invalid"
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N03",
+      "polarity": "negative",
+      "name": "policy issuer/signature/version/scope/validity is not authenticated",
+      "expected": {
+        "decision": "reject",
+        "reason": "policy_untrusted"
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N04",
+      "polarity": "negative",
+      "name": "declared_compatible conflicts with independently derived policy decision",
+      "expected": {
+        "compatibility": false,
+        "declaration_conflict": true
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N05",
+      "polarity": "negative",
+      "name": "non-null migration digest lacks authenticated migration reference",
+      "expected": {
+        "decision": "reject",
+        "reason": "migration_reference_missing"
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N06",
+      "polarity": "negative",
+      "name": "migration artifact digest or source/target binding mismatch",
+      "expected": {
+        "decision": "reject",
+        "reason": "migration_invalid"
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N07",
+      "polarity": "negative",
+      "name": "null migration accepted without policy proof that no migration is required",
+      "expected": {
+        "decision": "reject",
+        "reason": "no_migration_proof_missing"
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N08",
+      "polarity": "negative",
+      "name": "compatibility true with incompatible decision",
+      "expected": {
+        "schema_valid": false
+      }
+    },
+    {
+      "case_id": "G01-COMP-A3-N09",
+      "polarity": "negative",
+      "name": "compatible decision with declaration conflict",
+      "expected": {
+        "schema_valid": false
+      }
+    }
+  ]
+}
