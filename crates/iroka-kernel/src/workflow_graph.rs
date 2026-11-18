@@ -503,32 +503,50 @@ pub fn evaluate_workflow_graph(
         || input.nodes.is_empty()
         || input.nodes.len() > 10_000
         || input.edges.len() > 50_000
-        || input.provenance.is_empty()
         || input.version_bound_evidence.is_empty()
     {
         return Err("workflow_graph_input_invalid".into());
     }
-    let source_ref = required_evidence(&input.provenance, "source_ref")?;
-    let revision_ref = required_evidence(&input.provenance, "revision_ref")?;
-    if source_ref.len() > 512 || revision_ref.len() > 512 {
+    if input.provenance.source_ref.is_empty()
+        || input.provenance.revision_ref.is_empty()
+        || input.provenance.source_ref.len() > 512
+        || input.provenance.revision_ref.len() > 512
+    {
         return Err("workflow_graph_provenance_invalid".into());
     }
     let workflow_registry_digest = registry.workflow_registry_digest();
     let operation_registry_digest = registry.operation_registry_digest();
     let dependency_registry_digest = registry.dependency_registry_digest();
+    let checkpoint_registry_digest = registry.checkpoint_registry_digest();
     for value in [
         workflow_registry_digest,
         operation_registry_digest,
         dependency_registry_digest,
+        checkpoint_registry_digest,
     ] {
         if !valid_digest(value) {
             return Err("workflow_graph_registry_digest_invalid".into());
         }
     }
     let bound = &input.version_bound_evidence;
+    let expected_keys = [
+        "workflow_registry_digest",
+        "operation_registry_digest",
+        "dependency_registry_digest",
+        "checkpoint_registry_digest",
+        "graph_revision_digest",
+        "configuration_digest_algorithm",
+        "graph_validator_version",
+    ];
+    if bound.len() != expected_keys.len()
+        || expected_keys.iter().any(|key| !bound.contains_key(*key))
+    {
+        return Err("workflow_graph_version_evidence_invalid".into());
+    }
     if required_evidence(bound, "workflow_registry_digest")? != workflow_registry_digest
         || required_evidence(bound, "operation_registry_digest")? != operation_registry_digest
         || required_evidence(bound, "dependency_registry_digest")? != dependency_registry_digest
+        || required_evidence(bound, "checkpoint_registry_digest")? != checkpoint_registry_digest
         || required_evidence(bound, "configuration_digest_algorithm")?
             != CONFIGURATION_DIGEST_ALGORITHM
         || required_evidence(bound, "graph_validator_version")? != WORKFLOW_GRAPH_VALIDATOR_VERSION
@@ -539,14 +557,15 @@ pub fn evaluate_workflow_graph(
         return Err("workflow_revision_not_registered".into());
     };
     if revision.workflow_id != input.workflow_id
-        || revision.revision_ref != revision_ref
+        || revision.revision_ref != input.provenance.revision_ref
         || revision.graph_version != input.graph_version
         || !valid_digest(&revision.revision_digest)
         || required_evidence(bound, "graph_revision_digest")? != revision.revision_digest
     {
         return Err("workflow_revision_binding_mismatch".into());
     }
-    let (graph_digest, _nodes, _edges) = sorted_graph(input, revision, registry)?;
+    validate_provenance(input, registry)?;
+    let graph_digest = sorted_graph_digest(input, revision, registry)?;
     let (validation_status, topological_order, findings) = match topological_order(input, registry)
     {
         Ok(order) => ("valid".to_owned(), order, Vec::new()),
