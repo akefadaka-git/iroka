@@ -137,11 +137,7 @@ mod tests {
 
     struct AcceptRegistry;
     impl IdentityRootRegistry for AcceptRegistry {
-        fn verify_root(
-            &self,
-            input: &IdentityRootInput,
-            _: u64,
-        ) -> Result<(), IdentityRootError> {
+        fn verify_root(&self, input: &IdentityRootInput, _: u64) -> Result<(), IdentityRootError> {
             if input.root_id != "root:canonical" {
                 return Err(IdentityRootError::UnknownRoot);
             }
@@ -245,7 +241,6 @@ mod tests {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct LineageInput {
@@ -299,10 +294,7 @@ pub enum LineageError {
 /// ordering plus provenance/version evidence. A single predecessor is the
 /// only representable parent shape in the frozen v1.0.0 input schema.
 pub trait LineageResolver: Send + Sync {
-    fn verify_lineage(
-        &self,
-        input: &LineageInput,
-    ) -> Result<(String, u64), LineageError>;
+    fn verify_lineage(&self, input: &LineageInput) -> Result<(String, u64), LineageError>;
 }
 
 pub fn evaluate_lineage<R: LineageResolver>(
@@ -317,7 +309,10 @@ pub fn evaluate_lineage<R: LineageResolver>(
         || input.provenance.as_object().is_some_and(|v| v.is_empty())
         || input.version_bound_evidence.is_null()
         || !input.version_bound_evidence.is_object()
-        || input.version_bound_evidence.as_object().is_some_and(|v| v.is_empty())
+        || input
+            .version_bound_evidence
+            .as_object()
+            .is_some_and(|v| v.is_empty())
     {
         return Err(LineageError::Malformed);
     }
@@ -354,13 +349,8 @@ mod lineage_tests {
 
     struct ValidLineage;
     impl LineageResolver for ValidLineage {
-        fn verify_lineage(
-            &self,
-            input: &LineageInput,
-        ) -> Result<(String, u64), LineageError> {
-            if input.subject_id != "subject:current"
-                || input.predecessor_id != "subject:previous"
-            {
+        fn verify_lineage(&self, input: &LineageInput) -> Result<(String, u64), LineageError> {
+            if input.subject_id != "subject:current" || input.predecessor_id != "subject:previous" {
                 return Err(LineageError::UnknownIdentity);
             }
             if input.proof_digest != "sha256:succession-proof" {
@@ -426,7 +416,6 @@ mod lineage_tests {
         );
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -514,7 +503,10 @@ pub fn evaluate_compatibility<R: CompatibilityResolver>(
         || input.version_bound_evidence.is_null()
         || !input.version_bound_evidence.is_object()
         || input.version_bound_evidence.as_object().is_some_and(|v| v.is_empty())
-        || input.migration_digest.as_ref().is_some_and(|v| v.trim().is_empty())
+        || input
+            .migration_digest
+            .as_ref()
+            .is_some_and(|v| v.trim().is_empty())
     {
         return Err(CompatibilityError::Malformed);
     }
@@ -653,7 +645,8 @@ mod compatibility_tests {
             fn evaluate(
                 &self,
                 _: &CompatibilityInput,
-            ) -> Result<(CompatibilityDecision, CompatibilityProof), CompatibilityError> {
+            ) -> Result<(CompatibilityDecision, CompatibilityProof), CompatibilityError>
+            {
                 Ok((
                     CompatibilityDecision::Compatible,
                     CompatibilityProof {
