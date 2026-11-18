@@ -37,6 +37,9 @@ pub use g01_authority_registry::{
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
+pub use g01_identity_root::{
+    IdentityEvidenceContext, IdentityEvidenceVerifier, IdentityKeyMaterialResolver,
+};
 pub use identity::VerifiedPrincipal;
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
