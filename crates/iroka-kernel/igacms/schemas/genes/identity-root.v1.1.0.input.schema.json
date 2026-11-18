@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.identity-root/input/1.1.0",
+  "title": "g01.identity-root input contract v1.1.0",
+  "description": "Versioned identity-root contract with verifiable key-material reference and explicit algorithm-policy binding.",
+  "type": "object",
+  "properties": {
+    "root_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issuer_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "key_fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "key_material_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "algorithm": {
+      "type": "string",
+      "minLength": 1
+    },
+    "algorithm_policy_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "algorithm_policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "activation_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suspended",
+        "revoked"
+      ]
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "root_id",
+    "issuer_id",
+    "key_fingerprint",
+    "key_material_ref",
+    "algorithm",
+    "algorithm_policy_id",
+    "algorithm_policy_version",
+    "activation_epoch",
+    "status",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    }
+  }
+}
