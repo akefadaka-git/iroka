@@ -46,10 +46,16 @@ def main() -> None:
             "implementation_digest": "b" * 64,
             "configuration_digest": digest,
             "operation_provenance_ref": "operation-source:node.fetch",
-            "configuration_provenance_ref": "configuration-source:node.fetch"
+            "configuration_provenance_ref": "configuration-source:node.fetch",
+            "checkpoint_ref": None,
+            "checkpoint_provenance_ref": None
         }],
         "dependency_edges": [],
-        "validation_input_refs": ["input:workflow", "input:operations"]
+        "validation_input_refs": [
+            "synthetic:test", "revision:demo:1", "registry:workflow:1",
+            "registry:operation:1", "registry:dependency:1", "registry:checkpoint:1",
+            "input:workflow", "input:operations"
+        ]
     }
     evidence = {
         "workflow_registry_digest": "c" * 64,
