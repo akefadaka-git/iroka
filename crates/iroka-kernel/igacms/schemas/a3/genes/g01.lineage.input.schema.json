@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.lineage/input/1.1.0",
+  "title": "g01.lineage input contract v1.1.0",
+  "description": "Authenticated succession-proof and acyclic single-parent lineage contract; merged relationships are excluded pending multi-parent schema.",
+  "type": "object",
+  "properties": {
+    "subject_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "predecessor_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "relationship": {
+      "type": "string",
+      "enum": [
+        "derived",
+        "successor"
+      ]
+    },
+    "proof_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "proof_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proof_issuer_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proof_signature_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proof_policy_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proof_policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "subject_id",
+    "predecessor_id",
+    "relationship",
+    "proof_digest",
+    "proof_ref",
+    "proof_issuer_id",
+    "proof_signature_ref",
+    "proof_policy_id",
+    "proof_policy_version",
+    "epoch",
+    "provenance",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    }
+  }
+}

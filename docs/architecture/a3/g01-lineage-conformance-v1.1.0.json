@@ -1,0 +1,105 @@
+{
+  "gene_id": "g01.lineage",
+  "version": "1.1.0",
+  "chromosome_count": 12,
+  "gene_count": 36,
+  "cases": [
+    {
+      "case_id": "G01-LIN-A3-P01",
+      "polarity": "positive",
+      "name": "derived lineage with authenticated proof and complete acyclic graph",
+      "expected": {
+        "lineage_valid": true,
+        "verified_depth": 2
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-P02",
+      "polarity": "positive",
+      "name": "successor lineage with monotonic authoritative epoch",
+      "expected": {
+        "lineage_valid": true,
+        "verified_depth": 2
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N01",
+      "polarity": "negative",
+      "name": "proof reference or signature reference missing",
+      "expected": {
+        "decision": "reject",
+        "reason": "proof_unavailable"
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N02",
+      "polarity": "negative",
+      "name": "proof issuer is unknown or signature invalid",
+      "expected": {
+        "decision": "reject",
+        "reason": "proof_invalid"
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N03",
+      "polarity": "negative",
+      "name": "cycle exists in resolved ancestry graph",
+      "expected": {
+        "decision": "reject",
+        "reason": "cycle_detected"
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N04",
+      "polarity": "negative",
+      "name": "conflicting parent ancestry",
+      "expected": {
+        "decision": "reject",
+        "reason": "conflicting_ancestry"
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N05",
+      "polarity": "negative",
+      "name": "graph traversal is incomplete",
+      "expected": {
+        "decision": "reject",
+        "reason": "incomplete_graph"
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N06",
+      "polarity": "negative",
+      "name": "subject epoch is not monotonic after predecessor",
+      "expected": {
+        "decision": "reject",
+        "reason": "epoch_non_monotonic"
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N07",
+      "polarity": "negative",
+      "name": "merged relationship rejected until multi-parent schema exists",
+      "expected": {
+        "schema_valid": false
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N08",
+      "polarity": "negative",
+      "name": "lineage_valid true with zero depth or failed graph evidence",
+      "expected": {
+        "schema_valid": false
+      }
+    },
+    {
+      "case_id": "G01-LIN-A3-N09",
+      "polarity": "negative",
+      "name": "unknown or ambiguous predecessor identity",
+      "expected": {
+        "decision": "reject",
+        "reason": "parent_unresolved"
+      }
+    }
+  ]
+}
