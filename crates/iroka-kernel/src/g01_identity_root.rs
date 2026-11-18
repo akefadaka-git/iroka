@@ -64,6 +64,9 @@ pub struct IdentityRootEvidence {
     pub provenance: Value,
     pub version_bound_evidence: Value,
     pub issuer_chain: Vec<IssuerLinkEvidence>,
+    pub key_fingerprint: String,
+    pub key_material_ref: String,
+    pub root_status: RootStatus,
     pub key_status: RootStatus,
     pub algorithm_policy: AlgorithmPolicyEvidence,
     pub decision_rationale: String,
@@ -92,6 +95,7 @@ pub struct IdentityRootRegistryRecord {
     pub algorithm_policy: AlgorithmPolicyEvidence,
     pub activation_epoch: u64,
     pub status: RootStatus,
+    pub key_status: RootStatus,
     pub issuer_chain: Vec<IssuerLinkEvidence>,
     pub provenance_verified: bool,
     pub version_evidence_verified: bool,
@@ -209,8 +213,13 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
             RootTrustDecision::Revoked,
             "root or issuer chain is revoked".to_owned(),
         )
-    } else if record.status == RootStatus::Suspended || input.status != record.status {
-        (RootTrustDecision::Untrusted, "root is suspended".to_owned())
+    } else if record.status == RootStatus::Suspended
+        || record.key_status == RootStatus::Suspended
+        || input.status != record.status
+    {
+        (RootTrustDecision::Untrusted, "root or key is suspended or status claim conflicts".to_owned())
+    } else if record.key_status == RootStatus::Revoked {
+        (RootTrustDecision::Revoked, "root key is revoked".to_owned())
     } else if untrusted_issuer {
         (
             RootTrustDecision::Untrusted,
@@ -237,7 +246,10 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
         provenance: input.provenance.clone(),
         version_bound_evidence: input.version_bound_evidence.clone(),
         issuer_chain: record.issuer_chain,
-        key_status: record.status,
+        key_fingerprint: record.key_fingerprint,
+        key_material_ref: record.key_material_ref,
+        root_status: record.status,
+        key_status: record.key_status,
         algorithm_policy: record.algorithm_policy,
         decision_rationale,
     };
@@ -257,6 +269,7 @@ mod tests {
 
     struct CanonicalRegistry {
         status: RootStatus,
+        key_status: RootStatus,
         policy_allowed: bool,
         issuer_status: RootTrustDecision,
         provenance_verified: bool,
@@ -303,6 +316,7 @@ mod tests {
                 },
                 activation_epoch: input.activation_epoch,
                 status: self.status,
+                key_status: self.key_status,
                 issuer_chain: vec![IssuerLinkEvidence {
                     issuer_id: "issuer:trusted".into(),
                     key_fingerprint:
@@ -336,6 +350,7 @@ mod tests {
     fn registry() -> CanonicalRegistry {
         CanonicalRegistry {
             status: RootStatus::Active,
+            key_status: RootStatus::Active,
             policy_allowed: true,
             issuer_status: RootTrustDecision::Trusted,
             provenance_verified: true,
@@ -414,6 +429,15 @@ mod tests {
             ..registry()
         };
         let output = evaluate_identity_root(&revoked, &candidate, 10).unwrap();
+        assert!(!output.verified);
+        assert_eq!(output.trust_decision, RootTrustDecision::Revoked);
+
+        let mut candidate = input();
+        let revoked_key = CanonicalRegistry {
+            key_status: RootStatus::Revoked,
+            ..registry()
+        };
+        let output = evaluate_identity_root(&revoked_key, &candidate, 10).unwrap();
         assert!(!output.verified);
         assert_eq!(output.trust_decision, RootTrustDecision::Revoked);
     }
