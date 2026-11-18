@@ -1766,6 +1766,54 @@ mod independent_registry_tests {
     }
 
     #[test]
+    fn restoring_an_old_authority_database_image_fails_against_external_checkpoint() {
+        let (root, roots) = root_authority();
+        let suffix = format!("{}-rollback", std::process::id());
+        let database_path = std::env::temp_dir().join(format!("iroka-g01-{suffix}.sqlite"));
+        let backup_path = std::env::temp_dir().join(format!("iroka-g01-{suffix}.backup.sqlite"));
+        let checkpoint_path =
+            std::env::temp_dir().join(format!("iroka-g01-{suffix}-checkpoint.sqlite"));
+        let _ = std::fs::remove_file(&database_path);
+        let _ = std::fs::remove_file(&backup_path);
+        let _ = std::fs::remove_file(&checkpoint_path);
+
+        let checkpoint = SqliteSecurityStore::open(&checkpoint_path)
+            .expect("separate durable checkpoint database");
+        let store = SqliteG01AuthorityStore::open(&database_path).expect("authority database");
+        let revision_one = signed_identity_roots(&root);
+        store
+            .install_identity_root_registry(&revision_one, &roots, &checkpoint, 20)
+            .expect("install revision one");
+        drop(store);
+        std::fs::copy(&database_path, &backup_path).expect("capture old database image");
+
+        let store = SqliteG01AuthorityStore::open(&database_path).expect("reopen authority database");
+        let mut revision_two = signed_identity_roots(&root);
+        revision_two.revision = 2;
+        revision_two.signature = root
+            .sign(&revision_two.signing_bytes().expect("canonical bytes"))
+            .to_bytes()
+            .to_vec();
+        store
+            .install_identity_root_registry(&revision_two, &roots, &checkpoint, 21)
+            .expect("advance authority state");
+        drop(store);
+
+        std::fs::copy(&backup_path, &database_path).expect("restore stale database image");
+        let restored = SqliteG01AuthorityStore::open(&database_path).expect("restored authority database");
+        assert_eq!(
+            restored.latest_identity_root_registry(&roots, &checkpoint, 22),
+            Err(G01RegistryError::Rollback)
+        );
+
+        drop(restored);
+        drop(checkpoint);
+        let _ = std::fs::remove_file(&database_path);
+        let _ = std::fs::remove_file(&backup_path);
+        let _ = std::fs::remove_file(&checkpoint_path);
+    }
+
+    #[test]
     fn migration_artifact_byte_substitution_fails_closed() {
         let (root, roots) = root_authority();
         let expected = b"approved migration bytes";
