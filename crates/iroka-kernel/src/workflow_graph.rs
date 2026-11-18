@@ -10,6 +10,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
+pub const WORKFLOW_GRAPH_SCHEMA_VERSION: &str = "1.0.0";
 pub const WORKFLOW_GRAPH_VALIDATOR_VERSION: &str = "1.0.0";
 const CONFIGURATION_DIGEST_ALGORITHM: &str = "SHA-256";
 
@@ -85,6 +86,8 @@ pub struct WorkflowRevisionBinding {
     pub workflow_id: String,
     pub revision_ref: String,
     pub graph_version: String,
+    pub schema_version: String,
+    pub evaluator_version: String,
     pub revision_digest: String,
 }
 
@@ -156,6 +159,7 @@ struct GraphDigestMaterial<'a> {
     workflow_id: &'a str,
     graph_version: &'a str,
     revision_digest: &'a str,
+    schema_version: &'static str,
     nodes: Vec<&'a WorkflowGraphNode>,
     edges: Vec<&'a WorkflowGraphEdge>,
     workflow_registry_digest: &'a str,
@@ -240,6 +244,7 @@ fn sorted_graph_digest(
         workflow_id: &input.workflow_id,
         graph_version: &input.graph_version,
         revision_digest: &revision.revision_digest,
+        schema_version: WORKFLOW_GRAPH_SCHEMA_VERSION,
         nodes,
         edges,
         workflow_registry_digest: registry.workflow_registry_digest(),
@@ -571,6 +576,7 @@ pub fn evaluate_workflow_graph(
         "dependency_registry_digest",
         "checkpoint_registry_digest",
         "graph_revision_digest",
+        "schema_version",
         "configuration_digest_algorithm",
         "graph_validator_version",
     ];
@@ -583,6 +589,7 @@ pub fn evaluate_workflow_graph(
         || required_evidence(bound, "operation_registry_digest")? != operation_registry_digest
         || required_evidence(bound, "dependency_registry_digest")? != dependency_registry_digest
         || required_evidence(bound, "checkpoint_registry_digest")? != checkpoint_registry_digest
+        || required_evidence(bound, "schema_version")? != WORKFLOW_GRAPH_SCHEMA_VERSION
         || required_evidence(bound, "configuration_digest_algorithm")?
             != CONFIGURATION_DIGEST_ALGORITHM
         || required_evidence(bound, "graph_validator_version")? != WORKFLOW_GRAPH_VALIDATOR_VERSION
@@ -595,6 +602,8 @@ pub fn evaluate_workflow_graph(
     if revision.workflow_id != input.workflow_id
         || revision.revision_ref != input.provenance.revision_ref
         || revision.graph_version != input.graph_version
+        || revision.schema_version != WORKFLOW_GRAPH_SCHEMA_VERSION
+        || revision.evaluator_version != WORKFLOW_GRAPH_VALIDATOR_VERSION
         || !valid_digest(&revision.revision_digest)
         || required_evidence(bound, "graph_revision_digest")? != revision.revision_digest
     {
@@ -700,6 +709,8 @@ mod tests {
                 workflow_id: "workflow.demo".into(),
                 revision_ref: "revision:demo:1".into(),
                 graph_version: "1.0.0".into(),
+                schema_version: WORKFLOW_GRAPH_SCHEMA_VERSION.into(),
+                evaluator_version: WORKFLOW_GRAPH_VALIDATOR_VERSION.into(),
                 revision_digest: "c".repeat(64),
             },
             operations: BTreeMap::from([
@@ -873,6 +884,7 @@ mod tests {
                     json!(registry.checkpoint_digest.clone()),
                 ),
                 ("graph_revision_digest".into(), json!("c".repeat(64))),
+                ("schema_version".into(), json!(WORKFLOW_GRAPH_SCHEMA_VERSION)),
                 (
                     "configuration_digest_algorithm".into(),
                     json!(CONFIGURATION_DIGEST_ALGORITHM),
