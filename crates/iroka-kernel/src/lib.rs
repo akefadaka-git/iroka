@@ -33,12 +33,12 @@ pub use g01_authority_registry::{
     SignedIdentityRootRegistryEnvelope, SignedIdentitySuccessionProof,
     SignedSuccessionRegistryEnvelope, SqliteG01AuthorityStore, SuccessionResolutionContext,
 };
+pub use g01_identity_root::{
+    IdentityEvidenceContext, IdentityEvidenceVerifier, IdentityKeyMaterialResolver,
+};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
-};
-pub use g01_identity_root::{
-    IdentityEvidenceContext, IdentityEvidenceVerifier, IdentityKeyMaterialResolver,
 };
 pub use identity::VerifiedPrincipal;
 #[cfg(test)]
