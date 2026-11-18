@@ -133,14 +133,19 @@ impl SqliteSecurityStore {
         revision: u64,
         digest: &[u8],
     ) -> Result<(), SecurityStoreError> {
-        if !matches!(registry, "identity_roots" | "identity_succession" | "compatibility")
-            || revision == 0
+        if !matches!(
+            registry,
+            "identity_roots" | "identity_succession" | "compatibility"
+        ) || revision == 0
             || digest.len() != 32
         {
             return Err(SecurityStoreError::InvalidVersion);
         }
         let revision = i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)?;
-        let mut connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         let transaction = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
@@ -160,17 +165,23 @@ impl SqliteSecurityStore {
                 if old_digest.as_slice() != digest {
                     return Err(SecurityStoreError::AuthorityCheckpointConflict);
                 }
-                transaction.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+                transaction
+                    .commit()
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
                 return Ok(());
             }
         }
-        transaction.execute(
-            "INSERT INTO authority_registry_checkpoints(registry,revision,digest)
-             VALUES(?1,?2,?3)
-             ON CONFLICT(registry) DO UPDATE SET revision=excluded.revision,digest=excluded.digest",
-            params![registry, revision, digest],
-        ).map_err(|_| SecurityStoreError::Unavailable)?;
-        transaction.commit().map_err(|_| SecurityStoreError::Unavailable)
+        transaction
+            .execute(
+                "INSERT INTO authority_registry_checkpoints(registry,revision,digest)
+                 VALUES(?1,?2,?3)
+                 ON CONFLICT(registry) DO UPDATE SET revision=excluded.revision,digest=excluded.digest",
+                params![registry, revision, digest],
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        transaction
+            .commit()
+            .map_err(|_| SecurityStoreError::Unavailable)
     }
 
     /// Require exact agreement with the independently stored monotonic checkpoint.
@@ -186,7 +197,10 @@ impl SqliteSecurityStore {
         {
             return Err(SecurityStoreError::InvalidVersion);
         }
-        let connection = self.connection.lock().map_err(|_| SecurityStoreError::Unavailable)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
         let current: Option<(i64, Vec<u8>)> = connection
             .query_row(
                 "SELECT revision,digest FROM authority_registry_checkpoints WHERE registry=?1",
@@ -197,10 +211,20 @@ impl SqliteSecurityStore {
             .map_err(|_| SecurityStoreError::Unavailable)?;
         match current {
             Some((stored_revision, stored_digest))
-                if stored_revision == i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)?
-                    && stored_digest.as_slice() == digest => Ok(()),
-            Some((stored_revision, _)) if stored_revision > i64::try_from(revision).map_err(|_| SecurityStoreError::InvalidVersion)? =>
-                Err(SecurityStoreError::AuthorityCheckpointRollback),
+                if stored_revision
+                    == i64::try_from(revision)
+                        .map_err(|_| SecurityStoreError::InvalidVersion)?
+                    && stored_digest.as_slice() == digest =>
+            {
+                Ok(())
+            }
+            Some((stored_revision, _))
+                if stored_revision
+                    > i64::try_from(revision)
+                        .map_err(|_| SecurityStoreError::InvalidVersion)? =>
+            {
+                Err(SecurityStoreError::AuthorityCheckpointRollback)
+            }
             Some(_) => Err(SecurityStoreError::AuthorityCheckpointConflict),
             None => Err(SecurityStoreError::Unavailable),
         }
