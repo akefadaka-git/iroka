@@ -1347,8 +1347,7 @@ mod independent_registry_tests {
 
     use super::*;
     use crate::{
-        g01_identity_root::{RootTrustDecision},
-        identity_crypto::TrustedKey,
+        g01_identity_root::RootTrustDecision, identity_crypto::TrustedKey,
         trust_lifecycle::TrustRoot,
     };
 
@@ -1409,11 +1408,17 @@ mod independent_registry_tests {
             }],
             signature: Vec::new(),
         };
-        envelope.signature = root.sign(&envelope.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
+        envelope.signature = root
+            .sign(&envelope.signing_bytes().expect("canonical bytes"))
+            .to_bytes()
+            .to_vec();
         envelope
     }
 
-    fn signed_succession(root: &SigningKey, issuer: &SigningKey) -> SignedSuccessionRegistryEnvelope {
+    fn signed_succession(
+        root: &SigningKey,
+        issuer: &SigningKey,
+    ) -> SignedSuccessionRegistryEnvelope {
         let mut proof = SignedIdentitySuccessionProof {
             proof: IdentitySuccessionProof {
                 proof_id: "succession-1".to_owned(),
@@ -1430,7 +1435,10 @@ mod independent_registry_tests {
         };
         let proof_bytes = proof.signing_bytes().expect("proof payload");
         proof.proof.proof_digest = format!("sha256:{:x}", Sha256::digest(&proof_bytes));
-        proof.signature = issuer.sign(&proof.signing_bytes().expect("proof payload")).to_bytes().to_vec();
+        proof.signature = issuer
+            .sign(&proof.signing_bytes().expect("proof payload"))
+            .to_bytes()
+            .to_vec();
         let mut envelope = SignedSuccessionRegistryEnvelope {
             root_key_id: "owner-root-1".to_owned(),
             revision: 1,
@@ -1439,7 +1447,10 @@ mod independent_registry_tests {
             proofs: vec![proof],
             signature: Vec::new(),
         };
-        envelope.signature = root.sign(&envelope.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
+        envelope.signature = root
+            .sign(&envelope.signing_bytes().expect("canonical bytes"))
+            .to_bytes()
+            .to_vec();
         envelope
     }
 
@@ -1461,15 +1472,24 @@ mod independent_registry_tests {
 
         let store = SqliteG01AuthorityStore::open_in_memory().expect("store");
         let identity = signed_identity_roots(&root);
-        store.install_identity_root_registry(&identity, &roots, 20).expect("install identity registry");
+        store
+            .install_identity_root_registry(&identity, &roots, 20)
+            .expect("install identity registry");
         assert_eq!(
-            store.latest_identity_root_registry(&roots, 20).expect("load identity registry").revision,
+            store
+                .latest_identity_root_registry(&roots, 20)
+                .expect("load identity registry")
+                .revision,
             1
         );
 
         let succession = signed_succession(&root, &issuer);
-        store.install_succession_registry(&succession, &roots, 20).expect("install succession registry");
-        let resolved = store.resolve_verified_succession("succession-1", &roots, &trust, 20).expect("verified succession");
+        store
+            .install_succession_registry(&succession, &roots, 20)
+            .expect("install succession registry");
+        let resolved = store
+            .resolve_verified_succession("succession-1", &roots, &trust, 20)
+            .expect("verified succession");
         assert_eq!(resolved.successor_identity, "identity-new");
 
         let artifact = b"immutable migration artifact v1".to_vec();
@@ -1501,8 +1521,13 @@ mod independent_registry_tests {
             }],
             signature: Vec::new(),
         };
-        compatibility.signature = root.sign(&compatibility.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
-        store.install_compatibility_registry(&compatibility, &roots, 20).expect("install compatibility registry");
+        compatibility.signature = root
+            .sign(&compatibility.signing_bytes().expect("canonical bytes"))
+            .to_bytes()
+            .to_vec();
+        store
+            .install_compatibility_registry(&compatibility, &roots, 20)
+            .expect("install compatibility registry");
         let resolver = StaticMigration(artifact);
         let (contract, policy) = store
             .resolve_compatibility_with_migration("migration-policy", "1", &roots, &resolver, 20)
@@ -1545,7 +1570,9 @@ mod independent_registry_tests {
         };
         envelope.signature = root.sign(&envelope.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
         let store = SqliteG01AuthorityStore::open_in_memory().expect("store");
-        store.install_compatibility_registry(&envelope, &roots, 20).expect("install");
+        store
+            .install_compatibility_registry(&envelope, &roots, 20)
+            .expect("install");
         let result = store.resolve_compatibility_with_migration(
             "policy",
             "1",
