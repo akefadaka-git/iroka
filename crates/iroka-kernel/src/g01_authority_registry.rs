@@ -507,9 +507,7 @@ impl SqliteG01AuthorityStore {
     ) -> Result<T, G01RegistryError> {
         if !matches!(
             table,
-            "g01_identity_root_registry"
-                | "g01_succession_registry"
-                | "g01_compatibility_registry"
+            "g01_identity_root_registry" | "g01_succession_registry" | "g01_compatibility_registry"
         ) {
             return Err(G01RegistryError::Malformed);
         }
@@ -924,8 +922,8 @@ fn verify_root_signed_envelope(
     if expires_at - issued_at > MAX_SNAPSHOT_LIFETIME {
         return Err(G01RegistryError::ExcessiveLifetime);
     }
-    let key = VerifyingKey::from_bytes(&root.public_key)
-        .map_err(|_| G01RegistryError::UnknownRoot)?;
+    let key =
+        VerifyingKey::from_bytes(&root.public_key).map_err(|_| G01RegistryError::UnknownRoot)?;
     let signature = Signature::from_slice(signature).map_err(|_| G01RegistryError::Malformed)?;
     key.verify(signing_bytes, &signature)
         .map_err(|_| G01RegistryError::InvalidRootSignature)
@@ -946,7 +944,10 @@ fn validate_identity_root_envelope(
         if policy.policy_id.trim().is_empty()
             || policy.version.trim().is_empty()
             || policy.allowed_algorithms.is_empty()
-            || policy.allowed_algorithms.iter().any(|a| a.trim().is_empty())
+            || policy
+                .allowed_algorithms
+                .iter()
+                .any(|a| a.trim().is_empty())
             || !ids.insert(format!("{}@{}", policy.policy_id, policy.version))
         {
             return Err(G01RegistryError::InvalidSnapshot);
@@ -1048,7 +1049,11 @@ fn validate_compatibility_envelope(
             (false, None, None) => {}
             _ => return Err(G01RegistryError::InvalidSnapshot),
         }
-        if policy.compatible_contracts.values().any(|d| !valid_sha256(d)) {
+        if policy
+            .compatible_contracts
+            .values()
+            .any(|d| !valid_sha256(d))
+        {
             return Err(G01RegistryError::InvalidSnapshot);
         }
         if !envelope.contracts.iter().any(|contract| {
