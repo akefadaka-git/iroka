@@ -541,18 +541,20 @@ impl SqliteG01AuthorityStore {
     ) -> Result<(), G01RegistryError> {
         validate_identity_root_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
-        self.persist_independent_envelope(
-            "g01_identity_root_registry",
-            &envelope.root_key_id,
-            envelope.revision,
-            envelope.issued_at,
-            envelope.expires_at,
-            &envelope.signature,
-            &bytes,
+        self.persist_independent_envelope(IndependentEnvelopeInstall {
+            table: "g01_identity_root_registry",
+            metadata: RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
             envelope,
             roots,
             now,
-        )
+        })
     }
 
     pub fn latest_identity_root_registry(
@@ -564,12 +566,14 @@ impl SqliteG01AuthorityStore {
             self.load_independent_envelope("g01_identity_root_registry")?;
         let bytes = envelope.signing_bytes()?;
         verify_root_signed_envelope(
-            &envelope.root_key_id,
-            envelope.revision,
-            envelope.issued_at,
-            envelope.expires_at,
-            &envelope.signature,
-            &bytes,
+            &RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
             roots,
             now,
         )?;
@@ -585,18 +589,20 @@ impl SqliteG01AuthorityStore {
     ) -> Result<(), G01RegistryError> {
         validate_succession_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
-        self.persist_independent_envelope(
-            "g01_succession_registry",
-            &envelope.root_key_id,
-            envelope.revision,
-            envelope.issued_at,
-            envelope.expires_at,
-            &envelope.signature,
-            &bytes,
+        self.persist_independent_envelope(IndependentEnvelopeInstall {
+            table: "g01_succession_registry",
+            metadata: RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
             envelope,
             roots,
             now,
-        )
+        })
     }
 
     pub fn resolve_verified_succession(
@@ -610,12 +616,14 @@ impl SqliteG01AuthorityStore {
             self.load_independent_envelope("g01_succession_registry")?;
         let bytes = envelope.signing_bytes()?;
         verify_root_signed_envelope(
-            &envelope.root_key_id,
-            envelope.revision,
-            envelope.issued_at,
-            envelope.expires_at,
-            &envelope.signature,
-            &bytes,
+            &RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
             roots,
             now,
         )?;
@@ -637,18 +645,20 @@ impl SqliteG01AuthorityStore {
     ) -> Result<(), G01RegistryError> {
         validate_compatibility_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
-        self.persist_independent_envelope(
-            "g01_compatibility_registry",
-            &envelope.root_key_id,
-            envelope.revision,
-            envelope.issued_at,
-            envelope.expires_at,
-            &envelope.signature,
-            &bytes,
+        self.persist_independent_envelope(IndependentEnvelopeInstall {
+            table: "g01_compatibility_registry",
+            metadata: RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
             envelope,
             roots,
             now,
-        )
+        })
     }
 
     pub fn resolve_compatibility_with_migration(
@@ -663,12 +673,14 @@ impl SqliteG01AuthorityStore {
             self.load_independent_envelope("g01_compatibility_registry")?;
         let bytes = envelope.signing_bytes()?;
         verify_root_signed_envelope(
-            &envelope.root_key_id,
-            envelope.revision,
-            envelope.issued_at,
-            envelope.expires_at,
-            &envelope.signature,
-            &bytes,
+            &RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
             roots,
             now,
         )?;
