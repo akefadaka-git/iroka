@@ -140,6 +140,186 @@ pub struct CompatibilityPolicy {
     pub valid_until: u64,
 }
 
+/// Independently signed identity-root registry envelope. Its revision and
+/// signature are independent of succession and compatibility registries.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedIdentityRootRegistryEnvelope {
+    pub root_key_id: String,
+    pub revision: u64,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub identity_roots: Vec<IdentityRootRecord>,
+    pub algorithm_policies: Vec<AlgorithmPolicyRecord>,
+    pub signature: Vec<u8>,
+}
+
+impl SignedIdentityRootRegistryEnvelope {
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, G01RegistryError> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            registry: &'static str,
+            root_key_id: &'a str,
+            revision: u64,
+            issued_at: u64,
+            expires_at: u64,
+            identity_roots: &'a [IdentityRootRecord],
+            algorithm_policies: &'a [AlgorithmPolicyRecord],
+        }
+        serde_jcs::to_vec(&Payload {
+            registry: "g01.identity_roots",
+            root_key_id: &self.root_key_id,
+            revision: self.revision,
+            issued_at: self.issued_at,
+            expires_at: self.expires_at,
+            identity_roots: &self.identity_roots,
+            algorithm_policies: &self.algorithm_policies,
+        })
+        .map_err(|_| G01RegistryError::Malformed)
+    }
+}
+
+/// Issuer-signed succession proof. The proof digest commits to the canonical
+/// payload (excluding the digest and signature fields).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedIdentitySuccessionProof {
+    pub proof: IdentitySuccessionProof,
+    pub signature: Vec<u8>,
+}
+
+impl SignedIdentitySuccessionProof {
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, G01RegistryError> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            proof_id: &'a str,
+            predecessor_identity: &'a str,
+            successor_identity: &'a str,
+            issuer_id: &'a str,
+            signing_key_id: &'a str,
+            issued_epoch: u64,
+            effective_epoch: u64,
+            status: &'a str,
+        }
+        serde_jcs::to_vec(&Payload {
+            proof_id: &self.proof.proof_id,
+            predecessor_identity: &self.proof.predecessor_identity,
+            successor_identity: &self.proof.successor_identity,
+            issuer_id: &self.proof.issuer_id,
+            signing_key_id: &self.proof.signing_key_id,
+            issued_epoch: self.proof.issued_epoch,
+            effective_epoch: self.proof.effective_epoch,
+            status: &self.proof.status,
+        })
+        .map_err(|_| G01RegistryError::Malformed)
+    }
+
+    pub fn verify(&self, trust: &TrustStore, now: u64) -> Result<(), G01RegistryError> {
+        let bytes = self.signing_bytes()?;
+        let digest = Sha256::digest(&bytes);
+        if self.proof.proof_digest != format!("sha256:{digest:x}") {
+            return Err(G01RegistryError::InvalidSuccessionDigest);
+        }
+        let public_key = trust
+            .trusted_public_key(
+                &self.proof.issuer_id,
+                &self.proof.signing_key_id,
+                now,
+            )
+            .map_err(|_| G01RegistryError::UnknownIssuerKey)?;
+        let key = VerifyingKey::from_bytes(&public_key)
+            .map_err(|_| G01RegistryError::UnknownIssuerKey)?;
+        let signature =
+            Signature::from_slice(&self.signature).map_err(|_| G01RegistryError::Malformed)?;
+        key.verify(&bytes, &signature)
+            .map_err(|_| G01RegistryError::InvalidSuccessionSignature)
+    }
+}
+
+/// Independently signed succession registry envelope.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedSuccessionRegistryEnvelope {
+    pub root_key_id: String,
+    pub revision: u64,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub proofs: Vec<SignedIdentitySuccessionProof>,
+    pub signature: Vec<u8>,
+}
+
+impl SignedSuccessionRegistryEnvelope {
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, G01RegistryError> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            registry: &'static str,
+            root_key_id: &'a str,
+            revision: u64,
+            issued_at: u64,
+            expires_at: u64,
+            proofs: &'a [SignedIdentitySuccessionProof],
+        }
+        serde_jcs::to_vec(&Payload {
+            registry: "g01.identity_succession",
+            root_key_id: &self.root_key_id,
+            revision: self.revision,
+            issued_at: self.issued_at,
+            expires_at: self.expires_at,
+            proofs: &self.proofs,
+        })
+        .map_err(|_| G01RegistryError::Malformed)
+    }
+}
+
+/// Independently signed compatibility and migration registry envelope.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct SignedCompatibilityRegistryEnvelope {
+    pub root_key_id: String,
+    pub revision: u64,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub contracts: Vec<CompatibilityContract>,
+    pub policies: Vec<CompatibilityPolicy>,
+    pub signature: Vec<u8>,
+}
+
+impl SignedCompatibilityRegistryEnvelope {
+    pub fn signing_bytes(&self) -> Result<Vec<u8>, G01RegistryError> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            registry: &'static str,
+            root_key_id: &'a str,
+            revision: u64,
+            issued_at: u64,
+            expires_at: u64,
+            contracts: &'a [CompatibilityContract],
+            policies: &'a [CompatibilityPolicy],
+        }
+        serde_jcs::to_vec(&Payload {
+            registry: "g01.compatibility",
+            root_key_id: &self.root_key_id,
+            revision: self.revision,
+            issued_at: self.issued_at,
+            expires_at: self.expires_at,
+            contracts: &self.contracts,
+            policies: &self.policies,
+        })
+        .map_err(|_| G01RegistryError::Malformed)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MigrationArtifactError {
+    Unavailable,
+}
+
+/// Resolves immutable migration artifact bytes by authenticated content reference.
+/// Implementations must not silently substitute mutable "latest" artifacts.
+pub trait MigrationArtifactResolver {
+    fn resolve_immutable(&self, reference: &str) -> Result<Vec<u8>, MigrationArtifactError>;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum G01RegistryError {
     Malformed,
@@ -158,6 +338,11 @@ pub enum G01RegistryError {
     UnknownPolicy,
     RevokedKey,
     RevocationUnavailable,
+    InvalidSuccessionDigest,
+    InvalidSuccessionSignature,
+    UnknownIssuerKey,
+    MigrationArtifactUnavailable,
+    MigrationArtifactMismatch,
 }
 
 pub struct SqliteG01AuthorityStore {
