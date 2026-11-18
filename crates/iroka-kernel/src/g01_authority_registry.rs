@@ -221,11 +221,7 @@ impl SignedIdentitySuccessionProof {
             return Err(G01RegistryError::InvalidSuccessionDigest);
         }
         let public_key = trust
-            .trusted_public_key(
-                &self.proof.issuer_id,
-                &self.proof.signing_key_id,
-                now,
-            )
+            .trusted_public_key(&self.proof.issuer_id, &self.proof.signing_key_id, now)
             .map_err(|_| G01RegistryError::UnknownIssuerKey)?;
         let key = VerifyingKey::from_bytes(&public_key)
             .map_err(|_| G01RegistryError::UnknownIssuerKey)?;
@@ -448,9 +444,7 @@ impl SqliteG01AuthorityStore {
     ) -> Result<(), G01RegistryError> {
         if !matches!(
             table,
-            "g01_identity_root_registry"
-                | "g01_succession_registry"
-                | "g01_compatibility_registry"
+            "g01_identity_root_registry" | "g01_succession_registry" | "g01_compatibility_registry"
         ) {
             return Err(G01RegistryError::Malformed);
         }
@@ -488,7 +482,8 @@ impl SqliteG01AuthorityStore {
                 if old_digest.as_slice() != digest.as_slice() || old_document != document {
                     return Err(G01RegistryError::ConflictingRevision);
                 }
-                tx.commit().map_err(|_| G01RegistryError::StoreUnavailable)?;
+                tx.commit()
+                    .map_err(|_| G01RegistryError::StoreUnavailable)?;
                 return Ok(());
             }
         }
