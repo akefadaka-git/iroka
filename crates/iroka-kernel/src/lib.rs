@@ -10,6 +10,7 @@ mod decision;
 mod governance;
 mod identity;
 mod identity_crypto;
+pub mod g01_character;
 mod igacms;
 mod owner_approval;
 mod policy;
