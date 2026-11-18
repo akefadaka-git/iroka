@@ -1761,7 +1761,7 @@ mod independent_registry_tests {
         let store = SqliteG01AuthorityStore::open(&database_path).expect("reopened durable store");
         assert_eq!(
             store
-                .latest_identity_root_registry(&roots, 20)
+                .latest_identity_root_registry(&roots, &checkpoint, 20)
                 .expect("identity registry survives restart")
                 .revision,
             2
