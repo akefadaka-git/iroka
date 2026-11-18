@@ -381,12 +381,12 @@ mod tests {
         let mut candidate = input();
         candidate.key_fingerprint =
             "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into();
-        let registry = CanonicalRegistry {
+        let canonical_registry = CanonicalRegistry {
             status: RootStatus::Active,
             ..registry()
         };
         assert_eq!(
-            evaluate_identity_root(&registry, &candidate, 10),
+            evaluate_identity_root(&canonical_registry, &candidate, 10),
             Err(IdentityRootError::FingerprintMismatch)
         );
         let mut candidate = input();
