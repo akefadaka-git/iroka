@@ -316,6 +316,23 @@ pub trait MigrationArtifactResolver {
     fn resolve_immutable(&self, reference: &str) -> Result<Vec<u8>, MigrationArtifactError>;
 }
 
+struct RootSignedEnvelope<'a> {
+    root_key_id: &'a str,
+    revision: u64,
+    issued_at: u64,
+    expires_at: u64,
+    signature: &'a [u8],
+    signing_bytes: &'a [u8],
+}
+
+struct IndependentEnvelopeInstall<'a, T> {
+    table: &'a str,
+    metadata: RootSignedEnvelope<'a>,
+    envelope: &'a T,
+    roots: &'a TrustRootSet,
+    now: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum G01RegistryError {
     Malformed,
@@ -432,37 +449,28 @@ impl SqliteG01AuthorityStore {
 
     fn persist_independent_envelope<T: Serialize>(
         &self,
-        table: &str,
-        root_key_id: &str,
-        revision: u64,
-        issued_at: u64,
-        expires_at: u64,
-        signature: &[u8],
-        signing_bytes: &[u8],
-        envelope: &T,
-        roots: &TrustRootSet,
-        now: u64,
+        install: IndependentEnvelopeInstall<'_, T>,
     ) -> Result<(), G01RegistryError> {
+        let IndependentEnvelopeInstall {
+            table,
+            metadata,
+            envelope,
+            roots,
+            now,
+        } = install;
         if !matches!(
             table,
             "g01_identity_root_registry" | "g01_succession_registry" | "g01_compatibility_registry"
         ) {
             return Err(G01RegistryError::Malformed);
         }
-        verify_root_signed_envelope(
-            root_key_id,
-            revision,
-            issued_at,
-            expires_at,
-            signature,
-            signing_bytes,
-            roots,
-            now,
-        )?;
-        let digest = Sha256::digest(signing_bytes);
+        verify_root_signed_envelope(&metadata, roots, now)?;
+        let digest = Sha256::digest(metadata.signing_bytes);
         let document = serde_json::to_string(envelope).map_err(|_| G01RegistryError::Malformed)?;
-        let revision = i64::try_from(revision).map_err(|_| G01RegistryError::Malformed)?;
-        let expires = i64::try_from(expires_at).map_err(|_| G01RegistryError::Malformed)?;
+        let revision =
+            i64::try_from(metadata.revision).map_err(|_| G01RegistryError::Malformed)?;
+        let expires =
+            i64::try_from(metadata.expires_at).map_err(|_| G01RegistryError::Malformed)?;
         let mut conn = self
             .connection
             .lock()
@@ -899,34 +907,30 @@ fn valid_sha256(value: &str) -> bool {
 }
 
 fn verify_root_signed_envelope(
-    root_key_id: &str,
-    revision: u64,
-    issued_at: u64,
-    expires_at: u64,
-    signature: &[u8],
-    signing_bytes: &[u8],
+    metadata: &RootSignedEnvelope<'_>,
     roots: &TrustRootSet,
     now: u64,
 ) -> Result<(), G01RegistryError> {
     let root = roots
-        .get(root_key_id)
+        .get(metadata.root_key_id)
         .map_err(|_| G01RegistryError::UnknownRoot)?;
-    if now < root.not_before || issued_at > now.saturating_add(MAX_CLOCK_SKEW) {
+    if now < root.not_before || metadata.issued_at > now.saturating_add(MAX_CLOCK_SKEW) {
         return Err(G01RegistryError::NotYetValid);
     }
-    if now >= root.not_after || expires_at <= now || issued_at >= expires_at {
+    if now >= root.not_after || metadata.expires_at <= now || metadata.issued_at >= metadata.expires_at {
         return Err(G01RegistryError::Expired);
     }
-    if revision == 0 {
+    if metadata.revision == 0 {
         return Err(G01RegistryError::InvalidSnapshot);
     }
-    if expires_at - issued_at > MAX_SNAPSHOT_LIFETIME {
+    if metadata.expires_at - metadata.issued_at > MAX_SNAPSHOT_LIFETIME {
         return Err(G01RegistryError::ExcessiveLifetime);
     }
     let key =
         VerifyingKey::from_bytes(&root.public_key).map_err(|_| G01RegistryError::UnknownRoot)?;
-    let signature = Signature::from_slice(signature).map_err(|_| G01RegistryError::Malformed)?;
-    key.verify(signing_bytes, &signature)
+    let signature =
+        Signature::from_slice(metadata.signature).map_err(|_| G01RegistryError::Malformed)?;
+    key.verify(metadata.signing_bytes, &signature)
         .map_err(|_| G01RegistryError::InvalidRootSignature)
 }
 
