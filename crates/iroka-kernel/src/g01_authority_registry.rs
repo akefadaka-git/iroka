@@ -1336,3 +1336,223 @@ pub fn evaluate_identity_root_production(
     let bound = Bound(registry_record);
     crate::g01_identity_root::evaluate_identity_root(&bound, input, evaluated_epoch)
 }
+
+#[cfg(test)]
+mod independent_registry_tests {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    use ed25519_dalek::{Signer, SigningKey};
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+
+    use super::*;
+    use crate::{
+        g01_identity_root::{RootTrustDecision},
+        identity_crypto::TrustedKey,
+        trust_lifecycle::TrustRoot,
+    };
+
+    struct StaticMigration(Vec<u8>);
+
+    impl MigrationArtifactResolver for StaticMigration {
+        fn resolve_immutable(&self, reference: &str) -> Result<Vec<u8>, MigrationArtifactError> {
+            if reference == "artifact://migration/v1" {
+                Ok(self.0.clone())
+            } else {
+                Err(MigrationArtifactError::Unavailable)
+            }
+        }
+    }
+
+    fn root_authority() -> (SigningKey, TrustRootSet) {
+        let signing = SigningKey::from_bytes(&[7; 32]);
+        let root = TrustRoot {
+            key_id: "owner-root-1".to_owned(),
+            public_key: signing.verifying_key().to_bytes(),
+            not_before: 1,
+            not_after: 10_000,
+            provenance_ref: "owner-ceremony://root-1".to_owned(),
+        };
+        (signing, TrustRootSet::new(vec![root]).expect("valid root"))
+    }
+
+    fn signed_identity_roots(root: &SigningKey) -> SignedIdentityRootRegistryEnvelope {
+        let mut envelope = SignedIdentityRootRegistryEnvelope {
+            root_key_id: "owner-root-1".to_owned(),
+            revision: 1,
+            issued_at: 10,
+            expires_at: 900,
+            identity_roots: vec![IdentityRootRecord {
+                root_id: "identity-root-1".to_owned(),
+                issuer_id: "issuer-1".to_owned(),
+                key_id: "issuer-key-1".to_owned(),
+                key_material_ref: "key://issuer-1/key-1".to_owned(),
+                key_fingerprint: format!("sha256:{}", "a".repeat(64)),
+                algorithm: "EdDSA".to_owned(),
+                algorithm_policy_id: "ed25519-only".to_owned(),
+                algorithm_policy_version: "1".to_owned(),
+                activation_epoch: 1,
+                status: RootStatus::Active,
+                key_status: RootStatus::Active,
+                issuer_chain: vec![IssuerLinkEvidence {
+                    issuer_id: "issuer-1".to_owned(),
+                    key_fingerprint: format!("sha256:{}", "a".repeat(64)),
+                    status: RootTrustDecision::Trusted,
+                }],
+                provenance: json!({"ceremony":"owner-approved"}),
+                version_bound_evidence: json!({"contract":"g01.identity-root@1.1.0"}),
+            }],
+            algorithm_policies: vec![AlgorithmPolicyRecord {
+                policy_id: "ed25519-only".to_owned(),
+                version: "1".to_owned(),
+                allowed_algorithms: BTreeSet::from(["EdDSA".to_owned()]),
+            }],
+            signature: Vec::new(),
+        };
+        envelope.signature = root.sign(&envelope.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
+        envelope
+    }
+
+    fn signed_succession(root: &SigningKey, issuer: &SigningKey) -> SignedSuccessionRegistryEnvelope {
+        let mut proof = SignedIdentitySuccessionProof {
+            proof: IdentitySuccessionProof {
+                proof_id: "succession-1".to_owned(),
+                predecessor_identity: "identity-old".to_owned(),
+                successor_identity: "identity-new".to_owned(),
+                issuer_id: "issuer-1".to_owned(),
+                signing_key_id: "succession-key-1".to_owned(),
+                proof_digest: String::new(),
+                issued_epoch: 10,
+                effective_epoch: 11,
+                status: "active".to_owned(),
+            },
+            signature: Vec::new(),
+        };
+        let proof_bytes = proof.signing_bytes().expect("proof payload");
+        proof.proof.proof_digest = format!("sha256:{:x}", Sha256::digest(&proof_bytes));
+        proof.signature = issuer.sign(&proof.signing_bytes().expect("proof payload")).to_bytes().to_vec();
+        let mut envelope = SignedSuccessionRegistryEnvelope {
+            root_key_id: "owner-root-1".to_owned(),
+            revision: 1,
+            issued_at: 10,
+            expires_at: 900,
+            proofs: vec![proof],
+            signature: Vec::new(),
+        };
+        envelope.signature = root.sign(&envelope.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
+        envelope
+    }
+
+    #[test]
+    fn three_registry_envelopes_persist_independently_and_verify_signatures() {
+        let (root, roots) = root_authority();
+        let issuer = SigningKey::from_bytes(&[8; 32]);
+        let trust = TrustStore::new(
+            ["issuer-1"],
+            vec![TrustedKey {
+                issuer: "issuer-1".to_owned(),
+                key_id: "succession-key-1".to_owned(),
+                public_key: issuer.verifying_key().to_bytes(),
+                not_before: 1,
+                not_after: 1_000,
+            }],
+        )
+        .expect("issuer trust");
+
+        let store = SqliteG01AuthorityStore::open_in_memory().expect("store");
+        let identity = signed_identity_roots(&root);
+        store.install_identity_root_registry(&identity, &roots, 20).expect("install identity registry");
+        assert_eq!(
+            store.latest_identity_root_registry(&roots, 20).expect("load identity registry").revision,
+            1
+        );
+
+        let succession = signed_succession(&root, &issuer);
+        store.install_succession_registry(&succession, &roots, 20).expect("install succession registry");
+        let resolved = store.resolve_verified_succession("succession-1", &roots, &trust, 20).expect("verified succession");
+        assert_eq!(resolved.successor_identity, "identity-new");
+
+        let artifact = b"immutable migration artifact v1".to_vec();
+        let mut compatibility = SignedCompatibilityRegistryEnvelope {
+            root_key_id: "owner-root-1".to_owned(),
+            revision: 1,
+            issued_at: 10,
+            expires_at: 900,
+            contracts: vec![CompatibilityContract {
+                contract_id: "compat-contract".to_owned(),
+                version: "1".to_owned(),
+                digest: format!("sha256:{}", "b".repeat(64)),
+                issuer_id: "issuer-1".to_owned(),
+                status: "active".to_owned(),
+            }],
+            policies: vec![CompatibilityPolicy {
+                policy_id: "migration-policy".to_owned(),
+                version: "1".to_owned(),
+                issuer_id: "issuer-1".to_owned(),
+                contract_id: "compat-contract".to_owned(),
+                contract_version: "1".to_owned(),
+                contract_digest: format!("sha256:{}", "b".repeat(64)),
+                compatible_contracts: BTreeMap::new(),
+                migration_required: true,
+                migration_ref: Some("artifact://migration/v1".to_owned()),
+                migration_digest: Some(format!("sha256:{:x}", Sha256::digest(&artifact))),
+                valid_from: 10,
+                valid_until: 800,
+            }],
+            signature: Vec::new(),
+        };
+        compatibility.signature = root.sign(&compatibility.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
+        store.install_compatibility_registry(&compatibility, &roots, 20).expect("install compatibility registry");
+        let resolver = StaticMigration(artifact);
+        let (contract, policy) = store
+            .resolve_compatibility_with_migration("migration-policy", "1", &roots, &resolver, 20)
+            .expect("authenticated migration bytes");
+        assert_eq!(contract.contract_id, "compat-contract");
+        assert_eq!(policy.policy_id, "migration-policy");
+    }
+
+    #[test]
+    fn migration_artifact_byte_substitution_fails_closed() {
+        let (root, roots) = root_authority();
+        let expected = b"approved migration bytes";
+        let mut envelope = SignedCompatibilityRegistryEnvelope {
+            root_key_id: "owner-root-1".to_owned(),
+            revision: 1,
+            issued_at: 10,
+            expires_at: 900,
+            contracts: vec![CompatibilityContract {
+                contract_id: "contract".to_owned(),
+                version: "1".to_owned(),
+                digest: format!("sha256:{}", "c".repeat(64)),
+                issuer_id: "issuer-1".to_owned(),
+                status: "active".to_owned(),
+            }],
+            policies: vec![CompatibilityPolicy {
+                policy_id: "policy".to_owned(),
+                version: "1".to_owned(),
+                issuer_id: "issuer-1".to_owned(),
+                contract_id: "contract".to_owned(),
+                contract_version: "1".to_owned(),
+                contract_digest: format!("sha256:{}", "c".repeat(64)),
+                compatible_contracts: BTreeMap::new(),
+                migration_required: true,
+                migration_ref: Some("artifact://migration/v1".to_owned()),
+                migration_digest: Some(format!("sha256:{:x}", Sha256::digest(expected))),
+                valid_from: 10,
+                valid_until: 800,
+            }],
+            signature: Vec::new(),
+        };
+        envelope.signature = root.sign(&envelope.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
+        let store = SqliteG01AuthorityStore::open_in_memory().expect("store");
+        store.install_compatibility_registry(&envelope, &roots, 20).expect("install");
+        let result = store.resolve_compatibility_with_migration(
+            "policy",
+            "1",
+            &roots,
+            &StaticMigration(b"substituted migration bytes".to_vec()),
+            20,
+        );
+        assert_eq!(result, Err(G01RegistryError::MigrationArtifactMismatch));
+    }
+}
