@@ -786,7 +786,7 @@ mod tests {
                 edge_id: "edge.transform-review".into(),
                 from_node_id: "node.transform".into(),
                 to_node_id: "node.review".into(),
-                dependency_type: "required".into(),
+                dependency_type: "ordering".into(),
             },
         ];
         let node_operations = nodes
@@ -1001,6 +1001,20 @@ mod tests {
             evaluate_workflow_graph(&value, &registry),
             Err("workflow_graph_edge_provenance_invalid".into())
         );
+
+        let mut value = input(&registry);
+        let mut duplicate = value.edges[0].clone();
+        duplicate.edge_id = "edge.fetch-transform-duplicate".into();
+        value.provenance.dependency_edges.push(WorkflowDependencyEdgeProvenance {
+            edge_id: duplicate.edge_id.clone(),
+            dependency_type: duplicate.dependency_type.clone(),
+            provenance_ref: "dependency-source:duplicate".into(),
+        });
+        value.edges.push(duplicate);
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "invalid_reference"
+        );
     }
 
     #[test]
@@ -1058,6 +1072,35 @@ mod tests {
         assert_eq!(
             evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
             "invalid_reference"
+        );
+    }
+
+    #[test]
+    fn recovery_paths_can_reference_later_nodes_and_require_checkpoint_binding() {
+        let mut registry = registry();
+        let mut value = input(&registry);
+        let configuration_digest = value.nodes[0].configuration_digest.clone();
+        value.nodes[0].checkpoint_ref = Some("checkpoint.fetch".into());
+        value.nodes[0].safe_stop = true;
+        value.nodes[0].recovery_node_id = Some("node.review".into());
+        value.provenance.node_operations[0].checkpoint_ref =
+            Some("checkpoint.fetch".into());
+        value.provenance.node_operations[0].checkpoint_provenance_ref =
+            Some("checkpoint-source:node.fetch".into());
+        registry.checkpoints.insert(
+            "checkpoint.fetch".into(),
+            WorkflowCheckpointBinding {
+                checkpoint_ref: "checkpoint.fetch".into(),
+                workflow_id: "workflow.demo".into(),
+                graph_version: "1.0.0".into(),
+                node_id: "node.fetch".into(),
+                configuration_digest,
+                immutable: true,
+            },
+        );
+        assert_eq!(
+            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            "valid"
         );
     }
 
