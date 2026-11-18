@@ -181,6 +181,51 @@ if len(vl_cases) != 12 or len(vl_case_ids) != 12:
 if vl_vectors.get("chromosome_count") != 12 or vl_vectors.get("gene_count") != 36:
     errors.append("G12 version-lineage A3 amendment changes the fixed genome")
 
+
+# A3 G01 compatibility v1.1.0 bounded semantic amendment audit. Frozen A2
+# v1.0.0 schemas remain unchanged; this version binds canonical versions/policy/migration.
+COMP_INPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g01.compatibility.input.schema.json"
+COMP_OUTPUT = ROOT / "crates/iroka-kernel/igacms/schemas/a3/genes/g01.compatibility.output.schema.json"
+COMP_VECTORS = ROOT / "docs/architecture/a3/g01-compatibility-conformance-v1.1.0.json"
+comp_input = load(COMP_INPUT)
+comp_output = load(COMP_OUTPUT)
+comp_vectors = load(COMP_VECTORS)
+for schema_path_obj, document in ((COMP_INPUT, comp_input), (COMP_OUTPUT, comp_output)):
+    schema_path = schema_path_obj.relative_to(ROOT).as_posix()
+    if document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append(f"{schema_path}: not JSON Schema Draft 2020-12")
+    if document.get("additionalProperties") is not False:
+        errors.append(f"{schema_path}: top-level object is not closed")
+    walk_refs(document)
+if comp_input.get("$id") != "https://iroka.dev/schemas/genes/g01.compatibility/input/1.1.0":
+    errors.append("G01 compatibility A3 input schema ID/version mismatch")
+if comp_output.get("$id") != "https://iroka.dev/schemas/genes/g01.compatibility/output/1.1.0":
+    errors.append("G01 compatibility A3 output schema ID/version mismatch")
+comp_required = set(comp_input.get("required", []))
+for field in ("contract_registry_id", "version_grammar_id", "policy_version", "policy_issuer_id",
+              "policy_digest", "migration_digest", "migration_ref"):
+    if field not in comp_required:
+        errors.append(f"G01 compatibility A3 input missing required registry/policy/migration field: {field}")
+if len(comp_input.get("allOf", [])) < 2:
+    errors.append("G01 compatibility A3 input migration reference/digest invariants missing")
+if len(comp_output.get("allOf", [])) < 4:
+    errors.append("G01 compatibility A3 output boolean/decision/policy/migration invariants missing")
+comp_evidence = comp_output.get("$defs", {}).get("evidence", {})
+for field in ("source_contract_id", "target_contract_id", "version_grammar_id", "policy_issuer_id",
+              "policy_version", "policy_digest", "policy_scope_verified", "policy_validity_verified",
+              "comparison_digest", "policy_decision", "declaration_conflict", "migration_verified",
+              "no_migration_required", "decision_rationale"):
+    if field not in comp_evidence.get("required", []):
+        errors.append(f"G01 compatibility A3 evidence missing required field: {field}")
+if comp_vectors.get("gene_id") != "g01.compatibility" or comp_vectors.get("version") != "1.1.0":
+    errors.append("G01 compatibility A3 conformance catalog identity/version mismatch")
+comp_cases = comp_vectors.get("cases", [])
+comp_case_ids = {case.get("case_id") for case in comp_cases}
+if len(comp_cases) != 11 or len(comp_case_ids) != 11:
+    errors.append(f"G01 compatibility A3 expected 11 unique conformance cases, found {len(comp_cases)}")
+if comp_vectors.get("chromosome_count") != 12 or comp_vectors.get("gene_count") != 36:
+    errors.append("G01 compatibility A3 amendment changes the fixed 12-chromosome/36-gene genome")
+
 if errors:
     print("A3_SCHEMA_BASELINE_AUDIT=FAIL")
     for error in errors:
@@ -199,3 +244,7 @@ print("g12_rollback_guard_v1_1_0=PASS")
 print(f"g12_a3_conformance_cases={len(a3_cases)}")
 print("g12_version_lineage_v1_1_0=PASS")
 print(f"g12_version_lineage_a3_conformance_cases={len(vl_cases)}")
+print("g01_compatibility_v1_1_0=PASS")
+print(f"g01_compatibility_a3_conformance_cases={len(comp_cases)}")
+print("g01_compatibility_v1_1_0=PASS")
+print(f"g01_compatibility_a3_conformance_cases={len(comp_cases)}")
