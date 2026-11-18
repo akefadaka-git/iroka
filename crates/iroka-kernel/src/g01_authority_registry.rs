@@ -543,14 +543,20 @@ impl SqliteG01AuthorityStore {
     ) -> Result<(), G01RegistryError> {
         validate_identity_root_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
-        advance_registry_checkpoint(checkpoint, "identity_roots", &RootSignedEnvelope {
-            root_key_id: &envelope.root_key_id,
-            revision: envelope.revision,
-            issued_at: envelope.issued_at,
-            expires_at: envelope.expires_at,
-            signature: &envelope.signature,
-            signing_bytes: &bytes,
-        }, roots, now)?;
+        advance_registry_checkpoint(
+            checkpoint,
+            "identity_roots",
+            &RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
+            roots,
+            now,
+        )?;
         self.persist_independent_envelope(IndependentEnvelopeInstall {
             table: "g01_identity_root_registry",
             metadata: RootSignedEnvelope {
@@ -602,14 +608,20 @@ impl SqliteG01AuthorityStore {
     ) -> Result<(), G01RegistryError> {
         validate_succession_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
-        advance_registry_checkpoint(checkpoint, "identity_succession", &RootSignedEnvelope {
-            root_key_id: &envelope.root_key_id,
-            revision: envelope.revision,
-            issued_at: envelope.issued_at,
-            expires_at: envelope.expires_at,
-            signature: &envelope.signature,
-            signing_bytes: &bytes,
-        }, roots, now)?;
+        advance_registry_checkpoint(
+            checkpoint,
+            "identity_succession",
+            &RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
+            roots,
+            now,
+        )?;
         self.persist_independent_envelope(IndependentEnvelopeInstall {
             table: "g01_succession_registry",
             metadata: RootSignedEnvelope {
@@ -680,14 +692,20 @@ impl SqliteG01AuthorityStore {
     ) -> Result<(), G01RegistryError> {
         validate_compatibility_envelope(envelope)?;
         let bytes = envelope.signing_bytes()?;
-        advance_registry_checkpoint(checkpoint, "compatibility", &RootSignedEnvelope {
-            root_key_id: &envelope.root_key_id,
-            revision: envelope.revision,
-            issued_at: envelope.issued_at,
-            expires_at: envelope.expires_at,
-            signature: &envelope.signature,
-            signing_bytes: &bytes,
-        }, roots, now)?;
+        advance_registry_checkpoint(
+            checkpoint,
+            "compatibility",
+            &RootSignedEnvelope {
+                root_key_id: &envelope.root_key_id,
+                revision: envelope.revision,
+                issued_at: envelope.issued_at,
+                expires_at: envelope.expires_at,
+                signature: &envelope.signature,
+                signing_bytes: &bytes,
+            },
+            roots,
+            now,
+        )?;
         self.persist_independent_envelope(IndependentEnvelopeInstall {
             table: "g01_compatibility_registry",
             metadata: RootSignedEnvelope {
@@ -1010,7 +1028,9 @@ fn advance_registry_checkpoint(
         .advance_authority_checkpoint(registry, metadata.revision, digest.as_slice())
         .map_err(|error| match error {
             SecurityStoreError::AuthorityCheckpointRollback => G01RegistryError::Rollback,
-            SecurityStoreError::AuthorityCheckpointConflict => G01RegistryError::ConflictingRevision,
+            SecurityStoreError::AuthorityCheckpointConflict => {
+                G01RegistryError::ConflictingRevision
+            },
             _ => G01RegistryError::StoreUnavailable,
         })
 }
@@ -1516,7 +1536,8 @@ mod independent_registry_tests {
         ));
         let _ = std::fs::remove_file(&database_path);
         let store = SqliteG01AuthorityStore::open(&database_path).expect("file-backed store");
-        let checkpoint = SqliteSecurityStore::open_in_memory().expect("independent checkpoint store");
+        let checkpoint =
+            SqliteSecurityStore::open_in_memory().expect("independent checkpoint store");
         let revocations = SqliteSecurityStore::open_in_memory().expect("revocation store");
         let mut identity = signed_identity_roots(&root);
         identity.revision = 2;
@@ -1569,7 +1590,15 @@ mod independent_registry_tests {
             .install_succession_registry(&succession, &roots, &checkpoint, 20)
             .expect("install succession registry");
         let resolved = store
-            .resolve_verified_succession("succession-1", &roots, &checkpoint, &trust, &revocations, 11, 20)
+            .resolve_verified_succession(
+                "succession-1",
+                &roots,
+                &checkpoint,
+                &trust,
+                &revocations,
+                11,
+                20,
+            )
             .expect("verified succession");
         assert_eq!(resolved.successor_identity, "identity-new");
 
@@ -1595,7 +1624,15 @@ mod independent_registry_tests {
         )
         .expect("overlapping rotation trust");
         assert!(store
-            .resolve_verified_succession("succession-1", &roots, &checkpoint, &overlap_trust, &revocations, 11, 20)
+            .resolve_verified_succession(
+                "succession-1",
+                &roots,
+                &checkpoint,
+                &overlap_trust,
+                &revocations,
+                11,
+                20
+            )
             .is_ok());
 
         let rotated_only_trust = TrustStore::new(
@@ -1610,7 +1647,15 @@ mod independent_registry_tests {
         )
         .expect("rotated key trust");
         assert_eq!(
-            store.resolve_verified_succession("succession-1", &roots, &checkpoint, &rotated_only_trust, &revocations, 11, 20),
+            store.resolve_verified_succession(
+                "succession-1",
+                &roots,
+                &checkpoint,
+                &rotated_only_trust,
+                &revocations,
+                11,
+                20
+            ),
             Err(G01RegistryError::UnknownIssuerKey)
         );
 
@@ -1690,14 +1735,29 @@ mod independent_registry_tests {
         );
         assert_eq!(
             store
-                .resolve_verified_succession("succession-1", &roots, &checkpoint, &trust, &revocations, 11, 20)
+                .resolve_verified_succession(
+                    "succession-1",
+                    &roots,
+                    &checkpoint,
+                    &trust,
+                    &revocations,
+                    11,
+                    20
+                )
                 .expect("succession survives restart")
                 .successor_identity,
             "identity-new"
         );
         let resolver = StaticMigration(artifact);
         let (contract, policy) = store
-            .resolve_compatibility_with_migration("migration-policy", "1", &roots, &checkpoint, &resolver, 20)
+            .resolve_compatibility_with_migration(
+                "migration-policy",
+                "1",
+                &roots,
+                &checkpoint,
+                &resolver,
+                20,
+            )
             .expect("authenticated migration bytes after restart");
         assert_eq!(contract.contract_id, "compat-contract");
         assert_eq!(policy.policy_id, "migration-policy");
