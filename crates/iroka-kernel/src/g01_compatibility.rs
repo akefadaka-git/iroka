@@ -243,7 +243,8 @@ pub fn evaluate_compatibility<R: CompatibilityResolver>(
     };
     let compatibility = decision == CompatibilityDecision::Compatible;
     let decision_rationale = if declaration_conflict {
-        "caller compatibility declaration conflicts with independently authenticated policy; fail closed".to_owned()
+        "caller compatibility declaration conflicts with independently authenticated policy; fail closed"
+            .to_owned()
     } else {
         "exact contract identities compared under authenticated immutable policy".to_owned()
     };
@@ -321,7 +322,10 @@ mod tests {
             migration_digest: None,
             migration_ref: None,
             provenance: serde_json::json!({"source":"version-registry"}),
-            version_bound_evidence: serde_json::json!({"gene":"g01.compatibility","version":"1.1.0"}),
+            version_bound_evidence: serde_json::json!({
+                "gene":"g01.compatibility",
+                "version":"1.1.0"
+            }),
         }
     }
 
@@ -336,7 +340,8 @@ mod tests {
             policy_id: "compatibility-policy:stable".into(),
             policy_version: "3.2.0".into(),
             policy_issuer_id: "issuer:policy-authority".into(),
-            policy_digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            policy_digest:
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
             policy_scope_verified: true,
             policy_validity_verified: true,
             comparison_digest:
@@ -446,7 +451,8 @@ mod tests {
         );
         let mut candidate = input();
         candidate.migration_ref = Some("migration:source-to-target".into());
-        candidate.migration_digest = Some("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into());
+        candidate.migration_digest =
+            Some("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".into());
         let mut invalid = proof();
         invalid.migration_ref = candidate.migration_ref.clone();
         invalid.migration_digest = candidate.migration_digest.clone();
