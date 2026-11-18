@@ -94,7 +94,10 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
         || input.provenance.as_object().is_some_and(|v| v.is_empty())
         || input.version_bound_evidence.is_null()
         || !input.version_bound_evidence.is_object()
-        || input\n            .version_bound_evidence\n            .as_object()\n            .is_some_and(|v| v.is_empty())
+        || input
+            .version_bound_evidence
+            .as_object()
+            .is_some_and(|v| v.is_empty())
     {
         return Err(IdentityRootError::Malformed);
     }
