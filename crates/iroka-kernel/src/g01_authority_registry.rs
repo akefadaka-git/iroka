@@ -382,6 +382,26 @@ impl SqliteG01AuthorityStore {
                expires_at INTEGER NOT NULL,
                document TEXT NOT NULL
              );
+             ",
+            )
+            .map_err(|_| G01RegistryError::StoreUnavailable)?;
+        Ok(Self {
+            connection: Mutex::new(connection),
+        })
+    }
+
+    pub fn open_in_memory() -> Result<Self, G01RegistryError> {
+        let connection =
+            Connection::open_in_memory().map_err(|_| G01RegistryError::StoreUnavailable)?;
+        connection
+            .execute_batch(
+                "CREATE TABLE g01_authority_snapshot(
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               revision INTEGER NOT NULL CHECK(revision>0),
+               digest BLOB NOT NULL CHECK(length(digest)=32),
+               expires_at INTEGER NOT NULL,
+               document TEXT NOT NULL
+             );
              CREATE TABLE g01_identity_root_registry(
                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
                revision INTEGER NOT NULL CHECK(revision>0),
@@ -397,25 +417,6 @@ impl SqliteG01AuthorityStore {
                document TEXT NOT NULL
              );
              CREATE TABLE g01_compatibility_registry(
-               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
-               revision INTEGER NOT NULL CHECK(revision>0),
-               digest BLOB NOT NULL CHECK(length(digest)=32),
-               expires_at INTEGER NOT NULL,
-               document TEXT NOT NULL
-             );",
-            )
-            .map_err(|_| G01RegistryError::StoreUnavailable)?;
-        Ok(Self {
-            connection: Mutex::new(connection),
-        })
-    }
-
-    pub fn open_in_memory() -> Result<Self, G01RegistryError> {
-        let connection =
-            Connection::open_in_memory().map_err(|_| G01RegistryError::StoreUnavailable)?;
-        connection
-            .execute_batch(
-                "CREATE TABLE g01_authority_snapshot(
                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
                revision INTEGER NOT NULL CHECK(revision>0),
                digest BLOB NOT NULL CHECK(length(digest)=32),
