@@ -351,6 +351,8 @@ pub enum G01RegistryError {
     UnknownPolicy,
     RevokedKey,
     RevocationUnavailable,
+    RevokedKey,
+    NotYetEffective,
     InvalidSuccessionDigest,
     InvalidSuccessionSignature,
     UnknownIssuerKey,
@@ -609,6 +611,8 @@ impl SqliteG01AuthorityStore {
         proof_id: &str,
         roots: &TrustRootSet,
         trust: &TrustStore,
+        revocations: &dyn RevocationChecker,
+        evaluated_epoch: u64,
         now: u64,
     ) -> Result<IdentitySuccessionProof, G01RegistryError> {
         let envelope: SignedSuccessionRegistryEnvelope =
@@ -633,6 +637,15 @@ impl SqliteG01AuthorityStore {
             .find(|p| p.proof.proof_id == proof_id)
             .ok_or(G01RegistryError::UnknownProof)?;
         signed.verify(trust, now)?;
+        if evaluated_epoch < signed.proof.effective_epoch {
+            return Err(G01RegistryError::NotYetEffective);
+        }
+        if revocations
+            .key_revoked(&signed.proof.issuer_id, &signed.proof.signing_key_id)
+            .map_err(|_| G01RegistryError::RevocationUnavailable)?
+        {
+            return Err(G01RegistryError::RevokedKey);
+        }
         Ok(signed.proof.clone())
     }
 
@@ -1490,7 +1503,7 @@ mod independent_registry_tests {
             .install_succession_registry(&succession, &roots, 20)
             .expect("install succession registry");
         let resolved = store
-            .resolve_verified_succession("succession-1", &roots, &trust, 20)
+            .resolve_verified_succession("succession-1", &roots, &trust, &SqliteSecurityStore::open_in_memory().expect("revocation store"), 11, 20)
             .expect("verified succession");
         assert_eq!(resolved.successor_identity, "identity-new");
 
@@ -1516,7 +1529,7 @@ mod independent_registry_tests {
         )
         .expect("overlapping rotation trust");
         assert!(store
-            .resolve_verified_succession("succession-1", &roots, &overlap_trust, 20)
+            .resolve_verified_succession("succession-1", &roots, &overlap_trust, &SqliteSecurityStore::open_in_memory().expect("revocation store"), 11, 20)
             .is_ok());
 
         let rotated_only_trust = TrustStore::new(
@@ -1531,8 +1544,35 @@ mod independent_registry_tests {
         )
         .expect("rotated key trust");
         assert_eq!(
-            store.resolve_verified_succession("succession-1", &roots, &rotated_only_trust, 20),
+            store.resolve_verified_succession("succession-1", &roots, &rotated_only_trust, &SqliteSecurityStore::open_in_memory().expect("revocation store"), 11, 20),
             Err(G01RegistryError::UnknownIssuerKey)
+        );
+
+        let revoked_store = SqliteSecurityStore::open_in_memory().expect("revocation store");
+        revoked_store
+            .revoke_key("issuer-1", "succession-key-1", 19, "compromised")
+            .expect("revoke issuer key");
+        assert_eq!(
+            store.resolve_verified_succession(
+                "succession-1",
+                &roots,
+                &trust,
+                &revoked_store,
+                11,
+                20
+            ),
+            Err(G01RegistryError::RevokedKey)
+        );
+        assert_eq!(
+            store.resolve_verified_succession(
+                "succession-1",
+                &roots,
+                &trust,
+                &revoked_store,
+                10,
+                20
+            ),
+            Err(G01RegistryError::NotYetEffective)
         );
 
         let artifact = b"immutable migration artifact v1".to_vec();
@@ -1582,7 +1622,7 @@ mod independent_registry_tests {
         );
         assert_eq!(
             store
-                .resolve_verified_succession("succession-1", &roots, &trust, 20)
+                .resolve_verified_succession("succession-1", &roots, &trust, &SqliteSecurityStore::open_in_memory().expect("revocation store"), 11, 20)
                 .expect("succession survives restart")
                 .successor_identity,
             "identity-new"
