@@ -108,6 +108,16 @@ pub trait IdentityKeyMaterialResolver: Send + Sync {
     fn resolve_public_key(&self, reference: &str) -> Result<[u8; 32], IdentityRootError>;
 }
 
+/// Expected subject and trust context for signed identity evidence.
+pub struct IdentityEvidenceContext<'a> {
+    pub root_id: &'a str,
+    pub issuer_id: &'a str,
+    pub key_fingerprint: &'a str,
+    pub activation_epoch: u64,
+    pub trust: &'a crate::TrustStore,
+    pub now: u64,
+}
+
 /// Cryptographic verifier for issuer-chain, provenance and version-bound
 /// attestations. Implementations MUST validate signatures against trusted
 /// issuer keys, subject/key binding, validity windows and chain anchoring.
@@ -125,22 +135,13 @@ pub trait IdentityEvidenceVerifier: Send + Sync {
     fn verify_provenance(
         &self,
         evidence: &Value,
-        root_id: &str,
-        issuer_id: &str,
-        key_fingerprint: &str,
-        trust: &crate::TrustStore,
-        now: u64,
+        context: &IdentityEvidenceContext<'_>,
     ) -> Result<(), IdentityRootError>;
 
     fn verify_version_bound_evidence(
         &self,
         evidence: &Value,
-        root_id: &str,
-        issuer_id: &str,
-        key_fingerprint: &str,
-        activation_epoch: u64,
-        trust: &crate::TrustStore,
-        now: u64,
+        context: &IdentityEvidenceContext<'_>,
     ) -> Result<(), IdentityRootError>;
 }
 
