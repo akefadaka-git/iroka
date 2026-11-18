@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g01.compatibility/output/1.1.0",
+  "title": "g01.compatibility output contract v1.1.0",
+  "description": "Compatibility decision with reproducible policy, canonical contract, declaration-conflict and migration evidence.",
+  "type": "object",
+  "properties": {
+    "compatibility": {
+      "type": "boolean"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "compatible",
+        "incompatible",
+        "migration_required"
+      ]
+    },
+    "policy_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "compatibility",
+    "decision",
+    "policy_id",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "compatible"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "compatibility": {
+            "const": true
+          }
+        },
+        "required": [
+          "compatibility"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "enum": [
+              "incompatible",
+              "migration_required"
+            ]
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "compatibility": {
+            "const": false
+          }
+        },
+        "required": [
+          "compatibility"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        },
+        "contract_registry_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version_grammar_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_contract_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_contract_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonical_source_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonical_target_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_issuer_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "policy_scope_verified": {
+          "type": "boolean"
+        },
+        "policy_validity_verified": {
+          "type": "boolean"
+        },
+        "comparison_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "policy_decision": {
+          "type": "string",
+          "enum": [
+            "compatible",
+            "incompatible",
+            "migration_required"
+          ]
+        },
+        "declaration_conflict": {
+          "type": "boolean"
+        },
+        "migration_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "migration_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "migration_verified": {
+          "type": "boolean"
+        },
+        "no_migration_required": {
+          "type": "boolean"
+        },
+        "decision_rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence",
+        "contract_registry_id",
+        "version_grammar_id",
+        "source_contract_id",
+        "target_contract_id",
+        "canonical_source_version",
+        "canonical_target_version",
+        "policy_issuer_id",
+        "policy_version",
+        "policy_digest",
+        "policy_scope_verified",
+        "policy_validity_verified",
+        "comparison_digest",
+        "policy_decision",
+        "declaration_conflict",
+        "migration_ref",
+        "migration_digest",
+        "migration_verified",
+        "no_migration_required",
+        "decision_rationale"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
