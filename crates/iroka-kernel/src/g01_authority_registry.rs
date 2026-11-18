@@ -1487,8 +1487,18 @@ mod independent_registry_tests {
         )
         .expect("issuer trust");
 
-        let store = SqliteG01AuthorityStore::open_in_memory().expect("store");
-        let identity = signed_identity_roots(&root);
+        let database_path = std::env::temp_dir().join(format!(
+            "iroka-g01-independent-registry-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&database_path);
+        let store = SqliteG01AuthorityStore::open(&database_path).expect("file-backed store");
+        let mut identity = signed_identity_roots(&root);
+        identity.revision = 2;
+        identity.signature = root
+            .sign(&identity.signing_bytes().expect("canonical bytes"))
+            .to_bytes()
+            .to_vec();
         store
             .install_identity_root_registry(&identity, &roots, 20)
             .expect("install identity registry");
@@ -1497,7 +1507,36 @@ mod independent_registry_tests {
                 .latest_identity_root_registry(&roots, 20)
                 .expect("load identity registry")
                 .revision,
-            1
+            2
+        );
+
+        let mut stale_identity = signed_identity_roots(&root);
+        stale_identity.revision = 1;
+        stale_identity.signature = root
+            .sign(&stale_identity.signing_bytes().expect("canonical bytes"))
+            .to_bytes()
+            .to_vec();
+        assert_eq!(
+            store.install_identity_root_registry(&stale_identity, &roots, 20),
+            Err(G01RegistryError::Rollback)
+        );
+
+        let mut tampered_identity = identity.clone();
+        tampered_identity.identity_roots[0].root_id = "substituted-root".to_owned();
+        assert_eq!(
+            store.install_identity_root_registry(&tampered_identity, &roots, 20),
+            Err(G01RegistryError::InvalidRootSignature)
+        );
+
+        let mut expired_identity = signed_identity_roots(&root);
+        expired_identity.expires_at = 15;
+        expired_identity.signature = root
+            .sign(&expired_identity.signing_bytes().expect("canonical bytes"))
+            .to_bytes()
+            .to_vec();
+        assert_eq!(
+            store.install_identity_root_registry(&expired_identity, &roots, 20),
+            Err(G01RegistryError::Expired)
         );
 
         let succession = signed_succession(&root, &issuer);
@@ -1545,12 +1584,23 @@ mod independent_registry_tests {
         store
             .install_compatibility_registry(&compatibility, &roots, 20)
             .expect("install compatibility registry");
+        drop(store);
+        let store = SqliteG01AuthorityStore::open(&database_path).expect("reopened durable store");
+        assert_eq!(
+            store
+                .latest_identity_root_registry(&roots, 20)
+                .expect("identity registry survives restart")
+                .revision,
+            2
+        );
         let resolver = StaticMigration(artifact);
         let (contract, policy) = store
             .resolve_compatibility_with_migration("migration-policy", "1", &roots, &resolver, 20)
-            .expect("authenticated migration bytes");
+            .expect("authenticated migration bytes after restart");
         assert_eq!(contract.contract_id, "compat-contract");
         assert_eq!(policy.policy_id, "migration-policy");
+        drop(store);
+        let _ = std::fs::remove_file(&database_path);
     }
 
     #[test]
