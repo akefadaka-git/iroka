@@ -57,9 +57,10 @@
         "graph_revision_digest": {"$ref": "#/$defs/digest"},
         "schema_version": {"const": "1.0.0"},
         "configuration_digest_algorithm": {"const": "SHA-256"},
+        "configuration_canonicalization": {"const": "JCS-RFC8785"},
         "graph_validator_version": {"const": "1.0.0"}
       },
-      "required": ["workflow_registry_digest", "operation_registry_digest", "dependency_registry_digest", "checkpoint_registry_digest", "graph_revision_digest", "schema_version", "configuration_digest_algorithm", "graph_validator_version"],
+      "required": ["workflow_registry_digest", "operation_registry_digest", "dependency_registry_digest", "checkpoint_registry_digest", "graph_revision_digest", "schema_version", "configuration_digest_algorithm", "configuration_canonicalization", "graph_validator_version"],
       "additionalProperties": false
     },
     "evidence": {
