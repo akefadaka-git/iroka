@@ -1030,7 +1030,7 @@ fn advance_registry_checkpoint(
             SecurityStoreError::AuthorityCheckpointRollback => G01RegistryError::Rollback,
             SecurityStoreError::AuthorityCheckpointConflict => {
                 G01RegistryError::ConflictingRevision
-            },
+            }
             _ => G01RegistryError::StoreUnavailable,
         })
 }
@@ -1802,7 +1802,8 @@ mod independent_registry_tests {
             .to_bytes()
             .to_vec();
         let store = SqliteG01AuthorityStore::open_in_memory().expect("store");
-        let checkpoint = SqliteSecurityStore::open_in_memory().expect("independent checkpoint store");
+        let checkpoint =
+            SqliteSecurityStore::open_in_memory().expect("independent checkpoint store");
         store
             .install_compatibility_registry(&envelope, &roots, &checkpoint, 20)
             .expect("install");
