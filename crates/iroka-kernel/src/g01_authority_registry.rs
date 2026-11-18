@@ -372,11 +372,15 @@ impl IdentityRootRegistry for SqliteG01AuthorityStore {
         if chain.last().map(|x| x.issuer_id.as_str()) != Some(record.issuer_id.as_str()) {
             return Err(IdentityRootError::UnknownIssuer);
         }
+        let policy_record = snapshot.algorithm_policies.iter()
+            .find(|p| p.policy_id == record.algorithm_policy_id
+                && p.version == record.algorithm_policy_version)
+            .ok_or(IdentityRootError::PolicyUnavailable)?;
         let policy = AlgorithmPolicyEvidence {
             policy_id: record.algorithm_policy_id,
             policy_version: record.algorithm_policy_version,
             algorithm: record.algorithm,
-            allowed: record.algorithm == "EdDSA",
+            allowed: policy_record.allowed_algorithms.contains(&record.algorithm),
         };
         Ok(IdentityRootRegistryRecord {
             root_id: record.root_id, issuer_id: record.issuer_id,
@@ -399,8 +403,9 @@ pub fn evaluate_identity_root_production(
     revocations: &SqliteSecurityStore,
     input: &IdentityRootInput,
     evaluated_epoch: u64,
+    now_unix: u64,
 ) -> Result<crate::g01_identity_root::IdentityRootOutput, IdentityRootError> {
-    let snapshot = registry.active_snapshot(evaluated_epoch)
+    let snapshot = registry.active_snapshot(now_unix)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
     let record = snapshot.identity_roots.iter().find(|r| r.root_id==input.root_id)
         .ok_or(IdentityRootError::UnknownRoot)?;
@@ -419,11 +424,17 @@ pub fn evaluate_identity_root_production(
         root_id: adapter.root_id.clone(), issuer_id: adapter.issuer_id.clone(),
         key_fingerprint: adapter.key_fingerprint.clone(), key_material_ref: adapter.key_material_ref.clone(),
         algorithm: adapter.algorithm.clone(),
-        algorithm_policy: AlgorithmPolicyEvidence {
-            policy_id: adapter.algorithm_policy_id.clone(),
-            policy_version: adapter.algorithm_policy_version.clone(),
-            algorithm: adapter.algorithm.clone(),
-            allowed: adapter.algorithm=="EdDSA",
+        algorithm_policy: {
+            let p = snapshot.algorithm_policies.iter()
+                .find(|p| p.policy_id == adapter.algorithm_policy_id
+                    && p.version == adapter.algorithm_policy_version)
+                .ok_or(IdentityRootError::PolicyUnavailable)?;
+            AlgorithmPolicyEvidence {
+                policy_id: adapter.algorithm_policy_id.clone(),
+                policy_version: adapter.algorithm_policy_version.clone(),
+                algorithm: adapter.algorithm.clone(),
+                allowed: p.allowed_algorithms.contains(&adapter.algorithm),
+            }
         },
         activation_epoch: adapter.activation_epoch, status: adapter.status,
         key_status: adapter.key_status, issuer_chain: adapter.issuer_chain.clone(),
