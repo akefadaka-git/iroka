@@ -891,8 +891,14 @@ mod tests {
                     json!(registry.checkpoint_digest.clone()),
                 ),
                 ("graph_revision_digest".into(), json!("c".repeat(64))),
-                ("schema_version".into(), json!(WORKFLOW_GRAPH_SCHEMA_VERSION)),
-                ("configuration_canonicalization".into(), json!(CONFIGURATION_CANONICALIZATION)),
+                (
+                    "schema_version".into(),
+                    json!(WORKFLOW_GRAPH_SCHEMA_VERSION),
+                ),
+                (
+                    "configuration_canonicalization".into(),
+                    json!(CONFIGURATION_CANONICALIZATION),
+                ),
                 (
                     "configuration_digest_algorithm".into(),
                     json!(CONFIGURATION_DIGEST_ALGORITHM),
