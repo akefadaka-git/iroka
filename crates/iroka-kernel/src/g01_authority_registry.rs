@@ -256,16 +256,28 @@ impl SqliteG01AuthorityStore {
         Ok(snapshot)
     }
 
-    pub fn resolve_succession(&self, proof_id: &str, now: u64)
-        -> Result<IdentitySuccessionProof, G01RegistryError> {
+    fn active_verified_snapshot(&self, roots: &TrustRootSet, now: u64) -> Result<SignedG01AuthoritySnapshot, G01RegistryError> {
         let snapshot = self.active_snapshot(now)?;
+        let root = roots.get(&snapshot.root_key_id).map_err(|_| G01RegistryError::UnknownRoot)?;
+        if now < root.not_before || now >= root.not_after { return Err(G01RegistryError::Expired); }
+        validate_snapshot(&snapshot)?;
+        let key = VerifyingKey::from_bytes(&root.public_key).map_err(|_| G01RegistryError::UnknownRoot)?;
+        let bytes = snapshot.signing_bytes()?;
+        let signature = Signature::from_slice(&snapshot.signature).map_err(|_| G01RegistryError::Malformed)?;
+        key.verify(&bytes, &signature).map_err(|_| G01RegistryError::InvalidRootSignature)?;
+        Ok(snapshot)
+    }
+
+    pub fn resolve_succession(&self, proof_id: &str, roots: &TrustRootSet, now: u64)
+        -> Result<IdentitySuccessionProof, G01RegistryError> {
+        let snapshot = self.active_verified_snapshot(roots, now)?;
         snapshot.succession_proofs.into_iter().find(|p| p.proof_id == proof_id)
             .ok_or(G01RegistryError::UnknownProof)
     }
 
-    pub fn resolve_compatibility(&self, policy_id: &str, version: &str, now: u64)
+    pub fn resolve_compatibility(&self, policy_id: &str, version: &str, roots: &TrustRootSet, now: u64)
         -> Result<(CompatibilityContract, CompatibilityPolicy), G01RegistryError> {
-        let snapshot = self.active_snapshot(now)?;
+        let snapshot = self.active_verified_snapshot(roots, now)?;
         let policy = snapshot.compatibility_policies.into_iter()
             .find(|p| p.policy_id == policy_id && p.version == version)
             .ok_or(G01RegistryError::UnknownPolicy)?;
@@ -400,21 +412,29 @@ impl IdentityRootRegistry for SqliteG01AuthorityStore {
 pub fn evaluate_identity_root_production(
     registry: &SqliteG01AuthorityStore,
     trust: &TrustStore,
+    roots: &TrustRootSet,
     revocations: &SqliteSecurityStore,
     input: &IdentityRootInput,
     evaluated_epoch: u64,
     now_unix: u64,
 ) -> Result<crate::g01_identity_root::IdentityRootOutput, IdentityRootError> {
-    let snapshot = registry.active_snapshot(now_unix)
+    let snapshot = registry.active_verified_snapshot(roots, now_unix)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
     let record = snapshot.identity_roots.iter().find(|r| r.root_id==input.root_id)
         .ok_or(IdentityRootError::UnknownRoot)?;
-    let public_key = trust.trusted_public_key(&record.issuer_id, &record.key_id)
+    let public_key = trust.trusted_public_key(&record.issuer_id, &record.key_id, now_unix)
         .map_err(|_| IdentityRootError::KeyMaterialUnavailable)?;
     let digest = Sha256::digest(public_key);
     let fingerprint = format!("sha256:{digest:x}");
     if fingerprint != record.key_fingerprint || fingerprint != input.key_fingerprint {
         return Err(IdentityRootError::FingerprintMismatch);
+    }
+    if record.issuer_id != input.issuer_id || record.key_material_ref != input.key_material_ref
+        || record.algorithm != input.algorithm || record.algorithm_policy_id != input.algorithm_policy_id
+        || record.algorithm_policy_version != input.algorithm_policy_version
+        || record.activation_epoch != input.activation_epoch || record.status != input.status
+        || record.provenance != input.provenance || record.version_bound_evidence != input.version_bound_evidence {
+        return Err(IdentityRootError::RootRecordMismatch);
     }
     let revoked = revocations.key_revoked(&record.issuer_id, &record.key_id)
         .map_err(|_| IdentityRootError::RegistryUnavailable)?;
