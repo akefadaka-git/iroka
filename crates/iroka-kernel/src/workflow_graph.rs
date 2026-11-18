@@ -53,6 +53,8 @@ pub struct WorkflowNodeOperationProvenance {
     pub configuration_digest: String,
     pub operation_provenance_ref: String,
     pub configuration_provenance_ref: String,
+    pub checkpoint_ref: Option<String>,
+    pub checkpoint_provenance_ref: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -300,6 +302,14 @@ fn validate_provenance(
         if item.operation_ref != node.operation_ref
             || item.implementation_digest != operation.implementation_digest
             || item.configuration_digest != node.configuration_digest
+            || item.checkpoint_ref != node.checkpoint_ref
+            || item.checkpoint_provenance_ref.is_some() != node.checkpoint_ref.is_some()
+            || item.operation_provenance_ref.len() > 512
+            || item.configuration_provenance_ref.len() > 512
+            || item
+                .checkpoint_provenance_ref
+                .as_ref()
+                .is_some_and(|reference| reference.is_empty() || reference.len() > 512)
         {
             return Err("workflow_graph_node_provenance_binding_mismatch".into());
         }
@@ -316,11 +326,21 @@ fn validate_provenance(
         let Some(item) = edge_provenance.get(edge.edge_id.as_str()) else {
             return Err("workflow_graph_edge_provenance_missing".into());
         };
-        if item.dependency_type != edge.dependency_type {
+        if item.dependency_type != edge.dependency_type || item.provenance_ref.len() > 512 {
             return Err("workflow_graph_edge_provenance_binding_mismatch".into());
         }
     }
-    if provenance.workflow_registry_ref.is_empty()
+    if [
+        &provenance.source_ref,
+        &provenance.revision_ref,
+        &provenance.workflow_registry_ref,
+        &provenance.operation_registry_ref,
+        &provenance.dependency_registry_ref,
+        &provenance.checkpoint_registry_ref,
+    ]
+    .iter()
+    .any(|reference| !provenance.validation_input_refs.contains(reference))
+        || provenance.workflow_registry_ref.is_empty()
         || provenance.operation_registry_ref.is_empty()
         || provenance.dependency_registry_ref.is_empty()
         || provenance.checkpoint_registry_ref.is_empty()
@@ -341,11 +361,16 @@ fn topological_order(
     let mut findings = Vec::new();
     let mut node_ids = BTreeSet::new();
     for node in &input.nodes {
+        if !valid_identifier(&node.node_id) || !node_ids.insert(node.node_id.as_str()) {
+            findings.push("node_identity_or_configuration_invalid".to_owned());
+        }
+    }
+    for node in &input.nodes {
         if !valid_identifier(&node.node_id)
+            || !node_ids.contains(node.node_id.as_str())
             || !valid_identifier(&node.node_type)
             || !valid_identifier(&node.operation_ref)
             || !valid_digest(&node.configuration_digest)
-            || !node_ids.insert(node.node_id.as_str())
         {
             findings.push("node_identity_or_configuration_invalid".to_owned());
             continue;
@@ -385,7 +410,7 @@ fn topological_order(
         } else if node.safe_stop {
             findings.push(format!("safe_stop_checkpoint_missing:{}", node.node_id));
         }
-        match (&node.safe_stop, &node.recovery_node_id) {
+        match (node.safe_stop, &node.recovery_node_id) {
             (true, Some(recovery_id))
                 if valid_identifier(recovery_id)
                     && recovery_id != &node.node_id
