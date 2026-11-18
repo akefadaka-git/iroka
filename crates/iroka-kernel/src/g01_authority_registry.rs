@@ -1647,12 +1647,14 @@ mod independent_registry_tests {
         let resolved = store
             .resolve_verified_succession(
                 "succession-1",
-                &roots,
-                &checkpoint,
-                &trust,
-                &revocations,
-                11,
-                20,
+                SuccessionResolutionContext {
+                    roots: &roots,
+                    checkpoint: &checkpoint,
+                    trust: &trust,
+                    revocations: &revocations,
+                    evaluated_epoch: 11,
+                    now: 20,
+                },
             )
             .expect("verified succession");
         assert_eq!(resolved.successor_identity, "identity-new");
@@ -1681,12 +1683,14 @@ mod independent_registry_tests {
         assert!(store
             .resolve_verified_succession(
                 "succession-1",
-                &roots,
-                &checkpoint,
-                &overlap_trust,
-                &revocations,
-                11,
-                20
+                SuccessionResolutionContext {
+                    roots: &roots,
+                    checkpoint: &checkpoint,
+                    trust: &overlap_trust,
+                    revocations: &revocations,
+                    evaluated_epoch: 11,
+                    now: 20,
+                },
             )
             .is_ok());
 
@@ -1704,12 +1708,14 @@ mod independent_registry_tests {
         assert_eq!(
             store.resolve_verified_succession(
                 "succession-1",
-                &roots,
-                &checkpoint,
-                &rotated_only_trust,
-                &revocations,
-                11,
-                20
+                SuccessionResolutionContext {
+                    roots: &roots,
+                    checkpoint: &checkpoint,
+                    trust: &rotated_only_trust,
+                    revocations: &revocations,
+                    evaluated_epoch: 11,
+                    now: 20,
+                },
             ),
             Err(G01RegistryError::UnknownIssuerKey)
         );
@@ -1721,24 +1727,28 @@ mod independent_registry_tests {
         assert_eq!(
             store.resolve_verified_succession(
                 "succession-1",
-                &roots,
-                &checkpoint,
-                &trust,
-                &revoked_store,
-                11,
-                20
+                SuccessionResolutionContext {
+                    roots: &roots,
+                    checkpoint: &checkpoint,
+                    trust: &trust,
+                    revocations: &revoked_store,
+                    evaluated_epoch: 11,
+                    now: 20,
+                },
             ),
             Err(G01RegistryError::RevokedKey)
         );
         assert_eq!(
             store.resolve_verified_succession(
                 "succession-1",
-                &roots,
-                &checkpoint,
-                &trust,
-                &revoked_store,
-                10,
-                20
+                SuccessionResolutionContext {
+                    roots: &roots,
+                    checkpoint: &checkpoint,
+                    trust: &trust,
+                    revocations: &revoked_store,
+                    evaluated_epoch: 10,
+                    now: 20,
+                },
             ),
             Err(G01RegistryError::NotYetEffective)
         );
@@ -1792,12 +1802,14 @@ mod independent_registry_tests {
             store
                 .resolve_verified_succession(
                     "succession-1",
-                    &roots,
-                    &checkpoint,
-                    &trust,
-                    &revocations,
-                    11,
-                    20
+                    SuccessionResolutionContext {
+                        roots: &roots,
+                        checkpoint: &checkpoint,
+                        trust: &trust,
+                        revocations: &revocations,
+                        evaluated_epoch: 11,
+                        now: 20,
+                    },
                 )
                 .expect("succession survives restart")
                 .successor_identity,
