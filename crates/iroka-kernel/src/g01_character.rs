@@ -502,7 +502,10 @@ pub fn evaluate_compatibility<R: CompatibilityResolver>(
         || input.provenance.as_object().is_some_and(|v| v.is_empty())
         || input.version_bound_evidence.is_null()
         || !input.version_bound_evidence.is_object()
-        || input.version_bound_evidence.as_object().is_some_and(|v| v.is_empty())
+        || input
+            .version_bound_evidence
+            .as_object()
+            .is_some_and(|v| v.is_empty())
         || input
             .migration_digest
             .as_ref()
@@ -592,7 +595,8 @@ mod compatibility_tests {
         fn evaluate(
             &self,
             _: &CompatibilityInput,
-        ) -> Result<(CompatibilityDecision, CompatibilityProof), CompatibilityError> {
+        ) -> Result<(CompatibilityDecision, CompatibilityProof), CompatibilityError>
+            {
             Ok((
                 CompatibilityDecision::Compatible,
                 CompatibilityProof {
@@ -673,7 +677,8 @@ mod compatibility_tests {
             fn evaluate(
                 &self,
                 _: &CompatibilityInput,
-            ) -> Result<(CompatibilityDecision, CompatibilityProof), CompatibilityError> {
+            ) -> Result<(CompatibilityDecision, CompatibilityProof), CompatibilityError>
+            {
                 Ok((
                     CompatibilityDecision::MigrationRequired,
                     CompatibilityProof {
