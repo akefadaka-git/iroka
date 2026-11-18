@@ -8,6 +8,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "docs/architecture/a3/**"
       - "tools/genesis/validate_g08_workflow_graph.py"
       - ".github/workflows/a3-g08-workflow-graph-verification.yml"
   pull_request:
