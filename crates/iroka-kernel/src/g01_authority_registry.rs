@@ -556,9 +556,7 @@ impl IdentityRootRegistry for SqliteG01AuthorityStore {
                     && p.version == record.algorithm_policy_version
             })
             .ok_or(IdentityRootError::PolicyUnavailable)?;
-        let algorithm_allowed = policy_record
-            .allowed_algorithms
-            .contains(&record.algorithm);
+        let algorithm_allowed = policy_record.allowed_algorithms.contains(&record.algorithm);
         let policy = AlgorithmPolicyEvidence {
             policy_id: record.algorithm_policy_id.clone(),
             policy_version: record.algorithm_policy_version.clone(),
