@@ -45,7 +45,6 @@ pub struct LineageOutput {
 pub enum LineageError {
     Malformed,
     SelfReference,
-    UnsupportedMergedRelationship,
     ProofUnavailable,
     ProofInvalid,
     UnknownIdentity,
@@ -60,8 +59,9 @@ pub enum LineageError {
 /// Trusted lineage resolver. It must resolve canonical identities, retrieve
 /// and authenticate proof material matching proof_digest, validate the full
 /// ancestry graph (including cycles/conflicts), and check authoritative epoch
-/// ordering plus provenance/version evidence. A single predecessor is the
-/// only representable parent shape in the frozen v1.0.0 input schema.
+/// ordering plus provenance/version evidence. For merged relationships,
+/// predecessor_id is the canonical anchor; the authenticated proof graph must
+/// establish and validate every additional parent edge.
 pub trait LineageResolver: Send + Sync {
     fn verify_lineage(&self, input: &LineageInput) -> Result<(String, u64), LineageError>;
 }
