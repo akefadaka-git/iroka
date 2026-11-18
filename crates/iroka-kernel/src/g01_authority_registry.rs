@@ -391,6 +391,283 @@ impl SqliteG01AuthorityStore {
         })
     }
 
+    fn persist_independent_envelope<T: Serialize>(
+        &self,
+        table: &str,
+        root_key_id: &str,
+        revision: u64,
+        issued_at: u64,
+        expires_at: u64,
+        signature: &[u8],
+        signing_bytes: &[u8],
+        envelope: &T,
+        roots: &TrustRootSet,
+        now: u64,
+    ) -> Result<(), G01RegistryError> {
+        if !matches!(
+            table,
+            "g01_identity_root_registry"
+                | "g01_succession_registry"
+                | "g01_compatibility_registry"
+        ) {
+            return Err(G01RegistryError::Malformed);
+        }
+        verify_root_signed_envelope(
+            root_key_id,
+            revision,
+            issued_at,
+            expires_at,
+            signature,
+            signing_bytes,
+            roots,
+            now,
+        )?;
+        let digest = Sha256::digest(signing_bytes);
+        let document = serde_json::to_string(envelope).map_err(|_| G01RegistryError::Malformed)?;
+        let revision = i64::try_from(revision).map_err(|_| G01RegistryError::Malformed)?;
+        let expires = i64::try_from(expires_at).map_err(|_| G01RegistryError::Malformed)?;
+        let mut conn = self
+            .connection
+            .lock()
+            .map_err(|_| G01RegistryError::StoreUnavailable)?;
+        let tx = conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| G01RegistryError::StoreUnavailable)?;
+        let query = format!("SELECT revision,digest,document FROM {table} WHERE singleton=1");
+        let old: Option<(i64, Vec<u8>, String)> = tx
+            .query_row(&query, [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .optional()
+            .map_err(|_| G01RegistryError::StoreUnavailable)?;
+        if let Some((old_revision, old_digest, old_document)) = old {
+            if revision < old_revision {
+                return Err(G01RegistryError::Rollback);
+            }
+            if revision == old_revision {
+                if old_digest.as_slice() != digest.as_slice() || old_document != document {
+                    return Err(G01RegistryError::ConflictingRevision);
+                }
+                tx.commit().map_err(|_| G01RegistryError::StoreUnavailable)?;
+                return Ok(());
+            }
+        }
+        let insert = format!(
+            "INSERT INTO {table}(singleton,revision,digest,expires_at,document)
+             VALUES(1,?1,?2,?3,?4)
+             ON CONFLICT(singleton) DO UPDATE SET revision=excluded.revision,
+             digest=excluded.digest,expires_at=excluded.expires_at,document=excluded.document"
+        );
+        tx.execute(
+            &insert,
+            params![revision, digest.as_slice(), expires, document],
+        )
+        .map_err(|_| G01RegistryError::StoreUnavailable)?;
+        tx.commit().map_err(|_| G01RegistryError::StoreUnavailable)
+    }
+
+    fn load_independent_envelope<T: for<'de> Deserialize<'de>>(
+        &self,
+        table: &str,
+    ) -> Result<T, G01RegistryError> {
+        if !matches!(
+            table,
+            "g01_identity_root_registry"
+                | "g01_succession_registry"
+                | "g01_compatibility_registry"
+        ) {
+            return Err(G01RegistryError::Malformed);
+        }
+        let conn = self
+            .connection
+            .lock()
+            .map_err(|_| G01RegistryError::StoreUnavailable)?;
+        let query = format!("SELECT document FROM {table} WHERE singleton=1");
+        let document: String = conn
+            .query_row(&query, [], |r| r.get(0))
+            .optional()
+            .map_err(|_| G01RegistryError::StoreUnavailable)?
+            .ok_or(G01RegistryError::StoreUnavailable)?;
+        serde_json::from_str(&document).map_err(|_| G01RegistryError::Malformed)
+    }
+
+    pub fn install_identity_root_registry(
+        &self,
+        envelope: &SignedIdentityRootRegistryEnvelope,
+        roots: &TrustRootSet,
+        now: u64,
+    ) -> Result<(), G01RegistryError> {
+        validate_identity_root_envelope(envelope)?;
+        let bytes = envelope.signing_bytes()?;
+        self.persist_independent_envelope(
+            "g01_identity_root_registry",
+            &envelope.root_key_id,
+            envelope.revision,
+            envelope.issued_at,
+            envelope.expires_at,
+            &envelope.signature,
+            &bytes,
+            envelope,
+            roots,
+            now,
+        )
+    }
+
+    pub fn latest_identity_root_registry(
+        &self,
+        roots: &TrustRootSet,
+        now: u64,
+    ) -> Result<SignedIdentityRootRegistryEnvelope, G01RegistryError> {
+        let envelope: SignedIdentityRootRegistryEnvelope =
+            self.load_independent_envelope("g01_identity_root_registry")?;
+        let bytes = envelope.signing_bytes()?;
+        verify_root_signed_envelope(
+            &envelope.root_key_id,
+            envelope.revision,
+            envelope.issued_at,
+            envelope.expires_at,
+            &envelope.signature,
+            &bytes,
+            roots,
+            now,
+        )?;
+        validate_identity_root_envelope(&envelope)?;
+        Ok(envelope)
+    }
+
+    pub fn install_succession_registry(
+        &self,
+        envelope: &SignedSuccessionRegistryEnvelope,
+        roots: &TrustRootSet,
+        now: u64,
+    ) -> Result<(), G01RegistryError> {
+        validate_succession_envelope(envelope)?;
+        let bytes = envelope.signing_bytes()?;
+        self.persist_independent_envelope(
+            "g01_succession_registry",
+            &envelope.root_key_id,
+            envelope.revision,
+            envelope.issued_at,
+            envelope.expires_at,
+            &envelope.signature,
+            &bytes,
+            envelope,
+            roots,
+            now,
+        )
+    }
+
+    pub fn resolve_verified_succession(
+        &self,
+        proof_id: &str,
+        roots: &TrustRootSet,
+        trust: &TrustStore,
+        now: u64,
+    ) -> Result<IdentitySuccessionProof, G01RegistryError> {
+        let envelope: SignedSuccessionRegistryEnvelope =
+            self.load_independent_envelope("g01_succession_registry")?;
+        let bytes = envelope.signing_bytes()?;
+        verify_root_signed_envelope(
+            &envelope.root_key_id,
+            envelope.revision,
+            envelope.issued_at,
+            envelope.expires_at,
+            &envelope.signature,
+            &bytes,
+            roots,
+            now,
+        )?;
+        validate_succession_envelope(&envelope)?;
+        let signed = envelope
+            .proofs
+            .iter()
+            .find(|p| p.proof.proof_id == proof_id)
+            .ok_or(G01RegistryError::UnknownProof)?;
+        signed.verify(trust, now)?;
+        Ok(signed.proof.clone())
+    }
+
+    pub fn install_compatibility_registry(
+        &self,
+        envelope: &SignedCompatibilityRegistryEnvelope,
+        roots: &TrustRootSet,
+        now: u64,
+    ) -> Result<(), G01RegistryError> {
+        validate_compatibility_envelope(envelope)?;
+        let bytes = envelope.signing_bytes()?;
+        self.persist_independent_envelope(
+            "g01_compatibility_registry",
+            &envelope.root_key_id,
+            envelope.revision,
+            envelope.issued_at,
+            envelope.expires_at,
+            &envelope.signature,
+            &bytes,
+            envelope,
+            roots,
+            now,
+        )
+    }
+
+    pub fn resolve_compatibility_with_migration(
+        &self,
+        policy_id: &str,
+        version: &str,
+        roots: &TrustRootSet,
+        resolver: &dyn MigrationArtifactResolver,
+        now: u64,
+    ) -> Result<(CompatibilityContract, CompatibilityPolicy), G01RegistryError> {
+        let envelope: SignedCompatibilityRegistryEnvelope =
+            self.load_independent_envelope("g01_compatibility_registry")?;
+        let bytes = envelope.signing_bytes()?;
+        verify_root_signed_envelope(
+            &envelope.root_key_id,
+            envelope.revision,
+            envelope.issued_at,
+            envelope.expires_at,
+            &envelope.signature,
+            &bytes,
+            roots,
+            now,
+        )?;
+        validate_compatibility_envelope(&envelope)?;
+        let policy = envelope
+            .policies
+            .iter()
+            .find(|p| p.policy_id == policy_id && p.version == version)
+            .cloned()
+            .ok_or(G01RegistryError::UnknownPolicy)?;
+        if now < policy.valid_from || now >= policy.valid_until {
+            return Err(G01RegistryError::Expired);
+        }
+        if policy.migration_required {
+            let reference = policy
+                .migration_ref
+                .as_deref()
+                .ok_or(G01RegistryError::MigrationArtifactUnavailable)?;
+            let expected = policy
+                .migration_digest
+                .as_deref()
+                .ok_or(G01RegistryError::InvalidSnapshot)?;
+            let artifact = resolver
+                .resolve_immutable(reference)
+                .map_err(|_| G01RegistryError::MigrationArtifactUnavailable)?;
+            let digest = Sha256::digest(&artifact);
+            if expected != format!("sha256:{digest:x}") {
+                return Err(G01RegistryError::MigrationArtifactMismatch);
+            }
+        }
+        let contract = envelope
+            .contracts
+            .iter()
+            .find(|c| {
+                c.contract_id == policy.contract_id
+                    && c.version == policy.contract_version
+                    && c.digest == policy.contract_digest
+            })
+            .cloned()
+            .ok_or(G01RegistryError::UnknownContract)?;
+        Ok((contract, policy))
+    }
+
     pub fn install_signed_snapshot(
         &self,
         signed: &SignedG01AuthoritySnapshot,
