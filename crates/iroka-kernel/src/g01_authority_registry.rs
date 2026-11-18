@@ -467,8 +467,7 @@ impl SqliteG01AuthorityStore {
         verify_root_signed_envelope(&metadata, roots, now)?;
         let digest = Sha256::digest(metadata.signing_bytes);
         let document = serde_json::to_string(envelope).map_err(|_| G01RegistryError::Malformed)?;
-        let revision =
-            i64::try_from(metadata.revision).map_err(|_| G01RegistryError::Malformed)?;
+        let revision = i64::try_from(metadata.revision).map_err(|_| G01RegistryError::Malformed)?;
         let expires =
             i64::try_from(metadata.expires_at).map_err(|_| G01RegistryError::Malformed)?;
         let mut conn = self
@@ -929,7 +928,10 @@ fn verify_root_signed_envelope(
     if now < root.not_before || metadata.issued_at > now.saturating_add(MAX_CLOCK_SKEW) {
         return Err(G01RegistryError::NotYetValid);
     }
-    if now >= root.not_after || metadata.expires_at <= now || metadata.issued_at >= metadata.expires_at {
+    if now >= root.not_after
+        || metadata.expires_at <= now
+        || metadata.issued_at >= metadata.expires_at
+    {
         return Err(G01RegistryError::Expired);
     }
     if metadata.revision == 0 {
