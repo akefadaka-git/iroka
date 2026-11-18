@@ -6,6 +6,7 @@
 mod assurance;
 mod audit_store;
 mod decision;
+pub mod g01_character;
 #[cfg(test)]
 mod governance;
 mod identity;
