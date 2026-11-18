@@ -212,7 +212,8 @@ if ir_input.get("properties", {}).get("key_fingerprint", {}).get("pattern") != "
 if len(ir_output.get("allOf", [])) < 2:
     errors.append("G01 identity-root A3 verified/trust_decision consistency constraints missing")
 ir_evidence = ir_output.get("$defs", {}).get("evidence", {})
-for field in ("issuer_chain", "key_status", "algorithm_policy", "decision_rationale"):
+for field in ("issuer_chain", "key_fingerprint", "key_material_ref", "root_status",
+              "key_status", "algorithm_policy", "decision_rationale"):
     if field not in ir_evidence.get("required", []):
         errors.append(f"G01 identity-root A3 evidence missing required field: {field}")
 if ir_vectors.get("gene_id") != "g01.identity-root" or ir_vectors.get("version") != "1.1.0":
