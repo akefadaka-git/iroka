@@ -39,7 +39,7 @@ jobs:
   verify:
     name: Format, compile, test and lint
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -71,3 +71,24 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
+
+      - name: Install dependency audit and SBOM tools
+        run: |
+          cargo install cargo-audit --locked
+          cargo install cargo-cyclonedx --locked
+
+      - name: Audit locked Rust dependencies
+        run: cargo audit --deny warnings
+
+      - name: Generate CycloneDX dependency SBOM
+        run: |
+          cargo cyclonedx --format json --override-filename iroka-sbom
+          find . -name 'iroka-sbom.json' -type f -size +0c -print
+
+      - name: Upload dependency SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: iroka-cyclonedx-sbom-${{ github.sha }}
+          path: '**/iroka-sbom.json'
+          if-no-files-found: error
+          retention-days: 30
