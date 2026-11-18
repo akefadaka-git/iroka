@@ -308,8 +308,7 @@ mod tests {
                 root_id: input.root_id.clone(),
                 issuer_id: input.issuer_id.clone(),
                 key_fingerprint:
-                    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                        .into(),
+                    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
                 key_material_ref: "key-material:canonical-root".into(),
                 algorithm: input.algorithm.clone(),
                 algorithm_policy: AlgorithmPolicyEvidence {
