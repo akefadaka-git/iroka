@@ -6,8 +6,8 @@
 mod assurance;
 mod audit_store;
 mod decision;
-pub mod g01_identity_root;
 pub mod g01_authority_registry;
+pub mod g01_identity_root;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -25,11 +25,15 @@ mod version_lineage;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use g01_authority_registry::{
+    evaluate_identity_root_production, AlgorithmPolicyRecord, CompatibilityContract,
+    CompatibilityPolicy, G01RegistryError, IdentityRootRecord, IdentitySuccessionProof,
+    SignedG01AuthoritySnapshot, SqliteG01AuthorityStore,
+};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
 };
-pub use g01_authority_registry::{evaluate_identity_root_production, CompatibilityContract, CompatibilityPolicy, G01RegistryError, IdentityRootRecord, IdentitySuccessionProof, SignedG01AuthoritySnapshot, SqliteG01AuthorityStore, AlgorithmPolicyRecord};
 pub use identity::VerifiedPrincipal;
 #[cfg(test)]
 pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, IdentityVerifier};
