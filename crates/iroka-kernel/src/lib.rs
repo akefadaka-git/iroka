@@ -15,6 +15,7 @@ mod identity_crypto;
 mod identity_lineage;
 mod identity_root;
 mod igacms;
+mod workflow_graph;
 mod inference_rules;
 mod knowledge_schema;
 mod memory_classification;
@@ -127,6 +128,11 @@ pub use trust_lifecycle::{
     G12SecurityRuntime, RollbackEvidencePolicyPayload, SignedRollbackEvidencePolicy,
     SignedTrustBundle, TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet,
     TrustSnapshotManager,
+};
+pub use workflow_graph::{
+    evaluate_workflow_graph, WorkflowDependencyKind, WorkflowGraphEdge, WorkflowGraphEvidence,
+    WorkflowGraphInput, WorkflowGraphNode, WorkflowGraphOutput, WorkflowGraphRegistry,
+    WorkflowOperationBinding, WorkflowRevisionBinding, WORKFLOW_GRAPH_VALIDATOR_VERSION,
 };
 pub use uncertainty_calculus::{
     evaluate_uncertainty, CalibrationProfile, CalibrationStatus, EvidenceDirection,
