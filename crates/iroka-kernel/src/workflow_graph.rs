@@ -289,11 +289,12 @@ fn topological_order(
         };
         let semantics_match = match edge.dependency_type.as_str() {
             "required" => kind.satisfaction_rule == "success" && kind.failure_behavior == "block",
-            "ordering" => kind.satisfaction_rule == "completion" && kind.failure_behavior == "continue",
+            "ordering" => {
+                kind.satisfaction_rule == "completion" && kind.failure_behavior == "continue"
+            }
             _ => false,
         };
-        if kind.dependency_type != edge.dependency_type || !semantics_match
-        {
+        if kind.dependency_type != edge.dependency_type || !semantics_match {
             findings.push(format!(
                 "dependency_kind_binding_invalid:{}",
                 edge.dependency_type
@@ -704,7 +705,9 @@ mod tests {
             Err("workflow_graph_input_invalid".into())
         );
         let mut value = input(&registry);
-        value.provenance.insert("revision_ref".into(), json!("revision:other:2"));
+        value
+            .provenance
+            .insert("revision_ref".into(), json!("revision:other:2"));
         assert_eq!(
             evaluate_workflow_graph(&value, &registry),
             Err("workflow_revision_binding_mismatch".into())
@@ -714,17 +717,29 @@ mod tests {
     #[test]
     fn rejects_dependency_semantics_substitution_and_unknown_effect_class() {
         let mut registry = registry();
-        registry.dependencies.get_mut("required").unwrap().failure_behavior = "continue".into();
+        registry
+            .dependencies
+            .get_mut("required")
+            .unwrap()
+            .failure_behavior = "continue".into();
         let value = input(&registry);
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
         let mut registry = registry();
-        registry.operations.get_mut("operation.fetch").unwrap().effect_class = "unregistered".into();
+        registry
+            .operations
+            .get_mut("operation.fetch")
+            .unwrap()
+            .effect_class = "unregistered".into();
         let value = input(&registry);
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry).unwrap().validation_status,
+            evaluate_workflow_graph(&value, &registry)
+                .unwrap()
+                .validation_status,
             "invalid_reference"
         );
     }
