@@ -716,28 +716,28 @@ mod tests {
 
     #[test]
     fn rejects_dependency_semantics_substitution_and_unknown_effect_class() {
-        let mut registry = registry();
-        registry
+        let mut dependency_registry = registry();
+        dependency_registry
             .dependencies
             .get_mut("required")
             .unwrap()
             .failure_behavior = "continue".into();
-        let value = input(&registry);
+        let value = input(&dependency_registry);
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry)
+            evaluate_workflow_graph(&value, &dependency_registry)
                 .unwrap()
                 .validation_status,
             "invalid_reference"
         );
-        let mut registry = registry();
-        registry
+        let mut operation_registry = registry();
+        operation_registry
             .operations
             .get_mut("operation.fetch")
             .unwrap()
             .effect_class = "unregistered".into();
-        let value = input(&registry);
+        let value = input(&operation_registry);
         assert_eq!(
-            evaluate_workflow_graph(&value, &registry)
+            evaluate_workflow_graph(&value, &operation_registry)
                 .unwrap()
                 .validation_status,
             "invalid_reference"
