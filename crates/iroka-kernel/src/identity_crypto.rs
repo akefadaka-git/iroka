@@ -90,9 +90,8 @@ impl TrustStore {
         })
     }
 
-    pub(crate) fn trusted_public_key(&self, issuer: &str, kid: &str) -> Result<[u8; 32], CredentialError> {
-        let record = self.keys.get(&(issuer.to_owned(), kid.to_owned()))
-            .ok_or(CredentialError::UnknownKey)?;
+    pub(crate) fn trusted_public_key(&self, issuer: &str, kid: &str, now: u64) -> Result<[u8; 32], CredentialError> {
+        let record = self.key(issuer, kid, now)?;
         Ok(record.key.to_bytes())
     }
 
