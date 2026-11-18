@@ -65,6 +65,7 @@ def main() -> None:
         "graph_revision_digest": "1" * 64,
         "schema_version": "1.0.0",
         "configuration_digest_algorithm": "SHA-256",
+        "configuration_canonicalization": "JCS-RFC8785",
         "graph_validator_version": "1.0.0"
     }
     node = {
