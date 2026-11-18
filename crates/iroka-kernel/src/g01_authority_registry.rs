@@ -1821,7 +1821,8 @@ mod independent_registry_tests {
         drop(store);
         std::fs::copy(&database_path, &backup_path).expect("capture old database image");
 
-        let store = SqliteG01AuthorityStore::open(&database_path).expect("reopen authority database");
+        let store =
+            SqliteG01AuthorityStore::open(&database_path).expect("reopen authority database");
         let mut revision_two = signed_identity_roots(&root);
         revision_two.revision = 2;
         revision_two.signature = root
@@ -1834,7 +1835,8 @@ mod independent_registry_tests {
         drop(store);
 
         std::fs::copy(&backup_path, &database_path).expect("restore stale database image");
-        let restored = SqliteG01AuthorityStore::open(&database_path).expect("restored authority database");
+        let restored =
+            SqliteG01AuthorityStore::open(&database_path).expect("restored authority database");
         assert_eq!(
             restored.latest_identity_root_registry(&roots, &checkpoint, 22),
             Err(G01RegistryError::Rollback)
