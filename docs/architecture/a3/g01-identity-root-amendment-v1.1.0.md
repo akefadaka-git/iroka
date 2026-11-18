@@ -13,7 +13,7 @@ This additive amendment closes the four semantic gaps recorded in A2 review `A2-
 
 ## Output changes
 
-The v1.1.0 output evidence requires issuer-chain evidence, canonical key status, the algorithm-policy decision and a human-readable decision rationale. JSON Schema conditionals enforce that `verified=true` only accompanies `trust_decision=trusted`; `untrusted` and `revoked` require `verified=false`.
+The v1.1.0 output evidence requires the canonical key fingerprint and key-material reference, issuer-chain evidence, separate root/key status, the algorithm-policy decision and a human-readable decision rationale. JSON Schema conditionals enforce that `verified=true` only accompanies `trust_decision=trusted`; `untrusted` and `revoked` require `verified=false`.
 
 ## Runtime rules
 
