@@ -28,7 +28,9 @@ pub use decision::{Decision, DecisionCode, DecisionReason};
 pub use g01_authority_registry::{
     evaluate_identity_root_production, AlgorithmPolicyRecord, CompatibilityContract,
     CompatibilityPolicy, G01RegistryError, IdentityRootRecord, IdentitySuccessionProof,
-    SignedG01AuthoritySnapshot, SqliteG01AuthorityStore,
+    MigrationArtifactError, MigrationArtifactResolver, SignedCompatibilityRegistryEnvelope,
+    SignedG01AuthoritySnapshot, SignedIdentityRootRegistryEnvelope,
+    SignedIdentitySuccessionProof, SignedSuccessionRegistryEnvelope, SqliteG01AuthorityStore,
 };
 #[cfg(test)]
 pub(crate) use governance::{
