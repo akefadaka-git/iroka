@@ -1568,7 +1568,10 @@ mod independent_registry_tests {
             }],
             signature: Vec::new(),
         };
-        envelope.signature = root.sign(&envelope.signing_bytes().expect("canonical bytes")).to_bytes().to_vec();
+        envelope.signature = root
+            .sign(&envelope.signing_bytes().expect("canonical bytes"))
+            .to_bytes()
+            .to_vec();
         let store = SqliteG01AuthorityStore::open_in_memory().expect("store");
         store
             .install_compatibility_registry(&envelope, &roots, 20)
