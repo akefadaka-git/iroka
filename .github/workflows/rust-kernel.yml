@@ -54,6 +54,9 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Apply canonical Rust formatting
+        run: cargo fmt --all
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -71,3 +74,12 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
+
+      - name: Export rustfmt-normalized source for exact branch commit
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: a3-1-rustfmt-normalized-source
+          path: crates/iroka-kernel/src/**/*.rs
+          if-no-files-found: error
+          retention-days: 1
