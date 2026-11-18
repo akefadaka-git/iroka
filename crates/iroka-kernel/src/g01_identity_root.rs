@@ -218,7 +218,10 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
         || record.key_status == RootStatus::Suspended
         || input.status != record.status
     {
-        (RootTrustDecision::Untrusted, "root or key is suspended or status claim conflicts".to_owned())
+        (
+            RootTrustDecision::Untrusted,
+            "root or key is suspended or status claim conflicts".to_owned(),
+        )
     } else if untrusted_issuer {
         (
             RootTrustDecision::Untrusted,
@@ -237,7 +240,8 @@ pub fn evaluate_identity_root<R: IdentityRootRegistry>(
     } else {
         (
             RootTrustDecision::Trusted,
-            "canonical root, key fingerprint, issuer chain, activation, policy and evidence verified".to_owned(),
+            "canonical root, key fingerprint, issuer chain, activation, policy and evidence verified"
+                .to_owned(),
         )
     };
 
@@ -304,7 +308,8 @@ mod tests {
                 root_id: input.root_id.clone(),
                 issuer_id: input.issuer_id.clone(),
                 key_fingerprint:
-                    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+                    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                        .into(),
                 key_material_ref: "key-material:canonical-root".into(),
                 algorithm: input.algorithm.clone(),
                 algorithm_policy: AlgorithmPolicyEvidence {
@@ -341,8 +346,14 @@ mod tests {
             algorithm_policy_version: "2.1.0".into(),
             activation_epoch: 10,
             status: RootStatus::Active,
-            provenance: serde_json::json!({"source":"owner-provisioned-root-registry","record":"root-1"}),
-            version_bound_evidence: serde_json::json!({"gene":"g01.identity-root","version":"1.1.0"}),
+            provenance: serde_json::json!({
+                "source":"owner-provisioned-root-registry",
+                "record":"root-1"
+            }),
+            version_bound_evidence: serde_json::json!({
+                "gene":"g01.identity-root",
+                "version":"1.1.0"
+            }),
         }
     }
 
