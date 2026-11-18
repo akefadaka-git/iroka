@@ -239,8 +239,8 @@ pub fn evaluate_lineage<R: LineageResolver>(
         graph_integrity,
         parent_resolution,
         epoch_validation,
-        decision_rationale:
-            "authenticated succession proof and complete acyclic ancestry verified".into(),
+        decision_rationale: "authenticated succession proof and complete acyclic ancestry verified"
+            .into(),
     };
     Ok(LineageOutput {
         subject_id: input.subject_id.clone(),
@@ -274,8 +274,8 @@ mod tests {
             subject_id: "subject:current".into(),
             predecessor_id: "subject:previous".into(),
             relationship: LineageRelationship::Successor,
-            proof_digest:
-                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            proof_digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                .into(),
             proof_ref: "proof:succession:current".into(),
             proof_issuer_id: "issuer:succession".into(),
             proof_signature_ref: "signature:succession:current".into(),
@@ -295,8 +295,8 @@ mod tests {
             proof_issuer_id: "issuer:succession".into(),
             proof_policy_id: "policy:succession".into(),
             proof_policy_version: "1.2.0".into(),
-            chain_digest:
-                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            chain_digest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                .into(),
             verified_depth: 2,
             proof_verified: true,
             cycle_free: true,
