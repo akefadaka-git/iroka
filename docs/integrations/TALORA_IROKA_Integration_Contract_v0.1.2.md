@@ -470,26 +470,47 @@ exceptions for legal/audit records.
 
 ### 14.1.1 Read-only component graph reconciliation — 19 November 2026
 
-The reference main commit is 1aea1447eadf1d827d702fd6c4034fa058aac21e. It is a documentation/reference baseline, not an approved integration graph. Branch comparisons against that main reference found:
+The IROKA main reference is commit 1aea1447eadf1d827d702fd6c4034fa058aac21e. Its root Cargo workspace currently lists only crates/iroka-kernel as a member. The API endpoints in this document are proposed contracts; the current main workspace does not contain a TALORA-facing service API crate. The main Cargo.toml blob is d64d3143b762589346fb19ee77e6f40d4af8c77c and Cargo.lock blob is ad864ae2b098c1cdea7a81d2d2fc8cdcf9fddf63. The workspace manifest marks the project LicenseRef-Proprietary; README.md separately states that no open-source license is granted by public visibility.
 
-| Workstream | Candidate branch | Comparison to main | Reconciliation finding |
+#### A2 contract/document candidates
+
+| Workstream | Branch HEAD | Compare to main | Finding |
 |---|---|---|---|
-| G05 approved memory contract | architecture/g05-owner-approved-contract-v1 | Diverged; 1 ahead / 3 behind; merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472 | Owner-approved logical contract; implementation not started; not a current-main runtime dependency |
-| G05 + G01/G02/G11 amendment | architecture/g05-g01-g02-g11-integration-contracts | Diverged; 4 ahead / 3 behind; merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472 | Owner-approved design decisions, but domain confirmation and implementation prerequisites remain open |
-| G08 orchestration A2 | architecture/g08-orchestration-a2-contract | Diverged; 3 ahead / 302 behind; merge base 143311a655be68acea2700650b7f88c9fb085526 | A2 draft based on stale lineage; tenant-context and authority dependencies remain unresolved |
-| CIW A2 contracts | docs/ciw-a2-integration-contracts | Diverged; 14 ahead / 302 behind; merge base 143311a655be68acea2700650b7f88c9fb085526 | Documentation-only A2 candidate; not a current-main integration baseline |
-| G03 Brain A2 contracts | architecture/brain-a1-a2-proposal | Diverged; 26 ahead / 118 behind; merge base a709fc473b23494839417449e34bebf4cb8be77a | Owner-approved design-only contract on a separate branch; not a merged runtime |
-| TALORA contract proposal | docs/talora-iroka-a2-reconciliation-v0.1.1 | 3 ahead / 0 behind main | Documentation-only branch; not an implementation dependency |
+| G05 approved memory contract | architecture/g05-owner-approved-contract-v1 — f032e6583faebb7ad8ef3aab40a5aaad8862fe1c | Diverged; 1 ahead / 3 behind; merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472 | Owner-approved logical contract; implementation not started |
+| G05 + G01/G02/G11 amendment | architecture/g05-g01-g02-g11-integration-contracts — 0e8009bee94b321211636656448837a0636232fd | Diverged; 4 ahead / 3 behind; same merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472 | Owner-approved design decisions; canonical organization authority and owning-domain prerequisites remain open |
+| G08 orchestration A2 | architecture/g08-orchestration-a2-contract — 04c3bab0ba4de2e634ce28612c90ed7451ef9ceb | Diverged; 3 ahead / 302 behind; merge base 143311a655be68acea2700650b7f88c9fb085526 | A2 draft based on stale lineage; tenant-context and authority dependencies remain unresolved |
+| CIW A2 contracts | docs/ciw-a2-integration-contracts — 843e5f1799a54335fa283e71f2d99c806b60a11d | Diverged; 14 ahead / 302 behind; merge base 143311a655be68acea2700650b7f88c9fb085526 | Documentation-only A2 candidate; not a current-main integration baseline |
+| G03 Brain A2 contracts | architecture/brain-a1-a2-proposal — 774bc75f751b8e80e6135c349fb78394c02cf4fa | Diverged; 26 ahead / 118 behind; merge base a709fc473b23494839417449e34bebf4cb8be77a | Owner-approved design-only contract; not a merged runtime |
+| TALORA contract proposal | docs/talora-iroka-a2-reconciliation-v0.1.1 — 81b04881c5178cbf6902b3c2f290b23a3d8c96be | 6 ahead / 0 behind main | Documentation-only A2 branch; no runtime dependency |
 
-Additional inspected evidence:
+#### Runtime implementation candidates — not adopted
+
+| Domain | Exact candidate branch HEAD | Compare to current main | Dependency/architecture evidence |
+|---|---|---|---|
+| G01/G02/G11 Kernel A3 candidate | feat/igacms-a3-implementation — bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a | 0 ahead / 7 behind; branch is ancestor of main | PR #13 implementation merge is in main lineage; current Kernel API still does not supply the complete TALORA tenant/session/API service boundary |
+| G05/G01/G02/G11 reviewer/SQLite candidate | feat/g05-g01-reviewer-proof-integration — 47edea227fdf1dc7b6ac1667b7e7f9cbb5b4cf39 | Diverged; 155 ahead / 3 behind; merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472 | Workspace adds G04/G05 crates; G05 uses rusqlite 0.32.1; branch adds reviewer proof, organization authority and policy lifecycle candidates |
+| G05/G11 PostgreSQL multi-worker candidate | feat/g05-postgres-g11-multiworker-a3 — 2bfac619b9601330b3343f86277bb5ba29ae22b2 | Diverged; 334 ahead / 3 behind; same merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472 | Adds PostgreSQL 0.19.12, postgres-native-tls 0.5.0, native-tls 0.2.12 and tokio-postgres 0.7.18 alongside SQLite; separate lockfile/workspace |
+| G08 durable coordinator | feat/g08-a3-durable-coordinator — 2cfcf8db9437824cc8181ad8af1e8d819b936e2c | Diverged; 81 ahead / 3 behind; merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472 | G08 modules added to Kernel on a separate branch; not composed with the G05 candidates |
+| CIW answer-only chat | feat/ciw-amharic-answer-only-chat — 69f3c181791a8dd3c5baf3d18d4556f8f316b1a1 | Diverged; 172 ahead / 25 behind; merge base 813b24cbf81f049f2675fbb5492bdc9f262a9d87 | Adds iroka-conversation with SQLite and a separate workspace/lockfile; not current-main compatible by ancestry |
+| G03 Brain cognitive core | feat/brain-a3-b01-cognitive-core — 9d68b580e06bb8335a626524d64b345c3a5a38aa | Diverged; 10 ahead / 3 behind; merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472 | Adds iroka-brain with serde/serde_json; does not establish a production model gateway or G04/G05/G08 adapters |
+
+Cross-candidate comparisons confirm that these are not one ready-to-compose graph:
+- G05 SQLite/reviewer branch versus G05 PostgreSQL branch: DIVERGED, 210 ahead / 31 behind, merge base c57e4298005222ce476f685972062983c78d626f.
+- G05 PostgreSQL branch versus G08 A3: DIVERGED, 81 ahead / 334 behind, merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472.
+- G05 PostgreSQL branch versus Brain A3: DIVERGED, 10 ahead / 334 behind, same merge base 1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472.
+- CIW A3 versus G05 PostgreSQL: DIVERGED, 356 ahead / 172 behind, merge base 813b24cbf81f049f2675fbb5492bdc9f262a9d87.
+
+The lockfiles are not identical across these candidate workspaces. The G05 SQLite candidate's Cargo.lock blob is 8944877dd6d2ac88a21e02c0ce84da9873033909; the G05 PostgreSQL candidate's is e01999aeab00fa657ac4f5d02ec36d4305ad880d; CIW's is c6caa987bb11aa8342bd5dd7981fefb646e0c7ac; Brain's is 5171bde5fd4a34737d20b3d0622f45367cc12025. Some versions overlap, but overlapping crate versions do not prove a compatible workspace, shared API or safe integration.
+
+Additional verified interface gaps:
 - The G03 A2 contract assigns reasoning/planning to G03 and requires authoritative G01 tenant context and G02 policy context; it is design-only and does not establish a running G03 service.
 - The inspected Kernel request contract does not itself supply tenant membership, conversation ACLs or a signed/persisted policy lifecycle. Caller-supplied tenant identifiers are not authority.
 - The G05/G01/G02/G11 amendment identifies the canonical organization-authority source and organization-scoped reviewer delegation as unresolved. G05 must fail closed until those owning-domain interfaces are approved and available.
-- G08's A2 draft records a missing authoritative tenant resolver and stale Kernel lineage.
-- CIW's A2 contract records that the public Kernel API does not supply tenant membership, session lifecycle, conversation persistence or streaming. Its PR #23 implementation candidate was recorded at head 69f3c181791a8dd3c5baf3d18d4556f8f316b1a1, based on 813b24cbf81f049f2675fbb5492bdc9f262a9d87; comparison against current main was DIVERGED (172 ahead / 22 behind). It is not adopted.
-- G04 executable API and G06 perception integration were not verified in the inspected Brain A2 report.
+- G08 A2 draft records a missing authoritative tenant resolver and stale Kernel lineage.
+- CIW A2 contract records that the public Kernel API does not supply tenant membership, session lifecycle, conversation persistence or streaming.
+- G04 executable retrieval API and G06 perception integration were not verified in the inspected Brain A2 report.
 
-**D01 outcome:** RECONCILIATION PERFORMED; NO COMPATIBLE IMMUTABLE GRAPH SELECTED. Do not compose these branches by branch-name convention, cherry-pick, merge, or assume compatible dependency versions. Further read-only exact-commit/dependency verification and a new Owner-reviewed baseline proposal are required. This is not A3 permission.
+**D01 outcome:** RECONCILIATION PERFORMED; NO COMPATIBLE IMMUTABLE GRAPH SELECTED. Do not compose these branches by branch-name convention, cherry-pick, merge or assume compatible dependency versions. Further read-only exact-commit/API/dependency verification and a new Owner-reviewed baseline proposal are required. This is not A3 permission.
 
 ## 14.2 Independent assessment and deployment gate
 
