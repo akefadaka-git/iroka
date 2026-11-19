@@ -43,7 +43,10 @@ impl Literal {
     #[must_use]
     pub fn try_positive(atom: &str) -> Result<Self, EngineError> {
         validate_atom(atom)?;
-        Ok(Self { atom: atom.to_owned(), negated: false })
+        Ok(Self {
+            atom: atom.to_owned(),
+            negated: false,
+        })
     }
 
     /// Constructs a negative literal after validating borrowed input before allocation.
@@ -53,7 +56,10 @@ impl Literal {
     #[must_use]
     pub fn try_negative(atom: &str) -> Result<Self, EngineError> {
         validate_atom(atom)?;
-        Ok(Self { atom: atom.to_owned(), negated: true })
+        Ok(Self {
+            atom: atom.to_owned(),
+            negated: true,
+        })
     }
 
     fn complement(&self) -> Self {
@@ -1350,5 +1356,4 @@ mod tests {
         assert_eq!(consumed.get(), 3);
         assert_eq!(brain.rules, Vec::<Rule>::new());
     }
-
 }
