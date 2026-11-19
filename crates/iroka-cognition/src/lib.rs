@@ -908,6 +908,10 @@ mod tests {
                 ..EngineConfig::default()
             },
             EngineConfig {
+                max_sources_per_fact: 0,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
                 max_duration: Duration::ZERO,
                 ..EngineConfig::default()
             },
@@ -1147,6 +1151,21 @@ mod tests {
         assert_eq!(report.derivations.len(), 1);
         assert_eq!(report.derivations[0].fact, conclusion);
         assert_eq!(report.derivations[0].rule_id, "independent_support");
+    }
+
+    #[test]
+    fn accepts_source_identifier_at_byte_limit_and_rejects_one_over() {
+        let mut brain = engine();
+        let fact = Literal::positive("bounded_source");
+        brain.add_fact_with_source(fact.clone(), "s".repeat(256)).unwrap();
+        assert_eq!(
+            brain.add_fact_with_source(fact.clone(), "t".repeat(257)),
+            Err(EngineError::SourceIdTooLong)
+        );
+        assert_eq!(
+            brain.asserted_facts.iter().filter(|entry| entry.fact == fact).count(),
+            1
+        );
     }
 
 }
