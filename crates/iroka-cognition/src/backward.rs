@@ -43,6 +43,7 @@ pub struct Substitution(BTreeMap<String, Term>);
 
 impl Substitution {
     /// Returns the binding for a variable without exposing mutable map access.
+    #[must_use]
     pub fn get(&self, variable: &str) -> Option<&Term> {
         self.0.get(variable)
     }
@@ -51,6 +52,7 @@ impl Substitution {
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Term)> {
         self.0.iter()
     }
+    #[must_use]
     pub fn resolve(&self, term: &Term) -> Term {
         match term {
             Term::Variable(name) => match self.0.get(name) {
@@ -64,6 +66,7 @@ impl Substitution {
         }
     }
 
+    #[must_use]
     pub fn apply(&self, atom: &Atom) -> Atom {
         Atom {
             predicate: atom.predicate.clone(),
@@ -133,6 +136,10 @@ pub struct BackwardReasoner {
 }
 
 impl BackwardReasoner {
+    /// Creates a backward reasoner with explicit execution limits.
+    ///
+    /// # Errors
+    /// Returns [`SearchError::ZeroBudget`] if any configured limit is zero.
     pub fn new(config: SearchConfig) -> Result<Self, SearchError> {
         if config.max_steps == 0 || config.max_depth == 0 || config.max_duration.is_zero() {
             return Err(SearchError::ZeroBudget);
@@ -140,6 +147,10 @@ impl BackwardReasoner {
         Ok(Self { config, clauses: Vec::new() })
     }
 
+    /// Adds a validated Horn clause while preserving deterministic rule order.
+    ///
+    /// # Errors
+    /// Returns an error for an empty or duplicate clause ID, invalid atom, or invalid term.
     pub fn add_clause(&mut self, clause: HornClause) -> Result<(), SearchError> {
         if clause.id.trim().is_empty() { return Err(SearchError::EmptyClauseId); }
         if self.clauses.iter().any(|item| item.id == clause.id) {
@@ -152,6 +163,10 @@ impl BackwardReasoner {
         Ok(())
     }
 
+    /// Attempts to prove a goal and reports proof, exhaustion, or the exact budget stop.
+    ///
+    /// # Errors
+    /// Returns [`SearchError::EmptyPredicate`] or [`SearchError::InvalidTerm`] for malformed goals.
     pub fn prove(&self, goal: &Atom) -> Result<SearchReport, SearchError> {
         validate_atom(goal)?;
         let started = Instant::now();
@@ -217,15 +232,14 @@ impl BackwardReasoner {
             let mut branch = next;
             let mut proved = true;
             for premise in &clause.body {
-                match self.prove_inner(premise, &branch, depth + 1, state) {
-                    Some((updated, proof)) => {
-                        branch = updated;
-                        children.push(proof);
-                    }
-                    None => {
-                        proved = false;
-                        break;
-                    }
+                if let Some((updated, proof)) =
+                    self.prove_inner(premise, &branch, depth + 1, state)
+                {
+                    branch = updated;
+                    children.push(proof);
+                } else {
+                    proved = false;
+                    break;
                 }
             }
             if proved {
@@ -274,8 +288,9 @@ fn unify_terms(left: &Term, right: &Term, substitution: &mut Substitution) -> bo
     let right = substitution.resolve(right);
     if left == right { return true; }
     match (&left, &right) {
-        (Term::Variable(name), value) => bind(name, value, substitution),
-        (value, Term::Variable(name)) => bind(name, value, substitution),
+        (Term::Variable(name), value) | (value, Term::Variable(name)) => {
+            bind(name, value, substitution)
+        }
         (Term::Symbol(a), Term::Symbol(b)) => a == b,
         (Term::Compound(a, aa), Term::Compound(b, ba)) => {
             a == b && aa.len() == ba.len()
