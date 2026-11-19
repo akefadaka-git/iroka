@@ -158,39 +158,48 @@ For each decision, record one disposition: APPROVE, AMEND, DEFER or REJECT. A re
 **A5:** NOT AUTHORIZED — separate explicit Owner approval required.
 
 
-## Evidence reconciliation — 19 November 2026
+## Live implementation branch reconciliation — 19 November 2026
 
-The reference IROKA main SHA remains `1aea1447eadf1d827d702fd6c4034fa058aac21e`. Its root Cargo workspace contains only `crates/iroka-kernel`; it does not contain the proposed TALORA service API. The workspace license field is `LicenseRef-Proprietary`, and README.md states that no open-source license is granted. It is a reference only, not an approved TALORA integration baseline.
+This section supersedes the earlier design-branch comparison as the
+current implementation-graph evidence. The detailed assessment is in
+`TALORA-IROKA-A2-COMPONENT-RECONCILIATION-ASSESSMENT-v0.1.0.md`.
 
-| Candidate workstream | Branch | Comparison to main | Result |
+Reference IROKA `main`: `1aea1447eadf1d827d702fd6c4034fa058aac21e`.
+The main Cargo workspace contains only `iroka-kernel` and uses Rust
+1.75.
+
+| Workstream | Branch / exact head | Comparison / dependency evidence | Result |
 |---|---|---|---|
-| G05 owner-approved memory contract | `architecture/g05-owner-approved-contract-v1` | Diverged, 1 ahead / 3 behind; merge base `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472` | Logical contract approved; implementation not started |
-| G05 + G01/G02/G11 integration amendment | `architecture/g05-g01-g02-g11-integration-contracts` | Diverged, 4 ahead / 3 behind; same merge base `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472` | Owner-approved design decisions; canonical organization authority and owning-domain prerequisites remain open |
-| G08 A2 contract | `architecture/g08-orchestration-a2-contract` | Diverged, 3 ahead / 302 behind; merge base `143311a655be68acea2700650b7f88c9fb085526` | Stale lineage and tenant-context blocker |
-| CIW A2 contract | `docs/ciw-a2-integration-contracts` | Diverged, 14 ahead / 302 behind; merge base `143311a655be68acea2700650b7f88c9fb085526` | Documentation candidate; no accepted runtime integration |
-| G03 Brain A2 contracts | `architecture/brain-a1-a2-proposal` | Diverged, 26 ahead / 118 behind; merge base `a709fc473b23494839417449e34bebf4cb8be77a` | Owner-approved design-only contract; not a merged runtime |
+| G03/G08 kernel | `implementation/a3-g08-workflow-graph` — `0680337b7dd0966374acd2649cd9197e56b8d92a` | 378 ahead / 3 behind main; Rust 1.75; G03 inference/premise/uncertainty and G08 workflow modules | Candidate subset; no exact-head PR run returned |
+| G08 character workflow | `implementation/a3-g08-character-workflow-graph` — `0dbe0d58f312ef5ddf2be5d3f6b7dde6569d566b` | Rust 1.89.0; toolchain 1.100.0 | Separate MSRV-incompatible candidate |
+| G05/G02/G11 | `feat/g11-provider-adapters-a3-rebased` — `8f7ddb9e9dd2b796cd303ba645a1a3c843eb3810` | 391 ahead / 3 behind main; Rust 1.75; PostgreSQL 0.19.12, postgres-native-tls 0.5.0, native-tls 0.2.12, rusqlite 0.32.1; 154 lockfile packages | Best G05/G02/G11 subset; no exact-head PR run returned |
+| CIW | `feat/ciw-amharic-answer-only-chat` — `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` | 172 ahead / 25 behind main; conversation crate and browser routes | Exact-head run 42562324737 succeeded; not the TALORA task API |
+| BRAIN/G04/G05 | `feat/brain-a3-b04-g05-memory-core` — `b27816c1c3b172c0a7503d6602cddeaa6008c6cb` | 163 ahead / 3 behind main; kernel + G04 contract + SQLite G05 | Separate older implementation line |
+| BRAIN cognitive core | `feat/inga-neurogenetic-a3-foundation` — `e2ad1dc6a7916028dbcdfbd2d2ec948e0a554f4d` | 27 ahead / 3 behind main; `iroka-brain` depends on serde/serde_json | Separate candidate |
+| Localization | `feat/a3-4-localization-completion` — `d51a971d295e7b75e3d17fc51202d99c1db1abab` | 59 ahead / 3 behind main; adds localization module/tests | Separate divergent kernel line |
 
-CIW PR #23 candidate head `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` was based on `813b24cbf81f049f2675fbb5492bdc9f262a9d87`; its comparison with current main was DIVERGED (172 ahead / 22 behind). It is not adopted.
+The G05/G11 branch descends from `feat/g05-http-host-a3`
+(`c8991fc61170bc04d7aeaea390a76a85900c2232`, 13 commits) and
+`feat/g05-postgres-g11-multiworker-a3`
+(`2bfac619b9601330b3343f86277bb5ba29ae22b2`, 57 commits). Their
+successful workflow runs apply to those older exact heads, not the
+current G11 provider head.
 
-The inspected contracts also record:
-- G01's authenticated principal does not by itself resolve tenant membership or conversation ACLs.
-- G02 signed/persisted policy lifecycle and canonical organization reviewer authority are not established as compatible owning-domain interfaces for TALORA.
-- G05 logical memory contracts are not equivalent to an implemented memory API; organization reviewer operations fail closed until G01/G02 authority is available.
-- G08 A2 design depends on an authoritative tenant resolver and current Kernel lineage.
-- G04 executable retrieval and G06 perception interfaces were not verified in the inspected Brain A2 report.
+Pairwise comparison shows G03/G08 versus G05/G02/G11 are diverged
+(378 / 391 commits); CIW versus G05/G11 are diverged (400 / 172);
+BRAIN/G05/G01/G02/G11 integration versus G05/G11 provider is diverged
+(231 / 391); localization versus G03/G08 is diverged (378 / 59).
+These are not fast-forward-compatible components.
 
+The G05 host binds only to loopback behind a trusted TLS-terminating
+proxy and exposes `/v1/g05/execute`. CIW exposes conversation and
+generation/event routes. Neither provides the full TALORA
+`/api/v1/capabilities` and `/api/v1/tasks` contract.
 
-### Exact runtime candidate heads and dependency split
+No deterministic model adapter was verified on the inspected refs.
+G11 checkpoint HTTPS is not a model provider. No combined workspace
+build, dependency resolution, migration test, SBOM or end-to-end API
+test was run.
 
-| Candidate | Exact HEAD | Main comparison | Dependency finding |
-|---|---|---|---|
-| G01/G02/G11 Kernel A3 | `bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a` | 0 ahead / 7 behind; ancestor of main | PR #13 merge is in main lineage; tenant/session/service API boundary remains incomplete |
-| G05 reviewer/SQLite | `47edea227fdf1dc7b6ac1667b7e7f9cbb5b4cf39` | 155 ahead / 3 behind | G04/G05 workspace; SQLite `rusqlite 0.32.1`; separate lockfile |
-| G05 PostgreSQL/G11 | `2bfac619b9601330b3343f86277bb5ba29ae22b2` | 334 ahead / 3 behind | Adds `postgres 0.19.12`, `postgres-native-tls 0.5.0`, `native-tls 0.2.12`, `tokio-postgres 0.7.18`; separate lockfile |
-| G08 A3 coordinator | `2cfcf8db9437824cc8181ad8af1e8d819b936e2c` | 81 ahead / 3 behind | Kernel G08 modules on separate branch |
-| CIW A3 conversation | `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` | 172 ahead / 25 behind | Adds `iroka-conversation`, SQLite and separate workspace/lockfile |
-| G03 Brain A3 core | `9d68b580e06bb8335a626524d64b345c3a5a38aa` | 10 ahead / 3 behind | Adds `iroka-brain`; no production model gateway is established |
-
-The G05 SQLite and PostgreSQL branches are mutually DIVERGED (210 ahead / 31 behind; merge base `c57e4298005222ce476f685972062983c78d626f`). G05 PostgreSQL versus G08 is DIVERGED (81 ahead / 334 behind); G05 PostgreSQL versus Brain A3 is DIVERGED (10 ahead / 334 behind); CIW A3 versus G05 PostgreSQL is DIVERGED (356 ahead / 172 behind). The workspace lockfiles differ. Shared dependency versions do not prove API or build compatibility.
-
-**D01 disposition:** RECONCILIATION PERFORMED; NO COMPATIBLE IMMUTABLE GRAPH SELECTED. This is a substantive integration blocker, not a reason to guess a baseline. Further read-only exact-commit, dependency and API verification is required. D01–D09 remain recorded exactly as approved; none authorizes A3, merge or A5.
+**D01 result:** RECONCILIATION PERFORMED; NO COMPATIBLE IMMUTABLE GRAPH
+SELECTED.
