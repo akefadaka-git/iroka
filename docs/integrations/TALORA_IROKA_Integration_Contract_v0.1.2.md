@@ -512,6 +512,21 @@ Additional verified interface gaps:
 
 **D01 outcome:** RECONCILIATION PERFORMED; NO COMPATIBLE IMMUTABLE GRAPH SELECTED. Do not compose these branches by branch-name convention, cherry-pick, merge or assume compatible dependency versions. Further read-only exact-commit/API/dependency verification and a new Owner-reviewed baseline proposal are required. This is not A3 permission.
 
+### 14.1.2 Exact-HEAD CI evidence
+
+The following GitHub Actions runs were retrieved against the exact candidate HEADs. All listed runs completed with conclusion SUCCESS. The job performed formatting, compilation, the complete unit/contract test suite, production-feature exclusion checks and Clippy; CIW additionally checked browser JavaScript syntax and patch whitespace.
+
+| Candidate HEAD | Workflow run | Result |
+|---|---:|---|
+| Kernel A3 `bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a` | [42566869592](https://github.com/akefadaka-git/iroka/actions/runs/42566869592) | PASS |
+| G05 reviewer/SQLite `47edea227fdf1dc7b6ac1667b7e7f9cbb5b4cf39` | [42957299023](https://github.com/akefadaka-git/iroka/actions/runs/42957299023) | PASS |
+| G05 PostgreSQL/G11 `2bfac619b9601330b3343f86277bb5ba29ae22b2` | [43240878046](https://github.com/akefadaka-git/iroka/actions/runs/43240878046), [43240392654](https://github.com/akefadaka-git/iroka/actions/runs/43240392654) | PASS / PASS |
+| G08 coordinator `2cfcf8db9437824cc8181ad8af1e8d819b936e2c` | [43230367894](https://github.com/akefadaka-git/iroka/actions/runs/43230367894) | PASS |
+| CIW answer-only `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` | [42562324737](https://github.com/akefadaka-git/iroka/actions/runs/42562324737) | PASS |
+| Brain core `9d68b580e06bb8335a626524d64b345c3a5a38aa` | [42576912231](https://github.com/akefadaka-git/iroka/actions/runs/42576912231) | PASS |
+
+These results prove only that each candidate passed its own branch-specific workflow at that exact commit. They do not prove that separate candidates can be composed, that their APIs/traits and tenant/policy/memory/audit contracts agree, that the combined workspace resolves, or that an integrated TALORA service API exists. No combined-graph workflow run was found or executed. The A4 exact-integrated-head verification remains NOT RUN.
+
 ## 14.2 Independent assessment and deployment gate
 
 Owner direction `OD-2026-11-17-IR-01` governs independent-review timing. One integrated independent security and architecture assessment is deferred until implementation and A4 evidence reconciliation are complete, and must occur before any A5 deployment authorization or production release. It is not a per-PR or per-component implementation gate.
