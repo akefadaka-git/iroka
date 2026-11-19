@@ -610,7 +610,7 @@ mod tests {
         assert_eq!(report.stop_reason, StopReason::Deadline);
         assert_eq!(report.inference_steps, 1);
         assert!(!report.facts.contains(&Literal::positive("derived")));
-        assert!(report.derivations.is_empty());
+        assert_eq!(report.derivations.len(), 0);
     }
 
     #[test]
