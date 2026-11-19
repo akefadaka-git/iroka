@@ -6,7 +6,9 @@
 //! project memory is implemented in this A3 slice. Request text is processed
 //! in memory only and is not included in stored task results.
 
-use iroka_kernel::{evaluate as evaluate_policy, AuthorizationRequest, Decision, DecisionCode, Policy, RiskLevel};
+use iroka_kernel::{
+    evaluate as evaluate_policy, AuthorizationRequest, Decision, DecisionCode, Policy, RiskLevel,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
