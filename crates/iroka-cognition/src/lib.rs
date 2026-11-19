@@ -216,12 +216,22 @@ impl NativeReasoner {
         if !self.facts.contains(&fact) && self.facts.len() >= self.config.max_facts {
             return Err(EngineError::FactBudgetExceeded);
         }
-        let assertion = AssertedFact { fact: fact.clone(), source_id };
+        let assertion = AssertedFact {
+            fact: fact.clone(),
+            source_id,
+        };
         if !self.asserted_facts.contains(&assertion)
-            && self.asserted_facts
-                .range(AssertedFact { fact: fact.clone(), source_id: None }..)
+            && self
+                .asserted_facts
+                .range(
+                    AssertedFact {
+                        fact: fact.clone(),
+                        source_id: None,
+                    }..,
+                )
                 .take_while(|existing| existing.fact == fact)
-                .count() >= self.config.max_sources_per_fact
+                .count()
+                >= self.config.max_sources_per_fact
         {
             return Err(EngineError::FactSourceBudgetExceeded);
         }
@@ -356,7 +366,12 @@ impl NativeReasoner {
             facts.push(fact.clone());
             asserted_facts.extend(
                 self.asserted_facts
-                    .range(AssertedFact { fact: fact.clone(), source_id: None }..)
+                    .range(
+                        AssertedFact {
+                            fact: fact.clone(),
+                            source_id: None,
+                        }..,
+                    )
                     .take_while(|assertion| assertion.fact == *fact)
                     .cloned(),
             );
@@ -544,7 +559,11 @@ mod tests {
         assert_eq!(report.facts.len(), 2);
         assert_eq!(report.derivations.len(), 2);
         assert_eq!(
-            report.derivations.iter().map(|entry| entry.rule_id.as_str()).collect::<Vec<_>>(),
+            report
+                .derivations
+                .iter()
+                .map(|entry| entry.rule_id.as_str())
+                .collect::<Vec<_>>(),
             vec!["a_to_b", "b_to_a"]
         );
     }
@@ -1011,8 +1030,12 @@ mod tests {
     fn records_multiple_assertion_sources_without_claiming_authenticity() {
         let mut brain = engine();
         let fact = Literal::positive("temperature_high");
-        brain.add_fact_with_source(fact.clone(), "sensor:room-1").unwrap();
-        brain.add_fact_with_source(fact.clone(), "operator:inspection-7").unwrap();
+        brain
+            .add_fact_with_source(fact.clone(), "sensor:room-1")
+            .unwrap();
+        brain
+            .add_fact_with_source(fact.clone(), "operator:inspection-7")
+            .unwrap();
         brain.add_fact(fact.clone()).unwrap();
 
         let report = brain.reason();
@@ -1039,16 +1062,26 @@ mod tests {
         };
         let mut brain = NativeReasoner::new(config).unwrap();
         let fact = Literal::positive("verified");
-        brain.add_fact_with_source(fact.clone(), "source-a").unwrap();
-        brain.add_fact_with_source(fact.clone(), "source-b").unwrap();
-        brain.add_fact_with_source(fact.clone(), "source-b").unwrap();
+        brain
+            .add_fact_with_source(fact.clone(), "source-a")
+            .unwrap();
+        brain
+            .add_fact_with_source(fact.clone(), "source-b")
+            .unwrap();
+        brain
+            .add_fact_with_source(fact.clone(), "source-b")
+            .unwrap();
         assert_eq!(
             brain.add_fact_with_source(fact.clone(), "source-c"),
             Err(EngineError::FactSourceBudgetExceeded)
         );
         assert_eq!(brain.facts.len(), 1);
         assert_eq!(
-            brain.asserted_facts.iter().filter(|entry| entry.fact == fact).count(),
+            brain
+                .asserted_facts
+                .iter()
+                .filter(|entry| entry.fact == fact)
+                .count(),
             2
         );
     }
@@ -1076,15 +1109,19 @@ mod tests {
         brain.add_fact(Literal::positive("sensor_b")).unwrap();
         let conclusion = Literal::positive("hazard_detected");
         for (id, premise) in [("rule_a", "sensor_a"), ("rule_b", "sensor_b")] {
-            brain.add_rule(Rule {
-                id: id.into(),
-                premises: vec![Literal::positive(premise)],
-                conclusion: conclusion.clone(),
-            }).unwrap();
+            brain
+                .add_rule(Rule {
+                    id: id.into(),
+                    premises: vec![Literal::positive(premise)],
+                    conclusion: conclusion.clone(),
+                })
+                .unwrap();
         }
 
         let report = brain.reason();
-        let witnesses: Vec<_> = report.derivations.iter()
+        let witnesses: Vec<_> = report
+            .derivations
+            .iter()
             .filter(|entry| entry.fact == conclusion)
             .map(|entry| entry.rule_id.as_str())
             .collect();
@@ -1098,11 +1135,13 @@ mod tests {
         let conclusion = Literal::positive("reviewed");
         brain.add_fact(conclusion.clone()).unwrap();
         brain.add_fact(Literal::positive("input")).unwrap();
-        brain.add_rule(Rule {
-            id: "independent_support".into(),
-            premises: vec![Literal::positive("input")],
-            conclusion: conclusion.clone(),
-        }).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "independent_support".into(),
+                premises: vec![Literal::positive("input")],
+                conclusion: conclusion.clone(),
+            })
+            .unwrap();
 
         let report = brain.reason();
         assert_eq!(report.derivations.len(), 1);
