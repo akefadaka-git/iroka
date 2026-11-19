@@ -273,3 +273,25 @@ proposal must identify an API-only IROKA service release/commit, a
 versioned private API contract, its exact service/runtime dependencies,
 and exact-head build, conformance and security evidence. A3 remains
 separately unauthorized.
+
+
+## 11. Owner-approved bounded TALORA development baseline — 19 November 2026
+
+The Owner explicitly approved freezing the bounded development-only baseline identified in the supplemental D01 pass. This approval supersedes the earlier blanket statement in Sections 10.4 and related summaries that no baseline can be selected, but only for the exact scope below. It does not invalidate the source-level incompatibility findings for the separate G03/G08 and G05/G02/G11 branches.
+
+- Repository: `akefadaka-git/iroka`
+- Branch: `integration/talora-a3-private-api`
+- Frozen verified source-code commit: `8056cea136f42436d896078046796eba2129092b`
+- Current documentation-only branch snapshot: `00b323750fb120f80d56191069d10a825e66dc41`
+- Base: IROKA main `1aea1447eadf1d827d702fd6c4034fa058aac21e`
+- PR #129: OPEN / DRAFT / UNMERGED
+- Cargo lockfile blob: `46bf9ad362e31dc7e7fb6a3ae9a02078339f5c72`
+- API crate manifest blob: `000eb41dcaed874ea3daae6e862a4691d6d86c6d`
+- Exact code-head CI: [run 44457815902](https://github.com/akefadaka-git/iroka/actions/runs/44457815902), PASS; 45 BRAIN, 71 Kernel, 2 integration and 13 TALORA API tests, plus formatting, compile, no-default-features and Clippy.
+- Current documentation-snapshot CI: [run 44458023955](https://github.com/akefadaka-git/iroka/actions/runs/44458023955), PASS.
+
+The frozen workspace is the bounded three-crate graph `iroka-kernel` + `iroka-brain` + `iroka-talora-api`. It supports development/test fake/local execution only, with synthetic inputs and no remote provider or persistent memory. It is not a complete production service: no runnable network host, production workload-token verifier/revocation/key lifecycle, durable worker/event store, effective in-flight cancellation, governed G05 memory, G03/G08 workflow, G05/G02/G11 graph, CIW, TALORA backend network client, end-to-end network test, SBOM or independent security review is established.
+
+**D01 result:** APPROVED / VERIFIED-CLOSED FOR BOUNDED DEVELOPMENT BASELINE SELECTION ONLY. Wider IROKA component graph compatibility remains NOT VERIFIED. This is a freeze of an existing immutable commit, not authorization to change or compose source.
+
+A2 overall remains PARTIAL / NOT CLOSED pending other A2 closure criteria. A3 implementation, merge, A4 and A5 remain separately gated and unauthorized. IROKA main and TALORA main remain unchanged.
