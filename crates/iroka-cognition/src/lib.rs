@@ -64,9 +64,9 @@ impl Literal {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 /// A rule whose premise vector is allocated by the caller before submission.
 /// For streaming input, prefer NativeReasoner::add_rule_from_iter.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rule {
     pub id: String,
     pub premises: Vec<Literal>,
@@ -1262,7 +1262,7 @@ mod tests {
         let mut brain = engine();
         let fact = Literal::positive("bounded_source");
         brain
-            .add_fact_with_source(fact.clone(), "s".repeat(256))
+            .add_fact_with_source(fact.clone(), &"s".repeat(256))
             .unwrap();
         assert_eq!(
             brain.add_fact_with_source(fact.clone(), &"t".repeat(257)),
