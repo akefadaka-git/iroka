@@ -695,6 +695,84 @@ mod tests {
     }
 
     #[test]
+    fn rejects_every_zero_resource_budget() {
+        let configs = [
+            EngineConfig {
+                max_inference_steps: 0,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_facts: 0,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_rules: 0,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_rule_premises: 0,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_duration: Duration::ZERO,
+                ..EngineConfig::default()
+            },
+        ];
+        for config in configs {
+            assert!(matches!(
+                NativeReasoner::new(config),
+                Err(EngineError::ZeroBudget)
+            ));
+        }
+    }
+
+    #[test]
+    fn enforces_atom_length_boundary() {
+        let mut brain = engine();
+        brain
+            .add_fact(Literal::positive("x".repeat(256)))
+            .unwrap();
+        assert_eq!(
+            brain.add_fact(Literal::positive("x".repeat(257))),
+            Err(EngineError::AtomTooLong)
+        );
+        assert_eq!(brain.facts.len(), 1);
+    }
+
+    #[test]
+    fn contradictory_evidence_does_not_trigger_explosion() {
+        let mut brain = engine();
+        let p = Literal::positive("signal");
+        brain.add_fact(p.clone()).unwrap();
+        brain.add_fact(p.complement()).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "positive_branch".into(),
+                premises: vec![p.clone()],
+                conclusion: Literal::positive("positive_result"),
+            })
+            .unwrap();
+        brain
+            .add_rule(Rule {
+                id: "negative_branch".into(),
+                premises: vec![p.complement()],
+                conclusion: Literal::positive("negative_result"),
+            })
+            .unwrap();
+        let report = brain.reason();
+        assert_eq!(report.stop_reason, StopReason::FixedPoint);
+        assert_eq!(
+            brain.query(&Literal::positive("positive_result")).unwrap(),
+            QueryResult::Entailed
+        );
+        assert_eq!(
+            brain.query(&Literal::positive("negative_result")).unwrap(),
+            QueryResult::Entailed
+        );
+        assert_eq!(report.contradictions.len(), 1);
+    }
+
+    #[test]
     fn rejects_unbounded_or_malformed_rules() {
         let mut brain = engine();
         assert_eq!(
