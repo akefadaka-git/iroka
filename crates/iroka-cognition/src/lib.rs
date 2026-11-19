@@ -90,7 +90,7 @@ impl ReasoningReport {
     /// A report stopped by a deadline or resource budget contains a partial
     /// knowledge state and must not be treated as a complete closure.
     pub fn is_complete(&self) -> bool {
-        matches!(self.stop_reason, StopReason::FixedPoint)
+        matches!(&self.stop_reason, StopReason::FixedPoint)
     }
 
     /// Returns true when reasoning stopped before reaching a fixed point.
@@ -879,6 +879,7 @@ mod tests {
             Err(EngineError::EmptyAtom)
         );
     }
+
     #[test]
     fn only_fixed_point_reports_are_complete() {
         let report = |stop_reason| ReasoningReport {
@@ -904,5 +905,4 @@ mod tests {
             assert!(partial.is_partial());
         }
     }
-
 }
