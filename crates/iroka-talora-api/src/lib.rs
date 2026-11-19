@@ -1099,10 +1099,7 @@ mod tests {
             HttpRequest {
                 method: "GET".into(),
                 path: "/api/v1/capabilities".into(),
-                headers: HashMap::from([(
-                    "Authorization".into(),
-                    "bEaReR test-only-token".into(),
-                )]),
+                headers: HashMap::from([("Authorization".into(), "bEaReR test-only-token".into())]),
                 body: Vec::new(),
             },
             1,
@@ -1116,7 +1113,10 @@ mod tests {
                 path: "/api/v1/tasks".into(),
                 headers: HashMap::from([
                     ("Authorization".into(), "Bearer test-only-token".into()),
-                    ("Content-Type".into(), "application/json; charset=utf-8".into()),
+                    (
+                        "Content-Type".into(),
+                        "application/json; charset=utf-8".into(),
+                    ),
                 ]),
                 body: serde_json::to_vec(&request()).unwrap(),
             },
@@ -1131,10 +1131,7 @@ mod tests {
             HttpRequest {
                 method: "GET".into(),
                 path: format!("/api/v1/tasks/{task_id}"),
-                headers: HashMap::from([(
-                    "Authorization".into(),
-                    "Bearer test-only-token".into(),
-                )]),
+                headers: HashMap::from([("Authorization".into(), "Bearer test-only-token".into())]),
                 body: Vec::new(),
             },
             1,
@@ -1146,26 +1143,22 @@ mod tests {
             HttpRequest {
                 method: "GET".into(),
                 path: format!("/api/v1/tasks/{task_id}/events"),
-                headers: HashMap::from([(
-                    "Authorization".into(),
-                    "Bearer test-only-token".into(),
-                )]),
+                headers: HashMap::from([("Authorization".into(), "Bearer test-only-token".into())]),
                 body: Vec::new(),
             },
             1,
         );
         assert_eq!(events.status, 200);
-        assert!(String::from_utf8(events.body).unwrap().contains("event: completed\n"));
+        assert!(String::from_utf8(events.body)
+            .unwrap()
+            .contains("event: completed\n"));
 
         let cancelled = route_http(
             &service,
             HttpRequest {
                 method: "POST".into(),
                 path: format!("/api/v1/tasks/{task_id}/cancel"),
-                headers: HashMap::from([(
-                    "Authorization".into(),
-                    "Bearer test-only-token".into(),
-                )]),
+                headers: HashMap::from([("Authorization".into(), "Bearer test-only-token".into())]),
                 body: Vec::new(),
             },
             1,
