@@ -196,7 +196,7 @@ These points were identified during package preparation and must be confirmed, r
 |---|---|---|---|
 | R-01 | Provenance | Initial-fact source metadata and alternative rule witnesses were missing. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED at `463abe7fd31b35358b01357c2f7957af8b199f81`; exact-SHA formatting, full workspace tests and Clippy passed. Independent review remains pending. |
 | R-02 | Deadline | The report finalization path originally lacked deadline checks. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED at `463abe7fd31b35358b01357c2f7957af8b199f81`; report materialization deadline regression test passes. Independent review remains pending. |
-| R-03 | Resource accounting | Configured limits bound retained engine state and inference work, but do not bound memory already allocated by callers to construct input strings/vectors. | Document API boundary and any required upstream input-size controls. |
+| R-03 | Resource accounting | Configured limits bound retained engine state and inference work, but cannot bound memory already allocated by callers. | PARTIALLY REMEDIATED on the working branch: bounded borrowed-input APIs, incremental premise collection and rule-ID byte cap added; upstream transport/parser quotas remain an integration requirement. Independent review remains pending. |
 | R-04 | Partial result semantics | A report can contain facts and derivations accumulated before `Deadline`, `StepBudget` or `FactBudget`. | Confirm all consumers must treat such reports as incomplete, not as a completed closure. |
 | R-05 | Duplicate premises | Rule premises are stored as a vector and are not deduplicated. | Confirm intended logical and accounting semantics; test repeated literals. |
 
@@ -231,6 +231,19 @@ The working-branch implementation defines the following bounded NCE-01 contract.
 7. **Trust boundary:** source IDs and rule witnesses are provenance metadata, not authenticated evidence, source reputation, trust scores, chronology, audit-grade chain of custody, or authorization.
 
 Regression tests added on the working branch cover multiple independent rules for one conclusion, support for an already-asserted conclusion, asserted facts with and without source IDs, source ID validation, per-fact source bounds, and cycle witness behavior. These tests still require fresh exact-SHA CI execution.
+
+### 7.3 R-03 caller-side resource accounting disposition
+
+**Internal status: PARTIAL — engine-side API controls implemented; upstream ingress controls remain an integration requirement.**
+
+The working branch now:
+1. Adds `Literal::try_positive(&str)` and `Literal::try_negative(&str)`, validating UTF-8 byte length and blankness before creating an owned atom string.
+2. Changes `add_fact_with_source` to accept a borrowed source ID and check its 256-byte limit before copying it into engine-owned metadata.
+3. Adds `add_rule_from_iter`, which consumes a lazy premise iterator incrementally and stops after observing the first premise beyond `max_rule_premises`; its engine-owned premise vector never grows beyond the configured bound.
+4. Caps retained rule IDs at 256 UTF-8 bytes and checks length before whitespace scanning and duplicate comparison.
+5. Documents that the compatibility constructors `Literal::positive/negative` and `add_rule(Rule)` receive already-materialized caller-owned strings/vectors and therefore cannot prevent those prior allocations.
+
+The NCE-01 crate has no HTTP, file, database-ingestion or other external input service. Any future upstream boundary must impose a raw request/body byte limit before parsing, count/cap facts, rules and premises before collecting them, validate string lengths before cloning, and apply aggregate-memory, concurrency and request-deadline controls. The reasoner deadline does not cover parsing or API input construction. The independent reviewer must verify these boundaries and any integration-specific guards; do not claim that engine-side limits protect upstream deserialization.
 
 ## 8. Out-of-scope components
 
