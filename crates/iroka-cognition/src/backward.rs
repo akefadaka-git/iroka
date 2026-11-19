@@ -112,6 +112,7 @@ pub struct SearchReport {
 pub struct SearchConfig {
     pub max_steps: usize,
     pub max_depth: usize,
+    pub max_clauses: usize,
     pub max_duration: Duration,
 }
 
@@ -120,6 +121,7 @@ impl Default for SearchConfig {
         Self {
             max_steps: 20_000,
             max_depth: 64,
+            max_clauses: 10_000,
             max_duration: Duration::from_secs(3),
         }
     }
@@ -132,6 +134,9 @@ pub enum SearchError {
     EmptyPredicate,
     InvalidTerm,
     ZeroBudget,
+    ClauseBudgetExceeded,
+    DepthBudgetTooLarge,
+    DurationOutOfRange,
 }
 
 #[derive(Debug)]
@@ -153,8 +158,15 @@ impl BackwardReasoner {
     /// # Errors
     /// Returns [`SearchError::ZeroBudget`] if any configured limit is zero.
     pub fn new(config: SearchConfig) -> Result<Self, SearchError> {
-        if config.max_steps == 0 || config.max_depth == 0 || config.max_duration.is_zero() {
+        if config.max_steps == 0
+            || config.max_depth == 0
+            || config.max_clauses == 0
+            || config.max_duration.is_zero()
+        {
             return Err(SearchError::ZeroBudget);
+        }
+        if config.max_depth > MAX_SEARCH_DEPTH {
+            return Err(SearchError::DepthBudgetTooLarge);
         }
         Ok(Self {
             config,
@@ -172,6 +184,9 @@ impl BackwardReasoner {
         }
         if clause.body.len() > MAX_CLAUSE_BODY {
             return Err(SearchError::InvalidTerm);
+        }
+        if self.clauses.len() >= self.config.max_clauses {
+            return Err(SearchError::ClauseBudgetExceeded);
         }
         if self.clauses.iter().any(|item| item.id == clause.id) {
             return Err(SearchError::DuplicateClauseId);
@@ -192,8 +207,11 @@ impl BackwardReasoner {
     pub fn prove(&self, goal: &Atom) -> Result<SearchReport, SearchError> {
         validate_atom(goal)?;
         let started = Instant::now();
+        let deadline = started
+            .checked_add(self.config.max_duration)
+            .ok_or(SearchError::DurationOutOfRange)?;
         let mut state = SearchState {
-            deadline: started + self.config.max_duration,
+            deadline,
             steps: 0,
             stop: None,
             fresh_id: 0,
@@ -360,6 +378,7 @@ fn occurs(name: &str, term: &Term, substitution: &Substitution) -> bool {
 }
 
 const MAX_TERM_DEPTH: usize = 64;
+const MAX_SEARCH_DEPTH: usize = 256;
 const MAX_ATOM_ARITY: usize = 64;
 const MAX_CLAUSE_BODY: usize = 128;
 
@@ -622,6 +641,47 @@ mod tests {
             .prove(&atom("ancestor", vec![s("a"), s("b")]))
             .unwrap();
         assert_eq!(report.stop, SearchStop::DepthBudget);
+    }
+
+    #[test]
+    fn enforces_clause_count_budget() {
+        let config = SearchConfig {
+            max_clauses: 1,
+            ..SearchConfig::default()
+        };
+        let mut engine = BackwardReasoner::new(config).unwrap();
+        engine
+            .add_clause(clause("first", atom("first", vec![]), vec![]))
+            .unwrap();
+        assert_eq!(
+            engine.add_clause(clause("second", atom("second", vec![]), vec![])),
+            Err(SearchError::ClauseBudgetExceeded)
+        );
+    }
+
+    #[test]
+    fn rejects_excessive_search_depth_configuration() {
+        let config = SearchConfig {
+            max_depth: MAX_SEARCH_DEPTH + 1,
+            ..SearchConfig::default()
+        };
+        assert_eq!(
+            BackwardReasoner::new(config).err(),
+            Some(SearchError::DepthBudgetTooLarge)
+        );
+    }
+
+    #[test]
+    fn rejects_duration_that_cannot_be_represented_as_a_deadline() {
+        let config = SearchConfig {
+            max_duration: Duration::MAX,
+            ..SearchConfig::default()
+        };
+        let engine = BackwardReasoner::new(config).unwrap();
+        assert_eq!(
+            engine.prove(&atom("goal", vec![])),
+            Err(SearchError::DurationOutOfRange)
+        );
     }
 
     #[test]
