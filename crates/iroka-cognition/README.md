@@ -25,8 +25,9 @@ can be solved within that time.
 ## NCE-01 resource bounds and verification
 
 Default limits are 10,000 inference-step evaluations, 10,000 facts, 2,000 rules,
-256 premises per rule, and a three-second reasoning deadline. Atoms are limited to
-256 UTF-8 bytes. The deadline is checked at reasoning-loop/rule boundaries and
+256 premises per rule, 32 distinct source identifiers per asserted fact, and a
+three-second reasoning deadline. Atoms and source identifiers are limited to 256 UTF-8
+bytes. The deadline is checked at reasoning-loop/rule boundaries and
 during premise evaluation. A run reports one of `FixedPoint`, `Deadline`,
 `StepBudget` or `FactBudget`. Only `FixedPoint` is a complete closure:
 `ReasoningReport::is_complete()` returns true only for that stop reason, while
@@ -47,6 +48,28 @@ reporting, premise/fact/rule/step/time boundaries, failed-insertion atomicity, a
 limit and verifies that the engine stops during the premise scan without deriving its
 conclusion.
 
+## NCE-01 provenance contract
+
+- Every asserted fact is represented in `ReasoningReport::asserted_facts`, including
+  assertions made through the compatibility `add_fact` method, whose `source_id` is
+  `None`.
+- `add_fact_with_source` accepts an opaque caller-supplied source identifier. It is
+  metadata only: NCE-01 does not authenticate the source, validate its trustworthiness,
+  timestamp the evidence, or prove the source's claims.
+- Repeated identical assertions are idempotent. Distinct source identifiers for one fact
+  are retained up to `max_sources_per_fact`; the default is 32. The fact itself is still
+  counted once against `max_facts`.
+- `ReasoningReport::derivations` retains one deterministic witness for each distinct
+  (conclusion, rule ID) pair whose premises are satisfied. Alternative rules supporting
+  the same conclusion are retained, including rules supporting a fact that was already
+  asserted or derived. Each rule contributes at most one witness per reasoning call.
+- A derivation witness records the rule ID and the rule's complete premise vector. This is
+  a bounded witness set, not a recursively expanded proof DAG: premises may themselves
+  have derivations, and cycles can appear across witness records.
+- A rule witness is recorded only after its conclusion is already present or has been
+  successfully inserted. A failed fact-budget insertion does not create a false witness.
+- Source identifiers and derivation records are provenance metadata, not authenticated
+  evidence, trust scores, chronology, or authorization.
 Exact-SHA verification on 2026-11-19:
 - Source SHA: `3146962ca6532eafb5a98d1ea5875520035f7289`
 - Native Cognition CI #65: PASS (38 cognition tests; Clippy and formatting pass).
