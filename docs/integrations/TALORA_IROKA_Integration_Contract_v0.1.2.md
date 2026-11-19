@@ -2,7 +2,7 @@
 
 **Document ID:** TALORA-IROKA-IC-001\
 **Version:** 0.1.2\
-**Status:** A2 contract aligned to Owner dispositions D01–D09; integration baseline UNRESOLVED; not implementation authorization\
+**Status:** A2 contract aligned to Owner dispositions D01–D09; D01 VERIFIED-CLOSED for bounded development-only baseline selection; not implementation authorization\
 **Date:** 19 November 2026\
 **Parent baseline:** TALORA A1 approved product definition\
 **IROKA reference baseline:** `akefadaka-git/iroka` `main` at
@@ -678,3 +678,20 @@ The Owner approved freezing the following existing immutable baseline for TALORA
 This is a three-crate graph (`iroka-kernel`, `iroka-brain`, `iroka-talora-api`) with deterministic fake/local execution, synthetic-only inputs, no remote provider and no persistent memory. It is not a runnable production network service. Production authentication/key lifecycle, durable task/event storage, effective in-flight cancellation, governed G05 memory, G03/G08 workflow, G05/G02/G11 authority/memory graph, CIW, TALORA backend network client, end-to-end network tests, SBOM and independent security review remain absent or unverified.
 
 This approval freezes the exact source commit and records its bounded purpose. It does not authorize further A3 implementation, source composition, source redistribution, PR approval/merge, production data use or A5 deployment. The earlier blanket D01 statement that no baseline of any kind was selectable is superseded for this bounded development-only scope. The wider IROKA component graph remains NOT VERIFIED. A2 overall remains PARTIAL / NOT CLOSED pending its other exit criteria.
+
+
+## 12. D01 Owner-approved bounded development baseline — 19 November 2026
+
+The Owner approved freezing the existing bounded development/test baseline:
+- Repository: ake fadaka-git/iroka (canonical repository slug: ake fadaka-git/iroka).
+- Branch: integration/talora-a3-private-api.
+- Frozen verified source-code commit: 8056cea136f42436d896078046796eba2129092b.
+- Documentation-only snapshot at approval: 00b323750fb120f80d56191069d10a825e66dc41.
+- PR #129 remains OPEN / DRAFT / UNMERGED.
+- Exact source-head CI run 44457815902 PASS; documentation snapshot run 44458023955 PASS.
+
+This is a three-crate workspace: iroka-kernel, iroka-brain and iroka-talora-api. Its approved scope is development/test only, deterministic fake/local execution, synthetic-only input, no remote provider and no persistent memory. It is not a production network service.
+
+Known exclusions: no runnable network host, production workload-token verifier or key lifecycle, durable task/event store, effective in-flight cancellation, governed G05 memory, G03/G08 workflow, G05/G02/G11 authority graph, CIW integration, TALORA backend network client, end-to-end network verification, SBOM or independent security review. The wider IROKA graph remains NOT VERIFIED.
+
+**D01 status:** VERIFIED-CLOSED for bounded development-only baseline selection and freeze. This does not close the wider component graph or production readiness. D03 remains API_ONLY. This contract grants no source copying, vendoring, modification, SDK packaging, redistribution or sublicensing. No new A3 work, source composition, merge or A5 deployment is authorized.
