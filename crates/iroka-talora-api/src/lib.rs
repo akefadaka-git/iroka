@@ -242,6 +242,116 @@ impl TaskService {
     }
 }
 
+
+#[derive(Debug, Clone)]
+pub struct HttpRequest {
+    pub method: String,
+    pub path: String,
+    pub headers: HashMap<String, String>,
+    pub body: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpResponse {
+    pub status: u16,
+    pub headers: HashMap<String, String>,
+    pub body: Vec<u8>,
+}
+
+/// Execute the private HTTP route contract without owning a network listener.
+/// The hosting adapter remains responsible for TLS, loopback binding,
+/// trusted-proxy configuration, request deadlines and connection limits.
+pub fn route_http(service: &TaskService, request: HttpRequest, now_unix_seconds: u64) -> HttpResponse {
+    if request.method == "GET" && request.path == "/api/v1/health/live" {
+        return json_response(200, json!({"status":"live"}));
+    }
+    if request.method == "GET" && request.path == "/api/v1/health/ready" {
+        return json_response(200, json!({"status":"ready","profile":"development_only"}));
+    }
+
+    let bearer = match request.headers.get("authorization")
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .filter(|value| !value.trim().is_empty()) {
+        Some(value) => value,
+        None => return error_response(ApiError::Unauthorized),
+    };
+
+    if request.method == "GET" && request.path == "/api/v1/capabilities" {
+        let caller = match service.authenticator.authenticate(bearer, now_unix_seconds) {
+            Ok(caller) => caller,
+            Err(error) => return error_response(error),
+        };
+        if !caller.scopes.iter().any(|scope| scope == "talora.capabilities.read") {
+            return error_response(ApiError::Forbidden);
+        }
+        return json_response(200, json!({
+            "contract_version": CONTRACT_VERSION,
+            "capabilities": service.capabilities()
+        }));
+    }
+
+    if request.method == "POST" && request.path == "/api/v1/tasks" {
+        if request.body.len() > MAX_INPUT_BYTES + 16_384 {
+            return error_response(ApiError::PayloadTooLarge);
+        }
+        if !request.headers.get("content-type")
+            .map(|value| value.to_ascii_lowercase().starts_with("application/json"))
+            .unwrap_or(false) {
+            return error_response(ApiError::InvalidRequest("content_type_must_be_application_json"));
+        }
+        let task: TaskRequest = match serde_json::from_slice(&request.body) {
+            Ok(task) => task,
+            Err(_) => return error_response(ApiError::InvalidRequest("invalid_task_json")),
+        };
+        return match service.submit_with_credential(bearer, now_unix_seconds, task) {
+            Ok(result) => json_response(200, serde_json::to_value(result).unwrap_or(Value::Null)),
+            Err(error) => error_response(error),
+        };
+    }
+
+    if request.method == "GET" && request.path.starts_with("/api/v1/tasks/") {
+        let task_id = &request.path["/api/v1/tasks/".len()..];
+        if task_id.is_empty() || task_id.contains('/') {
+            return error_response(ApiError::NotFound);
+        }
+        let caller = match service.authenticator.authenticate(bearer, now_unix_seconds) {
+            Ok(caller) => caller,
+            Err(error) => return error_response(error),
+        };
+        return match service.get_task(&caller, task_id) {
+            Ok(result) => json_response(200, serde_json::to_value(result).unwrap_or(Value::Null)),
+            Err(error) => error_response(error),
+        };
+    }
+
+    error_response(ApiError::NotFound)
+}
+
+fn json_response(status: u16, value: Value) -> HttpResponse {
+    let body = serde_json::to_vec(&value).unwrap_or_else(|_| b"{\"error\":\"serialization_failure\"}".to_vec());
+    let mut headers = HashMap::new();
+    headers.insert("content-type".into(), "application/json; charset=utf-8".into());
+    headers.insert("cache-control".into(), "no-store".into());
+    HttpResponse { status, headers, body }
+}
+
+fn error_response(error: ApiError) -> HttpResponse {
+    let code = match error {
+        ApiError::InvalidRequest(_) => "invalid_request",
+        ApiError::Unauthorized => "unauthorized",
+        ApiError::Forbidden => "forbidden",
+        ApiError::PayloadTooLarge => "payload_too_large",
+        ApiError::Conflict => "idempotency_conflict",
+        ApiError::CapacityExhausted => "capacity_exhausted",
+        ApiError::RemoteProviderDisabled => "remote_provider_disabled",
+        ApiError::AdapterFailure => "adapter_failure",
+        ApiError::SerializationFailure => "serialization_failure",
+        ApiError::NotFound => "not_found",
+        ApiError::Internal => "internal_error",
+    };
+    json_response(error.http_status(), json!({"error":code}))
+}
+
 fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Result<(), ApiError> {
     for (value, name) in [
         (&request.client_request_id, "client_request_id"),
@@ -390,6 +500,39 @@ mod tests {
         unsupported.locale = "xx".into();
         assert_eq!(service.submit_with_credential("test-only-token", 1, unsupported),
             Err(ApiError::InvalidRequest("locale_not_supported")));
+    }
+
+    #[test]
+    fn private_http_routes_require_auth_and_disable_caching() {
+        let service = service();
+        let live = route_http(&service, HttpRequest {
+            method: "GET".into(), path: "/api/v1/health/live".into(),
+            headers: HashMap::new(), body: Vec::new(),
+        }, 1);
+        assert_eq!(live.status, 200);
+        assert_eq!(live.headers.get("cache-control").map(String::as_str), Some("no-store"));
+
+        let denied = route_http(&service, HttpRequest {
+            method: "GET".into(), path: "/api/v1/capabilities".into(),
+            headers: HashMap::new(), body: Vec::new(),
+        }, 1);
+        assert_eq!(denied.status, 401);
+    }
+
+    #[test]
+    fn private_http_task_route_uses_authenticated_service() {
+        let service = service();
+        let body = serde_json::to_vec(&request()).unwrap();
+        let response = route_http(&service, HttpRequest {
+            method: "POST".into(), path: "/api/v1/tasks".into(),
+            headers: HashMap::from([
+                ("authorization".into(), "Bearer test-only-token".into()),
+                ("content-type".into(), "application/json".into()),
+            ]),
+            body,
+        }, 1);
+        assert_eq!(response.status, 200);
+        assert!(String::from_utf8(response.body).unwrap().contains("FAKE_LOCAL"));
     }
 
     #[test]
