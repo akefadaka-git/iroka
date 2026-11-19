@@ -220,8 +220,9 @@ impl BackwardReasoner {
                 }
             }
             if proved {
+                let proof_goal = branch.apply(&resolved_goal);
                 return Some((branch, Proof {
-                    goal: branch.apply(&resolved_goal),
+                    goal: proof_goal,
                     clause_id: clause.id,
                     children,
                 }));
