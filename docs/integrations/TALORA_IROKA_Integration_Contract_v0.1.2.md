@@ -683,7 +683,7 @@ This approval freezes the exact source commit and records its bounded purpose. I
 ## 12. D01 Owner-approved bounded development baseline — 19 November 2026
 
 The Owner approved freezing the existing bounded development/test baseline:
-- Repository: ake fadaka-git/iroka (canonical repository slug: ake fadaka-git/iroka).
+- Repository: akefadaka-git/iroka (canonical repository slug: akefadaka-git/iroka).
 - Branch: integration/talora-a3-private-api.
 - Frozen verified source-code commit: 8056cea136f42436d896078046796eba2129092b.
 - Documentation-only snapshot at approval: 00b323750fb120f80d56191069d10a825e66dc41.
