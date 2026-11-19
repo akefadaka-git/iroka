@@ -584,24 +584,23 @@ mod tests {
             ..EngineConfig::default()
         };
         let mut brain = NativeReasoner::new(config).unwrap();
-        for atom in ["a", "b", "c"] {
-            brain.add_fact(Literal::positive(atom)).unwrap();
+        let premises: Vec<_> = (0..256)
+            .map(|index| Literal::positive(format!("premise_{index:03}")))
+            .collect();
+        for premise in &premises {
+            brain.add_fact(premise.clone()).unwrap();
         }
         brain
             .add_rule(Rule {
-                id: "three_premises".into(),
-                premises: vec![
-                    Literal::positive("a"),
-                    Literal::positive("b"),
-                    Literal::positive("c"),
-                ],
+                id: "maximum_premise_rule".into(),
+                premises,
                 conclusion: Literal::positive("derived"),
             })
             .unwrap();
         let mut clock_calls = 0usize;
         let report = brain.reason_with_elapsed(|| {
             clock_calls += 1;
-            if clock_calls >= 4 {
+            if clock_calls >= 130 {
                 Duration::from_nanos(5)
             } else {
                 Duration::ZERO
@@ -609,6 +608,7 @@ mod tests {
         });
         assert_eq!(report.stop_reason, StopReason::Deadline);
         assert_eq!(report.inference_steps, 1);
+        assert_eq!(report.facts.len(), 256);
         assert!(!report.facts.contains(&Literal::positive("derived")));
         assert_eq!(report.derivations.len(), 0);
     }
@@ -670,6 +670,49 @@ mod tests {
         assert_eq!(left.derivations, right.derivations);
         assert_eq!(left.stop_reason, right.stop_reason);
         assert_eq!(left.inference_steps, right.inference_steps);
+    }
+
+    #[test]
+    fn exhaustively_matches_reference_reachability_for_all_three_node_graphs() {
+        let edges = [(0usize, 1usize), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)];
+        for mask in 0u8..(1 << edges.len()) {
+            let mut brain = engine();
+            brain.add_fact(Literal::positive("node_0")).unwrap();
+            for (edge_index, (from, to)) in edges.iter().enumerate() {
+                if mask & (1 << edge_index) != 0 {
+                    brain
+                        .add_rule(Rule {
+                            id: format!("edge_{edge_index}"),
+                            premises: vec![Literal::positive(format!("node_{from}"))],
+                            conclusion: Literal::positive(format!("node_{to}")),
+                        })
+                        .unwrap();
+                }
+            }
+            let report = brain.reason();
+
+            let mut reachable = [true, false, false];
+            loop {
+                let mut changed = false;
+                for (edge_index, (from, to)) in edges.iter().enumerate() {
+                    if mask & (1 << edge_index) != 0 && reachable[*from] && !reachable[*to] {
+                        reachable[*to] = true;
+                        changed = true;
+                    }
+                }
+                if !changed {
+                    break;
+                }
+            }
+            let expected: Vec<_> = reachable
+                .iter()
+                .enumerate()
+                .filter(|(_, is_reachable)| **is_reachable)
+                .map(|(index, _)| Literal::positive(format!("node_{index}")))
+                .collect();
+            assert_eq!(report.stop_reason, StopReason::FixedPoint, "mask={mask}");
+            assert_eq!(report.facts, expected, "mask={mask}");
+        }
     }
 
     #[test]
