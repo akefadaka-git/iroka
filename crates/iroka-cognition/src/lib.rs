@@ -1,114 +1,63 @@
-//! IROKA native cognition: deterministic symbolic inference with explicit
-//! resource budgets, provenance traces, contradiction detection and safe stop.
-//!
-//! This crate does not call an external model, network, filesystem, tool or
-//! protected effect. It is an initial native reasoning substrate, not a claim
-//! of general intelligence or human-like consciousness.
-
+//! IROKA native cognition: model-independent symbolic reasoning primitives.
 #![forbid(unsafe_code)]
+
+pub mod backward;
+
+pub use backward::{
+    Atom as GoalAtom, BackwardReasoner, HornClause, Proof, SearchConfig,
+    SearchError, SearchReport, SearchStop, Substitution, Term,
+};
 
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Literal {
-    pub atom: String,
-    pub negated: bool,
-}
+pub struct Literal { pub atom: String, pub negated: bool }
 
 impl Literal {
-    pub fn positive(atom: impl Into<String>) -> Self {
-        Self { atom: atom.into(), negated: false }
-    }
-
-    pub fn negative(atom: impl Into<String>) -> Self {
-        Self { atom: atom.into(), negated: true }
-    }
-
-    fn valid(&self) -> bool {
-        !self.atom.trim().is_empty() && self.atom.len() <= 256
-    }
-
-    fn complement(&self) -> Self {
-        Self { atom: self.atom.clone(), negated: !self.negated }
-    }
+    pub fn positive(atom: impl Into<String>) -> Self { Self { atom: atom.into(), negated: false } }
+    pub fn negative(atom: impl Into<String>) -> Self { Self { atom: atom.into(), negated: true } }
+    fn complement(&self) -> Self { Self { atom: self.atom.clone(), negated: !self.negated } }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Rule {
-    pub id: String,
-    pub premises: Vec<Literal>,
-    pub conclusion: Literal,
-}
+pub struct Rule { pub id: String, pub premises: Vec<Literal>, pub conclusion: Literal }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum QueryResult {
-    Entailed,
-    Refuted,
-    Unknown,
-    Contradicted,
-}
+pub enum QueryResult { Entailed, Refuted, Unknown, Contradicted }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StopReason {
-    FixedPoint,
-    Deadline,
-    StepBudget,
-    FactBudget,
-}
+pub enum StopReason { FixedPoint, Deadline, StepBudget, FactBudget }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Derivation {
-    pub fact: Literal,
-    pub rule_id: String,
-    pub premises: Vec<Literal>,
-}
+pub struct Derivation { pub fact: Literal, pub rule_id: String, pub premises: Vec<Literal> }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReasoningReport {
-    pub facts: Vec<Literal>,
-    pub derivations: Vec<Derivation>,
-    pub stop_reason: StopReason,
-    pub inference_steps: usize,
-    pub elapsed_micros: u128,
+    pub facts: Vec<Literal>, pub derivations: Vec<Derivation>,
+    pub stop_reason: StopReason, pub inference_steps: usize, pub elapsed_micros: u128,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct EngineConfig {
-    pub max_inference_steps: usize,
-    pub max_facts: usize,
-    pub max_rules: usize,
+    pub max_inference_steps: usize, pub max_facts: usize, pub max_rules: usize,
     pub max_duration: Duration,
 }
 
 impl Default for EngineConfig {
     fn default() -> Self {
-        Self {
-            max_inference_steps: 10_000,
-            max_facts: 10_000,
-            max_rules: 2_000,
-            max_duration: Duration::from_secs(3),
-        }
+        Self { max_inference_steps: 10_000, max_facts: 10_000, max_rules: 2_000,
+            max_duration: Duration::from_secs(3) }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EngineError {
-    EmptyAtom,
-    AtomTooLong,
-    EmptyRuleId,
-    RuleWithoutPremises,
-    DuplicateRuleId,
-    RuleBudgetExceeded,
-    FactBudgetExceeded,
-    ZeroBudget,
+    EmptyAtom, AtomTooLong, EmptyRuleId, RuleWithoutPremises, DuplicateRuleId,
+    RuleBudgetExceeded, FactBudgetExceeded, ZeroBudget,
 }
 
-pub struct NativeReasoner {
-    config: EngineConfig,
-    facts: BTreeSet<Literal>,
-    rules: Vec<Rule>,
-}
+pub struct NativeReasoner { config: EngineConfig, facts: BTreeSet<Literal>, rules: Vec<Rule> }
 
 impl NativeReasoner {
     pub fn new(config: EngineConfig) -> Result<Self, EngineError> {
@@ -130,16 +79,10 @@ impl NativeReasoner {
 
     pub fn add_rule(&mut self, rule: Rule) -> Result<(), EngineError> {
         if rule.id.trim().is_empty() { return Err(EngineError::EmptyRuleId); }
-        if self.rules.iter().any(|existing| existing.id == rule.id) {
-            return Err(EngineError::DuplicateRuleId);
-        }
-        if self.rules.len() >= self.config.max_rules {
-            return Err(EngineError::RuleBudgetExceeded);
-        }
+        if self.rules.iter().any(|existing| existing.id == rule.id) { return Err(EngineError::DuplicateRuleId); }
+        if self.rules.len() >= self.config.max_rules { return Err(EngineError::RuleBudgetExceeded); }
         if rule.premises.is_empty() { return Err(EngineError::RuleWithoutPremises); }
-        for literal in rule.premises.iter().chain(std::iter::once(&rule.conclusion)) {
-            validate_literal(literal)?;
-        }
+        for literal in rule.premises.iter().chain(std::iter::once(&rule.conclusion)) { validate_literal(literal)?; }
         self.rules.push(rule);
         self.rules.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(())
@@ -150,67 +93,36 @@ impl NativeReasoner {
         let positive = self.facts.contains(query);
         let negative = self.facts.contains(&query.complement());
         Ok(match (positive, negative) {
-            (true, true) => QueryResult::Contradicted,
-            (true, false) => QueryResult::Entailed,
-            (false, true) => QueryResult::Refuted,
-            (false, false) => QueryResult::Unknown,
+            (true, true) => QueryResult::Contradicted, (true, false) => QueryResult::Entailed,
+            (false, true) => QueryResult::Refuted, (false, false) => QueryResult::Unknown,
         })
     }
 
-    /// Run deterministic forward chaining until a fixed point or a hard budget.
-    /// A deadline/budget stop is reported explicitly and never represented as
-    /// successful completion.
     pub fn reason(&mut self) -> ReasoningReport {
         let started = Instant::now();
         let deadline = started + self.config.max_duration;
         let mut derivations = Vec::new();
         let mut steps = 0usize;
         let stop_reason;
-
         'reasoning: loop {
-            if Instant::now() >= deadline {
-                stop_reason = StopReason::Deadline;
-                break;
-            }
+            if Instant::now() >= deadline { stop_reason = StopReason::Deadline; break; }
             let mut changed = false;
             for rule in &self.rules {
-                if Instant::now() >= deadline {
-                    stop_reason = StopReason::Deadline;
-                    break 'reasoning;
-                }
-                if steps >= self.config.max_inference_steps {
-                    stop_reason = StopReason::StepBudget;
-                    break 'reasoning;
-                }
+                if Instant::now() >= deadline { stop_reason = StopReason::Deadline; break 'reasoning; }
+                if steps >= self.config.max_inference_steps { stop_reason = StopReason::StepBudget; break 'reasoning; }
                 steps += 1;
                 if rule.premises.iter().all(|premise| self.facts.contains(premise))
                     && !self.facts.contains(&rule.conclusion) {
-                    if self.facts.len() >= self.config.max_facts {
-                        stop_reason = StopReason::FactBudget;
-                        break 'reasoning;
-                    }
+                    if self.facts.len() >= self.config.max_facts { stop_reason = StopReason::FactBudget; break 'reasoning; }
                     self.facts.insert(rule.conclusion.clone());
-                    derivations.push(Derivation {
-                        fact: rule.conclusion.clone(),
-                        rule_id: rule.id.clone(),
-                        premises: rule.premises.clone(),
-                    });
+                    derivations.push(Derivation { fact: rule.conclusion.clone(), rule_id: rule.id.clone(), premises: rule.premises.clone() });
                     changed = true;
                 }
             }
-            if !changed {
-                stop_reason = StopReason::FixedPoint;
-                break;
-            }
+            if !changed { stop_reason = StopReason::FixedPoint; break; }
         }
-
-        ReasoningReport {
-            facts: self.facts.iter().cloned().collect(),
-            derivations,
-            stop_reason,
-            inference_steps: steps,
-            elapsed_micros: started.elapsed().as_micros(),
-        }
+        ReasoningReport { facts: self.facts.iter().cloned().collect(), derivations, stop_reason,
+            inference_steps: steps, elapsed_micros: started.elapsed().as_micros() }
     }
 }
 
@@ -223,10 +135,7 @@ fn validate_literal(literal: &Literal) -> Result<(), EngineError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn engine() -> NativeReasoner {
-        NativeReasoner::new(EngineConfig::default()).unwrap()
-    }
+    fn engine() -> NativeReasoner { NativeReasoner::new(EngineConfig::default()).unwrap() }
 
     #[test]
     fn derives_a_multi_step_conclusion_without_any_model() {

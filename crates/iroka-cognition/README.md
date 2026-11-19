@@ -1,27 +1,23 @@
 # IROKA Native Cognition
 
-This crate is the first native reasoning increment for IROKA. It uses deterministic
-symbolic forward-chaining over explicit facts and rules; it does not invoke an
-external model, network, filesystem, tool or protected side effect.
+Native, model-independent symbolic reasoning primitives with bounded execution.
 
-## Current capabilities
+## NCE-01: Forward reasoning
+- Deterministic propositional forward chaining.
+- Explicit positive/negative facts and contradiction reporting.
+- Provenance derivations and step/fact/rule/time budgets.
 
-- Typed positive and explicit-negative literals.
-- Deterministic rule ordering and multi-step forward inference.
-- Query outcomes: entailed, refuted, unknown or contradicted.
-- Provenance trace for every derived fact.
-- Hard limits for elapsed time, inference steps, facts and rules.
-- Explicit terminal reasons; budget exhaustion is never reported as completion.
-- Unit tests for inference, contradiction, unknowns and resource bounds.
+## NCE-02: Goal-directed reasoning
+- First-order terms, variables and compound terms.
+- Unification with an occurs check.
+- Backward chaining over Horn clauses, including recursive rules.
+- Standardized-apart rule variables for each search branch.
+- Proof trees, answer substitutions and explicit deadline/step/depth outcomes.
+- No external model, network, filesystem, tool or protected effect.
 
-## Current limitations
-
-This is a bounded symbolic substrate, not general intelligence. It does not yet
-provide natural-language understanding, probabilistic inference, theorem proving,
-constraint solving, temporal/causal reasoning, knowledge ingestion, durable memory,
-planning/search, learning, multimodal perception, agent orchestration or a full
-Kernel authorization composition. Those are separate implementation workstreams.
-
-The default runtime budget is three seconds. The budget is a hard stop condition
-checked between inference operations; OS scheduling and process termination are
-outside the crate's ability to guarantee at an exact wall-clock instant.
+## Limitations
+This remains a symbolic reasoning substrate, not general intelligence. Natural-language
+understanding, probabilistic inference, constraint solving, causal/temporal reasoning,
+knowledge ingestion, governed memory, planning, learning, perception and orchestration
+remain separate workstreams. Three seconds is a budget, not a guarantee every problem
+can be solved within that time.
