@@ -60,6 +60,10 @@ pub enum EngineError {
 pub struct NativeReasoner { config: EngineConfig, facts: BTreeSet<Literal>, rules: Vec<Rule> }
 
 impl NativeReasoner {
+    /// Creates a propositional reasoner with bounded facts, rules, steps, and time.
+    ///
+    /// # Errors
+    /// Returns [`EngineError::ZeroBudget`] if any configured limit is zero.
     pub fn new(config: EngineConfig) -> Result<Self, EngineError> {
         if config.max_inference_steps == 0 || config.max_facts == 0 ||
             config.max_rules == 0 || config.max_duration.is_zero() {
@@ -68,6 +72,10 @@ impl NativeReasoner {
         Ok(Self { config, facts: BTreeSet::new(), rules: Vec::new() })
     }
 
+    /// Adds a validated fact, subject to the configured fact limit.
+    ///
+    /// # Errors
+    /// Returns an error for malformed atoms or when the fact budget is exhausted.
     pub fn add_fact(&mut self, fact: Literal) -> Result<(), EngineError> {
         validate_literal(&fact)?;
         if !self.facts.contains(&fact) && self.facts.len() >= self.config.max_facts {
@@ -77,6 +85,10 @@ impl NativeReasoner {
         Ok(())
     }
 
+    /// Adds a validated rule, subject to the configured rule limit.
+    ///
+    /// # Errors
+    /// Returns an error for malformed rules, duplicate IDs, or an exhausted rule budget.
     pub fn add_rule(&mut self, rule: Rule) -> Result<(), EngineError> {
         if rule.id.trim().is_empty() { return Err(EngineError::EmptyRuleId); }
         if self.rules.iter().any(|existing| existing.id == rule.id) { return Err(EngineError::DuplicateRuleId); }
@@ -88,6 +100,10 @@ impl NativeReasoner {
         Ok(())
     }
 
+    /// Queries a literal without treating unknown evidence as false.
+    ///
+    /// # Errors
+    /// Returns an error when the queried atom is malformed.
     pub fn query(&self, query: &Literal) -> Result<QueryResult, EngineError> {
         validate_literal(query)?;
         let positive = self.facts.contains(query);
