@@ -52,6 +52,15 @@ cargo test --workspace
 
 Also inspect the repository workflow definitions and reproduce the production-feature check used by Rust kernel verification. Record Rust toolchain version, host/target, command output and any environment deviations. Do not treat a local run on a different toolchain as a replacement for the pinned CI evidence.
 
+### Working-branch remediation delta (not a replacement for the pinned review target)
+
+- Implementation commit: `fd88ad2653acbc6eb5602d1f161ee8944e68682b`
+- `crates/iroka-cognition/src/lib.rs` blob: `6ffe52e30c1625779f7dd1854a0fb95266f0a0bf`
+- The immutable baseline above remains the independent-review target. The working-branch source contains the R-01/R-02 remediation delta and must be reviewed as a distinct source revision before NCE-01 acceptance.
+- R-01 additions: `AssertedFact`, `add_fact_with_source`, opaque source IDs, a 32-source-per-fact default bound, and one witness per satisfied `(conclusion, rule_id)` pair, including alternate rule support for already-known conclusions.
+- R-02/R-04 additions: cooperative deadline checks during report materialization and explicit `ReasoningReport::is_complete()` / `is_partial()` semantics.
+- Current dedicated NCE-01 unit-test count: 32. This is a source inspection count, not a passing test result.
+- Exact-SHA CI for the first provenance implementation attempt (commit `65393fdb0716fb8d28533fd3b7fab2213f569591`) failed at `cargo fmt --all -- --check`; compilation, tests and Clippy were skipped. Formatting corrections were committed afterward. No passing CI result has yet been established for the corrected current source.
 ## 3. System model and intended semantics
 
 NCE-01 is a deterministic propositional forward-chaining engine. It stores positive and explicitly negative literals, applies rules whose complete premise lists are present, and repeats passes until no new fact is derived or a configured stop condition occurs.
