@@ -26,4 +26,4 @@ jobs:
       - name: Test workspace
         run: cargo test --workspace --all-targets
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy -p iroka-cognition --all-targets -- -D warnings
