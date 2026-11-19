@@ -546,7 +546,10 @@ mod tests {
             })
             .unwrap();
         let report = brain.reason();
-        assert_eq!(brain.query(&Literal::positive("c")).unwrap(), QueryResult::Entailed);
+        assert_eq!(
+            brain.query(&Literal::positive("c")).unwrap(),
+            QueryResult::Entailed
+        );
         assert_eq!(report.derivations.len(), 1);
     }
 
@@ -759,9 +762,7 @@ mod tests {
     #[test]
     fn enforces_atom_length_boundary() {
         let mut brain = engine();
-        brain
-            .add_fact(Literal::positive("x".repeat(256)))
-            .unwrap();
+        brain.add_fact(Literal::positive("x".repeat(256))).unwrap();
         assert_eq!(
             brain.add_fact(Literal::positive("x".repeat(257))),
             Err(EngineError::AtomTooLong)
