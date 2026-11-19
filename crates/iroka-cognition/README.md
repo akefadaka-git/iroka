@@ -21,3 +21,26 @@ understanding, probabilistic inference, constraint solving, causal/temporal reas
 knowledge ingestion, governed memory, planning, learning, perception and orchestration
 remain separate workstreams. Three seconds is a budget, not a guarantee every problem
 can be solved within that time.
+
+## NCE-01 resource bounds and verification
+
+Default limits are 10,000 inference-step evaluations, 10,000 facts, 2,000 rules,
+256 premises per rule, and a three-second reasoning deadline. Atoms are limited to
+256 UTF-8 bytes. The deadline is checked at reasoning-loop/rule boundaries and
+during premise evaluation. A run reports one of `FixedPoint`, `Deadline`,
+`StepBudget` or `FactBudget`; unknown evidence remains distinct from refutation,
+and contradictory positive/negative evidence is reported explicitly.
+
+The dedicated NCE-01 suite contains 24 tests covering multi-step closure, deterministic
+rule ordering, cyclic and adversarial rule order, all 64 directed three-node graph
+topologies against a reference reachability calculation, exhaustive contradiction
+reporting, premise/fact/rule/step/time boundaries, failed-insertion atomicity, and a
+512-fact/512-rule workload. The deadline test exercises a rule at the full 256-premise
+limit and verifies that the engine stops during the premise scan without deriving its
+conclusion.
+
+Exact-SHA verification on 2026-11-19:
+- Source SHA: `3146962ca6532eafb5a98d1ea5875520035f7289`
+- Native Cognition CI #65: PASS (38 cognition tests; Clippy and formatting pass).
+- Rust kernel verification #2198: PASS (38 cognition, 71 kernel and 2 authorization
+  contract tests; workspace formatting, compilation and Clippy pass).
