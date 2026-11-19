@@ -695,3 +695,36 @@ This is a three-crate workspace: iroka-kernel, iroka-brain and iroka-talora-api.
 Known exclusions: no runnable network host, production workload-token verifier or key lifecycle, durable task/event store, effective in-flight cancellation, governed G05 memory, G03/G08 workflow, G05/G02/G11 authority graph, CIW integration, TALORA backend network client, end-to-end network verification, SBOM or independent security review. The wider IROKA graph remains NOT VERIFIED.
 
 **D01 status:** VERIFIED-CLOSED for bounded development-only baseline selection and freeze. This does not close the wider component graph or production readiness. D03 remains API_ONLY. This contract grants no source copying, vendoring, modification, SDK packaging, redistribution or sublicensing. No new A3 work, source composition, merge or A5 deployment is authorized.
+
+## 17. Final A2 evidence reconciliation and precedence — 19 November 2026
+
+This addendum is the latest status authority for TALORA's bounded IROKA integration. It clarifies earlier statements in Sections 14.4.1–14.4.3 and the earlier D01 disposition.
+
+### 17.1 D01 precedence
+
+The earlier finding that no compatible immutable IROKA graph was selectable describes the wider G03/G08, G05/G02/G11, CIW and localization candidate graph. It remains valid for that wider graph. It is superseded only for the Owner-approved bounded development/test baseline:
+
+- Repository: akefadaka-git/iroka.
+- Branch: integration/talora-a3-private-api.
+- Verified source-code commit: 8056cea136f42436d896078046796eba2129092b.
+- Base main: 1aea1447eadf1d827d702fd6c4034fa058aac21e.
+- Exact-head workflow run: 44457815902, SUCCESS.
+- Scope: three-crate workspace (iroka-kernel, iroka-brain, iroka-talora-api), deterministic fake/local development/test execution, synthetic-only inputs, no remote provider and no persistent memory.
+
+**D01 = VERIFIED-CLOSED for bounded development/test baseline selection only.** The wider graph remains NOT VERIFIED; the baseline is not a production network service and does not prove production readiness.
+
+### 17.2 Existing A3 authorization and implementation evidence
+
+A3 implementation for this bounded IROKA service slice was separately authorized from IROKA main 1aea1447eadf1d827d702fd6c4034fa058aac21e, on branch integration/talora-a3-private-api. The verified code head is 8056cea; PR #129 is recorded as draft/unmerged. This A2 addendum does not extend A3 scope, authorize further source composition, or authorize merge, A4 or A5.
+
+The implementation-status record reports the route-handler/task/capability contract, injected workload-authenticator boundary, kernel policy enforcement, deterministic fake/local BRAIN adapter, idempotency and hard development caps. It also explicitly records that there is no runnable network host, production token verifier/key lifecycle, durable task/event store, effective in-flight cancellation, G05 governed memory, G03/G08 workflow, G05/G02/G11 authority graph, CIW, TALORA backend client, end-to-end network test, SBOM or independent security review. These are limitations, not implicit future capabilities.
+
+### 17.3 Rights and data-protection boundary
+
+The IROKA workspace Cargo manifest declares LicenseRef-Proprietary. D03 API_ONLY remains binding: no TALORA source copying, vendoring, modification, SDK packaging, redistribution or sublicensing. Public repository visibility is not a source license. Written service-use/IP/hosting/data-processing terms remain necessary before production use.
+
+No production-data or data-residency approval is established. Ethiopian Personal Data Protection Proclamation No. 1321/2024 includes local-storage and cross-border-transfer conditions; TALORA/IROKA production topology, backups, logs, subprocessors and any model-provider regions must be assessed before personal or sensitive data are processed.
+
+### 17.4 Current gate statement
+
+TALORA–IROKA A2: **VERIFIED-CLOSED for D01 bounded baseline selection; PARTIAL overall** pending entitlement lifecycle decisions, dependency/fixture rights, Ethiopia legal/data-residency and payment gates. Full IROKA production integration remains NOT VERIFIED. A3 is limited to its separately authorized existing slice; no additional A3 work, merge, A4 or A5 is authorized by this addendum.
