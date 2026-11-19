@@ -725,8 +725,12 @@ mod tests {
         });
         assert_eq!(report.stop_reason, StopReason::Deadline);
         assert_eq!(report.inference_steps, 1);
-        assert_eq!(report.facts.len(), 256);
-        assert!(!report.facts.contains(&Literal::positive("derived")));
+        // The deadline also prevents report materialization; the internal
+        // knowledge state remains intact, but no conclusion may be inserted.
+        assert!(report.is_partial());
+        assert!(report.facts.is_empty());
+        assert_eq!(brain.facts.len(), 256);
+        assert!(!brain.facts.contains(&Literal::positive("derived")));
         assert_eq!(report.derivations.len(), 0);
     }
 
