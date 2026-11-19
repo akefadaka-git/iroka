@@ -304,7 +304,64 @@ pub fn route_http(service: &TaskService, request: HttpRequest, now_unix_seconds:
             Err(_) => return error_response(ApiError::InvalidRequest("invalid_task_json")),
         };
         return match service.submit_with_credential(bearer, now_unix_seconds, task) {
-            Ok(result) => json_response(200, serde_json::to_value(result).unwrap_or(Value::Null)),
+            Ok(result) => {
+                let task_id = result.task_id.clone();
+                json_response(202, json!({
+                    "task_id": task_id,
+                    "state": result.state,
+                    "status_url": format!("/api/v1/tasks/{task_id}"),
+                    "events_url": format!("/api/v1/tasks/{task_id}/events"),
+                    "result": result
+                }))
+            }
+            Err(error) => error_response(error),
+        };
+    }
+
+    if request.method == "GET" && request.path.starts_with("/api/v1/tasks/")
+        && request.path.ends_with("/events") {
+        let task_id = request.path
+            .strip_prefix("/api/v1/tasks/")
+            .and_then(|value| value.strip_suffix("/events"))
+            .unwrap_or("");
+        if task_id.is_empty() || task_id.contains('/') {
+            return error_response(ApiError::NotFound);
+        }
+        let caller = match service.authenticator.authenticate(bearer, now_unix_seconds) {
+            Ok(caller) => caller,
+            Err(error) => return error_response(error),
+        };
+        return match service.get_task(&caller, task_id) {
+            Ok(result) => {
+                let payload = serde_json::to_string(&result).unwrap_or_else(|_| "{}".into());
+                let mut headers = HashMap::new();
+                headers.insert("content-type".into(), "text/event-stream".into());
+                headers.insert("cache-control".into(), "no-store".into());
+                HttpResponse {
+                    status: 200,
+                    headers,
+                    body: format!("event: completed\\ndata: {payload}\\n\\n").into_bytes(),
+                }
+            }
+            Err(error) => error_response(error),
+        };
+    }
+
+    if request.method == "POST" && request.path.starts_with("/api/v1/tasks/")
+        && request.path.ends_with("/cancel") {
+        let task_id = request.path
+            .strip_prefix("/api/v1/tasks/")
+            .and_then(|value| value.strip_suffix("/cancel"))
+            .unwrap_or("");
+        if task_id.is_empty() || task_id.contains('/') {
+            return error_response(ApiError::NotFound);
+        }
+        let caller = match service.authenticator.authenticate(bearer, now_unix_seconds) {
+            Ok(caller) => caller,
+            Err(error) => return error_response(error),
+        };
+        return match service.get_task(&caller, task_id) {
+            Ok(_) => error_response(ApiError::Conflict),
             Err(error) => error_response(error),
         };
     }
@@ -415,7 +472,7 @@ mod tests {
             if credential != "test-only-token" { return Err(ApiError::Unauthorized); }
             AuthenticatedCaller::from_verified_claims("service:talora-test", "iroka-talora-api",
                 "tenant:test", vec!["workspace:test".into()], vec!["project:test".into()],
-                vec!["talora.tasks.submit".into(), "talora.tasks.read".into()])
+                vec!["talora.tasks.submit".into(), "talora.tasks.read".into(), "talora.capabilities.read".into()])
         }
     }
 
@@ -531,8 +588,10 @@ mod tests {
             ]),
             body,
         }, 1);
-        assert_eq!(response.status, 200);
-        assert!(String::from_utf8(response.body).unwrap().contains("FAKE_LOCAL"));
+        assert_eq!(response.status, 202);
+        let body = String::from_utf8(response.body).unwrap();
+        assert!(body.contains("FAKE_LOCAL"));
+        assert!(body.contains("status_url"));
     }
 
     #[test]
