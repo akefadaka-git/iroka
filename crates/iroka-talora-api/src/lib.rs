@@ -469,11 +469,12 @@ pub fn route_http(
         return json_response(200, json!({"status":"ready","profile":"development_only"}));
     }
 
-    let bearer = match request
-        .headers
-        .get("authorization")
-        .and_then(|value| value.strip_prefix("Bearer "))
-        .filter(|value| !value.trim().is_empty())
+    let bearer = match header(&request.headers, "authorization")
+        .and_then(|value| value.split_once(' '))
+        .filter(|(scheme, credential)| {
+            scheme.eq_ignore_ascii_case("bearer") && !credential.trim().is_empty()
+        })
+        .map(|(_, credential)| credential)
     {
         Some(value) => value,
         None => return error_response(ApiError::Unauthorized),
@@ -507,9 +508,7 @@ pub fn route_http(
         if request.body.len() > MAX_INPUT_BYTES + 16_384 {
             return error_response(ApiError::PayloadTooLarge);
         }
-        if !request
-            .headers
-            .get("content-type")
+        if !header(&request.headers, "content-type")
             .map(|value| value.to_ascii_lowercase().starts_with("application/json"))
             .unwrap_or(false)
         {
@@ -609,6 +608,13 @@ pub fn route_http(
     }
 
     error_response(ApiError::NotFound)
+}
+
+fn header<'a>(headers: &'a HashMap<String, String>, name: &str) -> Option<&'a str> {
+    headers
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case(name))
+        .map(|(_, value)| value.as_str())
 }
 
 fn json_response(status: u16, value: Value) -> HttpResponse {
@@ -1083,6 +1089,88 @@ mod tests {
                 "fake_adapter_cannot_satisfy_required_evidence"
             ))
         );
+    }
+
+    #[test]
+    fn private_http_routes_support_capabilities_status_events_and_cancel() {
+        let service = service();
+        let capability_response = route_http(
+            &service,
+            HttpRequest {
+                method: "GET".into(),
+                path: "/api/v1/capabilities".into(),
+                headers: HashMap::from([(
+                    "Authorization".into(),
+                    "bEaReR test-only-token".into(),
+                )]),
+                body: Vec::new(),
+            },
+            1,
+        );
+        assert_eq!(capability_response.status, 200);
+
+        let submitted = route_http(
+            &service,
+            HttpRequest {
+                method: "POST".into(),
+                path: "/api/v1/tasks".into(),
+                headers: HashMap::from([
+                    ("Authorization".into(), "Bearer test-only-token".into()),
+                    ("Content-Type".into(), "application/json; charset=utf-8".into()),
+                ]),
+                body: serde_json::to_vec(&request()).unwrap(),
+            },
+            1,
+        );
+        assert_eq!(submitted.status, 202);
+        let submission: Value = serde_json::from_slice(&submitted.body).unwrap();
+        let task_id = submission["task_id"].as_str().unwrap();
+
+        let status = route_http(
+            &service,
+            HttpRequest {
+                method: "GET".into(),
+                path: format!("/api/v1/tasks/{task_id}"),
+                headers: HashMap::from([(
+                    "Authorization".into(),
+                    "Bearer test-only-token".into(),
+                )]),
+                body: Vec::new(),
+            },
+            1,
+        );
+        assert_eq!(status.status, 200);
+
+        let events = route_http(
+            &service,
+            HttpRequest {
+                method: "GET".into(),
+                path: format!("/api/v1/tasks/{task_id}/events"),
+                headers: HashMap::from([(
+                    "Authorization".into(),
+                    "Bearer test-only-token".into(),
+                )]),
+                body: Vec::new(),
+            },
+            1,
+        );
+        assert_eq!(events.status, 200);
+        assert!(String::from_utf8(events.body).unwrap().contains("event: completed\n"));
+
+        let cancelled = route_http(
+            &service,
+            HttpRequest {
+                method: "POST".into(),
+                path: format!("/api/v1/tasks/{task_id}/cancel"),
+                headers: HashMap::from([(
+                    "Authorization".into(),
+                    "Bearer test-only-token".into(),
+                )]),
+                body: Vec::new(),
+            },
+            1,
+        );
+        assert_eq!(cancelled.status, 409);
     }
 
     #[test]
