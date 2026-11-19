@@ -175,6 +175,7 @@ The main Cargo workspace contains only `iroka-kernel` and uses Rust
 | G05/G02/G11 | `feat/g11-provider-adapters-a3-rebased` — `8f7ddb9e9dd2b796cd303ba645a1a3c843eb3810` | 391 ahead / 3 behind main; Rust 1.75; PostgreSQL 0.19.12, postgres-native-tls 0.5.0, native-tls 0.2.12, rusqlite 0.32.1; 154 lockfile packages | Best G05/G02/G11 subset; no exact-head PR run returned |
 | CIW | `feat/ciw-amharic-answer-only-chat` — `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` | 172 ahead / 25 behind main; conversation crate and browser routes | Exact-head run 42562324737 succeeded; not the TALORA task API |
 | BRAIN/G04/G05 | `feat/brain-a3-b04-g05-memory-core` — `b27816c1c3b172c0a7503d6602cddeaa6008c6cb` | 163 ahead / 3 behind main; kernel + G04 contract + SQLite G05 | Separate older implementation line |
+| BRAIN/G05/G01/G02/G11 integration | `feat/brain-a3-g05-g01-g02-g11-integration` — `0968221b55563a9aacbec4fa499fdac7679e9915` | 231 ahead / 3 behind main; workspace kernel + G04 contract + G05 memory, Rust 1.75; SQLite G05; adds tenant resolver, reviewer-proof and policy-lifecycle modules. Its own integration record says G11 adapter implemented while external G01/G02 authority-provider dependencies remain fail-closed. | Alternative G01/G02/G04/G05/G11 candidate; SQLite tenant resolver is single-node; diverges from PostgreSQL G05/G11 provider by 231 / 391 commits. No exact-head PR run returned. |
 | BRAIN cognitive core | `feat/inga-neurogenetic-a3-foundation` — `e2ad1dc6a7916028dbcdfbd2d2ec948e0a554f4d` | 27 ahead / 3 behind main; `iroka-brain` depends on serde/serde_json | Separate candidate |
 | Localization | `feat/a3-4-localization-completion` — `d51a971d295e7b75e3d17fc51202d99c1db1abab` | 59 ahead / 3 behind main; adds localization module/tests | Separate divergent kernel line |
 
@@ -195,6 +196,11 @@ The G05 host binds only to loopback behind a trusted TLS-terminating
 proxy and exposes `/v1/g05/execute`. CIW exposes conversation and
 generation/event routes. Neither provides the full TALORA
 `/api/v1/capabilities` and `/api/v1/tasks` contract.
+
+The BRAIN/G05/G01/G02/G11 candidate's own reconciliation record
+states that G11 adapter work exists but external G01/G02 authority
+provider dependencies remain fail-closed. Its SQLite tenant resolver
+is single-node only.
 
 No deterministic model adapter was verified on the inspected refs.
 G11 checkpoint HTTPS is not a model provider. No combined workspace
