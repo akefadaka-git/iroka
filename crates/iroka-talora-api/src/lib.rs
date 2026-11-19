@@ -68,6 +68,7 @@ impl AuthenticatedCaller {
     }
 
     pub fn subject(&self) -> &str { &self.subject }
+    pub fn audience(&self) -> &str { &self.audience }
 
     fn permits(&self, scope: &str, workspace_ref: &str, project_ref: &str) -> bool {
         self.scopes.iter().any(|s| s == scope)
@@ -185,6 +186,7 @@ impl TaskService {
     /// Called only by a trusted transport adapter after authenticating the workload.
     pub fn submit_authenticated(&self, caller: &AuthenticatedCaller,
         request: TaskRequest) -> Result<TaskResponse, ApiError> {
+        if caller.audience != "iroka-talora-api" { return Err(ApiError::Unauthorized); }
         validate_request(caller, &request)?;
         let serialized = serde_json::to_vec(&request).map_err(|_| ApiError::SerializationFailure)?;
         let request_digest = sha256_hex(&serialized);
@@ -229,6 +231,7 @@ impl TaskService {
 
     pub fn get_task(&self, caller: &AuthenticatedCaller, task_id: &str)
         -> Result<TaskResponse, ApiError> {
+        if caller.audience != "iroka-talora-api" { return Err(ApiError::Unauthorized); }
         if !caller.scopes.iter().any(|s| s == "talora.tasks.read") {
             return Err(ApiError::Forbidden);
         }
@@ -281,6 +284,7 @@ pub fn route_http(service: &TaskService, request: HttpRequest, now_unix_seconds:
             Ok(caller) => caller,
             Err(error) => return error_response(error),
         };
+        if caller.audience != "iroka-talora-api" { return error_response(ApiError::Unauthorized); }
         if !caller.scopes.iter().any(|scope| scope == "talora.capabilities.read") {
             return error_response(ApiError::Forbidden);
         }
