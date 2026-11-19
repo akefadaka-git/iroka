@@ -195,6 +195,8 @@ pub struct TaskResponse {
     pub client_request_id: String,
     pub correlation_id: String,
     pub contract_version: String,
+    pub created_at: u64,
+    pub expires_at: u64,
     pub state: String,
     pub principal_ref: String,
     pub tenant_ref: String,
@@ -209,6 +211,8 @@ pub struct TaskResponse {
     pub output_schema_id: String,
     pub document_ref: Option<String>,
     pub document_revision: Option<String>,
+    pub calendar: Option<String>,
+    pub input_source_refs: Vec<String>,
     pub evidence_refs: Vec<String>,
     pub assumptions: Vec<String>,
     pub unresolved_questions: Vec<String>,
@@ -350,7 +354,7 @@ impl TaskService {
         let output_bytes = serde_json::to_vec(&result_payload)
             .map_err(|_| ApiError::SerializationFailure)?
             .len();
-        if output_bytes > MAX_OUTPUT_BYTES {
+        if output_bytes > request.constraints.max_output_bytes || output_bytes > MAX_OUTPUT_BYTES {
             return Err(ApiError::PayloadTooLarge);
         }
 
@@ -361,6 +365,8 @@ impl TaskService {
             client_request_id: request.client_request_id.clone(),
             correlation_id: request.correlation_id.clone(),
             contract_version: CONTRACT_VERSION.into(),
+            created_at: request.created_at,
+            expires_at: request.expires_at,
             state: "completed".into(),
             principal_ref: caller.subject.clone(),
             tenant_ref: caller.tenant_ref.clone(),
@@ -375,6 +381,8 @@ impl TaskService {
             output_schema_id: request.output_schema_id.clone(),
             document_ref: request.document_ref.clone(),
             document_revision: request.document_revision.clone(),
+            calendar: request.calendar.clone(),
+            input_source_refs: request.input_refs.iter().map(|input| input.source_ref.clone()).collect(),
             evidence_refs: Vec::new(),
             assumptions: vec!["Deterministic fake adapter; no generative inference performed.".into()],
             unresolved_questions: Vec::new(),
@@ -664,6 +672,13 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
         || request.capability_version.len() > MAX_REFERENCE_BYTES
         || request.task_class.len() > MAX_REFERENCE_BYTES
         || request.locale.len() > 32
+        || request.consent_ref.len() > MAX_REFERENCE_BYTES
+        || request.authorization_ref.len() > MAX_REFERENCE_BYTES
+        || request.policy_ref.len() > MAX_REFERENCE_BYTES
+        || request.output_schema_id.len() > MAX_REFERENCE_BYTES
+        || request.document_ref.as_ref().is_some_and(|value| value.len() > MAX_REFERENCE_BYTES)
+        || request.document_revision.as_ref().is_some_and(|value| value.len() > MAX_REFERENCE_BYTES)
+        || request.calendar.as_ref().is_some_and(|value| value.len() > 32)
     {
         return Err(ApiError::PayloadTooLarge);
     }
@@ -698,6 +713,7 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
     }
     for input in &request.input_refs {
         if input.source_ref.trim().is_empty() || input.purpose.trim().is_empty()
+            || input.source_ref.len() > MAX_REFERENCE_BYTES || input.purpose.len() > MAX_REFERENCE_BYTES
             || input.classification != "synthetic"
             || input.revision_digest.len() != 64
             || !input.revision_digest.bytes().all(|byte| byte.is_ascii_hexdigit())
@@ -707,6 +723,9 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
     }
     if request.required_evidence.len() > 32 {
         return Err(ApiError::PayloadTooLarge);
+    }
+    if !request.required_evidence.is_empty() {
+        return Err(ApiError::InvalidRequest("fake_adapter_cannot_satisfy_required_evidence"));
     }
     if request.document_ref.is_some() != request.document_revision.is_some()
         || request.document_ref.as_ref().is_some_and(|value| value.trim().is_empty())
@@ -982,6 +1001,49 @@ mod tests {
         let body = String::from_utf8(response.body).unwrap();
         assert!(body.contains("FAKE_LOCAL"));
         assert!(body.contains("status_url"));
+    }
+
+    #[test]
+    fn rejects_expired_tasks_and_production_data_classification() {
+        let service = service();
+        let mut expired = request();
+        expired.expires_at = 1;
+        assert_eq!(
+            service.submit_with_credential("test-only-token", 2, expired),
+            Err(ApiError::InvalidRequest("invalid_task_expiry_or_deadline"))
+        );
+
+        let mut production = request();
+        production.input_refs[0].classification = "private".into();
+        assert_eq!(
+            service.submit_with_credential("test-only-token", 1, production),
+            Err(ApiError::Forbidden)
+        );
+    }
+
+    #[test]
+    fn rejects_remote_provider_persistence_and_unverifiable_evidence_requests() {
+        let service = service();
+        let mut remote = request();
+        remote.constraints.allow_remote_provider = true;
+        assert_eq!(
+            service.submit_with_credential("test-only-token", 1, remote),
+            Err(ApiError::Forbidden)
+        );
+
+        let mut persistent = request();
+        persistent.constraints.allow_persistent_memory = true;
+        assert_eq!(
+            service.submit_with_credential("test-only-token", 1, persistent),
+            Err(ApiError::Forbidden)
+        );
+
+        let mut evidence = request();
+        evidence.required_evidence.push("source-proof".into());
+        assert_eq!(
+            service.submit_with_credential("test-only-token", 1, evidence),
+            Err(ApiError::InvalidRequest("fake_adapter_cannot_satisfy_required_evidence"))
+        );
     }
 
     #[test]
