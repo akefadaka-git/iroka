@@ -91,9 +91,12 @@ against the IROKA `main` SHA above, not claims of mergeability.
 5. G05/G11 adds PostgreSQL, tokio and TLS dependency families. They
    are pinned on that branch, but no merged lockfile or combined
    `cargo check/test` was run.
-6. G11 HTTPS is checkpoint publication, not model inference.
-   No `ModelAdapter`/`DeterministicFakeAdapter` implementation was
-   verified on the exact inspected refs.
+6. G11 HTTPS is checkpoint publication, not model inference. A separate
+   Brain candidate (`9d68b580e06bb8335a626524d64b345c3a5a38aa`) does
+   implement `ModelAdapter` and `DeterministicFakeAdapter`, but it is not
+   part of the G03/G08 or G05/G02/G11 graph and its task validator rejects
+   trusted principal/tenant/policy context and non-empty domain input refs.
+   It therefore does not satisfy the TALORA service contract as-is.
 7. G05 exposes only `/v1/g05/execute`; CIW exposes conversation and
    generation/event routes. Neither establishes the full
    `GET /api/v1/capabilities`, `POST /api/v1/tasks`, task
@@ -145,7 +148,9 @@ process exposed unresolved integration work.
 - **D04 DEV_FIRST:** development/test only. No production creative data,
   topology, residency, key provisioning or deployment claim.
 - **D05 FAKE_LOCAL:** live provider remains disabled. A deterministic
-  fake/local model adapter remains unverified.
+  fake/local adapter exists in isolated Brain head `9d68b580...`, but
+  context/input validation prevents direct use in the TALORA contract;
+  no integrated adapter is verified.
 - **D06 HARD_CAPS:** hard limits are required, but numeric quotas,
   rates, ETB FX source and spend caps are not specified. Paid inference
   remains disabled.
@@ -189,3 +194,82 @@ An A3 work plan should:
 - A3 implementation: NOT AUTHORIZED.
 - PR merge: NOT AUTHORIZED.
 - A5 deployment: NOT AUTHORIZED.
+
+
+## 10. Supplemental exact-API and immutable-graph reconciliation — 19 November 2026
+
+This supplemental pass resolves the remaining ambiguity about whether the
+separately passing component candidates can form one immutable API-only
+TALORA integration graph. It is read-only: no source, branch, manifest,
+lockfile, workflow or deployment was changed.
+
+### 10.1 Exact workspace and public API evidence
+
+| Candidate | Root workspace / key manifest evidence | Public surface inspected | Finding |
+|---|---|---|---|
+| IROKA main `1aea1447eadf1d827d702fd6c4034fa058aac21e` | `Cargo.toml` blob `d64d3143b762589346fb19ee77e6f40d4af8c77c`; only `crates/iroka-kernel` member | Kernel authorization API only | No TALORA task service or memory API |
+| G03/G08 `0680337b7dd0966374acd2649cd9197e56b8d92a` | Root manifest unchanged from main; kernel `lib.rs` blob `42800adbbbb60c9d1b7602c23126a2ec60a4c473` | Inference rules, premise model, uncertainty and workflow graph exports | Workflow graph explicitly validates dependency structure; it does not schedule or execute operations. No HTTP task API or Brain fake adapter is exported |
+| G05/G02/G11 `8f7ddb9e9dd2b796cd303ba645a1a3c843eb3810` | Root workspace blob `07f9bbb0a46e515c19ee05332bf445a52c4df57d`, members kernel + G05 memory; G05 manifest blob `42b7ff43558599b87fbaf3929f8a526c9f55fc56` includes SQLite plus PostgreSQL/TLS families | G05 ingress/authority and loopback HTTP host; host accepts only `POST /v1/g05/execute` plus `GET /healthz` | G05 execution boundary only; not TALORA task/capability/status/events/cancel API |
+| BRAIN/G05/G01/G02/G11 `0968221b55563a9aacbec4fa499fdac7679e9915` | Root workspace blob `fe3caa1074d9ca917cb27bb4cc7f6f17f8c32aaa`, members kernel + G04 contract + G05 memory; G05 is SQLite-oriented | Tenant/policy/reviewer modules and G05 memory ports | Its own integration record says external G01/G02 authority-provider dependencies remain fail-closed; SQLite tenant resolver is single-node |
+| BRAIN fake/local `9d68b580e06bb8335a626524d64b345c3a5a38aa` | Root workspace blob `d7f0eb30c6e1bdc5451375c9991380a3ecb330fa`, members kernel + `iroka-brain` | `TaskEnvelope`, `ResultEnvelope`, `ModelAdapter`, `DeterministicFakeAdapter` | Fake adapter exists, but `TaskEnvelope.validate()` rejects any populated principal, tenant or policy context and rejects non-empty input refs. The crate explicitly delegates identity, tenant, policy, retrieval, memory, perception and persistence to a future composition root. No HTTP service is provided |
+| CIW `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` | Kernel + `iroka-conversation`; conversation manifest blob `fe351bceb9c7bbfc2ab4c0f7c3825cdf53d22119` | Browser conversation creation/turns and generation/event routes | Conversation/browser surface, not the approved private TALORA task API |
+
+### 10.2 Concrete source-level API incompatibility
+
+The G05/G02/G11 memory crate imports these public Kernel symbols:
+`G05ActivationDecision`, `G05ActivationTuple`,
+`OrganizationAuthorityResolver`, `ReviewerKeyBindingResolver`,
+`ReviewerProofVerifier`, `SignedReviewerProof`, `TenantContext`
+and `VerifiedReviewerProof`.
+
+At G03/G08 head `0680337b7dd0966374acd2649cd9197e56b8d92a`, the Kernel
+public `lib.rs` exports none of those symbols. Conversely, that G03/G08
+Kernel exports `InferenceRulesOutput`, `PremiseModel` and
+`workflow_graph`, which are absent from G05/G02/G11 head
+`8f7ddb9e9dd2b796cd303ba645a1a3c843eb3810`. This is a concrete
+compile-time interface mismatch, not merely branch-history divergence.
+
+The pairwise compare confirms shared changed files including
+`Cargo.toml`, `Cargo.lock`, `crates/iroka-kernel/src/lib.rs`,
+`identity_crypto.rs`, `security_store.rs` and
+`trust_lifecycle.rs`. The histories are diverged: G03/G08 has 378
+unique commits and G05/G02/G11 has 391 unique commits from common base
+`1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`. Brain fake/local versus
+G03/G08 is also diverged (378 / 10 commits from the same base).
+
+### 10.3 Exact-head verification status
+
+The current exact heads `0680337b...`, `8f7ddb9e...`,
+`0968221b...`, `9d68b580...` and `d51a971d...` returned no
+combined status checks and no PR-triggered workflow runs from the
+available first-page workflow lookup. This means **NOT VERIFIED** at
+those exact heads; it is not evidence of a failed build. Prior successful
+runs for older G05 HTTP/PostgreSQL and CIW commits do not transfer to
+these heads. No combined workspace resolution, `cargo check/test`,
+migration test, SBOM or end-to-end private task API run was performed.
+
+### 10.4 D01 disposition
+
+A candidate collection can be described, but no compatible immutable
+graph can be selected and verified for the approved TALORA scope today.
+The blockers are:
+1. G03/G08 and G05/G02/G11 expose incompatible Kernel public APIs.
+2. The isolated fake/local Brain adapter cannot accept trusted TALORA
+   authority and domain input context as currently implemented.
+3. G05 HTTP and CIW expose different partial APIs; neither implements
+   the complete private TALORA task/capability/status/events/cancel and
+   memory service contract.
+4. The G05/G02/G11 candidate lacks exact-head CI evidence; the other
+   principal candidate heads likewise lack returned exact-head checks.
+5. No combined dependency graph, lockfile, migrations, SBOM, API
+   conformance or integration test evidence exists.
+6. D03 remains API_ONLY: this reconciliation does not grant source
+   copying, vendoring, modification, SDK distribution or redistribution.
+
+**D01 final result: UNRESOLVED — NO SELECTABLE, VERIFIED IMMUTABLE
+INTEGRATION BASELINE.** This is the result of the requested reconciliation,
+not a recommendation to begin source composition. Any future baseline
+proposal must identify an API-only IROKA service release/commit, a
+versioned private API contract, its exact service/runtime dependencies,
+and exact-head build, conformance and security evidence. A3 remains
+separately unauthorized.
