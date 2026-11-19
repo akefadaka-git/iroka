@@ -99,9 +99,11 @@ The reviewer must verify that this table holds for both directly inserted and ru
 1. For every derived fact, verify that its recorded rule ID and premise list exactly match an accepted rule.
 2. Verify the recorded premises were present when the conclusion was derived and that deterministic rule ordering makes the selected derivation reproducible.
 3. Test chains where a premise is itself derived, multiple derivations exist for the same conclusion, and a contradiction is derived through separate paths.
-4. Determine whether provenance is intended to be a single witness derivation or a complete derivation graph. The current report shape stores a flat derivation record for each newly inserted fact; the reviewer must assess whether this is sufficient for the stated audit/provenance requirement.
-5. Assess missing source metadata for initial facts. The current fact API accepts a literal without an origin, source identifier, timestamp, trust label or evidence classification. Decide whether this is acceptable for NCE-01's bounded symbolic substrate or must be explicit as a limitation before downstream evidence ingestion.
-6. Verify no provenance record can refer to a nonexistent rule or a premise that was never in the fact set.
+4. Verify one deterministic witness is retained for each satisfied (conclusion, rule ID) pair, including alternative rule IDs supporting an already-known conclusion.
+5. Verify asserted facts are represented separately from derived witnesses, including legacy assertions without a source ID and source-aware assertions.
+6. Verify source identifiers are bounded, deduplicated and treated as opaque metadata, not authenticated identity, trust, chronology or evidence quality.
+7. Verify a witness is not recorded when fact-budget exhaustion prevents a new conclusion from being inserted.
+8. Verify no witness refers to a nonexistent rule or a premise that was not present when the rule fired.
 
 **Required verdict:** PASS / PASS WITH CONDITIONS / FAIL, including whether provenance is a minimal witness or audit-grade lineage.
 
@@ -113,6 +115,8 @@ Review every configured and implicit bound:
 - `max_facts` (default 10,000)
 - `max_rules` (default 2,000)
 - `max_rule_premises` (default 256)
+- `max_sources_per_fact` (default 32)
+- source identifier byte length (256 bytes)
 - `max_duration` (default three seconds)
 - atom byte length (256 bytes)
 - non-empty atom/rule ID and non-empty rule premise list
@@ -136,7 +140,7 @@ Required checks:
 2. Verify a long rule cannot monopolize execution without deadline checks.
 3. Verify the deadline stop does not derive the conclusion of a rule whose premise scan was interrupted.
 4. Measure worst-case runtime near configured maxima on a constrained target, not only a developer workstation.
-5. Inspect whether the configured duration is intended to bound only inference evaluation or the entire public `reason()` call. The current code constructs contradiction and fact report data after leaving the inference loop and does not check the deadline during that finalization. Decide whether that is consistent with the advertised deadline contract.
+5. Verify deadline checks during report materialization. If report generation is interrupted, ensure the stop reason is `Deadline` and the returned facts/contradictions are explicitly partial.
 6. Verify `elapsed_micros` includes the intended work and that deadline reporting is not confused with hard real-time cancellation. The implementation uses cooperative elapsed-time checks; it does not provide preemptive cancellation.
 7. Verify repeated calls after a budget/deadline stop have documented semantics and cannot be mistaken for one continuous bounded session.
 
@@ -152,7 +156,7 @@ At minimum, independently run or add tests for:
 | Rule ordering | Reverse insertion order; lexical ID order; same conclusion from multiple rules |
 | Cycles | Self-loop; two-rule cycle; longer cycle; cycle with an unreachable component |
 | Contradictions | Direct; derived; both sides derived; multiple contradictory atoms; query negative literal |
-| Provenance | Chain; alternative derivations; multiple rules deriving one fact; premise not present |
+| Provenance | Chain; alternative derivations; already-asserted conclusion; source metadata; source bounds; premise not present |
 | Budgets | Exact and one-over facts/rules/premises/steps; zero config; no partial mutation |
 | Deadline | Before first rule; between rules; during maximum-premise scan; during final report construction |
 | Scale | Configured maximums; near-maximum combinations; repeated reasoning calls |
@@ -181,13 +185,27 @@ These points were identified during package preparation and must be confirmed, r
 
 | ID | Area | Preliminary observation | Reviewer disposition required |
 |---|---|---|---|
-| R-01 | Provenance | The report records a derivation when a fact is first inserted; alternate proof paths for an already-known fact are not retained. Initial facts have no source metadata. | Decide whether single-witness lineage meets NCE-01 acceptance or requires a limitation/extension. |
-| R-02 | Deadline | Deadline checks protect the inference loop and premise scan. Contradiction collection and report materialization occur after the loop without a further deadline stop. | Decide whether the three-second limit is inference-only or must cover the full public call. |
+| R-01 | Provenance | Initial-fact source metadata and alternative rule witnesses were missing. | INTERNAL REMEDIATION IMPLEMENTED on the working branch; verify the contract and regression tests below. Independent review remains pending. |
+| R-02 | Deadline | The report finalization path originally lacked deadline checks. | INTERNAL REMEDIATION IMPLEMENTED on the working branch; exact-SHA CI verification pending. |
 | R-03 | Resource accounting | Configured limits bound retained engine state and inference work, but do not bound memory already allocated by callers to construct input strings/vectors. | Document API boundary and any required upstream input-size controls. |
 | R-04 | Partial result semantics | A report can contain facts and derivations accumulated before `Deadline`, `StepBudget` or `FactBudget`. | Confirm all consumers must treat such reports as incomplete, not as a completed closure. |
 | R-05 | Duplicate premises | Rule premises are stored as a vector and are not deduplicated. | Confirm intended logical and accounting semantics; test repeated literals. |
 
 These are review questions, not declarations of defects. No severity or remediation is assigned until independently assessed.
+
+### 7.1 R-01 internal remediation and binding provenance contract
+
+The working-branch implementation defines the following bounded NCE-01 contract. This is an internal engineering disposition, not an independent reviewer verdict:
+
+1. **Asserted-input record:** every asserted fact is exposed through `ReasoningReport::asserted_facts`. The compatibility `add_fact` method records `source_id: None`; `add_fact_with_source` records an opaque caller-supplied source identifier.
+2. **Source identifier semantics:** source IDs are caller-provided labels only. The engine does not authenticate the source, assess trust, timestamp the evidence, or validate the truth of a claim. Empty IDs and IDs over 256 UTF-8 bytes are rejected.
+3. **Bounded source multiplicity:** identical `(fact, source_id)` assertions are idempotent. Distinct source IDs per fact are capped by `EngineConfig::max_sources_per_fact` (default 32). The fact counts once against `max_facts`.
+4. **Alternative derivation witnesses:** the report retains one deterministic witness per distinct `(conclusion, rule_id)` pair whose complete premises are satisfied. Different rules supporting the same conclusion are retained, even when the conclusion was already asserted or derived. A rule is recorded at most once per `reason()` call.
+5. **Witness integrity:** the witness is recorded only after the conclusion is already present or successfully inserted. If fact-budget exhaustion prevents insertion of a new conclusion, no witness is emitted for that failed derivation.
+6. **Scope limitation:** the report is a bounded set of direct rule witnesses, not a recursively expanded proof DAG or complete proof-history database. Witnesses refer to the accepted rule's full premise vector; premise derivations can be followed through other witnesses. Cycles can occur across witness records.
+7. **Trust boundary:** source IDs and rule witnesses are provenance metadata, not authenticated evidence, source reputation, trust scores, chronology, audit-grade chain of custody, or authorization.
+
+Regression tests added on the working branch cover multiple independent rules for one conclusion, support for an already-asserted conclusion, asserted facts with and without source IDs, source ID validation, per-fact source bounds, and cycle witness behavior. These tests still require fresh exact-SHA CI execution.
 
 ## 8. Out-of-scope components
 
