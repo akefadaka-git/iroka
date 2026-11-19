@@ -209,17 +209,25 @@ impl NativeReasoner {
 
     pub fn reason(&mut self) -> ReasoningReport {
         let started = Instant::now();
+        self.reason_with_elapsed(|| started.elapsed())
+    }
+
+    /// Internal clock seam keeps deadline enforcement testable without wall-clock races.
+    fn reason_with_elapsed<F>(&mut self, mut elapsed: F) -> ReasoningReport
+    where
+        F: FnMut() -> Duration,
+    {
         let mut derivations = Vec::new();
         let mut steps = 0usize;
         let stop_reason;
         'reasoning: loop {
-            if started.elapsed() >= self.config.max_duration {
+            if elapsed() >= self.config.max_duration {
                 stop_reason = StopReason::Deadline;
                 break;
             }
             let mut changed = false;
             for rule in &self.rules {
-                if started.elapsed() >= self.config.max_duration {
+                if elapsed() >= self.config.max_duration {
                     stop_reason = StopReason::Deadline;
                     break 'reasoning;
                 }
@@ -230,7 +238,7 @@ impl NativeReasoner {
                 steps += 1;
                 let mut premises_satisfied = true;
                 for premise in &rule.premises {
-                    if started.elapsed() >= self.config.max_duration {
+                    if elapsed() >= self.config.max_duration {
                         stop_reason = StopReason::Deadline;
                         break 'reasoning;
                     }
@@ -276,7 +284,7 @@ impl NativeReasoner {
             derivations,
             stop_reason,
             inference_steps: steps,
-            elapsed_micros: started.elapsed().as_micros(),
+            elapsed_micros: elapsed().as_micros(),
         }
     }
 }
@@ -519,6 +527,155 @@ mod tests {
             }),
             Err(EngineError::RulePremiseBudgetExceeded)
         );
+    }
+
+    #[test]
+    fn accepts_a_rule_at_the_exact_premise_limit() {
+        let config = EngineConfig {
+            max_rule_premises: 2,
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        brain.add_fact(Literal::positive("a")).unwrap();
+        brain.add_fact(Literal::positive("b")).unwrap();
+        brain.add_rule(Rule {
+            id: "exact_limit".into(),
+            premises: vec![Literal::positive("a"), Literal::positive("b")],
+            conclusion: Literal::positive("c"),
+        }).unwrap();
+        let report = brain.reason();
+        assert_eq!(brain.query(&Literal::positive("c")).unwrap(), QueryResult::Entailed);
+        assert_eq!(report.derivations.len(), 1);
+    }
+
+    #[test]
+    fn failed_premise_budget_check_does_not_reserve_rule_id_or_mutate_rules() {
+        let config = EngineConfig {
+            max_rule_premises: 1,
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        assert_eq!(
+            brain.add_rule(Rule {
+                id: "reusable".into(),
+                premises: vec![Literal::positive("a"), Literal::positive("b")],
+                conclusion: Literal::positive("c"),
+            }),
+            Err(EngineError::RulePremiseBudgetExceeded)
+        );
+        brain.add_rule(Rule {
+            id: "reusable".into(),
+            premises: vec![Literal::positive("a")],
+            conclusion: Literal::positive("c"),
+        }).unwrap();
+    }
+
+    #[test]
+    fn deadline_is_checked_inside_a_long_premise_scan() {
+        let config = EngineConfig {
+            max_duration: Duration::from_nanos(5),
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        for atom in ["a", "b", "c"] {
+            brain.add_fact(Literal::positive(atom)).unwrap();
+        }
+        brain.add_rule(Rule {
+            id: "three_premises".into(),
+            premises: vec![
+                Literal::positive("a"),
+                Literal::positive("b"),
+                Literal::positive("c"),
+            ],
+            conclusion: Literal::positive("derived"),
+        }).unwrap();
+        let mut clock_calls = 0usize;
+        let report = brain.reason_with_elapsed(|| {
+            clock_calls += 1;
+            if clock_calls >= 4 { Duration::from_nanos(5) } else { Duration::ZERO }
+        });
+        assert_eq!(report.stop_reason, StopReason::Deadline);
+        assert_eq!(report.inference_steps, 1);
+        assert!(!report.facts.contains(&Literal::positive("derived")));
+        assert!(report.derivations.is_empty());
+    }
+
+    #[test]
+    fn duplicate_fact_at_full_budget_is_idempotent() {
+        let config = EngineConfig {
+            max_facts: 1,
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        let fact = Literal::positive("same");
+        brain.add_fact(fact.clone()).unwrap();
+        brain.add_fact(fact.clone()).unwrap();
+        assert_eq!(brain.query(&fact).unwrap(), QueryResult::Entailed);
+        assert_eq!(brain.facts.len(), 1);
+    }
+
+    #[test]
+    fn contradiction_report_is_exhaustive_and_stably_ordered() {
+        let mut brain = engine();
+        for atom in ["zeta", "alpha", "middle"] {
+            brain.add_fact(Literal::positive(atom)).unwrap();
+            brain.add_fact(Literal::negative(atom)).unwrap();
+        }
+        let first = brain.reason();
+        let second = brain.reason();
+        let expected = ["alpha", "middle", "zeta"]
+            .into_iter()
+            .map(|atom| Contradiction {
+                positive: Literal::positive(atom),
+                negative: Literal::negative(atom),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(first.contradictions, expected);
+        assert_eq!(second.contradictions, expected);
+    }
+
+    #[test]
+    fn inference_is_deterministic_across_rule_insertion_orders() {
+        fn run(order: &[(&str, &str)]) -> ReasoningReport {
+            let mut brain = engine();
+            brain.add_fact(Literal::positive("seed")).unwrap();
+            for (id, conclusion) in order {
+                brain.add_rule(Rule {
+                    id: (*id).into(),
+                    premises: vec![Literal::positive("seed")],
+                    conclusion: Literal::positive(*conclusion),
+                }).unwrap();
+            }
+            brain.reason()
+        }
+        let left = run(&[("r3", "c"), ("r1", "a"), ("r2", "b")]);
+        let right = run(&[("r2", "b"), ("r3", "c"), ("r1", "a")]);
+        assert_eq!(left.facts, right.facts);
+        assert_eq!(left.contradictions, right.contradictions);
+        assert_eq!(left.derivations, right.derivations);
+        assert_eq!(left.stop_reason, right.stop_reason);
+        assert_eq!(left.inference_steps, right.inference_steps);
+    }
+
+    #[test]
+    fn handles_large_bounded_fact_and_rule_sets() {
+        const COUNT: usize = 512;
+        let mut brain = engine();
+        for index in 0..COUNT {
+            brain.add_fact(Literal::positive(format!("seed_{index:04}"))).unwrap();
+        }
+        for index in 0..COUNT {
+            brain.add_rule(Rule {
+                id: format!("rule_{index:04}"),
+                premises: vec![Literal::positive(format!("seed_{index:04}"))],
+                conclusion: Literal::positive(format!("derived_{index:04}")),
+            }).unwrap();
+        }
+        let report = brain.reason();
+        assert_eq!(report.stop_reason, StopReason::FixedPoint);
+        assert_eq!(report.derivations.len(), COUNT);
+        assert_eq!(report.facts.len(), COUNT * 2);
+        assert_eq!(report.inference_steps, COUNT * 2);
     }
 
     #[test]
