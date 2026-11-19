@@ -12,8 +12,12 @@ pub enum Term {
 }
 
 impl Term {
-    pub fn symbol(value: impl Into<String>) -> Self { Self::Symbol(value.into()) }
-    pub fn variable(value: impl Into<String>) -> Self { Self::Variable(value.into()) }
+    pub fn symbol(value: impl Into<String>) -> Self {
+        Self::Symbol(value.into())
+    }
+    pub fn variable(value: impl Into<String>) -> Self {
+        Self::Variable(value.into())
+    }
     pub fn compound(name: impl Into<String>, args: Vec<Term>) -> Self {
         Self::Compound(name.into(), args)
     }
@@ -27,7 +31,10 @@ pub struct Atom {
 
 impl Atom {
     pub fn new(predicate: impl Into<String>, arguments: Vec<Term>) -> Self {
-        Self { predicate: predicate.into(), arguments }
+        Self {
+            predicate: predicate.into(),
+            arguments,
+        }
     }
 }
 
@@ -60,7 +67,8 @@ impl Substitution {
                 _ => term.clone(),
             },
             Term::Compound(name, args) => Term::Compound(
-                name.clone(), args.iter().map(|arg| self.resolve(arg)).collect()
+                name.clone(),
+                args.iter().map(|arg| self.resolve(arg)).collect(),
             ),
             Term::Symbol(_) => term.clone(),
         }
@@ -109,7 +117,11 @@ pub struct SearchConfig {
 
 impl Default for SearchConfig {
     fn default() -> Self {
-        Self { max_steps: 20_000, max_depth: 64, max_duration: Duration::from_secs(3) }
+        Self {
+            max_steps: 20_000,
+            max_depth: 64,
+            max_duration: Duration::from_secs(3),
+        }
     }
 }
 
@@ -144,7 +156,10 @@ impl BackwardReasoner {
         if config.max_steps == 0 || config.max_depth == 0 || config.max_duration.is_zero() {
             return Err(SearchError::ZeroBudget);
         }
-        Ok(Self { config, clauses: Vec::new() })
+        Ok(Self {
+            config,
+            clauses: Vec::new(),
+        })
     }
 
     /// Adds a validated Horn clause while preserving deterministic rule order.
@@ -152,12 +167,16 @@ impl BackwardReasoner {
     /// # Errors
     /// Returns an error for an empty or duplicate clause ID, invalid atom, or invalid term.
     pub fn add_clause(&mut self, clause: HornClause) -> Result<(), SearchError> {
-        if clause.id.trim().is_empty() { return Err(SearchError::EmptyClauseId); }
+        if clause.id.trim().is_empty() {
+            return Err(SearchError::EmptyClauseId);
+        }
         if self.clauses.iter().any(|item| item.id == clause.id) {
             return Err(SearchError::DuplicateClauseId);
         }
         validate_atom(&clause.head)?;
-        for atom in &clause.body { validate_atom(atom)?; }
+        for atom in &clause.body {
+            validate_atom(atom)?;
+        }
         self.clauses.push(clause);
         self.clauses.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(())
@@ -202,7 +221,9 @@ impl BackwardReasoner {
         depth: usize,
         state: &mut SearchState,
     ) -> Option<(Substitution, Proof)> {
-        if state.stop.is_some() { return None; }
+        if state.stop.is_some() {
+            return None;
+        }
         if Instant::now() >= state.deadline {
             state.stop = Some(SearchStop::Deadline);
             return None;
@@ -226,14 +247,15 @@ impl BackwardReasoner {
             state.fresh_id += 1;
             let clause = freshen(original, state.fresh_id);
             let mut next = substitution.clone();
-            if !unify_atoms(&resolved_goal, &clause.head, &mut next) { continue; }
+            if !unify_atoms(&resolved_goal, &clause.head, &mut next) {
+                continue;
+            }
 
             let mut children = Vec::new();
             let mut branch = next;
             let mut proved = true;
             for premise in &clause.body {
-                if let Some((updated, proof)) =
-                    self.prove_inner(premise, &branch, depth + 1, state)
+                if let Some((updated, proof)) = self.prove_inner(premise, &branch, depth + 1, state)
                 {
                     branch = updated;
                     children.push(proof);
@@ -244,13 +266,18 @@ impl BackwardReasoner {
             }
             if proved {
                 let proof_goal = branch.apply(&resolved_goal);
-                return Some((branch, Proof {
-                    goal: proof_goal,
-                    clause_id: clause.id,
-                    children,
-                }));
+                return Some((
+                    branch,
+                    Proof {
+                        goal: proof_goal,
+                        clause_id: clause.id,
+                        children,
+                    },
+                ));
             }
-            if state.stop.is_some() { return None; }
+            if state.stop.is_some() {
+                return None;
+            }
         }
         None
     }
@@ -261,13 +288,17 @@ fn freshen(clause: &HornClause, id: u64) -> HornClause {
         match term {
             Term::Variable(name) => Term::Variable(format!("__{id}_{name}")),
             Term::Compound(name, args) => Term::Compound(
-                name.clone(), args.iter().map(|arg| rename(arg, id)).collect()
+                name.clone(),
+                args.iter().map(|arg| rename(arg, id)).collect(),
             ),
             Term::Symbol(_) => term.clone(),
         }
     }
     fn rename_atom(atom: &Atom, id: u64) -> Atom {
-        Atom::new(atom.predicate.clone(), atom.arguments.iter().map(|t| rename(t, id)).collect())
+        Atom::new(
+            atom.predicate.clone(),
+            atom.arguments.iter().map(|t| rename(t, id)).collect(),
+        )
     }
     HornClause {
         id: clause.id.clone(),
@@ -279,29 +310,40 @@ fn freshen(clause: &HornClause, id: u64) -> HornClause {
 fn unify_atoms(left: &Atom, right: &Atom, substitution: &mut Substitution) -> bool {
     left.predicate == right.predicate
         && left.arguments.len() == right.arguments.len()
-        && left.arguments.iter().zip(&right.arguments)
+        && left
+            .arguments
+            .iter()
+            .zip(&right.arguments)
             .all(|(a, b)| unify_terms(a, b, substitution))
 }
 
 fn unify_terms(left: &Term, right: &Term, substitution: &mut Substitution) -> bool {
     let left = substitution.resolve(left);
     let right = substitution.resolve(right);
-    if left == right { return true; }
+    if left == right {
+        return true;
+    }
     match (&left, &right) {
         (Term::Variable(name), value) | (value, Term::Variable(name)) => {
             bind(name, value, substitution)
         }
         (Term::Symbol(a), Term::Symbol(b)) => a == b,
         (Term::Compound(a, aa), Term::Compound(b, ba)) => {
-            a == b && aa.len() == ba.len()
-                && aa.iter().zip(ba).all(|(x, y)| unify_terms(x, y, substitution))
+            a == b
+                && aa.len() == ba.len()
+                && aa
+                    .iter()
+                    .zip(ba)
+                    .all(|(x, y)| unify_terms(x, y, substitution))
         }
         _ => false,
     }
 }
 
 fn bind(name: &str, value: &Term, substitution: &mut Substitution) -> bool {
-    if occurs(name, value, substitution) { return false; }
+    if occurs(name, value, substitution) {
+        return false;
+    }
     substitution.0.insert(name.to_owned(), value.clone());
     true
 }
@@ -318,20 +360,26 @@ fn validate_atom(atom: &Atom) -> Result<(), SearchError> {
     if atom.predicate.trim().is_empty() || atom.predicate.len() > 128 {
         return Err(SearchError::EmptyPredicate);
     }
-    for term in &atom.arguments { validate_term(term)?; }
+    for term in &atom.arguments {
+        validate_term(term)?;
+    }
     Ok(())
 }
 
 fn validate_term(term: &Term) -> Result<(), SearchError> {
     match term {
         Term::Symbol(value) | Term::Variable(value) => {
-            if value.trim().is_empty() || value.len() > 256 { return Err(SearchError::InvalidTerm); }
+            if value.trim().is_empty() || value.len() > 256 {
+                return Err(SearchError::InvalidTerm);
+            }
         }
         Term::Compound(name, args) => {
             if name.trim().is_empty() || name.len() > 128 || args.len() > 64 {
                 return Err(SearchError::InvalidTerm);
             }
-            for arg in args { validate_term(arg)?; }
+            for arg in args {
+                validate_term(arg)?;
+            }
         }
     }
     Ok(())
@@ -341,19 +389,40 @@ fn validate_term(term: &Term) -> Result<(), SearchError> {
 mod tests {
     use super::*;
 
-    fn s(value: &str) -> Term { Term::symbol(value) }
-    fn v(value: &str) -> Term { Term::variable(value) }
-    fn atom(name: &str, args: Vec<Term>) -> Atom { Atom::new(name, args) }
+    fn s(value: &str) -> Term {
+        Term::symbol(value)
+    }
+    fn v(value: &str) -> Term {
+        Term::variable(value)
+    }
+    fn atom(name: &str, args: Vec<Term>) -> Atom {
+        Atom::new(name, args)
+    }
     fn clause(id: &str, head: Atom, body: Vec<Atom>) -> HornClause {
-        HornClause { id: id.into(), head, body }
+        HornClause {
+            id: id.into(),
+            head,
+            body,
+        }
     }
 
     #[test]
     fn proves_socrates_is_mortal_by_backward_chaining() {
         let mut engine = BackwardReasoner::new(SearchConfig::default()).unwrap();
-        engine.add_clause(clause("human-fact", atom("human", vec![s("socrates")]), vec![])).unwrap();
-        engine.add_clause(clause("mortality-rule", atom("mortal", vec![v("X")]),
-            vec![atom("human", vec![v("X")])])).unwrap();
+        engine
+            .add_clause(clause(
+                "human-fact",
+                atom("human", vec![s("socrates")]),
+                vec![],
+            ))
+            .unwrap();
+        engine
+            .add_clause(clause(
+                "mortality-rule",
+                atom("mortal", vec![v("X")]),
+                vec![atom("human", vec![v("X")])],
+            ))
+            .unwrap();
         let report = engine.prove(&atom("mortal", vec![s("socrates")])).unwrap();
         assert_eq!(report.stop, SearchStop::Proven);
         assert!(report.proof.is_some());
@@ -362,8 +431,16 @@ mod tests {
     #[test]
     fn unifies_compound_terms_and_returns_bindings() {
         let mut engine = BackwardReasoner::new(SearchConfig::default()).unwrap();
-        engine.add_clause(clause("parent", atom("parent", vec![s("ana"), s("beka")]), vec![])).unwrap();
-        let report = engine.prove(&atom("parent", vec![v("Who"), s("beka")])).unwrap();
+        engine
+            .add_clause(clause(
+                "parent",
+                atom("parent", vec![s("ana"), s("beka")]),
+                vec![],
+            ))
+            .unwrap();
+        let report = engine
+            .prove(&atom("parent", vec![v("Who"), s("beka")]))
+            .unwrap();
         let bindings = report.substitution.unwrap();
         assert_eq!(bindings.resolve(&v("Who")), s("ana"));
     }
@@ -371,15 +448,42 @@ mod tests {
     #[test]
     fn proves_transitive_ancestor_through_recursive_rule() {
         let mut engine = BackwardReasoner::new(SearchConfig::default()).unwrap();
-        engine.add_clause(clause("parent-ab", atom("parent", vec![s("a"), s("b")]), vec![])).unwrap();
-        engine.add_clause(clause("parent-bc", atom("parent", vec![s("b"), s("c")]), vec![])).unwrap();
-        engine.add_clause(clause("ancestor-direct", atom("ancestor", vec![v("X"), v("Y")]),
-            vec![atom("parent", vec![v("X"), v("Y")])])).unwrap();
-        engine.add_clause(clause("ancestor-recursive", atom("ancestor", vec![v("X"), v("Y")]),
-            vec![atom("parent", vec![v("X"), v("Z")]), atom("ancestor", vec![v("Z"), v("Y")])])).unwrap();
-        let report = engine.prove(&atom("ancestor", vec![s("a"), s("c")])).unwrap();
+        engine
+            .add_clause(clause(
+                "parent-ab",
+                atom("parent", vec![s("a"), s("b")]),
+                vec![],
+            ))
+            .unwrap();
+        engine
+            .add_clause(clause(
+                "parent-bc",
+                atom("parent", vec![s("b"), s("c")]),
+                vec![],
+            ))
+            .unwrap();
+        engine
+            .add_clause(clause(
+                "ancestor-direct",
+                atom("ancestor", vec![v("X"), v("Y")]),
+                vec![atom("parent", vec![v("X"), v("Y")])],
+            ))
+            .unwrap();
+        engine
+            .add_clause(clause(
+                "ancestor-recursive",
+                atom("ancestor", vec![v("X"), v("Y")]),
+                vec![
+                    atom("parent", vec![v("X"), v("Z")]),
+                    atom("ancestor", vec![v("Z"), v("Y")]),
+                ],
+            ))
+            .unwrap();
+        let report = engine
+            .prove(&atom("ancestor", vec![s("a"), s("c")]))
+            .unwrap();
         assert_eq!(report.stop, SearchStop::Proven);
-        assert!(report.proof.unwrap().children.len() > 0);
+        assert!(!report.proof.unwrap().children.is_empty());
     }
 
     #[test]
@@ -392,41 +496,67 @@ mod tests {
 
     #[test]
     fn reports_step_budget_instead_of_claiming_no_proof() {
-        let config = SearchConfig { max_steps: 1, ..SearchConfig::default() };
+        let config = SearchConfig {
+            max_steps: 1,
+            ..SearchConfig::default()
+        };
         let mut engine = BackwardReasoner::new(config).unwrap();
-        engine.add_clause(clause("a-unrelated", atom("other", vec![s("x")]), vec![])).unwrap();
-        engine.add_clause(clause("z-target", atom("target", vec![s("x")]), vec![])).unwrap();
+        engine
+            .add_clause(clause("a-unrelated", atom("other", vec![s("x")]), vec![]))
+            .unwrap();
+        engine
+            .add_clause(clause("z-target", atom("target", vec![s("x")]), vec![]))
+            .unwrap();
         let report = engine.prove(&atom("target", vec![s("x")])).unwrap();
         assert_eq!(report.stop, SearchStop::StepBudget);
     }
 
     #[test]
     fn reports_depth_budget_instead_of_claiming_no_proof() {
-        let config = SearchConfig { max_depth: 1, ..SearchConfig::default() };
+        let config = SearchConfig {
+            max_depth: 1,
+            ..SearchConfig::default()
+        };
         let mut engine = BackwardReasoner::new(config).unwrap();
-        engine.add_clause(clause(
-            "a-parent",
-            atom("parent", vec![s("a"), s("b")]),
-            vec![],
-        )).unwrap();
-        engine.add_clause(clause(
-            "z-ancestor",
-            atom("ancestor", vec![v("X"), v("Y")]),
-            vec![atom("parent", vec![v("X"), v("Y")])],
-        )).unwrap();
-        let report = engine.prove(&atom("ancestor", vec![s("a"), s("b")])).unwrap();
+        engine
+            .add_clause(clause(
+                "a-parent",
+                atom("parent", vec![s("a"), s("b")]),
+                vec![],
+            ))
+            .unwrap();
+        engine
+            .add_clause(clause(
+                "z-ancestor",
+                atom("ancestor", vec![v("X"), v("Y")]),
+                vec![atom("parent", vec![v("X"), v("Y")])],
+            ))
+            .unwrap();
+        let report = engine
+            .prove(&atom("ancestor", vec![s("a"), s("b")]))
+            .unwrap();
         assert_eq!(report.stop, SearchStop::DepthBudget);
     }
 
     #[test]
     fn rejects_zero_search_budgets() {
-        let config = SearchConfig { max_steps: 0, ..SearchConfig::default() };
-        assert_eq!(BackwardReasoner::new(config).err(), Some(SearchError::ZeroBudget));
+        let config = SearchConfig {
+            max_steps: 0,
+            ..SearchConfig::default()
+        };
+        assert_eq!(
+            BackwardReasoner::new(config).err(),
+            Some(SearchError::ZeroBudget)
+        );
     }
 
     #[test]
     fn rejects_recursive_unification_cycles() {
         let mut substitution = Substitution::default();
-        assert!(!unify_terms(&v("X"), &Term::compound("g", vec![v("X")]), &mut substitution));
+        assert!(!unify_terms(
+            &v("X"),
+            &Term::compound("g", vec![v("X")]),
+            &mut substitution
+        ));
     }
 }
