@@ -670,6 +670,36 @@ mod tests {
     }
 
     #[test]
+    fn reaches_fixed_point_for_adversarially_ordered_generated_chain() {
+        const COUNT: usize = 32;
+        let config = EngineConfig {
+            max_inference_steps: 2_048,
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        brain.add_fact(Literal::positive("node_000")).unwrap();
+        for source in 0..COUNT {
+            let id = format!("rule_{:04}", COUNT - source);
+            brain
+                .add_rule(Rule {
+                    id,
+                    premises: vec![Literal::positive(format!("node_{source:03}"))],
+                    conclusion: Literal::positive(format!("node_{:03}", source + 1)),
+                })
+                .unwrap();
+        }
+        let report = brain.reason();
+        assert_eq!(report.stop_reason, StopReason::FixedPoint);
+        assert_eq!(report.derivations.len(), COUNT);
+        assert_eq!(report.facts.len(), COUNT + 1);
+        assert_eq!(report.inference_steps, COUNT * (COUNT + 1));
+        assert_eq!(
+            brain.query(&Literal::positive(format!("node_{COUNT:03}"))).unwrap(),
+            QueryResult::Entailed
+        );
+    }
+
+    #[test]
     fn handles_large_bounded_fact_and_rule_sets() {
         const COUNT: usize = 512;
         let mut brain = engine();
