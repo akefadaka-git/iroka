@@ -538,11 +538,13 @@ mod tests {
         let mut brain = NativeReasoner::new(config).unwrap();
         brain.add_fact(Literal::positive("a")).unwrap();
         brain.add_fact(Literal::positive("b")).unwrap();
-        brain.add_rule(Rule {
-            id: "exact_limit".into(),
-            premises: vec![Literal::positive("a"), Literal::positive("b")],
-            conclusion: Literal::positive("c"),
-        }).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "exact_limit".into(),
+                premises: vec![Literal::positive("a"), Literal::positive("b")],
+                conclusion: Literal::positive("c"),
+            })
+            .unwrap();
         let report = brain.reason();
         assert_eq!(brain.query(&Literal::positive("c")).unwrap(), QueryResult::Entailed);
         assert_eq!(report.derivations.len(), 1);
@@ -563,11 +565,13 @@ mod tests {
             }),
             Err(EngineError::RulePremiseBudgetExceeded)
         );
-        brain.add_rule(Rule {
-            id: "reusable".into(),
-            premises: vec![Literal::positive("a")],
-            conclusion: Literal::positive("c"),
-        }).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "reusable".into(),
+                premises: vec![Literal::positive("a")],
+                conclusion: Literal::positive("c"),
+            })
+            .unwrap();
     }
 
     #[test]
@@ -580,19 +584,25 @@ mod tests {
         for atom in ["a", "b", "c"] {
             brain.add_fact(Literal::positive(atom)).unwrap();
         }
-        brain.add_rule(Rule {
-            id: "three_premises".into(),
-            premises: vec![
-                Literal::positive("a"),
-                Literal::positive("b"),
-                Literal::positive("c"),
-            ],
-            conclusion: Literal::positive("derived"),
-        }).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "three_premises".into(),
+                premises: vec![
+                    Literal::positive("a"),
+                    Literal::positive("b"),
+                    Literal::positive("c"),
+                ],
+                conclusion: Literal::positive("derived"),
+            })
+            .unwrap();
         let mut clock_calls = 0usize;
         let report = brain.reason_with_elapsed(|| {
             clock_calls += 1;
-            if clock_calls >= 4 { Duration::from_nanos(5) } else { Duration::ZERO }
+            if clock_calls >= 4 {
+                Duration::from_nanos(5)
+            } else {
+                Duration::ZERO
+            }
         });
         assert_eq!(report.stop_reason, StopReason::Deadline);
         assert_eq!(report.inference_steps, 1);
@@ -640,11 +650,13 @@ mod tests {
             let mut brain = engine();
             brain.add_fact(Literal::positive("seed")).unwrap();
             for (id, conclusion) in order {
-                brain.add_rule(Rule {
-                    id: (*id).into(),
-                    premises: vec![Literal::positive("seed")],
-                    conclusion: Literal::positive(*conclusion),
-                }).unwrap();
+                brain
+                    .add_rule(Rule {
+                        id: (*id).into(),
+                        premises: vec![Literal::positive("seed")],
+                        conclusion: Literal::positive(*conclusion),
+                    })
+                    .unwrap();
             }
             brain.reason()
         }
@@ -662,14 +674,18 @@ mod tests {
         const COUNT: usize = 512;
         let mut brain = engine();
         for index in 0..COUNT {
-            brain.add_fact(Literal::positive(format!("seed_{index:04}"))).unwrap();
+            brain
+                .add_fact(Literal::positive(format!("seed_{index:04}")))
+                .unwrap();
         }
         for index in 0..COUNT {
-            brain.add_rule(Rule {
-                id: format!("rule_{index:04}"),
-                premises: vec![Literal::positive(format!("seed_{index:04}"))],
-                conclusion: Literal::positive(format!("derived_{index:04}")),
-            }).unwrap();
+            brain
+                .add_rule(Rule {
+                    id: format!("rule_{index:04}"),
+                    premises: vec![Literal::positive(format!("seed_{index:04}"))],
+                    conclusion: Literal::positive(format!("derived_{index:04}")),
+                })
+                .unwrap();
         }
         let report = brain.reason();
         assert_eq!(report.stop_reason, StopReason::FixedPoint);
