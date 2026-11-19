@@ -71,7 +71,7 @@ tests exercise both a full 256-premise scan and report materialization interrupt
 - Source identifiers and derivation records are provenance metadata, not authenticated
   evidence, trust scores, chronology, or authorization.
 Exact-SHA verification on 2026-11-19:
-- Source SHA: `3146962ca6532eafb5a98d1ea5875520035f7289`
-- Native Cognition CI #65: PASS (38 cognition tests; Clippy and formatting pass).
-- Rust kernel verification #2198: PASS (38 cognition, 71 kernel and 2 authorization
-  contract tests; workspace formatting, compilation and Clippy pass).
+- Verified working-branch source SHA: `463abe7fd31b35358b01357c2f7957af8b199f81`.
+- Native Cognition CI #116: PASS — [Run 44596021400](https://github.com/akefadaka-git/iroka/actions/runs/44596021400); formatting, complete workspace tests and cognition Clippy passed.
+- Rust kernel verification #2222: PASS — [Run 44596021385](https://github.com/akefadaka-git/iroka/actions/runs/44596021385); formatting, workspace compilation, no-default-features check, complete workspace tests and full-workspace Clippy passed.
+- Recorded totals: 47 cognition-crate tests (33 NCE-01 forward-reasoning and 14 backward-reasoning), 71 kernel tests and 2 authorization-contract tests.
