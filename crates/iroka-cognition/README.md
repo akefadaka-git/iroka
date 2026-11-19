@@ -26,8 +26,8 @@ can be solved within that time.
 
 Default limits are 10,000 inference-step evaluations, 10,000 facts, 2,000 rules,
 256 premises per rule, 32 distinct source identifiers per asserted fact, and a
-three-second reasoning deadline. Atoms and source identifiers are limited to 256 UTF-8
-bytes. The deadline is checked at reasoning-loop/rule boundaries and
+three-second reasoning deadline. Atoms, rule identifiers and source identifiers are
+limited to 256 UTF-8 bytes. The deadline is checked at reasoning-loop/rule boundaries and
 during premise evaluation. A run reports one of `FixedPoint`, `Deadline`,
 `StepBudget` or `FactBudget`. Only `FixedPoint` is a complete closure:
 `ReasoningReport::is_complete()` returns true only for that stop reason, while
@@ -40,7 +40,35 @@ as exhaustive. This is not a hard real-time or preemptive cancellation guarantee
 Unknown evidence remains distinct from refutation, and contradictory positive/negative
 evidence is reported explicitly.
 
-The dedicated NCE-01 suite contains 33 tests covering multi-step closure, deterministic
+### Caller-side resource boundary (R-03)
+
+Engine limits apply to data retained by the reasoner and work performed during inference.
+They cannot retroactively bound memory a caller has already allocated before invoking
+the API. In particular, Literal::positive/negative own a String immediately, and the
+public Rule type contains a caller-allocated Vec<Literal>. add_fact validates an
+already-created Literal; add_rule rejects an oversized premise vector but receives that
+vector only after it has been allocated.
+
+Safer incremental entry points are provided:
+- Literal::try_positive and Literal::try_negative validate a borrowed atom's UTF-8 byte
+  length and blankness before cloning it into an owned String.
+- add_fact_with_source accepts a borrowed source ID, checks its 256-byte limit before
+  cloning it into engine-owned provenance metadata.
+- add_rule_from_iter consumes premises incrementally and stops after observing the first
+  item beyond max_rule_premises. Use a lazy iterator rather than first collecting an
+  untrusted input into Vec<Literal>.
+- add_rule also caps retained rule IDs at 256 UTF-8 bytes. The length check precedes
+  whitespace scanning, duplicate comparisons and retention.
+
+These APIs bound engine-side copies and collections; they do not make an untrusted
+transport/parser safe by themselves. Any upstream ingestion boundary must enforce a raw
+request/body byte limit before parsing, cap fact/rule/premise counts before collection,
+validate atom and identifier lengths before cloning, and apply aggregate/concurrency
+quotas plus request deadlines. max_duration covers reasoning and report materialization,
+not caller parsing, object construction, add_fact, or add_rule validation. NCE-01 has no
+external ingestion service, so those upstream controls remain an integration requirement.
+
+The dedicated NCE-01 suite contains 36 tests covering multi-step closure, deterministic
 rule ordering, cyclic and adversarial rule order, all 64 directed three-node graph
 topologies against a reference reachability calculation, exhaustive contradiction
 reporting, premise/fact/rule/step/time boundaries, failed-insertion atomicity, and a
