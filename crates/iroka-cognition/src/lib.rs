@@ -244,14 +244,18 @@ impl NativeReasoner {
                 break;
             }
         }
-        let contradictions = self.facts.iter().filter(|fact| !fact.negated)
+        let contradictions = self
+            .facts
+            .iter()
+            .filter(|fact| !fact.negated)
             .filter_map(|positive| {
                 let negative = positive.complement();
                 self.facts.contains(&negative).then_some(Contradiction {
                     positive: positive.clone(),
                     negative,
                 })
-            }).collect();
+            })
+            .collect();
         ReasoningReport {
             facts: self.facts.iter().cloned().collect(),
             contradictions,
@@ -359,16 +363,21 @@ mod tests {
         let mut brain = engine();
         let p = Literal::positive("door_open");
         brain.add_fact(p.clone()).unwrap();
-        brain.add_rule(Rule {
-            id: "derive_negative".into(),
-            premises: vec![p.clone()],
-            conclusion: Literal::negative("door_open"),
-        }).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "derive_negative".into(),
+                premises: vec![p.clone()],
+                conclusion: Literal::negative("door_open"),
+            })
+            .unwrap();
         let report = brain.reason();
-        assert_eq!(report.contradictions, vec![Contradiction {
-            positive: p.clone(),
-            negative: Literal::negative("door_open"),
-        }]);
+        assert_eq!(
+            report.contradictions,
+            vec![Contradiction {
+                positive: p.clone(),
+                negative: Literal::negative("door_open"),
+            }]
+        );
         assert_eq!(brain.query(&p).unwrap(), QueryResult::Contradicted);
     }
 
@@ -377,15 +386,23 @@ mod tests {
         let mut brain = engine();
         brain.add_fact(Literal::positive("seed")).unwrap();
         for (id, conclusion) in [("z_rule", "z"), ("a_rule", "a")] {
-            brain.add_rule(Rule {
-                id: id.into(),
-                premises: vec![Literal::positive("seed")],
-                conclusion: Literal::positive(conclusion),
-            }).unwrap();
+            brain
+                .add_rule(Rule {
+                    id: id.into(),
+                    premises: vec![Literal::positive("seed")],
+                    conclusion: Literal::positive(conclusion),
+                })
+                .unwrap();
         }
         let report = brain.reason();
-        assert_eq!(report.derivations.iter().map(|d| d.rule_id.as_str()).collect::<Vec<_>>(),
-                   vec!["a_rule", "z_rule"]);
+        assert_eq!(
+            report
+                .derivations
+                .iter()
+                .map(|d| d.rule_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["a_rule", "z_rule"]
+        );
         assert_eq!(report.derivations.len(), 2);
     }
 
@@ -393,16 +410,20 @@ mod tests {
     fn cyclic_rules_reach_a_fixed_point_without_duplicate_derivations() {
         let mut brain = engine();
         brain.add_fact(Literal::positive("a")).unwrap();
-        brain.add_rule(Rule {
-            id: "a_to_b".into(),
-            premises: vec![Literal::positive("a")],
-            conclusion: Literal::positive("b"),
-        }).unwrap();
-        brain.add_rule(Rule {
-            id: "b_to_a".into(),
-            premises: vec![Literal::positive("b")],
-            conclusion: Literal::positive("a"),
-        }).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "a_to_b".into(),
+                premises: vec![Literal::positive("a")],
+                conclusion: Literal::positive("b"),
+            })
+            .unwrap();
+        brain
+            .add_rule(Rule {
+                id: "b_to_a".into(),
+                premises: vec![Literal::positive("b")],
+                conclusion: Literal::positive("a"),
+            })
+            .unwrap();
         let report = brain.reason();
         assert_eq!(report.stop_reason, StopReason::FixedPoint);
         assert_eq!(report.facts.len(), 2);
@@ -411,15 +432,30 @@ mod tests {
 
     #[test]
     fn enforces_fact_and_rule_budgets_without_partial_insertion() {
-        let config = EngineConfig { max_facts: 1, max_rules: 1, ..EngineConfig::default() };
+        let config = EngineConfig {
+            max_facts: 1,
+            max_rules: 1,
+            ..EngineConfig::default()
+        };
         let mut brain = NativeReasoner::new(config).unwrap();
         brain.add_fact(Literal::positive("a")).unwrap();
-        assert_eq!(brain.add_fact(Literal::positive("b")), Err(EngineError::FactBudgetExceeded));
-        let rule = Rule { id: "r1".into(), premises: vec![Literal::positive("a")],
-                          conclusion: Literal::positive("b") };
+        assert_eq!(
+            brain.add_fact(Literal::positive("b")),
+            Err(EngineError::FactBudgetExceeded)
+        );
+        let rule = Rule {
+            id: "r1".into(),
+            premises: vec![Literal::positive("a")],
+            conclusion: Literal::positive("b"),
+        };
         brain.add_rule(rule.clone()).unwrap();
-        assert_eq!(brain.add_rule(Rule { id: "r2".into(), ..rule }),
-                   Err(EngineError::RuleBudgetExceeded));
+        assert_eq!(
+            brain.add_rule(Rule {
+                id: "r2".into(),
+                ..rule
+            }),
+            Err(EngineError::RuleBudgetExceeded)
+        );
         let report = brain.reason();
         assert_eq!(report.stop_reason, StopReason::FactBudget);
         assert_eq!(report.facts, vec![Literal::positive("a")]);
@@ -429,15 +465,21 @@ mod tests {
     #[test]
     fn rejects_duplicate_rule_ids() {
         let mut brain = engine();
-        let rule = Rule { id: "same".into(), premises: vec![Literal::positive("a")],
-                          conclusion: Literal::positive("b") };
+        let rule = Rule {
+            id: "same".into(),
+            premises: vec![Literal::positive("a")],
+            conclusion: Literal::positive("b"),
+        };
         brain.add_rule(rule.clone()).unwrap();
         assert_eq!(brain.add_rule(rule), Err(EngineError::DuplicateRuleId));
     }
 
     #[test]
     fn maximum_duration_does_not_overflow_deadline_arithmetic() {
-        let config = EngineConfig { max_duration: Duration::MAX, ..EngineConfig::default() };
+        let config = EngineConfig {
+            max_duration: Duration::MAX,
+            ..EngineConfig::default()
+        };
         let mut brain = NativeReasoner::new(config).unwrap();
         brain.add_fact(Literal::positive("a")).unwrap();
         let report = brain.reason();
