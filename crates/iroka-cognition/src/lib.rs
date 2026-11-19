@@ -230,6 +230,7 @@ impl NativeReasoner {
                     }..,
                 )
                 .take_while(|existing| existing.fact == fact)
+                .filter(|existing| existing.source_id.is_some())
                 .count()
                 >= self.config.max_sources_per_fact
         {
@@ -1169,6 +1170,22 @@ mod tests {
                 .filter(|entry| entry.fact == fact)
                 .count(),
             1
+        );
+    }
+
+    #[test]
+    fn legacy_unknown_source_does_not_consume_source_identifier_budget() {
+        let config = EngineConfig {
+            max_sources_per_fact: 1,
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        let fact = Literal::positive("legacy_and_identified");
+        brain.add_fact(fact.clone()).unwrap();
+        brain.add_fact_with_source(fact.clone(), "identified-source").unwrap();
+        assert_eq!(
+            brain.add_fact_with_source(fact, "second-identified-source"),
+            Err(EngineError::FactSourceBudgetExceeded)
         );
     }
 
