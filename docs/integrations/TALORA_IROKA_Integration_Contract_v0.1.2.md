@@ -205,7 +205,7 @@ A model provider MUST be accessed only through an IROKA-owned
 -   health/readiness and circuit-breaker state
 -   replaceability without changing TALORA task schemas
 
-The G03 candidate design describes a ModelAdapter abstraction and DeterministicFakeAdapter, but that candidate is not part of a frozen compatible integration graph and its exact immutable runtime commit has not been approved. Deterministic fake/local mode is the only permitted initial provider mode under D05 and must be verified against the selected graph before use. It makes no external provider call. No live production model provider is selected or authorized.
+The inspected G03 candidate refs expose inference, premise and uncertainty kernel modules, but no TALORA-ready model-provider adapter was verified on the exact refs reconciled for v0.1.2. The earlier v0.1.1 assertion that a `ModelAdapter` and `DeterministicFakeAdapter` were present is withdrawn as an implementation claim. The G11 `checkpoint_https` adapter is an external checkpoint-publication adapter, not a generative-model adapter. No live or deterministic fake model adapter is verified on the candidate graph. D05 therefore establishes the binding provider policy (fake/local only; no live provider), not proof that an adapter is implemented.
 
 ### 6.2 Provider selection and data handling
 
@@ -272,7 +272,7 @@ Default policy:
 8.  Memory retrieval MUST return provenance and source references.
     Generated summaries MUST NOT be represented as source truth.
 
-G05 has an Owner-approved logical memory contract, but its candidate contract and G01/G02/G11 integration amendment are on divergent branches. The approved contract does not itself create a runtime or wire API. The integration amendment identifies unresolved owning-domain prerequisites, including canonical organization authority and G02 organization-scoped reviewer delegation. No G05 runtime/API is accepted as a TALORA dependency in this contract.
+The live G05/G02/G11 candidate `feat/g11-provider-adapters-a3-rebased` at `8f7ddb9e9dd2b796cd303ba645a1a3c843eb3810` contains the `iroka-g05-memory` crate, SQLite and PostgreSQL repositories, G02 authority/outbox code, PostgreSQL migrations and G11 checkpoint-quorum/publication code. Its workspace pins Rust 1.75. The G05 manifest pins `postgres 0.19.12`, `postgres-native-tls 0.5.0`, `native-tls 0.2.12`, `rusqlite 0.32.1`, `serde_jcs 0.2.0` and `ed25519-dalek 2.1.1`. This candidate remains a separate divergent branch, not an accepted TALORA dependency. Its narrow HTTP host binds only to loopback behind a trusted TLS-terminating reverse proxy and exposes `/v1/g05/execute`; that is not the TALORA task API or a complete G05 memory API surface.
 
 ## 8. Identity, authentication and authorization
 
@@ -282,7 +282,7 @@ G05 has an Owner-approved logical memory contract, but its candidate contract an
     audience-restricted workload credentials and mutual TLS where
     supported. Mobile clients MUST never call privileged IROKA endpoints
     directly.
--   The CIW HTTP candidate is a separate browser-oriented workstream, not a completed TALORA mobile authentication design. Its A2 contract branch is based on an older main lineage and is not accepted as a TALORA dependency. TALORA uses the private authenticated backend API boundary only; no browser-cookie or Android client authentication design is inferred from CIW.
+-   The live CIW candidate `feat/ciw-amharic-answer-only-chat` at `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` adds the `iroka-conversation` crate and browser chat. Its inspected HTTP surface includes conversation and generation/event routes under `/api/v1/conversations` and `/api/v1/generations/{assistant_id}/events`. It is a browser/conversation candidate, not a verified TALORA backend-to-backend task API. It changes shared Kernel identity/security code and is divergent from the G05/G02/G11 candidate. TALORA therefore uses only the approved private service-to-service API boundary; no browser-cookie or Android client authentication design is inferred from CIW.
 -   IROKA MUST independently verify the calling workload, issuer,
     audience, expiry, revocation state, tenant, scope and requested
     capability.
@@ -535,6 +535,71 @@ That assessment must cover identity and trust lifecycle, Owner authority, memory
 
 No branch merge, deployment, provider activation, production key provisioning or production data use is authorized by this document. A5 remains a separate Owner decision.
 
+## 14.4 Implementation-level component reconciliation — 19 November 2026
+
+This section supersedes earlier runtime-graph assumptions in the
+preceding design-branch reconciliation. All SHAs below were resolved
+against live named refs on 19 November 2026.
+
+| Workstream | Exact branch head | Main comparison / observed facts | Reconciliation finding |
+|---|---|---|---|
+| IROKA main | `main` — `1aea1447eadf1d827d702fd6c4034fa058aac21e` | Cargo workspace contains only `crates/iroka-kernel`; Rust 1.75. | Reference only; not approved baseline. |
+| G03/G08 kernel | `implementation/a3-g08-workflow-graph` — `0680337b7dd0966374acd2649cd9197e56b8d92a` | 378 ahead / 3 behind main; Rust 1.75; exports G03 inference, premise, uncertainty and G08 workflow modules. Three G03 refs are ancestors (58, 73 and 41 commits). | Best inspected single G03/G08 kernel subset; not integrated with G05/G02/G11 or localization. No exact-head PR run returned. |
+| G08 character workflow | `implementation/a3-g08-character-workflow-graph` — `0dbe0d58f312ef5ddf2be5d3f6b7dde6569d566b` | Rust 1.89.0; toolchain 1.100.0. | Separate divergent workflow line and MSRV break against Rust 1.75 baseline. |
+| G05/G02/G11 | `feat/g11-provider-adapters-a3-rebased` — `8f7ddb9e9dd2b796cd303ba645a1a3c843eb3810` | 391 ahead / 3 behind main; kernel + `iroka-g05-memory`, Rust 1.75. G05 pins PostgreSQL 0.19.12, postgres-native-tls 0.5.0, native-tls 0.2.12, rusqlite 0.32.1, serde_jcs 0.2.0 and ed25519-dalek 2.1.1; lockfile has 154 packages including tokio-postgres/TLS. | Best G05/G02/G11 persistence/authority/checkpoint subset. Descends from G05 HTTP by 13 commits and G05 Postgres/multiworker by 57. No exact-head PR run returned. |
+| G05 HTTP predecessor | `feat/g05-http-host-a3` — `c8991fc61170bc04d7aeaea390a76a85900c2232` | Run 43280580981 succeeded. Loopback-only behind TLS proxy; endpoint `/v1/g05/execute`. | Older predecessor; not TALORA task API. |
+| G05 Postgres predecessor | `feat/g05-postgres-g11-multiworker-a3` — `2bfac619b9601330b3343f86277bb5ba29ae22b2` | Runs 43240878046 and 43240392654 succeeded. | Older predecessor; does not verify later G11 provider head. |
+| CIW | `feat/ciw-amharic-answer-only-chat` — `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` | 172 ahead / 25 behind main; adds `iroka-conversation` and browser routes. Exact-head run 42562324737 succeeded. | Browser/conversation API candidate, not verified private TALORA task API; diverges from G05/G11 (400 / 172 commits). |
+| BRAIN/G04/G05 | `feat/brain-a3-b04-g05-memory-core` — `b27816c1c3b172c0a7503d6602cddeaa6008c6cb` | 163 ahead / 3 behind main; kernel + G04 contract + SQLite G05. | Older implementation line; shared kernel changes; no exact-head PR run returned. |
+| BRAIN cognitive core | `feat/inga-neurogenetic-a3-foundation` — `e2ad1dc6a7916028dbcdfbd2d2ec948e0a554f4d` | 27 ahead / 3 behind main; `iroka-brain` depends on serde/serde_json. | Separate model-independent cognitive-core candidate. |
+| Localization | `feat/a3-4-localization-completion` — `d51a971d295e7b75e3d17fc51202d99c1db1abab` | 59 ahead / 3 behind main; adds localization module/tests; diverges from G03/G08 (378 / 59 commits). | Separate kernel line; no exact-head PR run returned. |
+
+### 14.4.1 Compatibility conclusions
+
+1. G03/G08 and G05/G02/G11 are diverged histories: 378 commits on
+   the G03/G08 side and 391 on the G05/G11 side. Both modify shared
+   Kernel files, including `lib.rs`, identity/security, authority and
+   policy modules. This is not a safe fast-forward or simple
+   workspace-member addition.
+2. CIW also changes Kernel identity/security code and is independently
+   diverged from G05/G11. It cannot be combined by branch-name
+   convention or cherry-picked without source-level reconciliation.
+3. Localization and BRAIN are separate kernel/workspace lines.
+4. G08 character workflow declares Rust 1.89.0/toolchain 1.100.0,
+   while main and G05/G11 declare Rust 1.75.
+5. G05/G11 adds PostgreSQL, tokio and TLS dependency families. They
+   are pinned on that branch, but no merged lockfile or combined
+   `cargo check/test` was run.
+6. G11 HTTPS is checkpoint publication, not model inference. No
+   `ModelAdapter`/`DeterministicFakeAdapter` implementation was
+   verified on the exact inspected refs.
+7. G05 exposes only `/v1/g05/execute`; CIW exposes conversation and
+   generation/event routes. Neither establishes the contract's complete
+   `GET /api/v1/capabilities`, `POST /api/v1/tasks`, task
+   status/events/cancel and memory API as one private TALORA service.
+
+### 14.4.2 Exact-head verification
+
+| Exact candidate head | Workflow evidence | Result |
+|---|---|---|
+| CIW `69f3c181...` | 42562324737 — completed, success | PASS for isolated CIW head only |
+| G05 HTTP `c8991fc6...` | 43280580981 — completed, success | PASS for predecessor only |
+| G05 Postgres `2bfac619...` | 43240878046 and 43240392654 — completed, success | PASS for predecessor only |
+| G08 coordinator `2cfcf8db...` | 43230367894 — completed, success; commit changes workflow triggers | Not evidence for G08 implementation head |
+| G11 provider `8f7ddb9e...` | No PR-triggered run returned | NOT VERIFIED at current exact head |
+| G03/G08 `0680337b...` | No PR-triggered run returned | NOT VERIFIED at current exact head |
+| BRAIN/G05 `b27816c1...` | No PR-triggered run returned | NOT VERIFIED at current exact head |
+| Localization `d51a971d...` | No PR-triggered run returned | NOT VERIFIED at current exact head |
+
+The workflow lookup returns PR-triggered runs and the first page only.
+An empty result does not prove no historical or push-triggered run
+exists. No combined graph build, test, migration, SBOM or end-to-end
+API run was performed.
+
+**D01 outcome:** RECONCILIATION PERFORMED; NO COMPATIBLE IMMUTABLE GRAPH
+SELECTED. No current-main or candidate branch is approved as the
+integration baseline. This is not A3 permission.
+
 ## 15. Owner dispositions — 19 November 2026
 
 The Owner submitted and approved the following exact dispositions. They are binding design constraints, not A3, merge or deployment authorization.
@@ -545,7 +610,7 @@ The Owner submitted and approved the following exact dispositions. They are bind
 | D02 | API | Private authenticated service API is the only initial integration method. No distributable SDK. |
 | D03 | API_ONLY | API/service integration only. No source copying, vendoring, modification, redistribution, sublicensing or SDK packaging. |
 | D04 | DEV_FIRST | Development/test profile first. No production topology, production creative data or data-residency claim until separately reviewed. |
-| D05 | FAKE_LOCAL | Deterministic fake/local adapter only; live external model providers remain disabled. |
+| D05 | FAKE_LOCAL | Deterministic fake/local model adapter is the required initial mode; no exact inspected ref verifies it as implemented. Live external providers remain disabled. |
 | D06 | HARD_CAPS | Hard preflight limits and ETB ceilings; no silent overrun, auto-top-up or paid provider activation without numeric Owner-approved budgets. Until budgets are approved, external paid spend is zero and paid calls are disabled. |
 | D07 | OPTIN | Task context ephemeral by default; persistent project memory requires explicit opt-in, project scope, correction/deletion and retention controls. |
 | D08 | REVIEWED | Amharic-first remains binding. Full-workflow claims require rights-cleared/reviewed corpora, competent reviewers and measurable acceptance tests. |
@@ -575,4 +640,4 @@ These design criteria do not prove implementation. A4 must validate implemented 
 
 Before A5, the integrated independent security/architecture assessment required by `OD-2026-11-17-IR-01` must be complete, findings remediated or explicitly risk-accepted, and the Owner must separately authorize deployment. Contract approval or A4 completion does not authorize A5.
 
-**Current disposition:** Contract v0.1.2 aligns with all nine Owner dispositions dated 19 November 2026. D02–D09 are recorded as binding constraints. D01 reconciliation has been performed, but no single compatible immutable IROKA component graph was found; the integration baseline remains UNRESOLVED. This is an A2 design artifact only. It does not prove API/runtime availability, dependency compatibility, security acceptance or production readiness. TALORA–IROKA A2 integration readiness is PARTIAL / NOT CLOSED. A3 implementation, merge and A5 deployment remain separate Owner decisions.
+**Current disposition:** Contract v0.1.2 aligns with all nine Owner dispositions dated 19 November 2026 and records the live component evidence. D01 reconciliation has been performed, but no single compatible immutable IROKA component graph was found; the integration baseline remains UNRESOLVED. The full TALORA API and deterministic model adapter are not verified. This is an A2 design artifact only. TALORA–IROKA A2 integration readiness is PARTIAL / NOT CLOSED. A3 implementation, merge and A5 deployment remain separate Owner decisions.
