@@ -382,9 +382,15 @@ impl TaskService {
             document_ref: request.document_ref.clone(),
             document_revision: request.document_revision.clone(),
             calendar: request.calendar.clone(),
-            input_source_refs: request.input_refs.iter().map(|input| input.source_ref.clone()).collect(),
+            input_source_refs: request
+                .input_refs
+                .iter()
+                .map(|input| input.source_ref.clone())
+                .collect(),
             evidence_refs: Vec::new(),
-            assumptions: vec!["Deterministic fake adapter; no generative inference performed.".into()],
+            assumptions: vec![
+                "Deterministic fake adapter; no generative inference performed.".into(),
+            ],
             unresolved_questions: Vec::new(),
             verification_status: "not_ai_validated_fake_adapter".into(),
             locale: request.locale.clone(),
@@ -676,9 +682,18 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
         || request.authorization_ref.len() > MAX_REFERENCE_BYTES
         || request.policy_ref.len() > MAX_REFERENCE_BYTES
         || request.output_schema_id.len() > MAX_REFERENCE_BYTES
-        || request.document_ref.as_ref().is_some_and(|value| value.len() > MAX_REFERENCE_BYTES)
-        || request.document_revision.as_ref().is_some_and(|value| value.len() > MAX_REFERENCE_BYTES)
-        || request.calendar.as_ref().is_some_and(|value| value.len() > 32)
+        || request
+            .document_ref
+            .as_ref()
+            .is_some_and(|value| value.len() > MAX_REFERENCE_BYTES)
+        || request
+            .document_revision
+            .as_ref()
+            .is_some_and(|value| value.len() > MAX_REFERENCE_BYTES)
+        || request
+            .calendar
+            .as_ref()
+            .is_some_and(|value| value.len() > 32)
     {
         return Err(ApiError::PayloadTooLarge);
     }
@@ -709,14 +724,21 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
         return Err(ApiError::InvalidRequest("policy_or_output_schema_mismatch"));
     }
     if request.input_refs.is_empty() || request.input_refs.len() > MAX_INPUT_REFERENCES {
-        return Err(ApiError::InvalidRequest("input_references_required_or_excessive"));
+        return Err(ApiError::InvalidRequest(
+            "input_references_required_or_excessive",
+        ));
     }
     for input in &request.input_refs {
-        if input.source_ref.trim().is_empty() || input.purpose.trim().is_empty()
-            || input.source_ref.len() > MAX_REFERENCE_BYTES || input.purpose.len() > MAX_REFERENCE_BYTES
+        if input.source_ref.trim().is_empty()
+            || input.purpose.trim().is_empty()
+            || input.source_ref.len() > MAX_REFERENCE_BYTES
+            || input.purpose.len() > MAX_REFERENCE_BYTES
             || input.classification != "synthetic"
             || input.revision_digest.len() != 64
-            || !input.revision_digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || !input
+                .revision_digest
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
         {
             return Err(ApiError::Forbidden);
         }
@@ -725,13 +747,23 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
         return Err(ApiError::PayloadTooLarge);
     }
     if !request.required_evidence.is_empty() {
-        return Err(ApiError::InvalidRequest("fake_adapter_cannot_satisfy_required_evidence"));
+        return Err(ApiError::InvalidRequest(
+            "fake_adapter_cannot_satisfy_required_evidence",
+        ));
     }
     if request.document_ref.is_some() != request.document_revision.is_some()
-        || request.document_ref.as_ref().is_some_and(|value| value.trim().is_empty())
-        || request.document_revision.as_ref().is_some_and(|value| value.trim().is_empty())
+        || request
+            .document_ref
+            .as_ref()
+            .is_some_and(|value| value.trim().is_empty())
+        || request
+            .document_revision
+            .as_ref()
+            .is_some_and(|value| value.trim().is_empty())
     {
-        return Err(ApiError::InvalidRequest("document_reference_revision_mismatch"));
+        return Err(ApiError::InvalidRequest(
+            "document_reference_revision_mismatch",
+        ));
     }
     if request.tenant_ref != caller.tenant_ref {
         return Err(ApiError::Forbidden);
@@ -1042,7 +1074,9 @@ mod tests {
         evidence.required_evidence.push("source-proof".into());
         assert_eq!(
             service.submit_with_credential("test-only-token", 1, evidence),
-            Err(ApiError::InvalidRequest("fake_adapter_cannot_satisfy_required_evidence"))
+            Err(ApiError::InvalidRequest(
+                "fake_adapter_cannot_satisfy_required_evidence"
+            ))
         );
     }
 
