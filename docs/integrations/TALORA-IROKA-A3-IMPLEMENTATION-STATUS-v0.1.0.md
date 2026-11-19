@@ -13,7 +13,7 @@
 - IROKA repository: `akefadaka-git/iroka`
 - Implementation branch: `integration/talora-a3-private-api`
 - Base IROKA main SHA: `1aea1447eadf1d827d702fd6c4034fa058aac21e`
-- Verified code head: `925ae04d6da554dc5a7b2acb4b264be3566c710d`
+- Verified code head: `8056cea136f42436d896078046796eba2129092b`
 - Draft PR: [#129](https://github.com/akefadaka-git/iroka/pull/129)
 - TALORA repository: `akefadaka-git/talora`
 - TALORA main SHA remains: `2562962fc44636cdebfa49c7bf3c3cdcb618751c`
@@ -25,8 +25,9 @@ The implementation branch is based directly on the stated IROKA main SHA. Docume
 
 1. `Cargo.toml` — added `crates/iroka-talora-api` to the IROKA workspace.
 2. `Cargo.lock` — added the workspace package and its existing locked dependencies.
-3. `crates/iroka-talora-api/Cargo.toml` — added the private API crate with serde, serde_json, sha2 and the local IROKA kernel dependency.
-4. `crates/iroka-talora-api/src/lib.rs` — added the development-only service core, typed task/capability contracts, route handler, fake adapter and tests.
+3. `crates/iroka-brain/Cargo.toml`, `src/lib.rs`, `src/neurogenetic.rs` — salvaged the independent BRAIN cognitive core from candidate SHA `e2ad1dc6a7916028dbcdfbd2d2ec948e0a554f4d`; the feed-forward test fixture now uses structurally verified cells, and equivalent `Default` implementations are derived to satisfy Clippy.
+4. `crates/iroka-talora-api/Cargo.toml` — added the private API crate with serde, serde_json, sha2, and local IROKA kernel/BRAIN dependencies.
+5. `crates/iroka-talora-api/src/lib.rs` — added the development-only service core, typed task/capability contracts, route handler, kernel-policy enforcement, BRAIN-backed fake adapter and tests.
 
 No IROKA source was copied into TALORA. The TALORA repository was not modified.
 
@@ -35,6 +36,7 @@ No IROKA source was copied into TALORA. The TALORA repository was not modified.
 - Private route-handler contract for health, capabilities, task submission, task status, terminal SSE event and cancellation response.
 - Injected workload-authenticator boundary, service audience check, and tenant/workspace/project/scope enforcement.
 - Existing IROKA kernel policy evaluator is invoked before accepting the supported capability.
+- TALORA fake/local execution is routed through the salvaged BRAIN CognitiveRuntime and its deterministic fake adapter; no remote inference is performed.
 - Deterministic fake/local adapter is the only enabled adapter class; remote adapter classes are rejected.
 - Idempotency replay and conflicting-payload rejection.
 - Hard development caps for request text, objective, output, task count, input-reference count and task lifetime.
@@ -47,17 +49,17 @@ No IROKA source was copied into TALORA. The TALORA repository was not modified.
 
 ## 4. Exact-head CI evidence
 
-The following GitHub Actions run verified the exact code head `925ae04d6da554dc5a7b2acb4b264be3566c710d`:
+The following GitHub Actions run verified the exact code head `8056cea136f42436d896078046796eba2129092b`:
 
-- Run **44456775007**: [Rust kernel verification](https://github.com/akefadaka-git/iroka/actions/runs/44456775007)
+- Run **44457815902**: [Rust kernel verification](https://github.com/akefadaka-git/iroka/actions/runs/44457815902)
 - Formatting: PASS
 - Workspace compilation: PASS
 - No-default-features compilation: PASS
-- Unit and contract tests: PASS
+- Unit and contract tests: PASS — 45 BRAIN/neurogenetic, 71 kernel, 2 integration, and 13 TALORA API tests
 - Clippy: PASS
 - Overall run: SUCCESS
 
-Earlier failures were corrected before the verified head. Run 44455484725 failed formatting; 44455753583 passed the first service slice. Run 44455996709 failed formatting after kernel-policy integration; 44456084077 passed that integration. Runs 44456285122 and 44456327131 failed formatting during request-envelope evolution. Run 44456396250 failed compilation because the new expiry-validation clock argument had not yet been threaded through the submission method; that was corrected before Run 44456506108, which passed the expiry/provenance implementation. Run 44456691888 failed formatting for added HTTP lifecycle tests; the formatting correction is included in the verified head above.
+Earlier failures were corrected before the verified head. The initial service slice, kernel-policy integration, request-envelope implementation and HTTP lifecycle tests each passed their subsequent exact-head runs. The first BRAIN integration run (44457497090) exposed ten neurogenetic test-fixture failures because feed-forward tests used proposed rather than structurally verified cells. After correcting the fixture, the full test suite passed; Clippy then identified three derivable Default implementations. Those were corrected without changing runtime policy, and Run 44457815902 passed all checks.
 
 ## 5. Explicitly not implemented or not verified
 
@@ -76,7 +78,7 @@ Earlier failures were corrected before the verified head. Run 44455484725 failed
 
 The implementation uses the current IROKA main kernel as the stable policy primitive and adds the TALORA service boundary as a new workspace crate. This is a bounded initial slice, not proof that the divergent G03/G08 and G05/G02/G11 candidates have been reconciled into one compatible graph.
 
-The initial capability remains `talora.dev.fake.v1`. CIW, BRAIN and localization are excluded from this slice rather than silently assumed present. G05 memory is not bypassed or duplicated; no persistent memory endpoint is exposed.
+The initial capability remains `talora.dev.fake.v1`. BRAIN is now included as an isolated cognitive core and is called only through its deterministic fake adapter. The separate G03/G08 workflow/inference candidate, G05/G02/G11 memory/authority/checkpoint candidates, CIW and localization remain excluded from this slice rather than silently assumed present. G05 memory is not bypassed or duplicated; no persistent memory endpoint is exposed.
 
 ## 7. Governance and next gate
 
