@@ -1041,7 +1041,7 @@ mod tests {
 
         assert_eq!(report.stop_reason, StopReason::Deadline);
         assert!(report.is_partial());
-        assert!(report.facts.is_empty());
+        assert_eq!(report.facts, Vec::<Literal>::new());
     }
 
     #[test]
