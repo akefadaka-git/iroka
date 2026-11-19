@@ -235,3 +235,24 @@ exists.
 **D01 final disposition:** UNRESOLVED — NO SELECTABLE, VERIFIED
 IMMUTABLE INTEGRATION BASELINE. This does not authorize source
 composition or A3.
+
+
+## D01 Owner approval and frozen bounded baseline — 19 November 2026
+
+**Owner disposition:** APPROVED — FREEZE BOUNDED DEVELOPMENT-ONLY BASELINE.
+
+The Owner approved the exact bounded TALORA development baseline identified by the read-only reconciliation:
+
+- Repository: `akefadaka-git/iroka`
+- Branch: `integration/talora-a3-private-api`
+- Immutable verified source-code commit: `8056cea136f42436d896078046796eba2129092b`
+- Current documentation-only branch snapshot: `00b323750fb120f80d56191069d10a825e66dc41`
+- Base IROKA main: `1aea1447eadf1d827d702fd6c4034fa058aac21e`
+- PR #129: OPEN / DRAFT / UNMERGED
+- Exact code-head verification: [run 44457815902](https://github.com/akefadaka-git/iroka/actions/runs/44457815902), PASS; current documentation snapshot [run 44458023955](https://github.com/akefadaka-git/iroka/actions/runs/44458023955), PASS.
+
+The baseline is the existing three-crate Cargo graph `iroka-kernel`, `iroka-brain` and `iroka-talora-api`. Its approved use is limited to development/test, deterministic fake/local execution, synthetic inputs, no remote provider and no persistent memory. This decision freezes the exact source commit; it does not authorize source composition, new A3 implementation, modification of the branch, PR approval/merge or deployment.
+
+**Limitations accepted as exclusions, not waived requirements:** no runnable network host, production workload-token verifier or revocation/key lifecycle; no durable task/event persistence or effective in-flight cancellation; no G05 governed memory, G03/G08 workflow, G05/G02/G11 authority/memory graph or CIW integration; no TALORA backend network client, end-to-end network test, SBOM or independent security review. This is not a production-ready IROKA service and does not establish compatibility of the wider IROKA graph.
+
+**D01 status:** VERIFIED-CLOSED for selection and freeze of the bounded development-only baseline. Wider graph integration remains NOT VERIFIED and requires separate reconciliation. A2 overall remains PARTIAL / NOT CLOSED pending other closure criteria. A3, merge and A5 remain NOT AUTHORIZED.
