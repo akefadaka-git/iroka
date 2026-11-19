@@ -340,7 +340,7 @@ pub fn route_http(service: &TaskService, request: HttpRequest, now_unix_seconds:
                 HttpResponse {
                     status: 200,
                     headers,
-                    body: format!("event: completed\\ndata: {payload}\\n\\n").into_bytes(),
+                    body: format!("event: completed\ndata: {payload}\n\n").into_bytes(),
                 }
             }
             Err(error) => error_response(error),
