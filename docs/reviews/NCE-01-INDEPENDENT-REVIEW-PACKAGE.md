@@ -54,10 +54,10 @@ Also inspect the repository workflow definitions and reproduce the production-fe
 
 ### Working-branch remediation delta (not a replacement for the pinned review target)
 
-- Implementation commit: `fd88ad2653acbc6eb5602d1f161ee8944e68682b`
-- `crates/iroka-cognition/src/lib.rs` blob: `6ffe52e30c1625779f7dd1854a0fb95266f0a0bf`
+- Implementation commit: `f46449114e210ee2bed568bad82be529e3a43d81`
+- `crates/iroka-cognition/src/lib.rs` blob: `e650123e3e650b850327170ee5c19f7c24a511e0`
 - The immutable baseline above remains the independent-review target. The working-branch source contains the R-01/R-02 remediation delta and must be reviewed as a distinct source revision before NCE-01 acceptance.
-- R-01 additions: `AssertedFact`, `add_fact_with_source`, opaque source IDs, a 32-source-per-fact default bound, and one witness per satisfied `(conclusion, rule_id)` pair, including alternate rule support for already-known conclusions.
+- R-01 additions: `AssertedFact`, `add_fact_with_source`, opaque source IDs, a 32-identified-source-per-fact default bound (legacy `None` source markers do not consume this budget), and one witness per satisfied `(conclusion, rule_id)` pair, including alternate rule support for already-known conclusions.
 - R-02/R-04 additions: cooperative deadline checks during report materialization and explicit `ReasoningReport::is_complete()` / `is_partial()` semantics.
 - Current dedicated NCE-01 unit-test count: 32. This is a source inspection count, not a passing test result.
 - Exact-SHA CI for the first provenance implementation attempt (commit `65393fdb0716fb8d28533fd3b7fab2213f569591`) failed at `cargo fmt --all -- --check`; compilation, tests and Clippy were skipped. Formatting corrections were committed afterward. No passing CI result has yet been established for the corrected current source.
