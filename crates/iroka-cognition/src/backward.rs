@@ -170,6 +170,9 @@ impl BackwardReasoner {
         if clause.id.trim().is_empty() {
             return Err(SearchError::EmptyClauseId);
         }
+        if clause.body.len() > MAX_CLAUSE_BODY {
+            return Err(SearchError::InvalidTerm);
+        }
         if self.clauses.iter().any(|item| item.id == clause.id) {
             return Err(SearchError::DuplicateClauseId);
         }
@@ -356,17 +359,27 @@ fn occurs(name: &str, term: &Term, substitution: &Substitution) -> bool {
     }
 }
 
+const MAX_TERM_DEPTH: usize = 64;
+const MAX_ATOM_ARITY: usize = 64;
+const MAX_CLAUSE_BODY: usize = 128;
+
 fn validate_atom(atom: &Atom) -> Result<(), SearchError> {
     if atom.predicate.trim().is_empty() || atom.predicate.len() > 128 {
         return Err(SearchError::EmptyPredicate);
     }
+    if atom.arguments.len() > MAX_ATOM_ARITY {
+        return Err(SearchError::InvalidTerm);
+    }
     for term in &atom.arguments {
-        validate_term(term)?;
+        validate_term_at_depth(term, 0)?;
     }
     Ok(())
 }
 
-fn validate_term(term: &Term) -> Result<(), SearchError> {
+fn validate_term_at_depth(term: &Term, depth: usize) -> Result<(), SearchError> {
+    if depth > MAX_TERM_DEPTH {
+        return Err(SearchError::InvalidTerm);
+    }
     match term {
         Term::Symbol(value) | Term::Variable(value) => {
             if value.trim().is_empty() || value.len() > 256 {
@@ -374,11 +387,11 @@ fn validate_term(term: &Term) -> Result<(), SearchError> {
             }
         }
         Term::Compound(name, args) => {
-            if name.trim().is_empty() || name.len() > 128 || args.len() > 64 {
+            if name.trim().is_empty() || name.len() > 128 || args.len() > MAX_ATOM_ARITY {
                 return Err(SearchError::InvalidTerm);
             }
             for arg in args {
-                validate_term(arg)?;
+                validate_term_at_depth(arg, depth + 1)?;
             }
         }
     }
@@ -484,6 +497,85 @@ mod tests {
             .unwrap();
         assert_eq!(report.stop, SearchStop::Proven);
         assert!(!report.proof.unwrap().children.is_empty());
+    }
+
+    #[test]
+    fn unifies_nested_compound_terms_and_returns_bindings() {
+        let mut engine = BackwardReasoner::new(SearchConfig::default()).unwrap();
+        engine
+            .add_clause(clause(
+                "nested-fact",
+                atom(
+                    "located",
+                    vec![
+                        Term::compound("pair", vec![s("ana"), s("beka")]),
+                        s("confirmed"),
+                    ],
+                ),
+                vec![],
+            ))
+            .unwrap();
+
+        let report = engine
+            .prove(&atom(
+                "located",
+                vec![
+                    Term::compound("pair", vec![v("Who"), s("beka")]),
+                    s("confirmed"),
+                ],
+            ))
+            .unwrap();
+        assert_eq!(report.stop, SearchStop::Proven);
+        assert_eq!(
+            report.substitution.unwrap().resolve(&v("Who")),
+            s("ana")
+        );
+    }
+
+    #[test]
+    fn backtracks_after_an_unprovable_rule_branch() {
+        let mut engine = BackwardReasoner::new(SearchConfig::default()).unwrap();
+        engine
+            .add_clause(clause(
+                "a-dead-route",
+                atom("route", vec![v("X")]),
+                vec![atom("missing", vec![v("X")])],
+            ))
+            .unwrap();
+        engine
+            .add_clause(clause(
+                "z-live-route",
+                atom("route", vec![v("X")]),
+                vec![atom("present", vec![v("X")])],
+            ))
+            .unwrap();
+        engine
+            .add_clause(clause(
+                "present-ana",
+                atom("present", vec![s("ana")]),
+                vec![],
+            ))
+            .unwrap();
+
+        let report = engine.prove(&atom("route", vec![s("ana")])).unwrap();
+        assert_eq!(report.stop, SearchStop::Proven);
+        assert_eq!(
+            report.proof.unwrap().clause_id,
+            "z-live-route"
+        );
+    }
+
+    #[test]
+    fn rejects_excessively_deep_terms_before_recursive_search() {
+        let mut term = s("leaf");
+        for _ in 0..=MAX_TERM_DEPTH {
+            term = Term::compound("nested", vec![term]);
+        }
+        let mut engine = BackwardReasoner::new(SearchConfig::default()).unwrap();
+        assert_eq!(
+            engine.add_clause(clause("too-deep", atom("deep", vec![term]), vec![])),
+            Err(SearchError::InvalidTerm)
+        );
     }
 
     #[test]
