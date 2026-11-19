@@ -473,7 +473,7 @@ mod tests {
         let report = brain.reason();
         assert_eq!(report.stop_reason, StopReason::FactBudget);
         assert_eq!(report.facts, vec![Literal::positive("a")]);
-        assert!(report.derivations.is_empty());
+        assert_eq!(report.derivations.len(), 0);
     }
 
     #[test]
