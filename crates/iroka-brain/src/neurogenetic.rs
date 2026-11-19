@@ -82,10 +82,11 @@ pub enum CellStatus {
 }
 
 /// Deterministic, bounded activation functions for synthetic cell evaluation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivationFunction {
     /// Clipped linear activation; preserves the original bounded evaluator behavior.
+    #[default]
     ClippedLinear,
     /// Rectified linear activation.
     Relu,
@@ -95,26 +96,15 @@ pub enum ActivationFunction {
     BinaryStep,
 }
 
-impl Default for ActivationFunction {
-    fn default() -> Self {
-        Self::ClippedLinear
-    }
-}
-
 /// Excitatory or inhibitory sign applied to a non-negative synaptic magnitude.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SynapsePolarity {
     /// Adds the weighted source activation.
+    #[default]
     Excitatory,
     /// Subtracts the weighted source activation.
     Inhibitory,
-}
-
-impl Default for SynapsePolarity {
-    fn default() -> Self {
-        Self::Excitatory
-    }
 }
 
 /// A single computational cell descriptor.
@@ -489,7 +479,7 @@ impl AdaptationProposal {
 }
 
 /// Explicit boundaries for the first synthetic neurogenetic increment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GovernanceBoundary {
     /// Durable memory writes are not permitted.
     pub memory_write_permitted: bool,
@@ -503,19 +493,6 @@ pub struct GovernanceBoundary {
     pub protected_execution_permitted: bool,
     /// Canonical genome mutation is not permitted.
     pub canonical_genome_mutation_permitted: bool,
-}
-
-impl Default for GovernanceBoundary {
-    fn default() -> Self {
-        Self {
-            memory_write_permitted: false,
-            model_training_permitted: false,
-            weight_mutation_permitted: false,
-            autonomous_adaptation_permitted: false,
-            protected_execution_permitted: false,
-            canonical_genome_mutation_permitted: false,
-        }
-    }
 }
 
 /// Stable validation errors for neurogenetic structures.
