@@ -84,6 +84,21 @@ pub struct ReasoningReport {
     pub elapsed_micros: u128,
 }
 
+impl ReasoningReport {
+    /// Returns true only when reasoning reached a fixed point.
+    ///
+    /// A report stopped by a deadline or resource budget contains a partial
+    /// knowledge state and must not be treated as a complete closure.
+    pub fn is_complete(&self) -> bool {
+        matches!(self.stop_reason, StopReason::FixedPoint)
+    }
+
+    /// Returns true when reasoning stopped before reaching a fixed point.
+    pub fn is_partial(&self) -> bool {
+        !self.is_complete()
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct EngineConfig {
     pub max_inference_steps: usize,
@@ -864,4 +879,30 @@ mod tests {
             Err(EngineError::EmptyAtom)
         );
     }
+    #[test]
+    fn only_fixed_point_reports_are_complete() {
+        let report = |stop_reason| ReasoningReport {
+            facts: Vec::new(),
+            contradictions: Vec::new(),
+            derivations: Vec::new(),
+            stop_reason,
+            inference_steps: 0,
+            elapsed_micros: 0,
+        };
+
+        let complete = report(StopReason::FixedPoint);
+        assert!(complete.is_complete());
+        assert!(!complete.is_partial());
+
+        for stop_reason in [
+            StopReason::Deadline,
+            StopReason::StepBudget,
+            StopReason::FactBudget,
+        ] {
+            let partial = report(stop_reason);
+            assert!(!partial.is_complete());
+            assert!(partial.is_partial());
+        }
+    }
+
 }
