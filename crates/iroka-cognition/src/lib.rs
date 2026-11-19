@@ -1158,7 +1158,9 @@ mod tests {
     fn accepts_source_identifier_at_byte_limit_and_rejects_one_over() {
         let mut brain = engine();
         let fact = Literal::positive("bounded_source");
-        brain.add_fact_with_source(fact.clone(), "s".repeat(256)).unwrap();
+        brain
+            .add_fact_with_source(fact.clone(), "s".repeat(256))
+            .unwrap();
         assert_eq!(
             brain.add_fact_with_source(fact.clone(), "t".repeat(257)),
             Err(EngineError::SourceIdTooLong)
@@ -1190,5 +1192,4 @@ mod tests {
             Err(EngineError::FactSourceBudgetExceeded)
         );
     }
-
 }
