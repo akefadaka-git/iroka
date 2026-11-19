@@ -28,8 +28,14 @@ Default limits are 10,000 inference-step evaluations, 10,000 facts, 2,000 rules,
 256 premises per rule, and a three-second reasoning deadline. Atoms are limited to
 256 UTF-8 bytes. The deadline is checked at reasoning-loop/rule boundaries and
 during premise evaluation. A run reports one of `FixedPoint`, `Deadline`,
-`StepBudget` or `FactBudget`; unknown evidence remains distinct from refutation,
-and contradictory positive/negative evidence is reported explicitly.
+`StepBudget` or `FactBudget`. Only `FixedPoint` is a complete closure:
+`ReasoningReport::is_complete()` returns true only for that stop reason, while
+`is_partial()` identifies every deadline or budget stop. Consumers must not treat
+facts in a partial report as an exhaustive knowledge state. The configured deadline
+is cooperative and currently governs inference evaluation; contradiction collection
+and report materialization follow the inference loop and are not hard-preempted by it.
+Unknown evidence remains distinct from refutation, and contradictory positive/negative
+evidence is reported explicitly.
 
 The dedicated NCE-01 suite contains 24 tests covering multi-step closure, deterministic
 rule ordering, cyclic and adversarial rule order, all 64 directed three-node graph
