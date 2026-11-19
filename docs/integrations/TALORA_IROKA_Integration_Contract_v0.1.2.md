@@ -459,7 +459,7 @@ exceptions for legal/audit records.
 
 1. Select one immutable, Owner-approved IROKA integration baseline; do not compose arbitrary divergent branches.
 2. Reconcile G01/G02 authorization and tenant contracts, G03 task/result contracts, CIW transport, G05 memory contracts, G08 orchestration and G11 audit/assurance on one compatible dependency graph. Identify exact commits and test evidence for each included component.
-3. Verify dependency licenses and internal cross-project reuse rights. IROKA is publicly visible but states `LicenseRef-Proprietary`; public visibility does not grant a license. Do not copy, package, modify or redistribute IROKA source unless explicit written authorization permits it.
+3. Verify exact dependency licenses and internal cross-project rights before implementation. The current IROKA main README states that no explicit open-source license is granted; public visibility does not grant permission to copy, modify, redistribute or sublicense project material. D03 permits API/service integration only within this TALORA scope and does not grant source copying, vendoring, modification, SDK distribution or sublicensing.
 4. Select the integration method (private authenticated service API only, or API plus a separately authorized/distributable SDK).
 5. Record a proposed deployment topology and data-residency boundary. Production deployment remains a separate gate.
 6. Keep the model-provider default disabled. A fake/local adapter may be used for development and deterministic tests. No live provider may receive private TALORA content until provider, region, retention, training, security, pricing and consent terms are separately approved.
@@ -468,7 +468,7 @@ exceptions for legal/audit records.
 9. Define numeric quotas and ETB spend ceilings before enabling any paid inference path.
 10. Complete automated verification, exact-HEAD A4 evidence and remediation of critical findings for the implemented integration scope.
 
-### 14.3 Read-only component graph reconciliation — 19 November 2026
+### 14.1.1 Read-only component graph reconciliation — 19 November 2026
 
 The reference main commit is 1aea1447eadf1d827d702fd6c4034fa058aac21e. It is a documentation/reference baseline, not an approved integration graph. Branch comparisons against that main reference found:
 
