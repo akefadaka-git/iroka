@@ -116,6 +116,8 @@ pub struct EngineConfig {
     pub max_rules: usize,
     /// Maximum number of premises accepted in one rule.
     pub max_rule_premises: usize,
+    /// Maximum distinct source identifiers retained for one asserted fact.
+    pub max_sources_per_fact: usize,
     pub max_duration: Duration,
 }
 
@@ -126,6 +128,7 @@ impl Default for EngineConfig {
             max_facts: 10_000,
             max_rules: 2_000,
             max_rule_premises: 256,
+            max_sources_per_fact: 32,
             max_duration: Duration::from_secs(3),
         }
     }
@@ -138,6 +141,7 @@ pub enum EngineError {
     EmptyRuleId,
     EmptySourceId,
     SourceIdTooLong,
+    FactSourceBudgetExceeded,
     RuleWithoutPremises,
     DuplicateRuleId,
     RuleBudgetExceeded,
@@ -163,6 +167,7 @@ impl NativeReasoner {
             || config.max_facts == 0
             || config.max_rules == 0
             || config.max_rule_premises == 0
+            || config.max_sources_per_fact == 0
             || config.max_duration.is_zero()
         {
             return Err(EngineError::ZeroBudget);
@@ -211,8 +216,17 @@ impl NativeReasoner {
         if !self.facts.contains(&fact) && self.facts.len() >= self.config.max_facts {
             return Err(EngineError::FactBudgetExceeded);
         }
-        self.facts.insert(fact.clone());
-        self.asserted_facts.insert(AssertedFact { fact, source_id });
+        let assertion = AssertedFact { fact: fact.clone(), source_id };
+        if !self.asserted_facts.contains(&assertion)
+            && self.asserted_facts
+                .range(AssertedFact { fact: fact.clone(), source_id: None }..)
+                .take_while(|existing| existing.fact == fact)
+                .count() >= self.config.max_sources_per_fact
+        {
+            return Err(EngineError::FactSourceBudgetExceeded);
+        }
+        self.facts.insert(fact);
+        self.asserted_facts.insert(assertion);
         Ok(())
     }
 
@@ -987,6 +1001,109 @@ mod tests {
         assert_eq!(report.stop_reason, StopReason::Deadline);
         assert!(report.is_partial());
         assert!(report.facts.is_empty());
+    }
+
+    #[test]
+    fn records_multiple_assertion_sources_without_claiming_authenticity() {
+        let mut brain = engine();
+        let fact = Literal::positive("temperature_high");
+        brain.add_fact_with_source(fact.clone(), "sensor:room-1").unwrap();
+        brain.add_fact_with_source(fact.clone(), "operator:inspection-7").unwrap();
+        brain.add_fact(fact.clone()).unwrap();
+
+        let report = brain.reason();
+        assert_eq!(report.asserted_facts.len(), 3);
+        assert!(report.asserted_facts.contains(&AssertedFact {
+            fact: fact.clone(),
+            source_id: Some("sensor:room-1".into()),
+        }));
+        assert!(report.asserted_facts.contains(&AssertedFact {
+            fact: fact.clone(),
+            source_id: Some("operator:inspection-7".into()),
+        }));
+        assert!(report.asserted_facts.contains(&AssertedFact {
+            fact,
+            source_id: None,
+        }));
+    }
+
+    #[test]
+    fn bounds_distinct_sources_per_asserted_fact_atomically() {
+        let config = EngineConfig {
+            max_sources_per_fact: 2,
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        let fact = Literal::positive("verified");
+        brain.add_fact_with_source(fact.clone(), "source-a").unwrap();
+        brain.add_fact_with_source(fact.clone(), "source-b").unwrap();
+        brain.add_fact_with_source(fact.clone(), "source-b").unwrap();
+        assert_eq!(
+            brain.add_fact_with_source(fact.clone(), "source-c"),
+            Err(EngineError::FactSourceBudgetExceeded)
+        );
+        assert_eq!(brain.facts.len(), 1);
+        assert_eq!(
+            brain.asserted_facts.iter().filter(|entry| entry.fact == fact).count(),
+            2
+        );
+    }
+
+    #[test]
+    fn rejects_empty_and_oversized_source_identifiers() {
+        let mut brain = engine();
+        let fact = Literal::positive("source_test");
+        assert_eq!(
+            brain.add_fact_with_source(fact.clone(), "  "),
+            Err(EngineError::EmptySourceId)
+        );
+        assert_eq!(
+            brain.add_fact_with_source(fact, "x".repeat(257)),
+            Err(EngineError::SourceIdTooLong)
+        );
+        assert!(brain.facts.is_empty());
+        assert!(brain.asserted_facts.is_empty());
+    }
+
+    #[test]
+    fn retains_alternative_rule_witnesses_for_the_same_conclusion() {
+        let mut brain = engine();
+        brain.add_fact(Literal::positive("sensor_a")).unwrap();
+        brain.add_fact(Literal::positive("sensor_b")).unwrap();
+        let conclusion = Literal::positive("hazard_detected");
+        for (id, premise) in [("rule_a", "sensor_a"), ("rule_b", "sensor_b")] {
+            brain.add_rule(Rule {
+                id: id.into(),
+                premises: vec![Literal::positive(premise)],
+                conclusion: conclusion.clone(),
+            }).unwrap();
+        }
+
+        let report = brain.reason();
+        let witnesses: Vec<_> = report.derivations.iter()
+            .filter(|entry| entry.fact == conclusion)
+            .map(|entry| entry.rule_id.as_str())
+            .collect();
+        assert_eq!(witnesses, vec!["rule_a", "rule_b"]);
+        assert_eq!(report.derivations.len(), 2);
+    }
+
+    #[test]
+    fn records_a_rule_witness_even_when_conclusion_was_already_asserted() {
+        let mut brain = engine();
+        let conclusion = Literal::positive("reviewed");
+        brain.add_fact(conclusion.clone()).unwrap();
+        brain.add_fact(Literal::positive("input")).unwrap();
+        brain.add_rule(Rule {
+            id: "independent_support".into(),
+            premises: vec![Literal::positive("input")],
+            conclusion: conclusion.clone(),
+        }).unwrap();
+
+        let report = brain.reason();
+        assert_eq!(report.derivations.len(), 1);
+        assert_eq!(report.derivations[0].fact, conclusion);
+        assert_eq!(report.derivations[0].rule_id, "independent_support");
     }
 
 }
