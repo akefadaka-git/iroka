@@ -57,7 +57,7 @@ The following GitHub Actions run verified the exact code head `925ae04d6da554dc5
 - Clippy: PASS
 - Overall run: SUCCESS
 
-Earlier failures were corrected before the verified head. Run 44455484725 failed formatting; 44455753583 passed the first service slice. Run 44455996709 failed formatting after kernel-policy integration; 44456084077 passed that integration. Run 44456285122 and 44456327131 failed formatting/compile during request-envelope evolution; 44456506108 passed the corrected expiry/provenance implementation. Run 44456691888 failed formatting for added HTTP lifecycle tests; the formatting correction is included in the verified head above.
+Earlier failures were corrected before the verified head. Run 44455484725 failed formatting; 44455753583 passed the first service slice. Run 44455996709 failed formatting after kernel-policy integration; 44456084077 passed that integration. Runs 44456285122 and 44456327131 failed formatting during request-envelope evolution. Run 44456396250 failed compilation because the new expiry-validation clock argument had not yet been threaded through the submission method; that was corrected before Run 44456506108, which passed the expiry/provenance implementation. Run 44456691888 failed formatting for added HTTP lifecycle tests; the formatting correction is included in the verified head above.
 
 ## 5. Explicitly not implemented or not verified
 
