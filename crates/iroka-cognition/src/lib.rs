@@ -99,11 +99,13 @@ impl ReasoningReport {
     ///
     /// A report stopped by a deadline or resource budget contains a partial
     /// knowledge state and must not be treated as a complete closure.
+    #[must_use]
     pub fn is_complete(&self) -> bool {
         matches!(&self.stop_reason, StopReason::FixedPoint)
     }
 
     /// Returns true when reasoning stopped before reaching a fixed point.
+    #[must_use]
     pub fn is_partial(&self) -> bool {
         !self.is_complete()
     }
@@ -192,6 +194,13 @@ impl NativeReasoner {
     ///
     /// The identifier is provenance metadata only; this engine does not authenticate
     /// the source, assess its trustworthiness, or establish when the evidence arose.
+    ///
+    /// # Errors
+    /// Returns [`EngineError::EmptySourceId`] for a blank identifier,
+    /// [`EngineError::SourceIdTooLong`] above 256 UTF-8 bytes,
+    /// [`EngineError::EmptyAtom`] or [`EngineError::AtomTooLong`] for an invalid fact,
+    /// [`EngineError::FactBudgetExceeded`] when the fact limit is exhausted, or
+    /// [`EngineError::FactSourceBudgetExceeded`] when the per-fact source limit is exhausted.
     pub fn add_fact_with_source(
         &mut self,
         fact: Literal,
@@ -728,7 +737,7 @@ mod tests {
         // The deadline also prevents report materialization; the internal
         // knowledge state remains intact, but no conclusion may be inserted.
         assert!(report.is_partial());
-        assert!(report.facts.is_empty());
+        assert_eq!(report.facts, Vec::<Literal>::new());
         assert_eq!(brain.facts.len(), 256);
         assert!(!brain.facts.contains(&Literal::positive("derived")));
         assert_eq!(report.derivations.len(), 0);
