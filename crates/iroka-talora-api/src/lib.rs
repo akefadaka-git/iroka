@@ -22,6 +22,8 @@ pub const MAX_OUTPUT_BYTES: usize = 16_384;
 pub const MAX_TASKS_IN_MEMORY: usize = 128;
 pub const MAX_IDEMPOTENCY_KEY_BYTES: usize = 128;
 pub const MAX_REFERENCE_BYTES: usize = 256;
+pub const MAX_TASK_TTL_SECONDS: u64 = 300;
+pub const MAX_INPUT_REFERENCES: usize = 16;
 pub const CONTRACT_VERSION: &str = "1.0.0";
 pub const TASK_SCHEMA_ID: &str = "iroka.talora.task.v1";
 pub const RESULT_SCHEMA_ID: &str = "iroka.talora.result.v1";
@@ -126,6 +128,24 @@ pub trait WorkloadAuthenticator: Send + Sync {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InputReference {
+    pub source_ref: String,
+    pub classification: String,
+    pub purpose: String,
+    pub revision_digest: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TaskConstraints {
+    pub max_input_bytes: usize,
+    pub max_output_bytes: usize,
+    pub deadline_unix_seconds: u64,
+    pub max_iterations: u32,
+    pub allow_remote_provider: bool,
+    pub allow_persistent_memory: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct TaskRequest {
     pub contract_version: String,
@@ -141,6 +161,18 @@ pub struct TaskRequest {
     pub task_class: String,
     pub objective: String,
     pub locale: String,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub consent_ref: String,
+    pub authorization_ref: String,
+    pub policy_ref: String,
+    pub output_schema_id: String,
+    pub input_refs: Vec<InputReference>,
+    pub required_evidence: Vec<String>,
+    pub constraints: TaskConstraints,
+    pub document_ref: Option<String>,
+    pub document_revision: Option<String>,
+    pub calendar: Option<String>,
     #[serde(default)]
     pub input_text: String,
 }
@@ -151,6 +183,8 @@ pub struct Usage {
     pub output_bytes: usize,
     pub adapter_class: String,
     pub paid_provider_calls: u32,
+    pub estimated_cost_etb_micros: u64,
+    pub actual_cost_etb_micros: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -169,6 +203,16 @@ pub struct TaskResponse {
     pub capability_id: String,
     pub capability_version: String,
     pub policy_version: String,
+    pub consent_ref: String,
+    pub authorization_ref: String,
+    pub policy_ref: String,
+    pub output_schema_id: String,
+    pub document_ref: Option<String>,
+    pub document_revision: Option<String>,
+    pub evidence_refs: Vec<String>,
+    pub assumptions: Vec<String>,
+    pub unresolved_questions: Vec<String>,
+    pub verification_status: String,
     pub locale: String,
     pub result_payload: Value,
     pub usage: Usage,
@@ -265,7 +309,7 @@ impl TaskService {
         let caller = self
             .authenticator
             .authenticate(bearer_credential, now_unix_seconds)?;
-        self.submit_authenticated(&caller, request)
+        self.submit_authenticated(&caller, request, now_unix_seconds)
     }
 
     /// Called only by a trusted transport adapter after authenticating the workload.
@@ -325,6 +369,16 @@ impl TaskService {
             capability_id: request.capability_id.clone(),
             capability_version: request.capability_version.clone(),
             policy_version: TALORA_POLICY_VERSION.into(),
+            consent_ref: request.consent_ref.clone(),
+            authorization_ref: request.authorization_ref.clone(),
+            policy_ref: request.policy_ref.clone(),
+            output_schema_id: request.output_schema_id.clone(),
+            document_ref: request.document_ref.clone(),
+            document_revision: request.document_revision.clone(),
+            evidence_refs: Vec::new(),
+            assumptions: vec!["Deterministic fake adapter; no generative inference performed.".into()],
+            unresolved_questions: Vec::new(),
+            verification_status: "not_ai_validated_fake_adapter".into(),
             locale: request.locale.clone(),
             result_payload,
             usage: Usage {
@@ -332,6 +386,8 @@ impl TaskService {
                 output_bytes,
                 adapter_class: "FAKE_LOCAL".into(),
                 paid_provider_calls: 0,
+                estimated_cost_etb_micros: 0,
+                actual_cost_etb_micros: 0,
             },
             persistence: "process_memory_only_ephemeral".into(),
         };
@@ -586,6 +642,10 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
         (&request.task_class, "task_class"),
         (&request.objective, "objective"),
         (&request.locale, "locale"),
+        (&request.consent_ref, "consent_ref"),
+        (&request.authorization_ref, "authorization_ref"),
+        (&request.policy_ref, "policy_ref"),
+        (&request.output_schema_id, "output_schema_id"),
     ] {
         if value.trim().is_empty() {
             return Err(ApiError::InvalidRequest(name));
@@ -609,6 +669,50 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
     }
     if request.objective.len() > MAX_OBJECTIVE_BYTES || request.input_text.len() > MAX_INPUT_BYTES {
         return Err(ApiError::PayloadTooLarge);
+    }
+    if request.created_at > now_unix_seconds
+        || request.expires_at <= now_unix_seconds
+        || request.expires_at <= request.created_at
+        || request.expires_at - request.created_at > MAX_TASK_TTL_SECONDS
+        || request.constraints.deadline_unix_seconds <= now_unix_seconds
+        || request.constraints.deadline_unix_seconds > request.expires_at
+    {
+        return Err(ApiError::InvalidRequest("invalid_task_expiry_or_deadline"));
+    }
+    if request.constraints.max_input_bytes > MAX_INPUT_BYTES
+        || request.constraints.max_input_bytes < request.input_text.len()
+        || request.constraints.max_output_bytes == 0
+        || request.constraints.max_output_bytes > MAX_OUTPUT_BYTES
+        || request.constraints.max_iterations != 1
+    {
+        return Err(ApiError::PayloadTooLarge);
+    }
+    if request.constraints.allow_remote_provider || request.constraints.allow_persistent_memory {
+        return Err(ApiError::Forbidden);
+    }
+    if request.policy_ref != TALORA_POLICY_VERSION || request.output_schema_id != RESULT_SCHEMA_ID {
+        return Err(ApiError::InvalidRequest("policy_or_output_schema_mismatch"));
+    }
+    if request.input_refs.is_empty() || request.input_refs.len() > MAX_INPUT_REFERENCES {
+        return Err(ApiError::InvalidRequest("input_references_required_or_excessive"));
+    }
+    for input in &request.input_refs {
+        if input.source_ref.trim().is_empty() || input.purpose.trim().is_empty()
+            || input.classification != "synthetic"
+            || input.revision_digest.len() != 64
+            || !input.revision_digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(ApiError::Forbidden);
+        }
+    }
+    if request.required_evidence.len() > 32 {
+        return Err(ApiError::PayloadTooLarge);
+    }
+    if request.document_ref.is_some() != request.document_revision.is_some()
+        || request.document_ref.as_ref().is_some_and(|value| value.trim().is_empty())
+        || request.document_revision.as_ref().is_some_and(|value| value.trim().is_empty())
+    {
+        return Err(ApiError::InvalidRequest("document_reference_revision_mismatch"));
     }
     if request.tenant_ref != caller.tenant_ref {
         return Err(ApiError::Forbidden);
@@ -702,6 +806,30 @@ mod tests {
             task_class: "development".into(),
             objective: "Check a sample script".into(),
             locale: "am-ET".into(),
+            created_at: 1,
+            expires_at: 100,
+            consent_ref: "consent:test".into(),
+            authorization_ref: "authorization:test".into(),
+            policy_ref: TALORA_POLICY_VERSION.into(),
+            output_schema_id: RESULT_SCHEMA_ID.into(),
+            input_refs: vec![InputReference {
+                source_ref: "synthetic:script-1".into(),
+                classification: "synthetic".into(),
+                purpose: "development-test".into(),
+                revision_digest: "a".repeat(64),
+            }],
+            required_evidence: Vec::new(),
+            constraints: TaskConstraints {
+                max_input_bytes: MAX_INPUT_BYTES,
+                max_output_bytes: MAX_OUTPUT_BYTES,
+                deadline_unix_seconds: 90,
+                max_iterations: 1,
+                allow_remote_provider: false,
+                allow_persistent_memory: false,
+            },
+            document_ref: Some("document:test".into()),
+            document_revision: Some("revision:1".into()),
+            calendar: Some("ethiopian".into()),
             input_text: "sample creative text".into(),
         }
     }
