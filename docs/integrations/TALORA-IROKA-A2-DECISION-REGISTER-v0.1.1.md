@@ -160,7 +160,7 @@ For each decision, record one disposition: APPROVE, AMEND, DEFER or REJECT. A re
 
 ## Evidence reconciliation — 19 November 2026
 
-The reference IROKA main SHA remains `1aea1447eadf1d827d702fd6c4034fa058aac21e`. It is a reference only, not an approved TALORA integration baseline.
+The reference IROKA main SHA remains `1aea1447eadf1d827d702fd6c4034fa058aac21e`. Its root Cargo workspace contains only `crates/iroka-kernel`; it does not contain the proposed TALORA service API. The workspace license field is `LicenseRef-Proprietary`, and README.md states that no open-source license is granted. It is a reference only, not an approved TALORA integration baseline.
 
 | Candidate workstream | Branch | Comparison to main | Result |
 |---|---|---|---|
@@ -178,5 +178,19 @@ The inspected contracts also record:
 - G05 logical memory contracts are not equivalent to an implemented memory API; organization reviewer operations fail closed until G01/G02 authority is available.
 - G08 A2 design depends on an authoritative tenant resolver and current Kernel lineage.
 - G04 executable retrieval and G06 perception interfaces were not verified in the inspected Brain A2 report.
+
+
+### Exact runtime candidate heads and dependency split
+
+| Candidate | Exact HEAD | Main comparison | Dependency finding |
+|---|---|---|---|
+| G01/G02/G11 Kernel A3 | `bb8b9f0ee81b59e793c30cc5c9a0357d3ed48e4a` | 0 ahead / 7 behind; ancestor of main | PR #13 merge is in main lineage; tenant/session/service API boundary remains incomplete |
+| G05 reviewer/SQLite | `47edea227fdf1dc7b6ac1667b7e7f9cbb5b4cf39` | 155 ahead / 3 behind | G04/G05 workspace; SQLite `rusqlite 0.32.1`; separate lockfile |
+| G05 PostgreSQL/G11 | `2bfac619b9601330b3343f86277bb5ba29ae22b2` | 334 ahead / 3 behind | Adds `postgres 0.19.12`, `postgres-native-tls 0.5.0`, `native-tls 0.2.12`, `tokio-postgres 0.7.18`; separate lockfile |
+| G08 A3 coordinator | `2cfcf8db9437824cc8181ad8af1e8d819b936e2c` | 81 ahead / 3 behind | Kernel G08 modules on separate branch |
+| CIW A3 conversation | `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` | 172 ahead / 25 behind | Adds `iroka-conversation`, SQLite and separate workspace/lockfile |
+| G03 Brain A3 core | `9d68b580e06bb8335a626524d64b345c3a5a38aa` | 10 ahead / 3 behind | Adds `iroka-brain`; no production model gateway is established |
+
+The G05 SQLite and PostgreSQL branches are mutually DIVERGED (210 ahead / 31 behind; merge base `c57e4298005222ce476f685972062983c78d626f`). G05 PostgreSQL versus G08 is DIVERGED (81 ahead / 334 behind); G05 PostgreSQL versus Brain A3 is DIVERGED (10 ahead / 334 behind); CIW A3 versus G05 PostgreSQL is DIVERGED (356 ahead / 172 behind). The workspace lockfiles differ. Shared dependency versions do not prove API or build compatibility.
 
 **D01 disposition:** RECONCILIATION PERFORMED; NO COMPATIBLE IMMUTABLE GRAPH SELECTED. This is a substantive integration blocker, not a reason to guess a baseline. Further read-only exact-commit, dependency and API verification is required. D01–D09 remain recorded exactly as approved; none authorizes A3, merge or A5.
