@@ -234,7 +234,7 @@ impl NativeReasoner {
     {
         let mut derivations = Vec::new();
         let mut steps = 0usize;
-        let stop_reason;
+        let mut stop_reason;
         'reasoning: loop {
             if elapsed() >= self.config.max_duration {
                 stop_reason = StopReason::Deadline;
@@ -281,20 +281,29 @@ impl NativeReasoner {
                 break;
             }
         }
-        let contradictions = self
-            .facts
-            .iter()
-            .filter(|fact| !fact.negated)
-            .filter_map(|positive| {
-                let negative = positive.complement();
-                self.facts.contains(&negative).then_some(Contradiction {
-                    positive: positive.clone(),
-                    negative,
-                })
-            })
-            .collect();
+        // Report construction is part of the cooperative deadline budget.
+        // If it expires here, the returned fact/contradiction lists are partial
+        // and `is_partial()` remains true.
+        let mut facts = Vec::new();
+        let mut contradictions = Vec::new();
+        for fact in &self.facts {
+            if elapsed() >= self.config.max_duration {
+                stop_reason = StopReason::Deadline;
+                break;
+            }
+            facts.push(fact.clone());
+            if !fact.negated {
+                let negative = fact.complement();
+                if self.facts.contains(&negative) {
+                    contradictions.push(Contradiction {
+                        positive: fact.clone(),
+                        negative,
+                    });
+                }
+            }
+        }
         ReasoningReport {
-            facts: self.facts.iter().cloned().collect(),
+            facts,
             contradictions,
             derivations,
             stop_reason,
@@ -905,4 +914,23 @@ mod tests {
             assert!(partial.is_partial());
         }
     }
+    #[test]
+    fn deadline_is_enforced_during_report_materialization() {
+        let mut brain = engine();
+        brain.add_fact(Literal::positive("seed")).unwrap();
+        let mut clock_calls = 0usize;
+        let report = brain.reason_with_elapsed(|| {
+            clock_calls += 1;
+            if clock_calls >= 2 {
+                Duration::from_secs(4)
+            } else {
+                Duration::ZERO
+            }
+        });
+
+        assert_eq!(report.stop_reason, StopReason::Deadline);
+        assert!(report.is_partial());
+        assert!(report.facts.is_empty());
+    }
+
 }
