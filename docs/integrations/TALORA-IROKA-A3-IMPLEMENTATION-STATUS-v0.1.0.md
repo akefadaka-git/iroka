@@ -19,7 +19,7 @@
 - TALORA main SHA remains: `2562962fc44636cdebfa49c7bf3c3cdcb618751c`
 - IROKA main remains: `1aea1447eadf1d827d702fd6c4034fa058aac21e`
 
-The branch is 19 commits ahead and 0 behind IROKA main. No merge, rebase, force-push, or deletion of candidate branches was performed.
+At the verified code head, the branch was 19 commits ahead and 0 behind IROKA main. Two documentation-only commits were subsequently added; the current branch is 21 commits ahead and 0 behind. No merge, rebase, force-push, or deletion of candidate branches was performed.
 
 ## 2. Implemented files
 
