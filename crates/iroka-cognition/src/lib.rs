@@ -320,13 +320,6 @@ impl NativeReasoner {
                     }
                 }
                 if premises_satisfied {
-                    if recorded_derivations.insert((rule.conclusion.clone(), rule.id.clone())) {
-                        derivations.push(Derivation {
-                            fact: rule.conclusion.clone(),
-                            rule_id: rule.id.clone(),
-                            premises: rule.premises.clone(),
-                        });
-                    }
                     if !self.facts.contains(&rule.conclusion) {
                         if self.facts.len() >= self.config.max_facts {
                             stop_reason = StopReason::FactBudget;
@@ -334,6 +327,13 @@ impl NativeReasoner {
                         }
                         self.facts.insert(rule.conclusion.clone());
                         changed = true;
+                    }
+                    if recorded_derivations.insert((rule.conclusion.clone(), rule.id.clone())) {
+                        derivations.push(Derivation {
+                            fact: rule.conclusion.clone(),
+                            rule_id: rule.id.clone(),
+                            premises: rule.premises.clone(),
+                        });
                     }
                 }
             }
@@ -542,7 +542,11 @@ mod tests {
         let report = brain.reason();
         assert_eq!(report.stop_reason, StopReason::FixedPoint);
         assert_eq!(report.facts.len(), 2);
-        assert_eq!(report.derivations.len(), 1);
+        assert_eq!(report.derivations.len(), 2);
+        assert_eq!(
+            report.derivations.iter().map(|entry| entry.rule_id.as_str()).collect::<Vec<_>>(),
+            vec!["a_to_b", "b_to_a"]
+        );
     }
 
     #[test]
