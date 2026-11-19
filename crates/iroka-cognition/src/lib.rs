@@ -697,7 +697,9 @@ mod tests {
         assert_eq!(report.facts.len(), COUNT + 1);
         assert_eq!(report.inference_steps, COUNT * (COUNT + 1));
         assert_eq!(
-            brain.query(&Literal::positive(format!("node_{COUNT:03}"))).unwrap(),
+            brain
+                .query(&Literal::positive(format!("node_{COUNT:03}")))
+                .unwrap(),
             QueryResult::Entailed
         );
     }
