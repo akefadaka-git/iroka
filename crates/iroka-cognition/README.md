@@ -40,7 +40,7 @@ as exhaustive. This is not a hard real-time or preemptive cancellation guarantee
 Unknown evidence remains distinct from refutation, and contradictory positive/negative
 evidence is reported explicitly.
 
-The dedicated NCE-01 suite contains 31 tests covering multi-step closure, deterministic
+The dedicated NCE-01 suite contains 32 tests covering multi-step closure, deterministic
 rule ordering, cyclic and adversarial rule order, all 64 directed three-node graph
 topologies against a reference reachability calculation, exhaustive contradiction
 reporting, premise/fact/rule/step/time boundaries, failed-insertion atomicity, and a
