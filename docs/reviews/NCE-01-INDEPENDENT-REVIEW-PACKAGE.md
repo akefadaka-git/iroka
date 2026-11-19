@@ -54,13 +54,13 @@ Also inspect the repository workflow definitions and reproduce the production-fe
 
 ### Working-branch remediation delta (not a replacement for the pinned review target)
 
-- Implementation commit: `f46449114e210ee2bed568bad82be529e3a43d81`
-- `crates/iroka-cognition/src/lib.rs` blob: `e650123e3e650b850327170ee5c19f7c24a511e0`
+- Verified implementation / working-branch head: `463abe7fd31b35358b01357c2f7957af8b199f81`
+- `crates/iroka-cognition/src/lib.rs` blob: `4c772c681cf8df15b607e22c4b642f24721a868a`
 - The immutable baseline above remains the independent-review target. The working-branch source contains the R-01/R-02 remediation delta and must be reviewed as a distinct source revision before NCE-01 acceptance.
 - R-01 additions: `AssertedFact`, `add_fact_with_source`, opaque source IDs, a 32-identified-source-per-fact default bound (legacy `None` source markers do not consume this budget), and one witness per satisfied `(conclusion, rule_id)` pair, including alternate rule support for already-known conclusions.
 - R-02/R-04 additions: cooperative deadline checks during report materialization and explicit `ReasoningReport::is_complete()` / `is_partial()` semantics.
-- Current dedicated NCE-01 unit-test count: 32. This is a source inspection count, not a passing test result.
-- Exact-SHA CI for the first provenance implementation attempt (commit `65393fdb0716fb8d28533fd3b7fab2213f569591`) failed at `cargo fmt --all -- --check`; compilation, tests and Clippy were skipped. Formatting corrections were committed afterward. No passing CI result has yet been established for the corrected current source.
+- Current dedicated NCE-01 forward-reasoning unit-test count: 33; the cognition crate reports 47 tests including 14 backward-reasoning tests.
+- Exact-SHA CI for the verified working-branch source is recorded in §7.2. Earlier formatting, test and Clippy failures were corrected and their reruns passed.
 ## 3. System model and intended semantics
 
 NCE-01 is a deterministic propositional forward-chaining engine. It stores positive and explicitly negative literals, applies rules whose complete premise lists are present, and repeats passes until no new fact is derived or a configured stop condition occurs.
@@ -194,13 +194,29 @@ These points were identified during package preparation and must be confirmed, r
 
 | ID | Area | Preliminary observation | Reviewer disposition required |
 |---|---|---|---|
-| R-01 | Provenance | Initial-fact source metadata and alternative rule witnesses were missing. | INTERNAL REMEDIATION IMPLEMENTED on the working branch; verify the contract and regression tests below. Independent review remains pending. |
-| R-02 | Deadline | The report finalization path originally lacked deadline checks. | INTERNAL REMEDIATION IMPLEMENTED on the working branch; exact-SHA CI verification pending. |
+| R-01 | Provenance | Initial-fact source metadata and alternative rule witnesses were missing. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED at `463abe7fd31b35358b01357c2f7957af8b199f81`; exact-SHA formatting, full workspace tests and Clippy passed. Independent review remains pending. |
+| R-02 | Deadline | The report finalization path originally lacked deadline checks. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED at `463abe7fd31b35358b01357c2f7957af8b199f81`; report materialization deadline regression test passes. Independent review remains pending. |
 | R-03 | Resource accounting | Configured limits bound retained engine state and inference work, but do not bound memory already allocated by callers to construct input strings/vectors. | Document API boundary and any required upstream input-size controls. |
 | R-04 | Partial result semantics | A report can contain facts and derivations accumulated before `Deadline`, `StepBudget` or `FactBudget`. | Confirm all consumers must treat such reports as incomplete, not as a completed closure. |
 | R-05 | Duplicate premises | Rule premises are stored as a vector and are not deduplicated. | Confirm intended logical and accounting semantics; test repeated literals. |
 
 These are review questions, not declarations of defects. No severity or remediation is assigned until independently assessed.
+
+### 7.2 Internal verification and closure record — 2026-11-19
+
+**R-01 internal status: VERIFIED-CLOSED.** This is an engineering closure for the working-branch remediation only; it is not independent review, acceptance of the immutable baseline, or production approval.
+
+Verified source:
+- Commit: `463abe7fd31b35358b01357c2f7957af8b199f81`
+- Cognition source blob: `4c772c681cf8df15b607e22c4b642f24721a868a`
+
+Exact-SHA workflow evidence:
+- [Native Cognition CI #116 — Run 44596021400](https://github.com/akefadaka-git/iroka/actions/runs/44596021400): PASS. `cargo fmt --all -- --check`, `cargo test --workspace --all-targets`, and `cargo clippy -p iroka-cognition --all-targets -- -D warnings` passed.
+- [Rust kernel verification #2222 — Run 44596021385](https://github.com/akefadaka-git/iroka/actions/runs/44596021385): PASS. Formatting, workspace compilation, the no-default-features check, `cargo test --workspace --all-targets --locked`, and full-workspace Clippy passed.
+
+Recorded test totals: 47 cognition-crate tests (33 NCE-01 forward-reasoning tests and 14 backward-reasoning tests), 71 kernel tests, and 2 authorization-contract tests. All required checks passed on the exact commit above.
+
+R-01 provenance implementation and regression tests are internally verified. R-02 report-materialization deadline handling is also internally verified by the exact-SHA test run. Independent review remains NOT PERFORMED and the review target remains the immutable baseline in §2. R-03 and R-05 remain open review/remediation work.
 
 ### 7.1 R-01 internal remediation and binding provenance contract
 
