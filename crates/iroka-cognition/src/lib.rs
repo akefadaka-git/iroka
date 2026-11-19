@@ -11,6 +11,10 @@ pub use backward::{
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
+const MAX_ATOM_BYTES: usize = 256;
+const MAX_RULE_ID_BYTES: usize = 256;
+const MAX_SOURCE_ID_BYTES: usize = 256;
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Literal {
     pub atom: String,
@@ -18,18 +22,40 @@ pub struct Literal {
 }
 
 impl Literal {
+    /// Constructs a literal without validating its atom; validation is deferred until submission.
     pub fn positive(atom: impl Into<String>) -> Self {
         Self {
             atom: atom.into(),
             negated: false,
         }
     }
+    /// Constructs a negative literal without validating its atom.
     pub fn negative(atom: impl Into<String>) -> Self {
         Self {
             atom: atom.into(),
             negated: true,
         }
     }
+    /// Constructs a positive literal after validating borrowed input before allocation.
+    ///
+    /// # Errors
+    /// Returns EmptyAtom for blank input or AtomTooLong above 256 UTF-8 bytes.
+    #[must_use]
+    pub fn try_positive(atom: &str) -> Result<Self, EngineError> {
+        validate_atom(atom)?;
+        Ok(Self { atom: atom.to_owned(), negated: false })
+    }
+
+    /// Constructs a negative literal after validating borrowed input before allocation.
+    ///
+    /// # Errors
+    /// Returns EmptyAtom for blank input or AtomTooLong above 256 UTF-8 bytes.
+    #[must_use]
+    pub fn try_negative(atom: &str) -> Result<Self, EngineError> {
+        validate_atom(atom)?;
+        Ok(Self { atom: atom.to_owned(), negated: true })
+    }
+
     fn complement(&self) -> Self {
         Self {
             atom: self.atom.clone(),
@@ -39,6 +65,8 @@ impl Literal {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// A rule whose premise vector is allocated by the caller before submission.
+/// For streaming input, prefer NativeReasoner::add_rule_from_iter.
 pub struct Rule {
     pub id: String,
     pub premises: Vec<Literal>,
@@ -141,6 +169,7 @@ pub enum EngineError {
     EmptyAtom,
     AtomTooLong,
     EmptyRuleId,
+    RuleIdTooLong,
     EmptySourceId,
     SourceIdTooLong,
     FactSourceBudgetExceeded,
@@ -160,7 +189,8 @@ pub struct NativeReasoner {
 }
 
 impl NativeReasoner {
-    /// Creates a propositional reasoner with bounded facts, rules, steps, and time.
+    /// Creates a reasoner with bounded retained state and inference work.
+    /// These limits do not constrain memory already allocated by callers.
     ///
     /// # Errors
     /// Returns [`EngineError::ZeroBudget`] if any configured limit is zero.
@@ -183,6 +213,8 @@ impl NativeReasoner {
     }
 
     /// Adds a validated fact, subject to the configured fact limit.
+    /// The Literal and its String atom already exist when this method is called.
+    /// Use try_positive/try_negative for borrowed untrusted atom input.
     ///
     /// # Errors
     /// Returns an error for malformed atoms or when the fact budget is exhausted.
@@ -204,16 +236,15 @@ impl NativeReasoner {
     pub fn add_fact_with_source(
         &mut self,
         fact: Literal,
-        source_id: impl Into<String>,
+        source_id: &str,
     ) -> Result<(), EngineError> {
-        let source_id = source_id.into();
+        if source_id.len() > MAX_SOURCE_ID_BYTES {
+            return Err(EngineError::SourceIdTooLong);
+        }
         if source_id.trim().is_empty() {
             return Err(EngineError::EmptySourceId);
         }
-        if source_id.len() > 256 {
-            return Err(EngineError::SourceIdTooLong);
-        }
-        self.add_fact_with_optional_source(fact, Some(source_id))
+        self.add_fact_with_optional_source(fact, Some(source_id.to_owned()))
     }
 
     fn add_fact_with_optional_source(
@@ -251,13 +282,13 @@ impl NativeReasoner {
     }
 
     /// Adds a validated rule, subject to the configured rule limit.
+    /// The caller has already allocated the rule ID and complete premise Vec.
+    /// Use add_rule_from_iter with a lazy iterator to bound incremental collection.
     ///
     /// # Errors
     /// Returns an error for malformed rules, duplicate IDs, or an exhausted rule budget.
     pub fn add_rule(&mut self, rule: Rule) -> Result<(), EngineError> {
-        if rule.id.trim().is_empty() {
-            return Err(EngineError::EmptyRuleId);
-        }
+        validate_rule_id(&rule.id)?;
         if self.rules.iter().any(|existing| existing.id == rule.id) {
             return Err(EngineError::DuplicateRuleId);
         }
@@ -280,6 +311,51 @@ impl NativeReasoner {
         self.rules.push(rule);
         self.rules.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(())
+    }
+
+    /// Adds a rule while collecting no more than the configured premise limit.
+    ///
+    /// The iterator is consumed incrementally and stops at the first excess premise.
+    /// Use a lazy iterator to avoid constructing an unbounded caller-side premise Vec.
+    ///
+    /// # Errors
+    /// Returns an error for invalid IDs, duplicate IDs, exhausted budgets, empty rules,
+    /// excessive premises, or malformed premise/conclusion atoms.
+    pub fn add_rule_from_iter<I>(
+        &mut self,
+        id: &str,
+        premises: I,
+        conclusion: Literal,
+    ) -> Result<(), EngineError>
+    where
+        I: IntoIterator<Item = Literal>,
+    {
+        validate_rule_id(id)?;
+        if self.rules.iter().any(|existing| existing.id == id) {
+            return Err(EngineError::DuplicateRuleId);
+        }
+        if self.rules.len() >= self.config.max_rules {
+            return Err(EngineError::RuleBudgetExceeded);
+        }
+        validate_literal(&conclusion)?;
+
+        let mut bounded_premises = Vec::new();
+        for premise in premises {
+            if bounded_premises.len() >= self.config.max_rule_premises {
+                return Err(EngineError::RulePremiseBudgetExceeded);
+            }
+            validate_literal(&premise)?;
+            bounded_premises.push(premise);
+        }
+        if bounded_premises.is_empty() {
+            return Err(EngineError::RuleWithoutPremises);
+        }
+
+        self.add_rule(Rule {
+            id: id.to_owned(),
+            premises: bounded_premises,
+            conclusion,
+        })
     }
 
     /// Queries a literal without treating unknown evidence as false.
@@ -407,14 +483,28 @@ impl NativeReasoner {
     }
 }
 
-fn validate_literal(literal: &Literal) -> Result<(), EngineError> {
-    if literal.atom.trim().is_empty() {
-        return Err(EngineError::EmptyAtom);
+fn validate_rule_id(id: &str) -> Result<(), EngineError> {
+    if id.len() > MAX_RULE_ID_BYTES {
+        return Err(EngineError::RuleIdTooLong);
     }
-    if literal.atom.len() > 256 {
-        return Err(EngineError::AtomTooLong);
+    if id.trim().is_empty() {
+        return Err(EngineError::EmptyRuleId);
     }
     Ok(())
+}
+
+fn validate_atom(atom: &str) -> Result<(), EngineError> {
+    if atom.len() > MAX_ATOM_BYTES {
+        return Err(EngineError::AtomTooLong);
+    }
+    if atom.trim().is_empty() {
+        return Err(EngineError::EmptyAtom);
+    }
+    Ok(())
+}
+
+fn validate_literal(literal: &Literal) -> Result<(), EngineError> {
+    validate_atom(&literal.atom)
 }
 
 #[cfg(test)]
@@ -1113,7 +1203,7 @@ mod tests {
             Err(EngineError::EmptySourceId)
         );
         assert_eq!(
-            brain.add_fact_with_source(fact, "x".repeat(257)),
+            brain.add_fact_with_source(fact, &"x".repeat(257)),
             Err(EngineError::SourceIdTooLong)
         );
         assert!(brain.facts.is_empty());
@@ -1175,7 +1265,7 @@ mod tests {
             .add_fact_with_source(fact.clone(), "s".repeat(256))
             .unwrap();
         assert_eq!(
-            brain.add_fact_with_source(fact.clone(), "t".repeat(257)),
+            brain.add_fact_with_source(fact.clone(), &"t".repeat(257)),
             Err(EngineError::SourceIdTooLong)
         );
         assert_eq!(
@@ -1205,4 +1295,60 @@ mod tests {
             Err(EngineError::FactSourceBudgetExceeded)
         );
     }
+    #[test]
+    fn bounds_rule_identifiers_and_checks_length_before_blankness() {
+        let mut brain = engine();
+        brain
+            .add_rule(Rule {
+                id: "r".repeat(MAX_RULE_ID_BYTES),
+                premises: vec![Literal::positive("seed")],
+                conclusion: Literal::positive("accepted"),
+            })
+            .unwrap();
+        assert_eq!(
+            brain.add_rule(Rule {
+                id: " ".repeat(MAX_RULE_ID_BYTES + 1),
+                premises: vec![Literal::positive("seed")],
+                conclusion: Literal::positive("rejected"),
+            }),
+            Err(EngineError::RuleIdTooLong)
+        );
+        assert_eq!(brain.rules.len(), 1);
+    }
+
+    #[test]
+    fn bounded_literal_constructors_validate_before_owning_input() {
+        assert_eq!(
+            Literal::try_positive(&" ".repeat(MAX_ATOM_BYTES + 1)),
+            Err(EngineError::AtomTooLong)
+        );
+        assert_eq!(Literal::try_negative("  "), Err(EngineError::EmptyAtom));
+        assert_eq!(
+            Literal::try_positive(&"x".repeat(MAX_ATOM_BYTES)).unwrap(),
+            Literal::positive("x".repeat(MAX_ATOM_BYTES))
+        );
+    }
+
+    #[test]
+    fn iterator_rule_builder_stops_at_the_first_excess_premise() {
+        use std::cell::Cell;
+
+        let config = EngineConfig {
+            max_rule_premises: 2,
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        let consumed = Cell::new(0usize);
+        let premises = (0..100).map(|index| {
+            consumed.set(consumed.get() + 1);
+            Literal::positive(format!("premise_{index}"))
+        });
+        assert_eq!(
+            brain.add_rule_from_iter("bounded", premises, Literal::positive("conclusion")),
+            Err(EngineError::RulePremiseBudgetExceeded)
+        );
+        assert_eq!(consumed.get(), 3);
+        assert_eq!(brain.rules, Vec::<Rule>::new());
+    }
+
 }
