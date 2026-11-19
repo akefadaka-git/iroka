@@ -6,6 +6,12 @@
 //! project memory is implemented in this A3 slice. Request text is processed
 //! in memory only and is not included in stored task results.
 
+use iroka_brain::{
+    Capability as BrainCapability, CognitiveRuntime, Constraints as BrainConstraints,
+    DeterministicFakeAdapter as BrainFakeAdapter, Locale as BrainLocale,
+    Objective as BrainObjective, RequiredEvidence as BrainRequiredEvidence,
+    TaskClass as BrainTaskClass, TaskEnvelope as BrainTaskEnvelope,
+};
 use iroka_kernel::{
     evaluate as evaluate_policy, AuthorizationRequest, Decision, DecisionCode, Policy, RiskLevel,
 };
@@ -251,15 +257,67 @@ impl ModelAdapter for DeterministicFakeAdapter {
     }
 
     fn execute(&self, request: &TaskRequest) -> Result<Value, ApiError> {
-        Ok(json!({
-            "mode": "FAKE_LOCAL",
-            "inference_performed": false,
-            "message": "Deterministic fake adapter completed; no generative inference was performed.",
-            "capability_id": request.capability_id,
-            "locale": request.locale,
-            "input_sha256": sha256_hex(request.input_text.as_bytes()),
-            "suggestions": []
-        }))
+        let task_class = match request.task_class.as_str() {
+            "answer" => BrainTaskClass::Answer,
+            "research" => BrainTaskClass::Research,
+            "planning" => BrainTaskClass::Planning,
+            "engineering" => BrainTaskClass::Engineering,
+            "translation" => BrainTaskClass::Translation,
+            _ => BrainTaskClass::Analysis,
+        };
+        let task = BrainTaskEnvelope {
+            schema_id: iroka_brain::TASK_SCHEMA_ID.into(),
+            contract_version: iroka_brain::CONTRACT_VERSION.into(),
+            task_id: request.client_request_id.clone(),
+            correlation_id: request.correlation_id.clone(),
+            created_at: request.created_at.to_string(),
+            principal_ref: None,
+            tenant_context_ref: None,
+            policy_context_ref: None,
+            objective: BrainObjective {
+                text: request.objective.clone(),
+                success_criteria: vec![
+                    "Produce a bounded synthetic response without external effects".into(),
+                ],
+            },
+            task_class,
+            requested_capabilities: vec![BrainCapability::Reasoning, BrainCapability::Critique],
+            input_refs: Vec::new(),
+            locale: BrainLocale {
+                requested: request.locale.clone(),
+                fallbacks: Vec::new(),
+                calendar: request.calendar.clone(),
+                timezone: None,
+            },
+            constraints: BrainConstraints {
+                max_input_bytes: request.constraints.max_input_bytes,
+                max_output_tokens: std::cmp::max(1, request.constraints.max_output_bytes / 32),
+                max_iterations: 1,
+                deadline_at: Some(request.constraints.deadline_unix_seconds.to_string()),
+                allow_external_provider: false,
+                allow_persistence: false,
+                allow_agent_delegation: false,
+                allow_protected_effects: false,
+            },
+            required_evidence: BrainRequiredEvidence {
+                citation_required: false,
+                minimum_source_count: 0,
+            },
+            output_schema_id: iroka_brain::RESULT_SCHEMA_ID.into(),
+        };
+        let result = CognitiveRuntime::new(BrainFakeAdapter).run(&task);
+        let mut payload =
+            serde_json::to_value(result).map_err(|_| ApiError::SerializationFailure)?;
+        if let Some(object) = payload.as_object_mut() {
+            object.insert("mode".into(), json!("FAKE_LOCAL"));
+            object.insert("inference_performed".into(), json!(false));
+            object.insert("capability_id".into(), json!(request.capability_id));
+            object.insert(
+                "input_sha256".into(),
+                json!(sha256_hex(request.input_text.as_bytes())),
+            );
+        }
+        Ok(payload)
     }
 }
 
