@@ -40,5 +40,29 @@
 - A5: separate Owner decision; not authorized by this plan.
 
 ## Implemented increments
-- NCE-01: native forward chaining and contradiction-aware fact queries.
+
+### NCE-01 — forward inference
+
+- Deterministic propositional forward chaining with sorted rule IDs and fixed-point
+  evaluation; cyclic rules do not create duplicate derivations.
+- Positive/negative literals, four-valued query outcomes (`Entailed`, `Refuted`,
+  `Unknown`, `Contradicted`), exhaustive contradiction reporting and per-fact
+  derivation provenance.
+- Defaults: 10,000 inference-step evaluations, 10,000 facts, 2,000 rules, 256
+  premises per rule, three-second deadline; atom length capped at 256 UTF-8 bytes.
+- Deadline checked inside premise evaluation; stop outcomes distinguish fixed point,
+  deadline, step budget and fact budget.
+- 24 dedicated tests include all 64 directed three-node graph topologies compared
+  against reference reachability, a 32-edge adversarially ordered chain, 256-premise
+  deadline interruption, 512 facts/512 rules, contradiction stability and budget
+  boundaries.
+- Exact-SHA verification: source SHA
+  `3146962ca6532eafb5a98d1ea5875520035f7289`; Native Cognition CI #65 PASS;
+  Rust kernel verification #2198 PASS. The workflows report 38 cognition tests,
+  71 kernel tests and 2 authorization-contract tests, all passing, with formatting,
+  compilation and Clippy successful.
+
+- NCE-01 remains isolated from merge and deployment; this verification is not an
+  Owner approval to merge or activate production.
+
 - NCE-02: first-order backward chaining, unification, proof trees and bounded search.
