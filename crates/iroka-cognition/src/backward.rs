@@ -496,7 +496,7 @@ mod tests {
             .prove(&atom("ancestor", vec![s("a"), s("c")]))
             .unwrap();
         assert_eq!(report.stop, SearchStop::Proven);
-        assert!(!report.proof.unwrap().children.is_empty());
+        assert_eq!(report.proof.unwrap().children.len(), 2);
     }
 
     #[test]
@@ -526,10 +526,7 @@ mod tests {
             ))
             .unwrap();
         assert_eq!(report.stop, SearchStop::Proven);
-        assert_eq!(
-            report.substitution.unwrap().resolve(&v("Who")),
-            s("ana")
-        );
+        assert_eq!(report.substitution.unwrap().resolve(&v("Who")), s("ana"));
     }
 
     #[test]
@@ -559,10 +556,7 @@ mod tests {
 
         let report = engine.prove(&atom("route", vec![s("ana")])).unwrap();
         assert_eq!(report.stop, SearchStop::Proven);
-        assert_eq!(
-            report.proof.unwrap().clause_id,
-            "z-live-route"
-        );
+        assert_eq!(report.proof.unwrap().clause_id, "z-live-route");
     }
 
     #[test]
