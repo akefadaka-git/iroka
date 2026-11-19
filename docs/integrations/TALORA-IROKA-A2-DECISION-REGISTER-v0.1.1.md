@@ -202,10 +202,36 @@ states that G11 adapter work exists but external G01/G02 authority
 provider dependencies remain fail-closed. Its SQLite tenant resolver
 is single-node only.
 
-No deterministic model adapter was verified on the inspected refs.
-G11 checkpoint HTTPS is not a model provider. No combined workspace
-build, dependency resolution, migration test, SBOM or end-to-end API
-test was run.
+A deterministic fake/local adapter exists in isolated Brain head 9d68b580e06bb8335a626524d64b345c3a5a38aa, but its TaskEnvelope validator rejects populated principal, tenant and policy context and non-empty domain input references; it is not integrated with the G03/G08 or G05/G02/G11 candidate. G11 checkpoint HTTPS is not a model provider. No combined workspace build, dependency resolution, migration test, SBOM or end-to-end API test was run.
 
 **D01 result:** RECONCILIATION PERFORMED; NO COMPATIBLE IMMUTABLE GRAPH
 SELECTED.
+
+
+### Supplemental D01 exact API compatibility finding — 19 November 2026
+
+A further read-only pass confirmed a concrete source-level mismatch:
+the G05/G02/G11 Kernel exports G05ActivationDecision,
+G05ActivationTuple, OrganizationAuthorityResolver,
+ReviewerKeyBindingResolver, ReviewerProofVerifier, SignedReviewerProof,
+TenantContext and VerifiedReviewerProof. The G03/G08 Kernel public
+lib.rs at 0680337b7dd0966374acd2649cd9197e56b8d92a exports none of
+those symbols. Conversely, G03/G08 exports InferenceRulesOutput,
+PremiseModel and workflow_graph, absent from G05/G02/G11 head
+8f7ddb9e9dd2b796cd303ba645a1a3c843eb3810.
+
+The G05 host exposes only POST /v1/g05/execute and GET /healthz.
+CIW exposes browser conversation and generation/event routes. The
+separate Brain fake adapter cannot accept the trusted tenant/policy
+context and domain input refs required by TALORA. No candidate provides
+the complete private capabilities/task/status/events/cancel/memory API.
+
+The exact heads 0680337b..., 8f7ddb9e..., 0968221b..., 9d68b580...
+and d51a971d... returned no combined status checks and no PR-triggered
+workflow runs in the available first-page lookup: NOT VERIFIED, not
+FAIL. No combined build, migration, SBOM or end-to-end API evidence
+exists.
+
+**D01 final disposition:** UNRESOLVED — NO SELECTABLE, VERIFIED
+IMMUTABLE INTEGRATION BASELINE. This does not authorize source
+composition or A3.
