@@ -89,6 +89,8 @@ pub struct EngineConfig {
     pub max_inference_steps: usize,
     pub max_facts: usize,
     pub max_rules: usize,
+    /// Maximum number of premises accepted in one rule.
+    pub max_rule_premises: usize,
     pub max_duration: Duration,
 }
 
@@ -98,6 +100,7 @@ impl Default for EngineConfig {
             max_inference_steps: 10_000,
             max_facts: 10_000,
             max_rules: 2_000,
+            max_rule_premises: 256,
             max_duration: Duration::from_secs(3),
         }
     }
@@ -111,6 +114,7 @@ pub enum EngineError {
     RuleWithoutPremises,
     DuplicateRuleId,
     RuleBudgetExceeded,
+    RulePremiseBudgetExceeded,
     FactBudgetExceeded,
     ZeroBudget,
 }
@@ -130,6 +134,7 @@ impl NativeReasoner {
         if config.max_inference_steps == 0
             || config.max_facts == 0
             || config.max_rules == 0
+            || config.max_rule_premises == 0
             || config.max_duration.is_zero()
         {
             return Err(EngineError::ZeroBudget);
@@ -170,6 +175,9 @@ impl NativeReasoner {
         }
         if rule.premises.is_empty() {
             return Err(EngineError::RuleWithoutPremises);
+        }
+        if rule.premises.len() > self.config.max_rule_premises {
+            return Err(EngineError::RulePremiseBudgetExceeded);
         }
         for literal in rule
             .premises
@@ -220,12 +228,18 @@ impl NativeReasoner {
                     break 'reasoning;
                 }
                 steps += 1;
-                if rule
-                    .premises
-                    .iter()
-                    .all(|premise| self.facts.contains(premise))
-                    && !self.facts.contains(&rule.conclusion)
-                {
+                let mut premises_satisfied = true;
+                for premise in &rule.premises {
+                    if started.elapsed() >= self.config.max_duration {
+                        stop_reason = StopReason::Deadline;
+                        break 'reasoning;
+                    }
+                    if !self.facts.contains(premise) {
+                        premises_satisfied = false;
+                        break;
+                    }
+                }
+                if premises_satisfied && !self.facts.contains(&rule.conclusion) {
                     if self.facts.len() >= self.config.max_facts {
                         stop_reason = StopReason::FactBudget;
                         break 'reasoning;
@@ -484,6 +498,27 @@ mod tests {
         brain.add_fact(Literal::positive("a")).unwrap();
         let report = brain.reason();
         assert_eq!(report.stop_reason, StopReason::FixedPoint);
+    }
+
+    #[test]
+    fn rejects_rules_over_the_configured_premise_limit() {
+        let config = EngineConfig {
+            max_rule_premises: 2,
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        assert_eq!(
+            brain.add_rule(Rule {
+                id: "too_many".into(),
+                premises: vec![
+                    Literal::positive("a"),
+                    Literal::positive("b"),
+                    Literal::positive("c"),
+                ],
+                conclusion: Literal::positive("d"),
+            }),
+            Err(EngineError::RulePremiseBudgetExceeded)
+        );
     }
 
     #[test]
