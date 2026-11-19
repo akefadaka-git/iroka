@@ -21,14 +21,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: Normalize Rust formatting and export backward source
-        run: |
-          cargo fmt --all
-          echo "RUSTFMT_BACKWARD_BEGIN"
-          base64 -w0 crates/iroka-cognition/src/backward.rs
-          echo
-          echo "RUSTFMT_BACKWARD_END"
-      - name: Format check
+      - name: Format
         run: cargo fmt --all -- --check
       - name: Test workspace
         run: cargo test --workspace --all-targets
