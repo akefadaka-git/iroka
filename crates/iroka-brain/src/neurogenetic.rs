@@ -581,8 +581,6 @@ pub enum NeurogeneticError {
     DuplicateCircuitOutput,
 }
 
-
-
 /// A caller-supplied value for a root cell in a synthetic feed-forward pass.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellInput {
@@ -617,10 +615,18 @@ fn apply_activation(function: ActivationFunction, value: i64) -> i32 {
         ActivationFunction::ClippedLinear => bounded,
         ActivationFunction::Relu => bounded.max(0),
         ActivationFunction::LeakyRelu => {
-            if bounded < 0 { bounded / 10 } else { bounded }
+            if bounded < 0 {
+                bounded / 10
+            } else {
+                bounded
+            }
         }
         ActivationFunction::BinaryStep => {
-            if bounded > 0 { WEIGHT_SCALE as i32 } else { 0 }
+            if bounded > 0 {
+                WEIGHT_SCALE as i32
+            } else {
+                0
+            }
         }
     }
 }
@@ -648,10 +654,14 @@ impl NeuralNetwork {
             }
         }
 
-        let mut indegree = std::collections::HashMap::<&str, usize>::with_capacity(self.cells.len());
-        let mut incoming = std::collections::HashMap::<&str, Vec<&Synapse>>::with_capacity(self.cells.len());
-        let mut outgoing = std::collections::HashMap::<&str, Vec<&str>>::with_capacity(self.cells.len());
-        let mut activation_functions = std::collections::HashMap::<&str, ActivationFunction>::with_capacity(self.cells.len());
+        let mut indegree =
+            std::collections::HashMap::<&str, usize>::with_capacity(self.cells.len());
+        let mut incoming =
+            std::collections::HashMap::<&str, Vec<&Synapse>>::with_capacity(self.cells.len());
+        let mut outgoing =
+            std::collections::HashMap::<&str, Vec<&str>>::with_capacity(self.cells.len());
+        let mut activation_functions =
+            std::collections::HashMap::<&str, ActivationFunction>::with_capacity(self.cells.len());
         for cell in &self.cells {
             indegree.insert(cell.cell_id.as_str(), 0);
             incoming.insert(cell.cell_id.as_str(), Vec::new());
@@ -659,9 +669,16 @@ impl NeuralNetwork {
             activation_functions.insert(cell.cell_id.as_str(), cell.activation);
         }
         for synapse in &self.synapses {
-            *indegree.entry(synapse.destination_cell_id.as_str()).or_default() += 1;
-            incoming.entry(synapse.destination_cell_id.as_str()).or_default().push(synapse);
-            outgoing.entry(synapse.source_cell_id.as_str()).or_default()
+            *indegree
+                .entry(synapse.destination_cell_id.as_str())
+                .or_default() += 1;
+            incoming
+                .entry(synapse.destination_cell_id.as_str())
+                .or_default()
+                .push(synapse);
+            outgoing
+                .entry(synapse.source_cell_id.as_str())
+                .or_default()
                 .push(synapse.destination_cell_id.as_str());
         }
 
@@ -672,12 +689,16 @@ impl NeuralNetwork {
             {
                 return Err(NeurogeneticError::InputOutOfRange);
             }
-            let degree = indegree.get(input.cell_id.as_str())
+            let degree = indegree
+                .get(input.cell_id.as_str())
                 .ok_or(NeurogeneticError::UnknownInputCell)?;
             if *degree != 0 {
                 return Err(NeurogeneticError::InputForNonRootCell);
             }
-            if input_values.insert(input.cell_id.as_str(), input.value_micros).is_some() {
+            if input_values
+                .insert(input.cell_id.as_str(), input.value_micros)
+                .is_some()
+            {
                 return Err(NeurogeneticError::DuplicateInput);
             }
         }
@@ -701,7 +722,8 @@ impl NeuralNetwork {
                 let mut weighted_sum = 0i64;
                 if let Some(edges) = incoming.get(cell_id) {
                     for edge in edges {
-                        let source = activations.get(&edge.source_cell_id)
+                        let source = activations
+                            .get(&edge.source_cell_id)
                             .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
                         let magnitude = i64::from(*source) * i64::from(edge.weight_micros);
                         let contribution = match edge.polarity {
@@ -712,7 +734,8 @@ impl NeuralNetwork {
                     }
                 }
                 let normalized = weighted_sum / i64::from(WEIGHT_SCALE);
-                let function = activation_functions.get(cell_id)
+                let function = activation_functions
+                    .get(cell_id)
                     .copied()
                     .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
                 apply_activation(function, normalized)
@@ -721,7 +744,8 @@ impl NeuralNetwork {
 
             if let Some(destinations) = outgoing.get(cell_id) {
                 for destination in destinations {
-                    let degree = indegree.get_mut(destination)
+                    let degree = indegree
+                        .get_mut(destination)
                         .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
                     *degree = degree.saturating_sub(1);
                     if *degree == 0 {
@@ -737,8 +761,12 @@ impl NeuralNetwork {
 
         Ok(NetworkEvaluation {
             network_id: self.network_id.clone(),
-            activations: activations.into_iter()
-                .map(|(cell_id, value_micros)| CellActivation { cell_id, value_micros })
+            activations: activations
+                .into_iter()
+                .map(|(cell_id, value_micros)| CellActivation {
+                    cell_id,
+                    value_micros,
+                })
                 .collect(),
         })
     }
@@ -787,15 +815,20 @@ impl NeuralCircuit {
         }
         network.validate()?;
 
-        let cell_ids: HashSet<&str> = network.cells.iter()
+        let cell_ids: HashSet<&str> = network
+            .cells
+            .iter()
             .map(|cell| cell.cell_id.as_str())
             .collect();
-        let mut indegree = std::collections::HashMap::<&str, usize>::with_capacity(network.cells.len());
+        let mut indegree =
+            std::collections::HashMap::<&str, usize>::with_capacity(network.cells.len());
         for cell in &network.cells {
             indegree.insert(cell.cell_id.as_str(), 0);
         }
         for synapse in &network.synapses {
-            *indegree.entry(synapse.destination_cell_id.as_str()).or_default() += 1;
+            *indegree
+                .entry(synapse.destination_cell_id.as_str())
+                .or_default() += 1;
         }
 
         let mut declared_inputs = HashSet::with_capacity(self.input_cell_ids.len());
@@ -809,7 +842,8 @@ impl NeuralCircuit {
                 None => return Err(NeurogeneticError::InvalidCircuit),
             }
         }
-        let actual_roots: HashSet<&str> = indegree.iter()
+        let actual_roots: HashSet<&str> = indegree
+            .iter()
             .filter_map(|(cell_id, degree)| if *degree == 0 { Some(*cell_id) } else { None })
             .collect();
         if actual_roots != declared_inputs {
@@ -836,12 +870,15 @@ impl NeuralCircuit {
     ) -> Result<CircuitEvaluation, NeurogeneticError> {
         self.validate(network)?;
         let evaluation = network.evaluate_feed_forward(inputs)?;
-        let values: std::collections::HashMap<&str, i32> = evaluation.activations.iter()
+        let values: std::collections::HashMap<&str, i32> = evaluation
+            .activations
+            .iter()
             .map(|activation| (activation.cell_id.as_str(), activation.value_micros))
             .collect();
         let mut outputs = Vec::with_capacity(self.output_cell_ids.len());
         for cell_id in &self.output_cell_ids {
-            let value_micros = *values.get(cell_id.as_str())
+            let value_micros = *values
+                .get(cell_id.as_str())
                 .ok_or(NeurogeneticError::EvaluationOrderViolation)?;
             outputs.push(CellActivation {
                 cell_id: cell_id.clone(),
@@ -893,7 +930,11 @@ mod tests {
         let network = NeuralNetwork {
             network_id: "synthetic-network".to_owned(),
             topology: NetworkTopology::FeedForward,
-            cells: vec![verified_cell("input"), verified_cell("hidden"), verified_cell("output")],
+            cells: vec![
+                verified_cell("input"),
+                verified_cell("hidden"),
+                verified_cell("output"),
+            ],
             synapses: vec![
                 edge("s1", "input", "hidden"),
                 edge("s2", "hidden", "output"),
@@ -1009,7 +1050,10 @@ mod tests {
         };
         assert_eq!(proposal.validate(), Ok(()));
         proposal.execution_authorized = true;
-        assert_eq!(proposal.validate(), Err(NeurogeneticError::GovernanceBoundaryViolation));
+        assert_eq!(
+            proposal.validate(),
+            Err(NeurogeneticError::GovernanceBoundaryViolation)
+        );
     }
 
     #[test]
@@ -1095,7 +1139,6 @@ mod tests {
         assert_eq!(network.validate(), Err(NeurogeneticError::InvalidCell));
     }
 
-
     fn feed_forward_fixture() -> NeuralNetwork {
         NeuralNetwork {
             network_id: "fixed-point-fixture".to_owned(),
@@ -1136,9 +1179,18 @@ mod tests {
         assert_eq!(
             first.activations,
             vec![
-                CellActivation { cell_id: "hidden".to_owned(), value_micros: 400_000 },
-                CellActivation { cell_id: "input".to_owned(), value_micros: 800_000 },
-                CellActivation { cell_id: "output".to_owned(), value_micros: 400_000 },
+                CellActivation {
+                    cell_id: "hidden".to_owned(),
+                    value_micros: 400_000
+                },
+                CellActivation {
+                    cell_id: "input".to_owned(),
+                    value_micros: 800_000
+                },
+                CellActivation {
+                    cell_id: "output".to_owned(),
+                    value_micros: 400_000
+                },
             ]
         );
     }
@@ -1148,11 +1200,21 @@ mod tests {
         let mut network = feed_forward_fixture();
         network.synapses[0].weight_micros = WEIGHT_SCALE;
         network.synapses[1].weight_micros = WEIGHT_SCALE;
-        let result = network.evaluate_feed_forward(&[CellInput {
-            cell_id: "input".to_owned(),
-            value_micros: WEIGHT_SCALE as i32,
-        }]).unwrap();
-        assert_eq!(result.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, WEIGHT_SCALE as i32);
+        let result = network
+            .evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: WEIGHT_SCALE as i32,
+            }])
+            .unwrap();
+        assert_eq!(
+            result
+                .activations
+                .iter()
+                .find(|item| item.cell_id == "output")
+                .unwrap()
+                .value_micros,
+            WEIGHT_SCALE as i32
+        );
     }
 
     #[test]
@@ -1167,13 +1229,22 @@ mod tests {
     fn feed_forward_evaluation_rejects_unknown_and_non_root_inputs() {
         let network = feed_forward_fixture();
         assert_eq!(
-            network.evaluate_feed_forward(&[CellInput { cell_id: "unknown".to_owned(), value_micros: 0 }]),
+            network.evaluate_feed_forward(&[CellInput {
+                cell_id: "unknown".to_owned(),
+                value_micros: 0
+            }]),
             Err(NeurogeneticError::UnknownInputCell)
         );
         assert_eq!(
             network.evaluate_feed_forward(&[
-                CellInput { cell_id: "input".to_owned(), value_micros: 0 },
-                CellInput { cell_id: "hidden".to_owned(), value_micros: 0 },
+                CellInput {
+                    cell_id: "input".to_owned(),
+                    value_micros: 0
+                },
+                CellInput {
+                    cell_id: "hidden".to_owned(),
+                    value_micros: 0
+                },
             ]),
             Err(NeurogeneticError::InputForNonRootCell)
         );
@@ -1183,10 +1254,19 @@ mod tests {
     fn feed_forward_evaluation_rejects_duplicate_and_out_of_range_inputs() {
         let network = feed_forward_fixture();
         let duplicate = [
-            CellInput { cell_id: "input".to_owned(), value_micros: 0 },
-            CellInput { cell_id: "input".to_owned(), value_micros: 1 },
+            CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: 0,
+            },
+            CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: 1,
+            },
         ];
-        assert_eq!(network.evaluate_feed_forward(&duplicate), Err(NeurogeneticError::DuplicateInput));
+        assert_eq!(
+            network.evaluate_feed_forward(&duplicate),
+            Err(NeurogeneticError::DuplicateInput)
+        );
         assert_eq!(
             network.evaluate_feed_forward(&[CellInput {
                 cell_id: "input".to_owned(),
@@ -1201,26 +1281,39 @@ mod tests {
         let mut recurrent = feed_forward_fixture();
         recurrent.topology = NetworkTopology::Recurrent;
         assert_eq!(
-            recurrent.evaluate_feed_forward(&[CellInput { cell_id: "input".to_owned(), value_micros: 0 }]),
+            recurrent.evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: 0
+            }]),
             Err(NeurogeneticError::UnsupportedEvaluationTopology)
         );
 
         let mut quarantined = feed_forward_fixture();
         quarantined.cells[1].status = CellStatus::Quarantined;
         assert_eq!(
-            quarantined.evaluate_feed_forward(&[CellInput { cell_id: "input".to_owned(), value_micros: 0 }]),
+            quarantined.evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: 0
+            }]),
             Err(NeurogeneticError::QuarantinedCell)
         );
     }
 
     #[test]
     fn negative_inputs_are_supported_without_floating_point_arithmetic() {
-        let result = feed_forward_fixture().evaluate_feed_forward(&[CellInput {
-            cell_id: "input".to_owned(),
-            value_micros: -800_001,
-        }]).unwrap();
+        let result = feed_forward_fixture()
+            .evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: -800_001,
+            }])
+            .unwrap();
         assert_eq!(
-            result.activations.iter().find(|item| item.cell_id == "hidden").unwrap().value_micros,
+            result
+                .activations
+                .iter()
+                .find(|item| item.cell_id == "hidden")
+                .unwrap()
+                .value_micros,
             -400_000
         );
     }
@@ -1236,15 +1329,23 @@ mod tests {
             input_cell_ids: vec!["input".to_owned()],
             output_cell_ids: vec!["output".to_owned()],
         };
-        let result = circuit.evaluate(&network, &[CellInput {
-            cell_id: "input".to_owned(),
-            value_micros: 600_000,
-        }]).unwrap();
+        let result = circuit
+            .evaluate(
+                &network,
+                &[CellInput {
+                    cell_id: "input".to_owned(),
+                    value_micros: 600_000,
+                }],
+            )
+            .unwrap();
         assert_eq!(result.circuit_id, "language-circuit");
-        assert_eq!(result.outputs, vec![CellActivation {
-            cell_id: "output".to_owned(),
-            value_micros: 300_000,
-        }]);
+        assert_eq!(
+            result.outputs,
+            vec![CellActivation {
+                cell_id: "output".to_owned(),
+                value_micros: 300_000,
+            }]
+        );
     }
 
     #[test]
@@ -1258,10 +1359,16 @@ mod tests {
             input_cell_ids: vec!["input".to_owned(), "hidden".to_owned()],
             output_cell_ids: vec!["output".to_owned()],
         };
-        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::CircuitInputMismatch));
+        assert_eq!(
+            circuit.validate(&network),
+            Err(NeurogeneticError::CircuitInputMismatch)
+        );
         circuit.input_cell_ids = vec!["input".to_owned()];
         circuit.output_cell_ids = vec!["output".to_owned(), "output".to_owned()];
-        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::DuplicateCircuitOutput));
+        assert_eq!(
+            circuit.validate(&network),
+            Err(NeurogeneticError::DuplicateCircuitOutput)
+        );
     }
 
     #[test]
@@ -1275,10 +1382,16 @@ mod tests {
             input_cell_ids: vec!["input".to_owned()],
             output_cell_ids: vec!["output".to_owned()],
         };
-        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::CircuitNetworkMismatch));
+        assert_eq!(
+            circuit.validate(&network),
+            Err(NeurogeneticError::CircuitNetworkMismatch)
+        );
         circuit.network_id = network.network_id.clone();
         circuit.output_cell_ids = vec!["missing".to_owned()];
-        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::InvalidCircuit));
+        assert_eq!(
+            circuit.validate(&network),
+            Err(NeurogeneticError::InvalidCircuit)
+        );
     }
 
     #[test]
@@ -1292,10 +1405,16 @@ mod tests {
             input_cell_ids: vec!["input".to_owned()],
             output_cell_ids: vec!["output".to_owned()],
         };
-        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::InvalidCircuit));
+        assert_eq!(
+            circuit.validate(&network),
+            Err(NeurogeneticError::InvalidCircuit)
+        );
         circuit.contract_version = NEUROGENETIC_CONTRACT_VERSION.to_owned();
         circuit.input_cell_ids = vec!["input".to_owned(), "input".to_owned()];
-        assert_eq!(circuit.validate(&network), Err(NeurogeneticError::DuplicateCircuitInput));
+        assert_eq!(
+            circuit.validate(&network),
+            Err(NeurogeneticError::DuplicateCircuitInput)
+        );
     }
 
     #[test]
@@ -1303,7 +1422,11 @@ mod tests {
         let network = NeuralNetwork {
             network_id: "inhibitory-fixture".to_owned(),
             topology: NetworkTopology::FeedForward,
-            cells: vec![verified_cell("excite"), verified_cell("inhibit"), verified_cell("output")],
+            cells: vec![
+                verified_cell("excite"),
+                verified_cell("inhibit"),
+                verified_cell("output"),
+            ],
             synapses: vec![
                 Synapse {
                     synapse_id: "positive".to_owned(),
@@ -1323,12 +1446,25 @@ mod tests {
                 },
             ],
         };
-        let result = network.evaluate_feed_forward(&[
-            CellInput { cell_id: "excite".to_owned(), value_micros: 800_000 },
-            CellInput { cell_id: "inhibit".to_owned(), value_micros: 400_000 },
-        ]).unwrap();
+        let result = network
+            .evaluate_feed_forward(&[
+                CellInput {
+                    cell_id: "excite".to_owned(),
+                    value_micros: 800_000,
+                },
+                CellInput {
+                    cell_id: "inhibit".to_owned(),
+                    value_micros: 400_000,
+                },
+            ])
+            .unwrap();
         assert_eq!(
-            result.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros,
+            result
+                .activations
+                .iter()
+                .find(|item| item.cell_id == "output")
+                .unwrap()
+                .value_micros,
             200_000
         );
     }
@@ -1337,34 +1473,73 @@ mod tests {
     fn relu_and_leaky_relu_are_deterministic() {
         let mut network = feed_forward_fixture();
         network.cells[2].activation = ActivationFunction::Relu;
-        let relu = network.evaluate_feed_forward(&[CellInput {
-            cell_id: "input".to_owned(),
-            value_micros: -800_000,
-        }]).unwrap();
-        assert_eq!(relu.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, 0);
+        let relu = network
+            .evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: -800_000,
+            }])
+            .unwrap();
+        assert_eq!(
+            relu.activations
+                .iter()
+                .find(|item| item.cell_id == "output")
+                .unwrap()
+                .value_micros,
+            0
+        );
 
         network.cells[2].activation = ActivationFunction::LeakyRelu;
-        let leaky = network.evaluate_feed_forward(&[CellInput {
-            cell_id: "input".to_owned(),
-            value_micros: -800_000,
-        }]).unwrap();
-        assert_eq!(leaky.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, -40_000);
+        let leaky = network
+            .evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: -800_000,
+            }])
+            .unwrap();
+        assert_eq!(
+            leaky
+                .activations
+                .iter()
+                .find(|item| item.cell_id == "output")
+                .unwrap()
+                .value_micros,
+            -40_000
+        );
     }
 
     #[test]
     fn binary_step_activation_has_a_bounded_two_state_output() {
         let mut network = feed_forward_fixture();
         network.cells[2].activation = ActivationFunction::BinaryStep;
-        let positive = network.evaluate_feed_forward(&[CellInput {
-            cell_id: "input".to_owned(),
-            value_micros: 800_000,
-        }]).unwrap();
-        let negative = network.evaluate_feed_forward(&[CellInput {
-            cell_id: "input".to_owned(),
-            value_micros: -800_000,
-        }]).unwrap();
-        assert_eq!(positive.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, WEIGHT_SCALE as i32);
-        assert_eq!(negative.activations.iter().find(|item| item.cell_id == "output").unwrap().value_micros, 0);
+        let positive = network
+            .evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: 800_000,
+            }])
+            .unwrap();
+        let negative = network
+            .evaluate_feed_forward(&[CellInput {
+                cell_id: "input".to_owned(),
+                value_micros: -800_000,
+            }])
+            .unwrap();
+        assert_eq!(
+            positive
+                .activations
+                .iter()
+                .find(|item| item.cell_id == "output")
+                .unwrap()
+                .value_micros,
+            WEIGHT_SCALE as i32
+        );
+        assert_eq!(
+            negative
+                .activations
+                .iter()
+                .find(|item| item.cell_id == "output")
+                .unwrap()
+                .value_micros,
+            0
+        );
     }
 
     #[test]
@@ -1379,5 +1554,4 @@ mod tests {
             Err(NeurogeneticError::UnverifiedCell)
         );
     }
-
 }
