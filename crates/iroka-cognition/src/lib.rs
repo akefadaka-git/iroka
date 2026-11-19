@@ -61,6 +61,13 @@ pub enum StopReason {
     FactBudget,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AssertedFact {
+    pub fact: Literal,
+    /// Opaque caller-supplied identifier. It is not authenticated or verified.
+    pub source_id: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Derivation {
     pub fact: Literal,
@@ -78,6 +85,9 @@ pub struct Contradiction {
 pub struct ReasoningReport {
     pub facts: Vec<Literal>,
     pub contradictions: Vec<Contradiction>,
+    /// Explicitly asserted inputs and any caller-supplied source identifiers.
+    pub asserted_facts: Vec<AssertedFact>,
+    /// One deterministic witness per (conclusion, rule ID), including alternate rules.
     pub derivations: Vec<Derivation>,
     pub stop_reason: StopReason,
     pub inference_steps: usize,
@@ -126,6 +136,8 @@ pub enum EngineError {
     EmptyAtom,
     AtomTooLong,
     EmptyRuleId,
+    EmptySourceId,
+    SourceIdTooLong,
     RuleWithoutPremises,
     DuplicateRuleId,
     RuleBudgetExceeded,
@@ -137,6 +149,7 @@ pub enum EngineError {
 pub struct NativeReasoner {
     config: EngineConfig,
     facts: BTreeSet<Literal>,
+    asserted_facts: BTreeSet<AssertedFact>,
     rules: Vec<Rule>,
 }
 
@@ -157,6 +170,7 @@ impl NativeReasoner {
         Ok(Self {
             config,
             facts: BTreeSet::new(),
+            asserted_facts: BTreeSet::new(),
             rules: Vec::new(),
         })
     }
@@ -166,11 +180,39 @@ impl NativeReasoner {
     /// # Errors
     /// Returns an error for malformed atoms or when the fact budget is exhausted.
     pub fn add_fact(&mut self, fact: Literal) -> Result<(), EngineError> {
+        self.add_fact_with_optional_source(fact, None)
+    }
+
+    /// Adds an asserted fact with an opaque caller-supplied source identifier.
+    ///
+    /// The identifier is provenance metadata only; this engine does not authenticate
+    /// the source, assess its trustworthiness, or establish when the evidence arose.
+    pub fn add_fact_with_source(
+        &mut self,
+        fact: Literal,
+        source_id: impl Into<String>,
+    ) -> Result<(), EngineError> {
+        let source_id = source_id.into();
+        if source_id.trim().is_empty() {
+            return Err(EngineError::EmptySourceId);
+        }
+        if source_id.len() > 256 {
+            return Err(EngineError::SourceIdTooLong);
+        }
+        self.add_fact_with_optional_source(fact, Some(source_id))
+    }
+
+    fn add_fact_with_optional_source(
+        &mut self,
+        fact: Literal,
+        source_id: Option<String>,
+    ) -> Result<(), EngineError> {
         validate_literal(&fact)?;
         if !self.facts.contains(&fact) && self.facts.len() >= self.config.max_facts {
             return Err(EngineError::FactBudgetExceeded);
         }
-        self.facts.insert(fact);
+        self.facts.insert(fact.clone());
+        self.asserted_facts.insert(AssertedFact { fact, source_id });
         Ok(())
     }
 
@@ -233,6 +275,7 @@ impl NativeReasoner {
         F: FnMut() -> Duration,
     {
         let mut derivations = Vec::new();
+        let mut recorded_derivations = BTreeSet::new();
         let mut steps = 0usize;
         let mut stop_reason;
         'reasoning: loop {
@@ -262,18 +305,22 @@ impl NativeReasoner {
                         break;
                     }
                 }
-                if premises_satisfied && !self.facts.contains(&rule.conclusion) {
-                    if self.facts.len() >= self.config.max_facts {
-                        stop_reason = StopReason::FactBudget;
-                        break 'reasoning;
+                if premises_satisfied {
+                    if recorded_derivations.insert((rule.conclusion.clone(), rule.id.clone())) {
+                        derivations.push(Derivation {
+                            fact: rule.conclusion.clone(),
+                            rule_id: rule.id.clone(),
+                            premises: rule.premises.clone(),
+                        });
                     }
-                    self.facts.insert(rule.conclusion.clone());
-                    derivations.push(Derivation {
-                        fact: rule.conclusion.clone(),
-                        rule_id: rule.id.clone(),
-                        premises: rule.premises.clone(),
-                    });
-                    changed = true;
+                    if !self.facts.contains(&rule.conclusion) {
+                        if self.facts.len() >= self.config.max_facts {
+                            stop_reason = StopReason::FactBudget;
+                            break 'reasoning;
+                        }
+                        self.facts.insert(rule.conclusion.clone());
+                        changed = true;
+                    }
                 }
             }
             if !changed {
@@ -285,6 +332,7 @@ impl NativeReasoner {
         // If it expires here, the returned fact/contradiction lists are partial
         // and `is_partial()` remains true.
         let mut facts = Vec::new();
+        let mut asserted_facts = Vec::new();
         let mut contradictions = Vec::new();
         for fact in &self.facts {
             if elapsed() >= self.config.max_duration {
@@ -292,6 +340,12 @@ impl NativeReasoner {
                 break;
             }
             facts.push(fact.clone());
+            asserted_facts.extend(
+                self.asserted_facts
+                    .range(AssertedFact { fact: fact.clone(), source_id: None }..)
+                    .take_while(|assertion| assertion.fact == *fact)
+                    .cloned(),
+            );
             if !fact.negated {
                 let negative = fact.complement();
                 if self.facts.contains(&negative) {
@@ -305,6 +359,7 @@ impl NativeReasoner {
         ReasoningReport {
             facts,
             contradictions,
+            asserted_facts,
             derivations,
             stop_reason,
             inference_steps: steps,
@@ -894,6 +949,7 @@ mod tests {
         let report = |stop_reason| ReasoningReport {
             facts: Vec::new(),
             contradictions: Vec::new(),
+            asserted_facts: Vec::new(),
             derivations: Vec::new(),
             stop_reason,
             inference_steps: 0,
