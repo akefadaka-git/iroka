@@ -54,12 +54,12 @@ Also inspect the repository workflow definitions and reproduce the production-fe
 
 ### Working-branch remediation delta (not a replacement for the pinned review target)
 
-- Verified implementation / working-branch head: `463abe7fd31b35358b01357c2f7957af8b199f81`
-- `crates/iroka-cognition/src/lib.rs` blob: `4c772c681cf8df15b607e22c4b642f24721a868a`
+- Latest verified working-branch head: `b027860e5714463ce1ad51cdec1ef347b803cd81`
+- `crates/iroka-cognition/src/lib.rs` blob: `af97c78e0d736dbd6ed226f98fcf10738bc6de61`
 - The immutable baseline above remains the independent-review target. The working-branch source contains the R-01/R-02 remediation delta and must be reviewed as a distinct source revision before NCE-01 acceptance.
 - R-01 additions: `AssertedFact`, `add_fact_with_source`, opaque source IDs, a 32-identified-source-per-fact default bound (legacy `None` source markers do not consume this budget), and one witness per satisfied `(conclusion, rule_id)` pair, including alternate rule support for already-known conclusions.
 - R-02/R-04 additions: cooperative deadline checks during report materialization and explicit `ReasoningReport::is_complete()` / `is_partial()` semantics.
-- Current dedicated NCE-01 forward-reasoning unit-test count: 33; the cognition crate reports 47 tests including 14 backward-reasoning tests.
+- Current dedicated NCE-01 forward-reasoning unit-test count: 36; the cognition crate reports 50 tests including 14 backward-reasoning tests.
 - Exact-SHA CI for the verified working-branch source is recorded in §7.2. Earlier formatting, test and Clippy failures were corrected and their reruns passed.
 ## 3. System model and intended semantics
 
@@ -244,6 +244,12 @@ The working branch now:
 5. Documents that the compatibility constructors `Literal::positive/negative` and `add_rule(Rule)` receive already-materialized caller-owned strings/vectors and therefore cannot prevent those prior allocations.
 
 The NCE-01 crate has no HTTP, file, database-ingestion or other external input service. Any future upstream boundary must impose a raw request/body byte limit before parsing, count/cap facts, rules and premises before collecting them, validate string lengths before cloning, and apply aggregate-memory, concurrency and request-deadline controls. The reasoner deadline does not cover parsing or API input construction. The independent reviewer must verify these boundaries and any integration-specific guards; do not claim that engine-side limits protect upstream deserialization.
+
+Exact-SHA verification of the R-03 implementation on `b027860e5714463ce1ad51cdec1ef347b803cd81` passed:
+- [Native Cognition CI #132 — Run 44597222447](https://github.com/akefadaka-git/iroka/actions/runs/44597222447): formatting, 50 cognition-crate tests, workspace tests and cognition Clippy PASS.
+- [Rust kernel verification #2230 — Run 44597222456](https://github.com/akefadaka-git/iroka/actions/runs/44597222456): formatting, workspace compilation, no-default-features check, 50 cognition-crate tests, 71 kernel tests, 2 authorization-contract tests and full-workspace Clippy PASS.
+
+The crate-level R-03 contract is therefore internally verified. The external-ingress requirement remains an integration dependency, not a claim that NCE-01 can bound caller memory before parsing.
 
 ## 8. Out-of-scope components
 
