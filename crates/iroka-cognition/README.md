@@ -40,13 +40,13 @@ as exhaustive. This is not a hard real-time or preemptive cancellation guarantee
 Unknown evidence remains distinct from refutation, and contradictory positive/negative
 evidence is reported explicitly.
 
-The dedicated NCE-01 suite contains 24 tests covering multi-step closure, deterministic
+The dedicated NCE-01 suite contains 31 tests covering multi-step closure, deterministic
 rule ordering, cyclic and adversarial rule order, all 64 directed three-node graph
 topologies against a reference reachability calculation, exhaustive contradiction
 reporting, premise/fact/rule/step/time boundaries, failed-insertion atomicity, and a
-512-fact/512-rule workload. The deadline test exercises a rule at the full 256-premise
-limit and verifies that the engine stops during the premise scan without deriving its
-conclusion.
+512-fact/512-rule workload, source-ID validation and limits, multiple assertion sources,
+alternative rule witnesses, and witness behavior for already-asserted conclusions. Deadline
+tests exercise both a full 256-premise scan and report materialization interruption.
 
 ## NCE-01 provenance contract
 
