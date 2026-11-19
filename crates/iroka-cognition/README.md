@@ -31,9 +31,11 @@ during premise evaluation. A run reports one of `FixedPoint`, `Deadline`,
 `StepBudget` or `FactBudget`. Only `FixedPoint` is a complete closure:
 `ReasoningReport::is_complete()` returns true only for that stop reason, while
 `is_partial()` identifies every deadline or budget stop. Consumers must not treat
-facts in a partial report as an exhaustive knowledge state. The configured deadline
-is cooperative and currently governs inference evaluation; contradiction collection
-and report materialization follow the inference loop and are not hard-preempted by it.
+facts in a partial report as an exhaustive knowledge state. The configured deadline is cooperative: checks occur during inference and while
+materializing the facts/contradiction report. If it expires during report construction,
+the returned report may contain only a partial facts/contradictions snapshot and is
+marked `Deadline`; consumers must use `is_partial()` and must not treat that snapshot
+as exhaustive. This is not a hard real-time or preemptive cancellation guarantee.
 Unknown evidence remains distinct from refutation, and contradictory positive/negative
 evidence is reported explicitly.
 
