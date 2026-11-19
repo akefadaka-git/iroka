@@ -661,3 +661,20 @@ A further read-only pass inspected exact workspace manifests, Kernel public expo
 The exact heads 0680337b..., 8f7ddb9e..., 0968221b..., 9d68b580... and d51a971d... returned no combined status checks and no PR-triggered workflow runs in the available first-page lookup. Status is **NOT VERIFIED**, not FAIL. Successful runs on older predecessor heads do not transfer. No combined workspace resolution, build/test, migration test, SBOM or end-to-end API test was performed.
 
 **D01 conclusion:** no compatible immutable graph can be selected and verified for the approved API-only TALORA scope. The G03/G08 and G05/G02/G11 public APIs are incompatible; the isolated fake adapter cannot accept the required trusted context; and no current candidate provides the full private TALORA service API. This reconciliation does not grant source copying, vendoring, modification or SDK rights. D01 remains **UNRESOLVED — NO SELECTABLE, VERIFIED IMMUTABLE INTEGRATION BASELINE**. A3 remains separately unauthorized.
+
+
+## Owner-approved bounded development baseline freeze — 19 November 2026
+
+The Owner approved freezing the following existing immutable baseline for TALORA development/test integration only:
+
+- IROKA repository: `akefadaka-git/iroka`
+- Branch: `integration/talora-a3-private-api`
+- Verified source-code commit: `8056cea136f42436d896078046796eba2129092b`
+- Current documentation-only branch snapshot: `00b323750fb120f80d56191069d10a825e66dc41`
+- Base IROKA main: `1aea1447eadf1d827d702fd6c4034fa058aac21e`
+- PR #129: OPEN / DRAFT / UNMERGED
+- Exact source-head CI: run [44457815902](https://github.com/akefadaka-git/iroka/actions/runs/44457815902), PASS; snapshot CI: run [44458023955](https://github.com/akefadaka-git/iroka/actions/runs/44458023955), PASS.
+
+This is a three-crate graph (`iroka-kernel`, `iroka-brain`, `iroka-talora-api`) with deterministic fake/local execution, synthetic-only inputs, no remote provider and no persistent memory. It is not a runnable production network service. Production authentication/key lifecycle, durable task/event storage, effective in-flight cancellation, governed G05 memory, G03/G08 workflow, G05/G02/G11 authority/memory graph, CIW, TALORA backend network client, end-to-end network tests, SBOM and independent security review remain absent or unverified.
+
+This approval freezes the exact source commit and records its bounded purpose. It does not authorize further A3 implementation, source composition, source redistribution, PR approval/merge, production data use or A5 deployment. The earlier blanket D01 statement that no baseline of any kind was selectable is superseded for this bounded development-only scope. The wider IROKA component graph remains NOT VERIFIED. A2 overall remains PARTIAL / NOT CLOSED pending its other exit criteria.
