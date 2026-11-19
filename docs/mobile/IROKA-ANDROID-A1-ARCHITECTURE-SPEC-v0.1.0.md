@@ -2,7 +2,7 @@
 
 **Document ID:** IROKA-ANDROID-A1-001  
 **Version:** 0.1.0  
-**Status:** A1 assessment/specification proposal — pending Owner freeze  
+**Status:** OWNER-APPROVED / A1 FROZEN — 19 November 2026  
 **Date:** 19 November 2026  
 **Product:** IROKA (first-party Android client)  
 **Selected architecture:** Hybrid (cloud + on-device)  
@@ -275,7 +275,7 @@ This A1 work does not:
 
 **Assessment:** COMPLETE for the initial repository and architecture review.  
 **Specification:** DRAFTED as v0.1.0 on an isolated documentation branch.  
-**A1 freeze:** PENDING Owner approval of the complete requirements and A2 decision register.  
+**A1 freeze:** OWNER-APPROVED on 19 November 2026. The twelve unresolved items remain A2 reconciliation decisions; they do not reopen the approved product identity, hybrid architecture, or full-authorized-capabilities objective.  
 **Implementation authorization:** NOT GRANTED by this document.  
 **Main branch:** unchanged at `1aea1447eadf1d827d702fd6c4034fa058aac21e`.
 
