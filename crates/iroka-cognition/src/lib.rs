@@ -39,8 +39,7 @@ impl Literal {
     /// Constructs a positive literal after validating borrowed input before allocation.
     ///
     /// # Errors
-    /// Returns EmptyAtom for blank input or AtomTooLong above 256 UTF-8 bytes.
-    #[must_use]
+    /// Returns [`EngineError::EmptyAtom`] for blank input or [`EngineError::AtomTooLong`] above 256 UTF-8 bytes.
     pub fn try_positive(atom: &str) -> Result<Self, EngineError> {
         validate_atom(atom)?;
         Ok(Self {
@@ -52,8 +51,7 @@ impl Literal {
     /// Constructs a negative literal after validating borrowed input before allocation.
     ///
     /// # Errors
-    /// Returns EmptyAtom for blank input or AtomTooLong above 256 UTF-8 bytes.
-    #[must_use]
+    /// Returns [`EngineError::EmptyAtom`] for blank input or [`EngineError::AtomTooLong`] above 256 UTF-8 bytes.
     pub fn try_negative(atom: &str) -> Result<Self, EngineError> {
         validate_atom(atom)?;
         Ok(Self {
@@ -71,7 +69,7 @@ impl Literal {
 }
 
 /// A rule whose premise vector is allocated by the caller before submission.
-/// For streaming input, prefer NativeReasoner::add_rule_from_iter.
+/// For streaming input, prefer `NativeReasoner::add_rule_from_iter`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rule {
     pub id: String,
@@ -219,8 +217,8 @@ impl NativeReasoner {
     }
 
     /// Adds a validated fact, subject to the configured fact limit.
-    /// The Literal and its String atom already exist when this method is called.
-    /// Use try_positive/try_negative for borrowed untrusted atom input.
+    /// The `Literal` and its `String` atom already exist when this method is called.
+    /// Use `try_positive`/`try_negative` for borrowed untrusted atom input.
     ///
     /// # Errors
     /// Returns an error for malformed atoms or when the fact budget is exhausted.
@@ -289,7 +287,7 @@ impl NativeReasoner {
 
     /// Adds a validated rule, subject to the configured rule limit.
     /// The caller has already allocated the rule ID and complete premise Vec.
-    /// Use add_rule_from_iter with a lazy iterator to bound incremental collection.
+    /// Use `add_rule_from_iter` with a lazy iterator to bound incremental collection.
     ///
     /// # Errors
     /// Returns an error for malformed rules, duplicate IDs, or an exhausted rule budget.
