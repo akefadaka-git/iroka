@@ -1182,7 +1182,9 @@ mod tests {
         let mut brain = NativeReasoner::new(config).unwrap();
         let fact = Literal::positive("legacy_and_identified");
         brain.add_fact(fact.clone()).unwrap();
-        brain.add_fact_with_source(fact.clone(), "identified-source").unwrap();
+        brain
+            .add_fact_with_source(fact.clone(), "identified-source")
+            .unwrap();
         assert_eq!(
             brain.add_fact_with_source(fact, "second-identified-source"),
             Err(EngineError::FactSourceBudgetExceeded)
