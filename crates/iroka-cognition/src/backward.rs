@@ -39,9 +39,18 @@ pub struct HornClause {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Substitution(pub BTreeMap<String, Term>);
+pub struct Substitution(BTreeMap<String, Term>);
 
 impl Substitution {
+    /// Returns the binding for a variable without exposing mutable map access.
+    pub fn get(&self, variable: &str) -> Option<&Term> {
+        self.0.get(variable)
+    }
+
+    /// Iterates over the variable bindings in deterministic key order.
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Term)> {
+        self.0.iter()
+    }
     pub fn resolve(&self, term: &Term) -> Term {
         match term {
             Term::Variable(name) => match self.0.get(name) {
@@ -370,10 +379,34 @@ mod tests {
     fn reports_step_budget_instead_of_claiming_no_proof() {
         let config = SearchConfig { max_steps: 1, ..SearchConfig::default() };
         let mut engine = BackwardReasoner::new(config).unwrap();
-        engine.add_clause(clause("unrelated", atom("other", vec![s("x")]), vec![])).unwrap();
-        engine.add_clause(clause("target", atom("target", vec![s("x")]), vec![])).unwrap();
+        engine.add_clause(clause("a-unrelated", atom("other", vec![s("x")]), vec![])).unwrap();
+        engine.add_clause(clause("z-target", atom("target", vec![s("x")]), vec![])).unwrap();
         let report = engine.prove(&atom("target", vec![s("x")])).unwrap();
         assert_eq!(report.stop, SearchStop::StepBudget);
+    }
+
+    #[test]
+    fn reports_depth_budget_instead_of_claiming_no_proof() {
+        let config = SearchConfig { max_depth: 1, ..SearchConfig::default() };
+        let mut engine = BackwardReasoner::new(config).unwrap();
+        engine.add_clause(clause(
+            "a-parent",
+            atom("parent", vec![s("a"), s("b")]),
+            vec![],
+        )).unwrap();
+        engine.add_clause(clause(
+            "z-ancestor",
+            atom("ancestor", vec![v("X"), v("Y")]),
+            vec![atom("parent", vec![v("X"), v("Y")])],
+        )).unwrap();
+        let report = engine.prove(&atom("ancestor", vec![s("a"), s("b")])).unwrap();
+        assert_eq!(report.stop, SearchStop::DepthBudget);
+    }
+
+    #[test]
+    fn rejects_zero_search_budgets() {
+        let config = SearchConfig { max_steps: 0, ..SearchConfig::default() };
+        assert_eq!(BackwardReasoner::new(config).err(), Some(SearchError::ZeroBudget));
     }
 
     #[test]
