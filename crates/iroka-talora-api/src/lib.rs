@@ -6,6 +6,7 @@
 //! project memory is implemented in this A3 slice. Request text is processed
 //! in memory only and is not included in stored task results.
 
+use iroka_kernel::{evaluate as evaluate_policy, AuthorizationRequest, Decision, DecisionCode, Policy, RiskLevel};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -22,6 +23,7 @@ pub const MAX_REFERENCE_BYTES: usize = 256;
 pub const CONTRACT_VERSION: &str = "1.0.0";
 pub const TASK_SCHEMA_ID: &str = "iroka.talora.task.v1";
 pub const RESULT_SCHEMA_ID: &str = "iroka.talora.result.v1";
+pub const TALORA_POLICY_VERSION: &str = "talora-dev-policy-v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AdapterClass {
@@ -164,6 +166,7 @@ pub struct TaskResponse {
     pub project_ref: String,
     pub capability_id: String,
     pub capability_version: String,
+    pub policy_version: String,
     pub locale: String,
     pub result_payload: Value,
     pub usage: Usage,
@@ -319,6 +322,7 @@ impl TaskService {
             project_ref: request.project_ref.clone(),
             capability_id: request.capability_id.clone(),
             capability_version: request.capability_version.clone(),
+            policy_version: TALORA_POLICY_VERSION.into(),
             locale: request.locale.clone(),
             result_payload,
             usage: Usage {
@@ -620,7 +624,26 @@ fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Resu
     if request.locale != "am-ET" && request.locale != "en" {
         return Err(ApiError::InvalidRequest("locale_not_supported"));
     }
+    if evaluate_capability_policy(caller, request).code() != DecisionCode::Allow {
+        return Err(ApiError::Forbidden);
+    }
     Ok(())
+}
+
+fn evaluate_capability_policy(caller: &AuthenticatedCaller, request: &TaskRequest) -> Decision {
+    let policy = Policy::new(
+        TALORA_POLICY_VERSION,
+        vec!["talora.dev.fake.v1".into()],
+        Vec::new(),
+        RiskLevel::Low,
+    );
+    let authorization = AuthorizationRequest::new(
+        caller.subject(),
+        request.capability_id.clone(),
+        request.project_ref.clone(),
+        RiskLevel::Low,
+    );
+    evaluate_policy(&authorization, &policy, false)
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
