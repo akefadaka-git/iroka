@@ -68,6 +68,7 @@ against the IROKA `main` SHA above, not claims of mergeability.
 | G05 Postgres predecessor | `feat/g05-postgres-g11-multiworker-a3` — `2bfac619b9601330b3343f86277bb5ba29ae22b2` | Exact-head workflow runs 43240878046 and 43240392654 succeeded. | Earlier predecessor only; does not verify later G11 provider head. |
 | CIW conversation | `feat/ciw-amharic-answer-only-chat` — `69f3c181791a8dd3c5baf3d18d4556f8f316b1a1` | 172 ahead / 25 behind main. Adds `iroka-conversation`, SQLite conversation/generation flow and browser chat routes. Exact-head run 42562324737 succeeded. | Browser/conversation candidate, not verified private TALORA task API; diverges from G05/G11 (400 / 172 commits). |
 | BRAIN/G04/G05 | `feat/brain-a3-b04-g05-memory-core` — `b27816c1c3b172c0a7503d6602cddeaa6008c6cb` | 163 ahead / 3 behind main. Workspace includes kernel, `iroka-g04-contract` and `iroka-g05-memory`; G05 manifest is SQLite-oriented. | Older G04/G05 line; modifies shared Kernel files. No exact-head PR run returned. |
+| BRAIN/G05/G01/G02/G11 integration | `feat/brain-a3-g05-g01-g02-g11-integration` — `0968221b55563a9aacbec4fa499fdac7679e9915` | 231 ahead / 3 behind main; workspace kernel + G04 contract + G05 memory, Rust 1.75; SQLite G05; adds tenant resolver, reviewer-proof and policy-lifecycle modules. Its own integration record says G11 adapter implemented while external G01/G02 authority-provider dependencies remain fail-closed. | Alternative G01/G02/G04/G05/G11 candidate; SQLite tenant resolver is single-node; diverges from PostgreSQL G05/G11 provider by 231 / 391 commits. No exact-head PR run returned. |
 | BRAIN cognitive core | `feat/inga-neurogenetic-a3-foundation` — `e2ad1dc6a7916028dbcdfbd2d2ec948e0a554f4d` | 27 ahead / 3 behind main. Adds `iroka-brain`, depending on serde and serde_json. | Separate model-independent cognitive-core candidate. |
 | Localization | `feat/a3-4-localization-completion` — `d51a971d295e7b75e3d17fc51202d99c1db1abab` | 59 ahead / 3 behind main; adds `localization.rs` and tests. Diverges from G03/G08 (378 / 59 commits). | Separate kernel line; not automatically present in G03/G08. No exact-head PR run returned. |
 
@@ -82,7 +83,9 @@ against the IROKA `main` SHA above, not claims of mergeability.
    diverged from G05/G11. It cannot be combined by branch-name
    convention or cherry-picked without source-level reconciliation.
 3. Localization and BRAIN are separate kernel/workspace lines; they
-   are not automatically included by G03/G08 or G05/G11.
+   are not automatically included by G03/G08 or G05/G11. The
+   BRAIN/G05/G01/G02/G11 branch has a SQLite single-node tenant/memory
+   implementation and unresolved external authority-provider boundary.
 4. The G08 character-workflow branch declares Rust 1.89.0/toolchain
    1.100.0, while main and G05/G11 declare Rust 1.75.
 5. G05/G11 adds PostgreSQL, tokio and TLS dependency families. They
