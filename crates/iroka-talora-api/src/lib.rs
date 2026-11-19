@@ -321,11 +321,12 @@ impl TaskService {
         &self,
         caller: &AuthenticatedCaller,
         request: TaskRequest,
+        now_unix_seconds: u64,
     ) -> Result<TaskResponse, ApiError> {
         if caller.audience != "iroka-talora-api" {
             return Err(ApiError::Unauthorized);
         }
-        validate_request(caller, &request)?;
+        validate_request(caller, &request, now_unix_seconds)?;
         let serialized =
             serde_json::to_vec(&request).map_err(|_| ApiError::SerializationFailure)?;
         let request_digest = sha256_hex(&serialized);
@@ -643,7 +644,11 @@ fn error_response(error: ApiError) -> HttpResponse {
     json_response(error.http_status(), json!({"error":code}))
 }
 
-fn validate_request(caller: &AuthenticatedCaller, request: &TaskRequest) -> Result<(), ApiError> {
+fn validate_request(
+    caller: &AuthenticatedCaller,
+    request: &TaskRequest,
+    now_unix_seconds: u64,
+) -> Result<(), ApiError> {
     for (value, name) in [
         (&request.client_request_id, "client_request_id"),
         (&request.correlation_id, "correlation_id"),
