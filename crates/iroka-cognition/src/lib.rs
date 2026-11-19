@@ -1163,7 +1163,11 @@ mod tests {
             Err(EngineError::SourceIdTooLong)
         );
         assert_eq!(
-            brain.asserted_facts.iter().filter(|entry| entry.fact == fact).count(),
+            brain
+                .asserted_facts
+                .iter()
+                .filter(|entry| entry.fact == fact)
+                .count(),
             1
         );
     }
