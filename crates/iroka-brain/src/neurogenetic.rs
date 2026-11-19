@@ -1143,7 +1143,11 @@ mod tests {
         NeuralNetwork {
             network_id: "fixed-point-fixture".to_owned(),
             topology: NetworkTopology::FeedForward,
-            cells: vec![cell("input"), cell("hidden"), cell("output")],
+            cells: vec![
+                verified_cell("input"),
+                verified_cell("hidden"),
+                verified_cell("output"),
+            ],
             synapses: vec![
                 Synapse {
                     synapse_id: "s1".to_owned(),
