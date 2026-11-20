@@ -86,7 +86,7 @@ fn fact_budget_exhaustion_stays_partial_and_never_emits_a_false_witness() {
         assert!(!report.is_complete());
         assert_eq!(report.facts, vec![seed.clone()]);
         assert!(!report.facts.contains(&blocked));
-        assert!(report.derivations.is_empty());
+        assert_eq!(report.derivations.len(), 0);
     }
 }
 
