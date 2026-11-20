@@ -469,3 +469,40 @@ Verified stages:
 - R-03 upstream ingress remains **PARTIAL / SPECIFIED — NOT IMPLEMENTED**. No concrete adapter, transport-level adversarial integration suite, concurrent maximum-profile peak-RSS measurement, or concurrency qualification is claimed.
 - Independent review remains **NOT PERFORMED** against immutable target a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2; the working-branch changes remain a separate review delta.
 - PR #130 remains OPEN / DRAFT. No merge, deployment or production activation is authorized.
+
+
+## NCE-01 additional adversarial regression verification — 2026-11-20
+
+**Verified implementation SHA:** `043c95eba74d5ae06e8ce23fc311f1c2f8da2560`
+
+### Added regression cases
+
+Three additional adversarial cases were added and passed:
+
+1. `adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses`: after a one-step partial run, inserts a lexicographically earlier rule (changing sorted rule indices), then verifies all conclusions are eventually derived, fixed point is reached, and the pre-existing witness remains present in deterministic rule-ID order.
+2. `fact_budget_exhaustion_stays_partial_and_never_emits_a_false_witness`: with the fact store exactly at capacity, repeats reasoning three times and verifies every report remains `FactBudget` / partial, the blocked conclusion is absent, and no derivation witness is emitted.
+3. `malformed_late_iterator_item_rejects_rule_atomically`: feeds a valid premise followed by a blank invalid premise and a sentinel tail; verifies the iterator consumes only the first two items, rejects the rule, and permits reuse of the rule ID with a valid input.
+
+### Exact-SHA workflow evidence
+
+Both workflows completed successfully on exact SHA `043c95eba74d5ae06e8ce23fc311f1c2f8da2560`:
+
+| Workflow | Run | Conclusion | Evidence |
+|---|---:|---|---|
+| Native Cognition CI #234 | 44675355783 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44675355783 |
+| Rust kernel verification #2319 | 44675355858 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44675355858 |
+
+Verified stages:
+- Native Cognition CI: formatting, complete workspace/all-target tests, and cognition Clippy all passed.
+- Rust kernel verification: formatting, locked workspace/all-target compilation, production-feature/no-default-features check, complete locked workspace tests, and workspace Clippy all passed.
+- Test totals in both logs: cognition unit tests **55 passed**; budget-boundary integration tests **4 passed**; determinism/resumption integration tests **5 passed**; duplicate-premise integration tests **3 passed**; negative-query integration tests **5 passed**; kernel tests **71 passed**; authorization-contract tests **2 passed**; zero failures.
+
+### Verification disposition
+
+- Rule insertion during partial reasoning and deterministic resumption: **VERIFIED**.
+- Repeated fact-budget exhaustion remains explicitly partial and does not emit a false witness: **VERIFIED**.
+- Malformed late premise input is rejected atomically without over-consuming the lazy iterator or reserving the rule ID: **VERIFIED**.
+- Combined with the previously recorded exhaustive three-node reachability, adversarial generated-chain, cycle, contradiction, deadline, aggregate-budget, source-provenance, and insertion-order tests, the current in-crate determinism/resource-boundary/adversarial test set is **CI VERIFIED** on the exact SHA above.
+- This does not close R-03 upstream ingress: no adapter exists, so transport body limits, streaming parser behavior, cancellation/admission control, concurrent maximum-profile peak-RSS, and ingress-level adversarial integration remain **NOT IMPLEMENTED / NOT RUN**.
+- Independent review remains **NOT PERFORMED** and is reserved for the completed project review stage. The immutable review target remains `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`; this working-branch verification is remediation evidence, not the independent review itself.
+- PR #130 remains OPEN / DRAFT. No merge, deployment, or production activation is authorized.
