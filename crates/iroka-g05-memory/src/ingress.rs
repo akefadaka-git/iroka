@@ -462,6 +462,44 @@ mod http_ingress_tests {
     }
 
     #[test]
+    fn capability_discovery_uses_live_g01_g02_and_g09_checks() {
+        let (service, token) = make_service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:true, emergency_stop:false },
+            TestG09 { stale_or_unavailable:None },
+        );
+        let capabilities = service
+            .discover_http_capabilities(Some(&format!("Bearer {token}")), "tenant:http-test")
+            .unwrap();
+        assert_eq!(capabilities.len(), 13);
+        assert!(capabilities.contains(&"g05.memory.retrieve"));
+        assert!(capabilities.contains(&"g05.memory.durable.activate"));
+
+        let (nonmember, token) = make_service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:false, emergency_stop:false },
+            TestG09 { stale_or_unavailable:None },
+        );
+        assert_eq!(
+            nonmember.discover_http_capabilities(
+                Some(&format!("Bearer {token}")),
+                "tenant:attacker-selected"
+            ).err(),
+            Some(G05Error::TenantScopeMismatch)
+        );
+
+        let (denied, token) = make_service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:true, emergency_stop:false },
+            TestG09 { stale_or_unavailable:Some(G05Error::AuthorizationDenied) },
+        );
+        assert!(denied
+            .discover_http_capabilities(Some(&format!("Bearer {token}")), "tenant:http-test")
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
     fn session_authentication_returns_only_g01_verified_identity() {
         let (service, token) = make_service(
             TestRevocations { revoked:false, unavailable:false },
