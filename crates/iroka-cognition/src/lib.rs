@@ -1439,13 +1439,19 @@ mod tests {
     #[test]
     fn aggregate_assertion_budget_rejects_without_mutation() {
         let mut brain = engine();
-        let fact = Literal::positive("evidence");
+        let mut last_fact = Literal::positive("evidence-0");
         for index in 0..MAX_TOTAL_ASSERTIONS {
-            brain.add_fact_with_source(fact.clone(), &format!("source-{index}")).unwrap();
+            let fact_index = index / EngineConfig::default().max_sources_per_fact;
+            let source_index = index % EngineConfig::default().max_sources_per_fact;
+            let fact = Literal::positive(format!("evidence-{fact_index}"));
+            brain
+                .add_fact_with_source(fact.clone(), &format!("source-{source_index}"))
+                .unwrap();
+            last_fact = fact;
         }
         let before_facts = brain.facts.len();
         assert_eq!(
-            brain.add_fact_with_source(fact.clone(), "overflow-source"),
+            brain.add_fact_with_source(last_fact, "overflow-source"),
             Err(EngineError::AssertionBudgetExceeded)
         );
         assert_eq!(brain.facts.len(), before_facts);
