@@ -395,10 +395,10 @@ mod http_ingress_tests {
             TestG02 { member:true, emergency_stop:false },
             TestG09 { stale_or_unavailable:None },
         );
-        assert_eq!(service.authorize_http(None, request()).err(), Some(G05Error::AuthorizationDenied));
-        assert_eq!(service.authorize_http(Some("Bearer invalid.token"), request()).err(), Some(G05Error::AuthorizationDenied));
-        assert_eq!(service.authorize_http(Some("Basic abc"), request()).err(), Some(G05Error::AuthorizationDenied));
-        assert_eq!(service.authorize_http(Some("Bearer token with spaces"), request()).err(), Some(G05Error::AuthorizationDenied));
+        assert_eq!(service.authorize_http(None, request()).err(), Some(G05Error::AuthenticationRequired));
+        assert_eq!(service.authorize_http(Some("Bearer invalid.token"), request()).err(), Some(G05Error::AuthenticationInvalid));
+        assert_eq!(service.authorize_http(Some("Basic abc"), request()).err(), Some(G05Error::AuthenticationInvalid));
+        assert_eq!(service.authorize_http(Some("Bearer token with spaces"), request()).err(), Some(G05Error::AuthenticationInvalid));
         assert!(service.authorize_http(Some(&format!("Bearer {token}")), request()).is_ok());
     }
 
@@ -409,7 +409,7 @@ mod http_ingress_tests {
             TestG02 { member:true, emergency_stop:false },
             TestG09 { stale_or_unavailable:None },
         );
-        assert_eq!(service.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthorizationDenied));
+        assert_eq!(service.authorize_http(Some(&format!("Bearer {token}")), request()).err(), Some(G05Error::AuthenticationInvalid));
     }
 
     #[test]
