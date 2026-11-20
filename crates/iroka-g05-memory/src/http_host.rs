@@ -392,7 +392,7 @@ mod tests {
         let client = thread::spawn(move || {
             let mut stream = TcpStream::connect(address).unwrap();
             stream.write_all(
-                b"POST /v1/g05/execute HTTP/1.1\\r\\nHost: api.iroka.test\\r\\nX-Forwarded-Proto: https\\r\\nAuthorization: Bearer eyJhbGciOiJFZERTQSJ9.test.signature\\r\\nContent-Type: application/json\\r\\nContent-Length: 2\\r\\n\\r\\n{}",
+                b"POST /v1/g05/execute HTTP/1.1\r\nHost: api.iroka.test\r\nX-Forwarded-Proto: https\r\nAuthorization: Bearer eyJhbGciOiJFZERTQSJ9.test.signature\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}",
             ).unwrap();
         });
         let (mut server, _) = listener.accept().unwrap();
