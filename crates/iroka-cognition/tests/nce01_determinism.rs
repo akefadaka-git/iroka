@@ -71,3 +71,51 @@ fn facts_contradictions_and_derivation_witnesses_are_insertion_order_invariant()
     assert_eq!(left.inference_steps, right.inference_steps);
     assert_eq!(left.stop_reason, right.stop_reason);
 }
+
+
+#[test]
+fn repeated_step_bounded_calls_resume_fairly_until_fixed_point() {
+    let config = EngineConfig {
+        max_inference_steps: 1,
+        ..EngineConfig::default()
+    };
+    let mut engine = NativeReasoner::new(config).unwrap();
+    let a = Literal::positive("a");
+    let b = Literal::positive("b");
+    let c = Literal::positive("c");
+    engine.add_fact(a.clone()).unwrap();
+    engine
+        .add_rule(Rule {
+            id: "a-first".into(),
+            premises: vec![a],
+            conclusion: b.clone(),
+        })
+        .unwrap();
+    engine
+        .add_rule(Rule {
+            id: "b-second".into(),
+            premises: vec![b],
+            conclusion: c.clone(),
+        })
+        .unwrap();
+
+    let first = engine.reason();
+    assert_eq!(first.stop_reason, iroka_cognition::StopReason::StepBudget);
+    assert!(first.is_partial());
+    assert!(first.facts.contains(&b));
+    assert!(!first.facts.contains(&c));
+
+    let second = engine.reason();
+    assert_eq!(second.stop_reason, iroka_cognition::StopReason::StepBudget);
+    assert!(second.is_partial());
+    assert!(second.facts.contains(&c));
+
+    let third = engine.reason();
+    assert_eq!(third.stop_reason, iroka_cognition::StopReason::StepBudget);
+    assert!(third.is_partial());
+
+    let fourth = engine.reason();
+    assert_eq!(fourth.stop_reason, iroka_cognition::StopReason::FixedPoint);
+    assert!(fourth.is_complete());
+    assert!(fourth.facts.contains(&c));
+}
