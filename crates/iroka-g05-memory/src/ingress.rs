@@ -258,6 +258,61 @@ where
         self.authorize(token, request)
     }
 
+    /// Discover only G05 operations allowed by the current G01, G02 and G09 state.
+    /// The tenant reference is a selector, never evidence of membership or authority.
+    pub fn discover_http_capabilities(
+        &self,
+        authorization_header: Option<&str>,
+        tenant_ref: &str,
+    ) -> Result<Vec<&'static str>, G05Error> {
+        if tenant_ref.trim().is_empty() || tenant_ref.len() > 512 {
+            return Err(G05Error::MalformedRecord);
+        }
+        let token = bearer_token(authorization_header)?;
+        let now = self.clock.now_unix_seconds()?;
+        let principal = self.authenticate(token, now)?;
+        let operations = [
+            Operation::Propose,
+            Operation::CreateWorking,
+            Operation::CreateEpisodic,
+            Operation::ActivateDurable,
+            Operation::Retrieve,
+            Operation::InspectMetadata,
+            Operation::Correct,
+            Operation::Restrict,
+            Operation::RequestDeletion,
+            Operation::VerifyDeletion,
+            Operation::Share,
+            Operation::GrantEpisodicConsent,
+            Operation::WithdrawEpisodicConsent,
+        ];
+        let mut capabilities = Vec::new();
+        for operation in operations {
+            let request = AuthorizationRequest {
+                operation,
+                principal_ref: principal.subject().to_owned(),
+                tenant_ref: tenant_ref.to_owned(),
+                subject_ref: principal.subject().to_owned(),
+                purpose: crate::Purpose::TaskContinuity,
+                classification: crate::Classification::Internal,
+                memory_id: None,
+                recipient_refs: Vec::new(),
+                correlation_ref: "api-capability-discovery".to_owned(),
+            };
+            match self.g02.authorize_g05(&request) {
+                Ok(()) => {}
+                Err(G05Error::AuthorizationDenied) => continue,
+                Err(error) => return Err(error),
+            }
+            match self.g09.revalidate(&principal, &request, now) {
+                Ok(()) => capabilities.push(capability_for(operation)),
+                Err(G05Error::AuthorizationDenied) => continue,
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(capabilities)
+    }
+
     /// Execute an external effect only after fresh G01 revocation, G02 authority,
     /// and G09 policy checks. The caller cannot provide or override the clock.
     pub fn execute_external<T>(
