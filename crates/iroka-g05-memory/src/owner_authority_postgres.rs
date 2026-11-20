@@ -219,6 +219,56 @@ impl iroka_kernel::RevocationChecker for PostgresOwnerSignatureVerifier {
 }
 
 impl crate::G02AuthorizationAuthority for PostgresOwnerSignatureVerifier {
+    /// Resolve the exact canonical tenant reference from the Owner-authorized
+    /// membership projection. G02 has no alias table: selectors must match the
+    /// tenant_ref written by a signed SetTenantMembership command.
+    fn resolve_task_tenant(
+        &self,
+        principal: &iroka_kernel::VerifiedPrincipal,
+        tenant_selector: &str,
+    ) -> Result<String, G05Error> {
+        if principal.subject().trim().is_empty()
+            || tenant_selector.trim().is_empty()
+            || tenant_selector.len() > 256
+            || tenant_selector.chars().any(char::is_control)
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut tx = client.transaction().map_err(|_| G05Error::AuthorityUnavailable)?;
+        tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let membership = tx.query_opt(
+            "SELECT tenant_ref, active, version FROM g02_tenant_memberships
+             WHERE subject_ref=$1 AND tenant_ref=$2",
+            &[&principal.subject(), &tenant_selector],
+        ).map_err(|_| G05Error::AuthorityUnavailable)?
+         .ok_or(G05Error::TenantScopeMismatch)?;
+        let canonical_tenant_ref: String = membership.get("tenant_ref");
+        let active: bool = membership.get("active");
+        let version: i64 = membership.get("version");
+        if !active || version <= 0 || canonical_tenant_ref != tenant_selector {
+            return Err(G05Error::TenantScopeMismatch);
+        }
+        let emergency = tx.query_opt(
+            "SELECT active, version, changed_at FROM g02_emergency_stop
+             WHERE singleton=TRUE",
+            &[],
+        ).map_err(|_| G05Error::AuthorityUnavailable)?
+         .ok_or(G05Error::AuthorityUnavailable)?;
+        let stopped: bool = emergency.get("active");
+        let stop_version: i64 = emergency.get("version");
+        let changed_at: i64 = emergency.get("changed_at");
+        if stop_version <= 0 || changed_at < 0 {
+            return Err(G05Error::AuthorityUnavailable);
+        }
+        if stopped {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
+        Ok(canonical_tenant_ref)
+    }
+
     /// Resolve G02 membership from the PostgreSQL primary on every request.
     /// G01 credential verification/revocation is performed by the ingress
     /// credential verifier using this same authority object; G09 policy and
