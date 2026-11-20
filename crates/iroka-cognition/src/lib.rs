@@ -14,6 +14,18 @@ use std::time::{Duration, Instant};
 const MAX_ATOM_BYTES: usize = 256;
 const MAX_RULE_ID_BYTES: usize = 256;
 const MAX_SOURCE_ID_BYTES: usize = 256;
+// Hard ceilings prevent caller-supplied configuration from disabling resource bounds.
+const MAX_CONFIG: EngineConfig = EngineConfig {
+    max_inference_steps: 10_000,
+    max_facts: 10_000,
+    max_rules: 2_000,
+    max_rule_premises: 256,
+    max_sources_per_fact: 32,
+    max_duration: Duration::from_secs(3),
+};
+// Aggregate ceilings bound multiplicative state growth across individually valid entries.
+const MAX_TOTAL_RULE_PREMISES: usize = 50_000;
+const MAX_TOTAL_ASSERTIONS: usize = 50_000;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Literal {
@@ -183,6 +195,9 @@ pub enum EngineError {
     RulePremiseBudgetExceeded,
     FactBudgetExceeded,
     ZeroBudget,
+    ConfigLimitExceeded,
+    RulePremiseTotalBudgetExceeded,
+    AssertionBudgetExceeded,
 }
 
 pub struct NativeReasoner {
@@ -197,7 +212,8 @@ impl NativeReasoner {
     /// These limits do not constrain memory already allocated by callers.
     ///
     /// # Errors
-    /// Returns [`EngineError::ZeroBudget`] if any configured limit is zero.
+    /// Returns [`EngineError::ZeroBudget`] if any configured limit is zero, or
+    /// [`EngineError::ConfigLimitExceeded`] if a limit exceeds the hard engine ceiling.
     pub fn new(config: EngineConfig) -> Result<Self, EngineError> {
         if config.max_inference_steps == 0
             || config.max_facts == 0
@@ -207,6 +223,15 @@ impl NativeReasoner {
             || config.max_duration.is_zero()
         {
             return Err(EngineError::ZeroBudget);
+        }
+        if config.max_inference_steps > MAX_CONFIG.max_inference_steps
+            || config.max_facts > MAX_CONFIG.max_facts
+            || config.max_rules > MAX_CONFIG.max_rules
+            || config.max_rule_premises > MAX_CONFIG.max_rule_premises
+            || config.max_sources_per_fact > MAX_CONFIG.max_sources_per_fact
+            || config.max_duration > MAX_CONFIG.max_duration
+        {
+            return Err(EngineError::ConfigLimitExceeded);
         }
         Ok(Self {
             config,
@@ -280,6 +305,11 @@ impl NativeReasoner {
         {
             return Err(EngineError::FactSourceBudgetExceeded);
         }
+        if !self.asserted_facts.contains(&assertion)
+            && self.asserted_facts.len() >= MAX_TOTAL_ASSERTIONS
+        {
+            return Err(EngineError::AssertionBudgetExceeded);
+        }
         self.facts.insert(fact);
         self.asserted_facts.insert(assertion);
         Ok(())
@@ -290,7 +320,8 @@ impl NativeReasoner {
     /// Use `add_rule_from_iter` with a lazy iterator to bound incremental collection.
     ///
     /// # Errors
-    /// Returns an error for malformed rules, duplicate IDs, or an exhausted rule budget.
+    /// Returns an error for malformed rules, duplicate IDs, an exhausted rule budget,
+    /// or [`EngineError::RulePremiseTotalBudgetExceeded`] when aggregate premises exceed 50,000.
     pub fn add_rule(&mut self, rule: Rule) -> Result<(), EngineError> {
         validate_rule_id(&rule.id)?;
         if self.rules.iter().any(|existing| existing.id == rule.id) {
@@ -304,6 +335,10 @@ impl NativeReasoner {
         }
         if rule.premises.len() > self.config.max_rule_premises {
             return Err(EngineError::RulePremiseBudgetExceeded);
+        }
+        let retained_premises: usize = self.rules.iter().map(|existing| existing.premises.len()).sum();
+        if retained_premises.saturating_add(rule.premises.len()) > MAX_TOTAL_RULE_PREMISES {
+            return Err(EngineError::RulePremiseTotalBudgetExceeded);
         }
         for literal in rule
             .premises
@@ -324,7 +359,7 @@ impl NativeReasoner {
     ///
     /// # Errors
     /// Returns an error for invalid IDs, duplicate IDs, exhausted budgets, empty rules,
-    /// excessive premises, or malformed premise/conclusion atoms.
+    /// excessive premises, aggregate premise budget exhaustion, or malformed premise/conclusion atoms.
     pub fn add_rule_from_iter<I>(
         &mut self,
         id: &str,
@@ -1354,4 +1389,52 @@ mod tests {
         assert_eq!(consumed.get(), 3);
         assert_eq!(brain.rules, Vec::<Rule>::new());
     }
+    #[test]
+    fn rejects_caller_configurations_above_hard_resource_ceilings() {
+        let too_many_facts = EngineConfig { max_facts: 10_001, ..EngineConfig::default() };
+        assert_eq!(NativeReasoner::new(too_many_facts).err(), Some(EngineError::ConfigLimitExceeded));
+        let too_many_sources = EngineConfig { max_sources_per_fact: 33, ..EngineConfig::default() };
+        assert_eq!(NativeReasoner::new(too_many_sources).err(), Some(EngineError::ConfigLimitExceeded));
+        let too_long = EngineConfig { max_duration: Duration::from_millis(3_001), ..EngineConfig::default() };
+        assert_eq!(NativeReasoner::new(too_long).err(), Some(EngineError::ConfigLimitExceeded));
+    }
+
+    #[test]
+    fn aggregate_rule_premise_budget_is_atomic() {
+        let mut brain = engine();
+        let premises = vec![Literal::positive("p"); 256];
+        for index in 0..195 {
+            brain.add_rule(Rule {
+                id: format!("r{index}"),
+                premises: premises.clone(),
+                conclusion: Literal::positive("done"),
+            }).unwrap();
+        }
+        brain.add_rule(Rule {
+            id: "r195".into(),
+            premises: vec![Literal::positive("p"); 80],
+            conclusion: Literal::positive("done"),
+        }).unwrap();
+        let before = brain.rules.len();
+        assert_eq!(brain.add_rule(Rule {
+            id: "overflow".into(),
+            premises: vec![Literal::positive("p")],
+            conclusion: Literal::positive("done"),
+        }), Err(EngineError::RulePremiseTotalBudgetExceeded));
+        assert_eq!(brain.rules.len(), before);
+    }
+
+    #[test]
+    fn aggregate_assertion_budget_rejects_without_mutation() {
+        let mut brain = engine();
+        let fact = Literal::positive("evidence");
+        for index in 0..MAX_TOTAL_ASSERTIONS {
+            brain.add_fact_with_source(fact.clone(), &format!("source-{index}")).unwrap();
+        }
+        let before_facts = brain.facts.len();
+        assert_eq!(brain.add_fact_with_source(fact.clone(), "overflow-source"), Err(EngineError::AssertionBudgetExceeded));
+        assert_eq!(brain.facts.len(), before_facts);
+        assert_eq!(brain.asserted_facts.len(), MAX_TOTAL_ASSERTIONS);
+    }
+
 }
