@@ -380,13 +380,45 @@ mod tests {
     }
 
     #[test]
-    fn parser_rejects_transfer_encoding_and_duplicate_headers() {
+    fn parser_rejects_transfer_encoding() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let client = thread::spawn(move || {
             let mut stream = TcpStream::connect(address).unwrap();
             stream.write_all(
                 b"POST /v1/g05/execute HTTP/1.1\r\nHost: api.iroka.test\r\nX-Forwarded-Proto: https\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\n\r\n",
+            ).unwrap();
+        });
+        let (mut server, _) = listener.accept().unwrap();
+        let allowed = HashSet::from(["api.iroka.test".to_owned()]);
+        assert_eq!(read_request(&mut server, &allowed), Err(HttpParseError::Invalid));
+        client.join().unwrap();
+    }
+
+    #[test]
+    fn parser_rejects_duplicate_headers() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let client = thread::spawn(move || {
+            let mut stream = TcpStream::connect(address).unwrap();
+            stream.write_all(
+                b"POST /v1/g05/execute HTTP/1.1\\r\\nHost: api.iroka.test\\r\\nHost: attacker.test\\r\\nX-Forwarded-Proto: https\\r\\nContent-Type: application/json\\r\\nContent-Length: 2\\r\\n\\r\\n{}",
+            ).unwrap();
+        });
+        let (mut server, _) = listener.accept().unwrap();
+        let allowed = HashSet::from(["api.iroka.test".to_owned()]);
+        assert_eq!(read_request(&mut server, &allowed), Err(HttpParseError::Invalid));
+        client.join().unwrap();
+    }
+
+    #[test]
+    fn parser_rejects_lf_only_http_lines() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let client = thread::spawn(move || {
+            let mut stream = TcpStream::connect(address).unwrap();
+            stream.write_all(
+                b"GET /healthz HTTP/1.1\\nHost: api.iroka.test\\n\\n",
             ).unwrap();
         });
         let (mut server, _) = listener.accept().unwrap();
