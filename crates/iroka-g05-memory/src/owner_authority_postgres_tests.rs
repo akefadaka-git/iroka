@@ -213,6 +213,11 @@ fn postgres_g09_resolver_verifies_signed_policy_membership_and_emergency_stop() 
     assert_eq!(policy.version(),"policy-v1");
     assert!(!stopped);
     let principal = verified_principal(&auth, &subject);
+    assert_eq!(auth.resolve_task_tenant(&principal, &tenant).unwrap(), tenant);
+    assert_eq!(
+        auth.resolve_task_tenant(&principal, "tenant:not-an-active-membership"),
+        Err(G05Error::TenantScopeMismatch)
+    );
     let request=AuthorizationRequest { operation:Operation::Retrieve,principal_ref:subject,
         tenant_ref:tenant,subject_ref:"subject:resource".into(),purpose:Purpose::TaskContinuity,
         classification:Classification::Internal,memory_id:None,recipient_refs:vec![],
