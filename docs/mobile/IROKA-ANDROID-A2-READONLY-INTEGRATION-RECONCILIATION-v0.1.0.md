@@ -258,3 +258,47 @@ Until these conditions are met, the integration baseline is **NOT FROZEN**.
 **Immediate next step:** resolve the A2 decision register and establish a single approved first-party IROKA Android API/composition baseline before requesting A3 implementation authorization.
 
 **Governing principle:** one IROKA intelligence authority, multiple governed clients, no duplicated authority and no capability claims beyond verified implementation.
+
+
+## 8. Extended domain reconciliation — 2026-11-20
+
+This section records additional read-only inspection after the initial A2 report. It does not change any domain contract or authorize implementation.
+
+### 8.1 G05 memory and G01/G02/G11
+
+**Owner-approved design evidence**
+- G05 memory contract v1.0.0 is marked OWNER-APPROVED, baseline `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`, and explicitly requires separate A3 authorization.
+- G05 D1–D7 remain binding: record-specific durable approval; episodic opt-in; personal inspection/deletion rights; designated human review for organizational durable memory; vector/semantic retrieval deferred; cross-principal sharing default-deny; restricted data excluded from initial working memory.
+- G05 G01/G02/G11 integration amendment v0.1.0 records Owner-approved D1–D6, subordinate to the original G05 contract.
+- G02 organization authority contract selects Owner-governed authority, but explicitly says production Owner-key provisioning, live organization onboarding, G05 activation, merge and deployment are not authorized.
+
+**Implementation candidates and exact-head evidence**
+- G01/G02 candidate branch `feat/a3-8-g01-tenant-reconciliation`: `c46f2b5876c0294481ee22dc0786fded1cdad9a6`; 130 commits ahead / 3 behind current main; exact-head workflow run #43128701870 succeeded.
+- G05/Kernel integrated candidate `feat/brain-a3-g05-g01-g02-g11-integration`: `0968221b55563a9aacbec4fa499fdac7679e9915`; 231 ahead / 3 behind current main. Latest head is a documentation reconciliation commit; the branch's G05 implementation lineage is not thereby certified as a single production integration.
+- G05 HTTP/PostgreSQL candidate `feat/g05-http-host-a3`: `c8991fc61170bc04d7aeaea390a76a85900c2232`; 378 ahead / 3 behind current main; exact-head Rust verification run #43280580981 succeeded.
+- G05 PostgreSQL/G11 multiworker candidate `feat/g05-postgres-g11-multiworker-a3`: `2bfac619b9601330b3343f86277bb5ba29ae22b2`; 334 ahead / 3 behind current main; exact-head Rust verification runs #43240878046 and #43240392654 succeeded.
+- G05 registry/lifecycle reconciliation record identifies incompatible variants: PR #43's G05-local reviewer-designation table is not authoritative and must be removed from the authority path; G02 must own organization designations/delegations. The record prefers opaque G01-verified proof consumption and the PR #51 pending-approval pattern, but still identifies G02 exact-tuple authorization, delegation binding, G11 acknowledgment gating and cross-store ordering as unresolved.
+
+**A2 disposition:** G05's product contract and cross-domain direction are approved; G05 A3 implementation and G01/G02/G11 integration remain PARTIAL. Passing CI on individual heads does not resolve authority ownership or cross-store transaction gaps. No candidate is promoted as the Android app's runtime dependency.
+
+### 8.2 G08 durable orchestration
+
+- G08 A2 Owner closure record `IROKA-G08-A2-CLOSE-001`, version 1.0.0, commit `d941e2120f83ef5f864746c65d96bf9d4616110e`, states VERIFIED-CLOSED for architecture, scope and dependency-boundary reconciliation only.
+- Its accepted scope is a tenant-scoped durable coordinator: versioned workflow/task state, DAG validation, idempotency, bounded leases/retry/cancellation, restart recovery and append-only transition evidence.
+- It explicitly excludes tool execution, external side effects, G09 grants, model calls, production trust provisioning and deployment. G08 A3 implementation was NOT AUTHORIZED by that closure record.
+- The separate G08 implementation candidate `feat/g08-a3-durable-coordinator` is at `2cfcf8db9437824cc8181ad8af1e8d819b936e2c`, 81 commits ahead / 3 behind current main; exact-head workflow run #43230367894 succeeded. This does not supersede the A3 authorization boundary or prove integration with an Android-facing service.
+
+**A2 disposition:** G08 architecture is VERIFIED-CLOSED within its own domain. It remains a candidate dependency for the Android integration graph, not an approved or deployed mobile task runtime.
+
+### 8.3 Updated Android integration graph
+
+The repository now contains substantial G05, G01/G02 and G08 candidate work, but it still does not establish a single immutable, compatible, production-authoritative graph for the Android app. The following remain blockers for Android A2 closure:
+1. A single canonical, exact-SHA integration baseline reconciling Kernel/G01/G02/G05/G08/G11; candidate branches currently diverge from current main and from one another.
+2. A G01 native Android authentication contract and issuer-backed lifecycle (audience, scopes, refresh, revocation, device loss); browser cookie contracts are not adopted for native use.
+3. A G02 exact-tuple decision API that is authoritative for tenant, organization, actor/reviewer, delegation version, operation, resource, record version/digest, purpose and classification.
+4. G05 authority ownership correction and G11 durable acknowledgment/activation ordering, including explicit handling of cross-store partial failure.
+5. A runnable first-party service host and a separate mobile API contract; G05 HTTP host is a domain-specific candidate, not yet an Android-wide cognition/task API.
+6. G08 A3 authorization and exact integration contract before it can be used as a mobile task coordinator.
+7. No verified Android-compatible on-device model/runtime artifact, signature/provenance chain, license, ABI/device floor or resource budget has been established.
+
+**Updated A2 status: PARTIAL / NOT CLOSED.** G05 and G08 Owner-approved architecture decisions improve the evidence base but do not close the Android integration blockers. No Android repository or application code has been created; no source implementation, merge, main modification, deployment or production activation was performed.
