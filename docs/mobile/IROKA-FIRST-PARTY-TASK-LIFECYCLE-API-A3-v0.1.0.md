@@ -21,6 +21,10 @@ The request contains a tenant selector, idempotency key, client request ID, corr
 
 The server resolves the tenant selector by exact match against the active Owner-authorized G02 `tenant_ref` membership key and stores only the reference returned by G02. G02 currently defines no tenant-alias mapping: a selector that is not the exact canonical reference is denied. G09 then rechecks active membership and evaluates the deployment-granted capability and risk against one current signed policy snapshot. The policy evaluator currently enforces capability, risk, and emergency-stop state; task ownership is enforced separately by the task authorizer. Idempotency is scoped by `(tenant_ref, principal_ref, idempotency_key)`. A byte-identical semantic request replay returns the original task; reuse with a different request digest returns HTTP 409.
 
+## Worker lease boundary
+
+The PostgreSQL worker repository supports atomic claim, lease renewal, lease-token-guarded completion, and durable cancellation acknowledgement. Claim uses `FOR UPDATE SKIP LOCKED`; the database generates each lease token. These are internal repository operations only: no worker HTTP endpoint, worker-service authentication, model invocation, or protected-effect dispatcher is enabled. Lease-expiry reclaim, bounded retry scheduling, and the expiry sweeper remain open.
+
 ## Durable state and events
 
 Task state is versioned and updated using a row lock plus compare-and-swap. Each successful transition and its append-only event commit in one PostgreSQL transaction. Events have stable IDs and monotonic per-task sequence numbers. Clients resume by sequence cursor.
@@ -36,6 +40,8 @@ The database stores task metadata, input-reference identifiers, request digests,
 - Exact-head CI for the canonical G02 tenant-resolution adapter and its PostgreSQL integration test.
 - PostgreSQL migration execution and integration tests for create/replay/conflict, transition CAS, event ordering, append-only enforcement, and cancellation races.
 - Bounded retry/reclaim policy and expiry sweeper for abandoned or exhausted worker leases.
+- Worker-service identity and authenticated internal host wiring.
+- A4 verification of G02 signed-membership projection integrity and database runtime-role restrictions.
 - Result storage/encryption and result-reference authorization.
 - G11 audit integration before any protected external effect.
 - HTTP listener wiring, TLS/proxy trust configuration, rate limits, and load/concurrency tests.
