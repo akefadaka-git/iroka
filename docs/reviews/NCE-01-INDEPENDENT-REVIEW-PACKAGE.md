@@ -54,7 +54,7 @@ Also inspect the repository workflow definitions and reproduce the production-fe
 
 ### Working-branch remediation delta (not a replacement for the pinned review target)
 
-- Latest verified working-branch head: `b027860e5714463ce1ad51cdec1ef347b803cd81`
+- Latest exact-SHA verified working-branch head after R-05: `9ca49676fa2d64095014af8792930e0df3badd0c`
 - `crates/iroka-cognition/src/lib.rs` blob: `af97c78e0d736dbd6ed226f98fcf10738bc6de61`
 - The immutable baseline above remains the independent-review target. The working-branch source contains the R-01/R-02 remediation delta and must be reviewed as a distinct source revision before NCE-01 acceptance.
 - R-01 additions: `AssertedFact`, `add_fact_with_source`, opaque source IDs, a 32-identified-source-per-fact default bound (legacy `None` source markers do not consume this budget), and one witness per satisfied `(conclusion, rule_id)` pair, including alternate rule support for already-known conclusions.
@@ -198,7 +198,7 @@ These points were identified during package preparation and must be confirmed, r
 | R-02 | Deadline | The report finalization path originally lacked deadline checks. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED at `463abe7fd31b35358b01357c2f7957af8b199f81`; report materialization deadline regression test passes. Independent review remains pending. |
 | R-03 | Resource accounting | Configured limits bound retained engine state and inference work, but cannot bound memory already allocated by callers. | PARTIALLY REMEDIATED on the working branch: bounded borrowed-input APIs, incremental premise collection and rule-ID byte cap added; upstream transport/parser quotas remain an integration requirement. Independent review remains pending. |
 | R-04 | Partial result semantics | A report can contain facts and derivations accumulated before `Deadline`, `StepBudget` or `FactBudget`. | Confirm all consumers must treat such reports as incomplete, not as a completed closure. |
-| R-05 | Duplicate premises | Rule premises are stored as a vector and are not deduplicated. | Confirm intended logical and accounting semantics; test repeated literals. |
+| R-05 | Duplicate premises | Rule premises are stored as a vector and are not deduplicated. | **INTERNAL DISPOSITION DEFINED AND VERIFIED** at `9ca49676fa2d64095014af8792930e0df3badd0c`: duplicates are logically idempotent, retained in accepted order, and every occurrence counts toward per-rule and aggregate premise budgets. Independent review remains pending. |
 
 These are review questions, not declarations of defects. No severity or remediation is assigned until independently assessed.
 
@@ -318,3 +318,27 @@ Exact-SHA verification for implementation commit `bcee3f5d5557361ec8349919171406
 ## R-03 upstream ingress contract — specification only
 
 Added `docs/architecture/NCE-01-INGRESS-RESOURCE-CONTRACT.md`. It defines the proposed 32 MiB raw/decompressed body cap, streaming count/byte validation, request-wide limits, 5-second end-to-end deadline, cancellation, weighted memory admission, one maximum-profile request per worker until peak-RSS qualification, process memory isolation, partial-result semantics, and adversarial acceptance tests. This is **SPECIFIED / NOT IMPLEMENTED**. The repository has no NCE-01 ingress adapter; no network endpoint or production listener was added. R-03 remains PARTIAL. Peak RSS, concurrency safety, and adapter integration tests are NOT RUN and cannot be claimed from the cognition crate CI.
+
+
+### 7.4 R-05 duplicate-premise disposition and exact-SHA verification — 2026-11-20
+
+**R-05 internal status: VERIFIED-CLOSED.** This is an internal engineering disposition supported by regression tests and exact-SHA CI. It is not an independent reviewer verdict or production approval.
+
+**Decision:** duplicate premises are accepted and retained in caller order; they are not normalized or deduplicated.
+
+- Logical semantics are idempotent: one present instance of literal `p` satisfies a body containing `p, p`; if `p` is absent, the duplicated body is unsatisfied.
+- Every submitted occurrence counts toward `max_rule_premises` and the aggregate 50,000-premise ceiling.
+- The derivation witness preserves the accepted premise vector, including duplicate occurrences and their order.
+- Duplicate premises do not create duplicate facts or multiple witnesses for the same (conclusion, rule ID).
+- This preserves caller representation and prevents duplicate-heavy input from bypassing resource accounting. It does not claim duplicate occurrences are independent evidence.
+
+**Regression tests:** `crates/iroka-cognition/tests/nce01_duplicate_premises.rs` verifies (1) one matching fact satisfies a duplicated premise and the witness retains both occurrences; (2) an absent duplicated premise does not derive a conclusion; and (3) duplicate occurrences count toward the exact aggregate ceiling, accepting the boundary and rejecting the next occurrence.
+
+**Exact-SHA verification — commit `9ca49676fa2d64095014af8792930e0df3badd0c`:**
+
+- [Native Cognition CI #163 — Run 44659045226](https://github.com/akefadaka-git/iroka/actions/runs/44659045226): PASS. Formatting, workspace tests and cognition Clippy all passed.
+- [Rust kernel verification #2258 — Run 44659045276](https://github.com/akefadaka-git/iroka/actions/runs/44659045276): PASS. Formatting, all-target compilation, production-feature bypass check, complete workspace tests and workspace Clippy all passed.
+- Test totals in each run: cognition crate 53 passed; duplicate-premise integration tests 3 passed; kernel 71 passed; authorization-contract 2 passed; zero failures.
+- Both workflow runs completed successfully and their commit association is the exact SHA above.
+
+R-05 is therefore internally VERIFIED-CLOSED. Independent review of the immutable baseline and working-branch remediation remains NOT PERFORMED. R-03 upstream ingress remains PARTIAL / SPECIFIED — NOT IMPLEMENTED; this CI does not establish adapter integration, adversarial transport tests, concurrency safety or peak RSS. PR #130 remains OPEN and DRAFT; no merge, deployment or production activation is authorized.
