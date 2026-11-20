@@ -182,21 +182,23 @@ pub trait TaskAuthorizer: Send + Sync {
     ) -> Result<(), TaskApiError>;
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct TaskTransition {
+    pub task_id: String,
+    pub expected_version: u64,
+    pub next_state: TaskState,
+    pub actor_ref: String,
+    pub occurred_at: u64,
+    pub metadata: Value,
+    pub result_ref: Option<String>,
+    pub error_code: Option<String>,
+}
+
 pub trait TaskRepository: Send + Sync {
     fn create(&self, task: &TaskRecord, initial_event: &TaskEvent)
         -> Result<(TaskRecord, bool), TaskApiError>;
     fn get(&self, task_id: &str) -> Result<Option<TaskRecord>, TaskApiError>;
-    fn transition(
-        &self,
-        task_id: &str,
-        expected_version: u64,
-        next_state: TaskState,
-        actor_ref: &str,
-        occurred_at: u64,
-        metadata: Value,
-        result_ref: Option<&str>,
-        error_code: Option<&str>,
-    ) -> Result<TaskRecord, TaskApiError>;
+    fn transition(&self, change: TaskTransition) -> Result<TaskRecord, TaskApiError>;
     fn events(
         &self,
         task_id: &str,
@@ -312,16 +314,16 @@ impl<R: TaskRepository, A: TaskAuthorizer> TaskService<R, A> {
             }
             _ => return Err(TaskApiError::Conflict),
         };
-        self.repository.transition(
-            task_id,
-            task.task_version,
-            next,
-            principal.subject(),
-            now,
-            json!({"reason_code":"caller_cancelled"}),
-            None,
-            None,
-        )
+        self.repository.transition(TaskTransition {
+            task_id: task_id.to_owned(),
+            expected_version: task.task_version,
+            next_state: next,
+            actor_ref: principal.subject().to_owned(),
+            occurred_at: now,
+            metadata: json!({"reason_code":"caller_cancelled"}),
+            result_ref: None,
+            error_code: None,
+        })
     }
 }
 
@@ -503,43 +505,56 @@ impl TaskRepository for PostgresTaskRepository {
             .map(|row| task_from_row(&row)).transpose()
     }
 
-    fn transition(
-        &self, task_id: &str, expected_version: u64, next_state: TaskState,
-        actor_ref: &str, occurred_at: u64, metadata: Value,
-        result_ref: Option<&str>, error_code: Option<&str>,
-    ) -> Result<TaskRecord, TaskApiError> {
-        if !valid_event_metadata(&metadata) {
+    fn transition(&self, change: TaskTransition) -> Result<TaskRecord, TaskApiError> {
+        if !valid_event_metadata(&change.metadata)
+            || change.actor_ref.trim().is_empty()
+            || change.actor_ref.len() > MAX_TASK_REF_BYTES
+            || change.actor_ref.chars().any(char::is_control)
+            || change.result_ref.as_ref().is_some_and(|value| value.trim().is_empty()
+                || value.len() > MAX_TASK_REF_BYTES || value.chars().any(char::is_control))
+            || change.error_code.as_ref().is_some_and(|value| value.trim().is_empty()
+                || value.len() > 128 || !value.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte)))
+            || (change.next_state == TaskState::Succeeded && change.result_ref.is_none())
+            || (change.next_state == TaskState::Failed && change.error_code.is_none())
+            || (change.next_state != TaskState::Succeeded && change.result_ref.is_some())
+            || (change.next_state != TaskState::Failed && change.error_code.is_some())
+        {
             return Err(TaskApiError::InvalidRequest);
         }
         let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
         let mut tx = client.transaction().map_err(|_| TaskApiError::RepositoryUnavailable)?;
         let sql = format!("SELECT {TASK_COLUMNS} FROM iroka_tasks WHERE task_id=$1 FOR UPDATE");
-        let row = tx.query_opt(&sql,&[&task_id]).map_err(|_| TaskApiError::RepositoryUnavailable)?
+        let row = tx.query_opt(&sql,&[&change.task_id]).map_err(|_| TaskApiError::RepositoryUnavailable)?
             .ok_or(TaskApiError::NotFound)?;
         let current = task_from_row(&row)?;
-        if current.task_version != expected_version || !current.state.permits(next_state)
-            || occurred_at < current.updated_at || occurred_at > current.expires_at
+        if current.task_version != change.expected_version
+            || !current.state.permits(change.next_state)
+            || change.occurred_at < current.updated_at
+            || change.occurred_at > current.expires_at
         {
             return Err(TaskApiError::Conflict);
         }
         let next_version = current.task_version.checked_add(1).ok_or(TaskApiError::Conflict)?;
-        tx.execute(
+        let changed = tx.execute(
             "UPDATE iroka_tasks SET state=$2,task_version=$3,updated_at=$4,
                 result_ref=COALESCE($5,result_ref),error_code=COALESCE($6,error_code)
              WHERE task_id=$1 AND task_version=$7",
-            &[&task_id,&next_state.as_str(),&(next_version as i64),&(occurred_at as i64),
-              &result_ref,&error_code,&(expected_version as i64)],
+            &[&change.task_id,&change.next_state.as_str(),&(next_version as i64),
+              &(change.occurred_at as i64),&change.result_ref,&change.error_code,
+              &(change.expected_version as i64)],
         ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
-        let event_type = format!("task.{}", next_state.as_str());
-        let event_id = format!("{task_id}:event:{next_version}");
+        if changed != 1 { return Err(TaskApiError::Conflict); }
+        let event_type = format!("task.{}", change.next_state.as_str());
+        let event_id = format!("{}:event:{next_version}", change.task_id);
         tx.execute(
             "INSERT INTO iroka_task_events
              (task_id,sequence,event_id,event_type,task_state,task_version,actor_ref,occurred_at,metadata_json)
              VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
-            &[&task_id,&(next_version as i64),&event_id,&event_type,&next_state.as_str(),
-              &(next_version as i64),&actor_ref,&(occurred_at as i64),&metadata],
+            &[&change.task_id,&(next_version as i64),&event_id,&event_type,
+              &change.next_state.as_str(),&(next_version as i64),&change.actor_ref,
+              &(change.occurred_at as i64),&change.metadata],
         ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
-        let updated = tx.query_one(&sql.replace(" FOR UPDATE",""),&[&task_id])
+        let updated = tx.query_one(&sql.replace(" FOR UPDATE",""),&[&change.task_id])
             .map_err(|_| TaskApiError::RepositoryUnavailable)?;
         tx.commit().map_err(|_| TaskApiError::RepositoryUnavailable)?;
         task_from_row(&updated)
