@@ -447,7 +447,7 @@ impl NativeReasoner {
         F: FnMut() -> Duration,
     {
         let mut steps = 0usize;
-        let mut stop_reason;
+        let stop_reason;
         'reasoning: loop {
             if elapsed() >= self.config.max_duration {
                 stop_reason = StopReason::Deadline;
