@@ -129,7 +129,6 @@ fn repeated_step_bounded_calls_resume_fairly_until_fixed_point() {
     );
 }
 
-
 #[test]
 fn bounded_resumption_is_insertion_order_invariant() {
     let config = EngineConfig {
