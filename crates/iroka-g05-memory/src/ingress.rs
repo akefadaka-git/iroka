@@ -230,12 +230,12 @@ where
         authorization_header: Option<&str>,
         request: AuthorizationRequest,
     ) -> Result<AuthenticatedG05Request, G05Error> {
-        let header = authorization_header.ok_or(G05Error::AuthorizationDenied)?;
+        let header = authorization_header.ok_or(G05Error::AuthenticationRequired)?;
         let token = header.strip_prefix("Bearer ")
             .filter(|value| !value.trim().is_empty())
-            .ok_or(G05Error::AuthorizationDenied)?;
+            .ok_or(G05Error::AuthenticationInvalid)?;
         if token.bytes().any(|byte| byte.is_ascii_whitespace()) {
-            return Err(G05Error::AuthorizationDenied);
+            return Err(G05Error::AuthenticationInvalid);
         }
         self.authorize(token, request)
     }
@@ -271,7 +271,7 @@ where
             .authenticate(compact_credential, &self.expected_audience, now)
             .map_err(|error| match error {
                 CredentialError::RevocationUnavailable => G05Error::AuthorityUnavailable,
-                _ => G05Error::AuthorizationDenied,
+                _ => G05Error::AuthenticationInvalid,
             })
     }
 }
