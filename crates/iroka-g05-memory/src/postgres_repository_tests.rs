@@ -570,7 +570,7 @@ fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restar
         resource_ref: format!("iroka:task:tenant:{suffix}:task:{suffix}"),
         policy_version: "policy:task-test-v1".into(),
         correlation_ref: format!("trace:task:{suffix}"),
-        occurred_at: 1_800_000_000,
+        occurred_at: 1_700_000_000,
         subject_payload_sha256: "a".repeat(64),
     };
     let task_ack = recovered.append_envelope(&envelope).unwrap();

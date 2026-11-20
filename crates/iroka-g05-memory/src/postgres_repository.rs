@@ -1046,7 +1046,7 @@ impl PostgresG11MemoryAdapter {
                 _ => return Err(G05Error::AuditUnavailable),
             };
             let canonical = format!(
-                "IROKA:G11:{domain_name}:AUDIT:V1\\0{previous}\\0{event_id}\\0{payload_digest}\\0{occurred_at}\\0{accepted_at}"
+                "IROKA:G11:{domain_name}:AUDIT:V1\0{previous}\0{event_id}\0{payload_digest}\0{occurred_at}\0{accepted_at}"
             );
             let calculated = crate::sha256_hex(canonical.as_bytes());
             if sequence != expected_sequence || previous_digest != previous
@@ -1254,7 +1254,7 @@ impl PostgresG11MemoryAdapter {
         ).map_err(|_|G05Error::RepositoryUnavailable)?.get(0);
         if accepted_at<occurred_at { return Err(G05Error::AuditUnavailable); }
         let canonical=format!(
-            "IROKA:G11:ENVELOPE:AUDIT:V1\\0{previous_digest}\\0{}\\0{payload_digest}\\0{occurred_at}\\0{accepted_at}",
+            "IROKA:G11:ENVELOPE:AUDIT:V1\0{previous_digest}\0{}\0{payload_digest}\0{occurred_at}\0{accepted_at}",
             event.event_id
         );
         let event_digest=crate::sha256_hex(canonical.as_bytes());
