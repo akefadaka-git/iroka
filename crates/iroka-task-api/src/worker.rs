@@ -26,6 +26,10 @@ pub trait TaskWorkerRepository: Send + Sync {
         -> Result<TaskRecord, TaskApiError>;
     fn acknowledge_cancel(&self, lease: &TaskLease, occurred_at: u64, metadata: Value)
         -> Result<TaskRecord, TaskApiError>;
+    fn reclaim_expired_leases(
+        &self, now: u64, max_attempts: u32, retry_delay_seconds: u64, limit: usize,
+    ) -> Result<usize, TaskApiError>;
+    fn expire_due_tasks(&self, now: u64, limit: usize) -> Result<usize, TaskApiError>;
 }
 
 fn valid_worker_ref(value: &str) -> bool {
@@ -224,5 +228,108 @@ impl TaskWorkerRepository for PostgresTaskRepository {
         append_worker_event(&mut tx,&task,"task.cancelled",&lease.worker_ref,occurred_at,&metadata)?;
         tx.commit().map_err(|_|TaskApiError::RepositoryUnavailable)?;
         Ok(task)
+    }
+
+    fn reclaim_expired_leases(
+        &self, now: u64, max_attempts: u32, retry_delay_seconds: u64, limit: usize,
+    ) -> Result<usize, TaskApiError> {
+        if !(1..=10).contains(&max_attempts) || !(1..=3600).contains(&retry_delay_seconds)
+            || limit == 0 || limit > 100 {
+            return Err(TaskApiError::InvalidRequest);
+        }
+        let now_i=i64::try_from(now).map_err(|_|TaskApiError::InvalidRequest)?;
+        let retry_at=now.checked_add(retry_delay_seconds)
+            .and_then(|v|i64::try_from(v).ok()).ok_or(TaskApiError::InvalidRequest)?;
+        let limit_i=i64::try_from(limit).map_err(|_|TaskApiError::InvalidRequest)?;
+        let max_attempts_i=i32::try_from(max_attempts).map_err(|_|TaskApiError::InvalidRequest)?;
+        let mut client=self.client.lock().map_err(|_|TaskApiError::RepositoryUnavailable)?;
+        let mut tx=client.transaction().map_err(|_|TaskApiError::RepositoryUnavailable)?;
+        let sql=format!(
+            "SELECT {LEASE_COLUMNS} FROM iroka_tasks
+             WHERE state IN ('running','cancel_requested')
+               AND lease_token IS NOT NULL AND lease_expires_at<=$1
+             ORDER BY lease_expires_at,task_id
+             LIMIT $2 FOR UPDATE SKIP LOCKED"
+        );
+        let rows=tx.query(&sql,&[&now_i,&limit_i]).map_err(|_|TaskApiError::RepositoryUnavailable)?;
+        let mut changed_count=0usize;
+        for row in rows {
+            let lease=lease_from_row(&row)?;
+            let (next_state,event_type,next_attempt,error_code,metadata)=match lease.task.state {
+                TaskState::CancelRequested => (
+                    TaskState::CancelRequested,"task.cancel_lease_expired",0i64,None,
+                    json!({"reason_code":"cancel_lease_expired","retryable":true,"attempt":lease.attempt})
+                ),
+                TaskState::Running if lease.task.expires_at<=now => (
+                    TaskState::Expired,"task.expired",0i64,None,
+                    json!({"reason_code":"task_expired","retryable":false,"attempt":lease.attempt})
+                ),
+                TaskState::Running if lease.attempt>=max_attempts_i as u32 => (
+                    TaskState::Failed,"task.failed",0i64,Some("attempts_exhausted".to_owned()),
+                    json!({"reason_code":"attempts_exhausted","error_code":"attempts_exhausted","retryable":false,"attempt":lease.attempt})
+                ),
+                TaskState::Running => (
+                    TaskState::Queued,"task.queued",retry_at,None,
+                    json!({"reason_code":"lease_expired","retryable":true,"attempt":lease.attempt})
+                ),
+                _ => return Err(TaskApiError::Conflict),
+            };
+            let next_version=lease.task.task_version.checked_add(1).ok_or(TaskApiError::Conflict)?;
+            let updated=tx.execute(
+                "UPDATE iroka_tasks SET state=$2,task_version=$3,updated_at=$4,
+                    lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,
+                    next_attempt_at=$5,error_code=$6,result_ref=NULL
+                 WHERE task_id=$1 AND task_version=$7",
+                &[&lease.task.task_id,&next_state.as_str(),&(next_version as i64),&now_i,
+                  &next_attempt,&error_code,&(lease.task.task_version as i64)],
+            ).map_err(|_|TaskApiError::RepositoryUnavailable)?;
+            if updated!=1 { return Err(TaskApiError::Conflict); }
+            let updated_sql=format!("SELECT {TASK_COLUMNS} FROM iroka_tasks WHERE task_id=$1");
+            let row=tx.query_one(&updated_sql,&[&lease.task.task_id])
+                .map_err(|_|TaskApiError::RepositoryUnavailable)?;
+            let task=task_from_row(&row)?;
+            append_worker_event(&mut tx,&task,event_type,"system:task-lease-reaper",now,&metadata)?;
+            changed_count+=1;
+        }
+        tx.commit().map_err(|_|TaskApiError::RepositoryUnavailable)?;
+        Ok(changed_count)
+    }
+
+    fn expire_due_tasks(&self, now: u64, limit: usize) -> Result<usize, TaskApiError> {
+        if limit==0 || limit>100 { return Err(TaskApiError::InvalidRequest); }
+        let now_i=i64::try_from(now).map_err(|_|TaskApiError::InvalidRequest)?;
+        let limit_i=i64::try_from(limit).map_err(|_|TaskApiError::InvalidRequest)?;
+        let mut client=self.client.lock().map_err(|_|TaskApiError::RepositoryUnavailable)?;
+        let mut tx=client.transaction().map_err(|_|TaskApiError::RepositoryUnavailable)?;
+        let sql=format!(
+            "SELECT {TASK_COLUMNS} FROM iroka_tasks
+             WHERE state IN ('accepted','queued','running','awaiting_authorization')
+               AND expires_at<=$1
+             ORDER BY expires_at,task_id
+             LIMIT $2 FOR UPDATE SKIP LOCKED"
+        );
+        let rows=tx.query(&sql,&[&now_i,&limit_i]).map_err(|_|TaskApiError::RepositoryUnavailable)?;
+        let mut changed_count=0usize;
+        for row in rows {
+            let current=task_from_row(&row)?;
+            let next_version=current.task_version.checked_add(1).ok_or(TaskApiError::Conflict)?;
+            let updated=tx.execute(
+                "UPDATE iroka_tasks SET state='expired',task_version=$2,updated_at=$3,
+                    lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL,
+                    next_attempt_at=0,error_code=NULL,result_ref=NULL
+                 WHERE task_id=$1 AND task_version=$4",
+                &[&current.task_id,&(next_version as i64),&now_i,&(current.task_version as i64)],
+            ).map_err(|_|TaskApiError::RepositoryUnavailable)?;
+            if updated!=1 { return Err(TaskApiError::Conflict); }
+            let updated_sql=format!("SELECT {TASK_COLUMNS} FROM iroka_tasks WHERE task_id=$1");
+            let row=tx.query_one(&updated_sql,&[&current.task_id])
+                .map_err(|_|TaskApiError::RepositoryUnavailable)?;
+            let task=task_from_row(&row)?;
+            append_worker_event(&mut tx,&task,"task.expired","system:task-expiry-sweeper",now,
+                &json!({"reason_code":"task_expired","retryable":false}))?;
+            changed_count+=1;
+        }
+        tx.commit().map_err(|_|TaskApiError::RepositoryUnavailable)?;
+        Ok(changed_count)
     }
 }

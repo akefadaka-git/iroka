@@ -1,6 +1,6 @@
 # IROKA first-party task lifecycle API — A3 contract
 
-Status: PostgreSQL lifecycle and canonical G02 tenant-resolution tests pass. Durable worker lease claim/renew/completion/cancellation-acknowledgement primitives are implemented and require exact-head CI. No live HTTP task route, worker process, model invocation, or protected-effect dispatcher is enabled.
+Status: PostgreSQL lifecycle and canonical G02 tenant-resolution tests pass. Durable worker lease claim/renew/completion/cancellation-acknowledgement, bounded retry/reclaim, and expiry-sweeper primitives are implemented and require exact-head CI. No live HTTP task route, worker process, model invocation, or protected-effect dispatcher is enabled.
 
 ## Routes
 
@@ -39,7 +39,6 @@ The database stores task metadata, input-reference identifiers, request digests,
 
 - Exact-head CI for the canonical G02 tenant-resolution adapter and its PostgreSQL integration test.
 - PostgreSQL migration execution and integration tests for create/replay/conflict, transition CAS, event ordering, append-only enforcement, and cancellation races.
-- Bounded retry/reclaim policy and expiry sweeper for abandoned or exhausted worker leases.
 - Worker-service identity and authenticated internal host wiring.
 - A4 verification of G02 signed-membership projection integrity and database runtime-role restrictions.
 - Result storage/encryption and result-reference authorization.

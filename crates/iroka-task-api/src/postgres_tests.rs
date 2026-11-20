@@ -170,6 +170,74 @@ fn postgres_idempotency_atomic_transitions_ordering_and_append_only() {
     assert_eq!(cancelled.state, TaskState::Cancelled);
     assert_eq!(repository.events(&cancel_task.task_id, 0, 20).unwrap().len(), 5);
 
+    // Expired worker leases are reclaimed with bounded attempts and delayed retry.
+    let mut retry_task = task("task:pg-retry", &"d".repeat(64));
+    retry_task.idempotency_key = "idem:pg-retry".into();
+    repository.create(&retry_task, &initial_event(&retry_task)).expect("create retry task");
+    repository.transition(TaskTransition {
+        task_id: retry_task.task_id.clone(), expected_version: 1,
+        next_state: TaskState::Queued, actor_ref: "scheduler:pg-test".into(),
+        occurred_at: 300, metadata: json!({"reason_code":"scheduled"}),
+        result_ref: None, error_code: None,
+    }).expect("queue retry task");
+    let first_attempt = repository.claim_next("worker:retry-1", 310, 5, 2)
+        .expect("claim first attempt").expect("first attempt available");
+    assert_eq!(first_attempt.attempt, 1);
+    assert_eq!(repository.reclaim_expired_leases(316, 2, 10, 10).unwrap(), 1);
+    assert_eq!(repository.get(&retry_task.task_id).unwrap().unwrap().state, TaskState::Queued);
+    let retry_at: i64 = repository.client.lock().unwrap().query_one(
+        "SELECT next_attempt_at FROM iroka_tasks WHERE task_id=$1",&[&retry_task.task_id]
+    ).unwrap().get(0);
+    assert_eq!(retry_at, 326);
+    assert!(repository.claim_next("worker:too-early", 325, 5, 2).unwrap().is_none());
+    let second_attempt = repository.claim_next("worker:retry-2", 326, 5, 2)
+        .expect("claim retry").expect("retry becomes available");
+    assert_eq!(second_attempt.attempt, 2);
+    assert_eq!(repository.reclaim_expired_leases(332, 2, 10, 10).unwrap(), 1);
+    let exhausted = repository.get(&retry_task.task_id).unwrap().unwrap();
+    assert_eq!(exhausted.state, TaskState::Failed);
+    assert_eq!(exhausted.error_code.as_deref(), Some("attempts_exhausted"));
+
+    // Expiry sweeper terminalizes overdue queued work and appends its event.
+    let mut expiring = task("task:pg-expiring", &"e".repeat(64));
+    expiring.idempotency_key = "idem:pg-expiring".into();
+    repository.create(&expiring, &initial_event(&expiring)).expect("create expiring task");
+    repository.transition(TaskTransition {
+        task_id: expiring.task_id.clone(), expected_version: 1,
+        next_state: TaskState::Queued, actor_ref: "scheduler:pg-test".into(),
+        occurred_at: 400, metadata: json!({"reason_code":"scheduled"}),
+        result_ref: None, error_code: None,
+    }).expect("queue expiring task");
+    assert_eq!(repository.expire_due_tasks(1_001, 10).unwrap(), 1);
+    assert_eq!(repository.get(&expiring.task_id).unwrap().unwrap().state, TaskState::Expired);
+
+    // A cancellation lease can be reclaimed after worker loss and acknowledged by its successor.
+    let mut cancel_reclaim = task("task:pg-cancel-reclaim", &"f".repeat(64));
+    cancel_reclaim.idempotency_key = "idem:pg-cancel-reclaim".into();
+    repository.create(&cancel_reclaim, &initial_event(&cancel_reclaim)).expect("create cancel-reclaim task");
+    repository.transition(TaskTransition {
+        task_id: cancel_reclaim.task_id.clone(), expected_version: 1,
+        next_state: TaskState::Queued, actor_ref: "scheduler:pg-test".into(),
+        occurred_at: 500, metadata: json!({"reason_code":"scheduled"}),
+        result_ref: None, error_code: None,
+    }).expect("queue cancel-reclaim task");
+    let lost_worker = repository.claim_next("worker:lost", 510, 5, 2)
+        .expect("claim cancel-reclaim task").expect("worker lease exists");
+    repository.transition(TaskTransition {
+        task_id: cancel_reclaim.task_id.clone(), expected_version: lost_worker.task.task_version,
+        next_state: TaskState::CancelRequested, actor_ref: "principal:pg-test".into(),
+        occurred_at: 512, metadata: json!({"reason_code":"caller_cancelled"}),
+        result_ref: None, error_code: None,
+    }).expect("request cancel");
+    assert_eq!(repository.reclaim_expired_leases(516, 2, 10, 10).unwrap(), 1);
+    let successor = repository.claim_next("worker:successor", 517, 10, 2)
+        .expect("claim cancellation acknowledgement").expect("cancel-requested task requeued");
+    assert_eq!(successor.task.state, TaskState::CancelRequested);
+    let ack = repository.acknowledge_cancel(
+        &successor, 518, json!({"reason_code":"worker_cancel_acknowledged"})
+    ).expect("successor acknowledges cancellation");
+    assert_eq!(ack.state, TaskState::Cancelled);
+
     // Optimistic version check rejects stale writers without appending an event.
     let stale = TaskTransition {
         task_id: original.task_id.clone(), expected_version: 3,
