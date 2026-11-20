@@ -130,7 +130,7 @@ impl TaskWorkerRepository for PostgresTaskRepository {
             .and_then(|v| i64::try_from(v).ok()).ok_or(TaskApiError::InvalidRequest)?;
         let sql = format!(
             "UPDATE iroka_tasks SET lease_expires_at=$4
-             WHERE task_id=$1 AND lease_owner=$2 AND lease_token=$3::uuid
+             WHERE task_id=$1 AND lease_owner=$2 AND lease_token::text=$3
                AND state IN ('running','cancel_requested')
                AND lease_expires_at>$5 AND expires_at>$5
              RETURNING {LEASE_COLUMNS}"

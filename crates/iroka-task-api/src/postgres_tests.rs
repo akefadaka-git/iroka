@@ -9,7 +9,7 @@ fn task(task_id: &str, digest: &str) -> TaskRecord {
         capability_id: "iroka.answer".into(),
         capability_version: "1.0.0".into(),
         policy_version: "policy:pg-test".into(),
-        idempotency_key: format!("idem:{task_id}"),
+        idempotency_key: "idem:pg-test".into(),
         request_sha256: digest.into(),
         correlation_id: "trace:pg-test".into(),
         client_request_id: "client:pg-test".into(),
@@ -147,7 +147,8 @@ fn postgres_idempotency_atomic_transitions_ordering_and_append_only() {
     assert_eq!(events.iter().map(|event| event.task_version).collect::<Vec<_>>(), vec![1, 2, 3, 4]);
 
     // Running cancellation remains pending until the lease owner acknowledges it.
-    let cancel_task = task("task:pg-cancel", &"c".repeat(64));
+    let mut cancel_task = task("task:pg-cancel", &"c".repeat(64));
+    cancel_task.idempotency_key = "idem:pg-cancel".into();
     repository.create(&cancel_task, &initial_event(&cancel_task)).expect("create cancellation task");
     repository.transition(TaskTransition {
         task_id: cancel_task.task_id.clone(), expected_version: 1,
