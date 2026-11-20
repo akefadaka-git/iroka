@@ -54,7 +54,7 @@ fn duplicate_premises_do_not_create_evidence_when_the_literal_is_absent() {
 
     assert_eq!(report.stop_reason, StopReason::FixedPoint);
     assert_eq!(engine.query(&conclusion).unwrap(), QueryResult::Unknown);
-    assert!(report.derivations.is_empty());
+    assert_eq!(report.derivations.len(), 0);
 }
 
 #[test]
