@@ -214,6 +214,9 @@ where
 
 fn status_for_g05_error(error: &G05Error) -> (u16, &'static str) {
     match error {
+        G05Error::AuthenticationRequired | G05Error::AuthenticationInvalid => {
+            (401, "Unauthorized")
+        }
         G05Error::AuthorityUnavailable | G05Error::AuditUnavailable => {
             (503, "Service Unavailable")
         }
