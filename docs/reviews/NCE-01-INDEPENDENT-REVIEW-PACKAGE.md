@@ -342,3 +342,19 @@ Added `docs/architecture/NCE-01-INGRESS-RESOURCE-CONTRACT.md`. It defines the pr
 - Both workflow runs completed successfully and their commit association is the exact SHA above.
 
 R-05 is therefore internally VERIFIED-CLOSED. Independent review of the immutable baseline and working-branch remediation remains NOT PERFORMED. R-03 upstream ingress remains PARTIAL / SPECIFIED — NOT IMPLEMENTED; this CI does not establish adapter integration, adversarial transport tests, concurrency safety or peak RSS. PR #130 remains OPEN and DRAFT; no merge, deployment or production activation is authorized.
+
+
+## NCE-01 additional verification — negative-literal query polarity (2026-11-20)
+
+A further coverage gap was identified in the test inventory: the four-valued query contract was tested for positive queries, but lacked a focused matrix for querying an explicitly negative literal. Added `crates/iroka-cognition/tests/nce01_negative_query_semantics.rs` on commit `320929fc03256a4a942999301aa76e112af3340a`.
+
+The new tests cover all four outcomes when the query itself is negative:
+- explicit negative evidence only → `Entailed`;
+- positive complement only → `Refuted`;
+- both polarities → `Contradicted`;
+- neither polarity → `Unknown`;
+- additionally, a rule-derived negative literal is queryable as `Entailed` after fixed-point reasoning.
+
+**Verification status:** TESTS ADDED / EXACT-SHA CI PENDING. Rust kernel verification PR run #2263 (Run 44659355952) was created for commit `320929fc03256a4a942999301aa76e112af3340a` and was in progress at the time this package update was prepared. Do not mark this additional coverage verified until the exact-SHA workflow completes successfully and its logs confirm the new integration test count. The Native Cognition CI run for this commit has not yet been observed.
+
+This addition is a test-only verification improvement. It does not change inference semantics, the NCE-01 authority boundary, R-03 ingress status, independent-review status, or merge/deployment governance.
