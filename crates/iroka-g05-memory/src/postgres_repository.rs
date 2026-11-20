@@ -3,9 +3,9 @@
 //! transaction. G11 workers use separate, durable leases for at-least-once
 //! delivery across processes and hosts.
 use crate::{
-    audit_event_sha256, g11_audit_envelope_sha256, AuditEvent, G05Error, G11Acknowledgment,
-    G11AuditEnvelope, G11MemoryAuditAuthority, LifecycleState, MemoryMetadata, MemoryRecord,
-    MemoryRepository,
+    audit_event_sha256, g11_audit_envelope_sha256, valid_digest, valid_ref, AuditEvent,
+    G05Error, G11Acknowledgment, G11AuditEnvelope, G11MemoryAuditAuthority, LifecycleState,
+    MemoryMetadata, MemoryRecord, MemoryRepository,
 };
 use native_tls::TlsConnector;
 use postgres::{Client, Row};
