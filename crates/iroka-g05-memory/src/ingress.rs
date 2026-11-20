@@ -337,9 +337,20 @@ where
         &self,
         authorization_header: Option<&str>,
     ) -> Result<VerifiedPrincipal, G05Error> {
+        self.authenticate_http_with_time(authorization_header)
+            .map(|(principal, _)| principal)
+    }
+
+    /// Authenticate and return the same trusted server timestamp used for
+    /// credential validation. HTTP callers must not supply task timestamps.
+    pub fn authenticate_http_with_time(
+        &self,
+        authorization_header: Option<&str>,
+    ) -> Result<(VerifiedPrincipal, u64), G05Error> {
         let token = bearer_token(authorization_header)?;
         let now = self.clock.now_unix_seconds()?;
-        self.authenticate(token, now)
+        let principal = self.authenticate(token, now)?;
+        Ok((principal, now))
     }
 
     pub fn authorize_http(
