@@ -40,15 +40,13 @@ pub trait G09ExecutionRevalidator: Send + Sync {
     /// Implementations that cannot provide snapshot consistency must fail closed.
     fn discover_allowed(
         &self,
-        principal: &VerifiedPrincipal,
-        requests: &[AuthorizationRequest],
-        now: u64,
+        _principal: &VerifiedPrincipal,
+        _requests: &[AuthorizationRequest],
+        _now: u64,
     ) -> Result<Vec<bool>, G05Error> {
-        requests.iter().map(|request| match self.revalidate(principal, request, now) {
-            Ok(()) => Ok(true),
-            Err(G05Error::AuthorizationDenied) => Ok(false),
-            Err(error) => Err(error),
-        }).collect()
+        // A per-operation fallback could mix policy epochs. Adapters must
+        // explicitly implement an atomic/snapshot-consistent batch decision.
+        Err(G05Error::AuthorityUnavailable)
     }
 }
 
@@ -467,6 +465,62 @@ mod http_ingress_tests {
         fn revalidate(&self, _: &VerifiedPrincipal, _: &AuthorizationRequest, _: u64) -> Result<(), G05Error> {
             if let Some(error) = &self.stale_or_unavailable { Err(error.clone()) } else { Ok(()) }
         }
+        fn discover_allowed(
+            &self,
+            principal: &VerifiedPrincipal,
+            requests: &[AuthorizationRequest],
+            now: u64,
+        ) -> Result<Vec<bool>, G05Error> {
+            requests.iter().map(|request| match self.revalidate(principal, request, now) {
+                Ok(()) => Ok(true),
+                Err(G05Error::AuthorizationDenied) => Ok(false),
+                Err(error) => Err(error),
+            }).collect()
+        }
+    }
+
+    struct CountingPolicyResolver {
+        calls: std::sync::atomic::AtomicUsize,
+    }
+    impl G09PolicyResolver for CountingPolicyResolver {
+        fn current_policy(&self, _: u64) -> Result<(Policy, bool), G05Error> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok((Policy::new(
+                "policy-epoch-7",
+                vec!["g05.memory.retrieve".into()],
+                vec![],
+                RiskLevel::Critical,
+            ), false))
+        }
+        fn authorize_resource_scope(
+            &self,
+            _: &VerifiedPrincipal,
+            _: &AuthorizationRequest,
+            _: u64,
+        ) -> Result<(), G05Error> { Ok(()) }
+    }
+
+    #[test]
+    fn kernel_capability_discovery_uses_exactly_one_policy_snapshot() {
+        let (token, _, bundle, root) = signed_credential("subject:http-test");
+        let anti_rollback = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let credentials = Ed25519CredentialVerifier::from_signed_bundle(
+            &bundle, &root, &anti_rollback,
+            TestRevocations { revoked:false, unavailable:false }, 1_200,
+        ).unwrap();
+        let principal = credentials.authenticate(&token, "iroka-g05", 1_200).unwrap();
+        let resolver = Arc::new(CountingPolicyResolver {
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        });
+        let revalidator = KernelG09ExecutionRevalidator::new(Arc::clone(&resolver));
+        let mut retrieve = request();
+        retrieve.operation = Operation::Retrieve;
+        let mut propose = request();
+        propose.operation = Operation::Propose;
+
+        let decisions = revalidator.discover_allowed(&principal, &[retrieve, propose], 1_200).unwrap();
+        assert_eq!(decisions, vec![true, false]);
+        assert_eq!(resolver.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
     fn signed_credential(subject: &str) -> (String, SigningKey, SignedTrustBundle, TrustRoot) {
