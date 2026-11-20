@@ -514,6 +514,13 @@ impl NativeReasoner {
                 }
             }
         }
+        // Enforce the deadline at the final report boundary as well. In
+        // particular, the last fact/source batch may consume the remaining
+        // budget without another loop iteration to observe the deadline.
+        let final_elapsed = elapsed();
+        if final_elapsed >= self.config.max_duration {
+            stop_reason = StopReason::Deadline;
+        }
         ReasoningReport {
             facts,
             contradictions,
@@ -521,7 +528,7 @@ impl NativeReasoner {
             derivations,
             stop_reason,
             inference_steps: steps,
-            elapsed_micros: elapsed().as_micros(),
+            elapsed_micros: final_elapsed.as_micros(),
         }
     }
 }
@@ -1175,6 +1182,26 @@ mod tests {
         assert_eq!(report.stop_reason, StopReason::Deadline);
         assert!(report.is_partial());
         assert_eq!(report.facts, Vec::<Literal>::new());
+    }
+
+    #[test]
+    fn deadline_is_checked_after_the_final_report_item() {
+        let mut brain = engine();
+        brain.add_fact(Literal::positive("last_fact")).unwrap();
+        let mut clock_calls = 0usize;
+        let report = brain.reason_with_elapsed(|| {
+            clock_calls += 1;
+            if clock_calls >= 3 {
+                Duration::from_secs(4)
+            } else {
+                Duration::ZERO
+            }
+        });
+
+        assert_eq!(report.stop_reason, StopReason::Deadline);
+        assert!(report.is_partial());
+        assert_eq!(report.facts, vec![Literal::positive("last_fact")]);
+        assert!(report.elapsed_micros >= 4_000_000);
     }
 
     #[test]
