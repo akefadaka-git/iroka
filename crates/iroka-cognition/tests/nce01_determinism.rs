@@ -249,33 +249,33 @@ fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
         ..EngineConfig::default()
     };
     let mut engine = NativeReasoner::new(config).unwrap();
-    let a = Literal::positive("seed-a");
-    let b = Literal::positive("derived-b");
-    let c = Literal::positive("seed-c");
-    let d = Literal::positive("derived-d");
-    let e = Literal::positive("derived-e");
+    let seed_a = Literal::positive("seed-a");
+    let derived_b = Literal::positive("derived-b");
+    let seed_c = Literal::positive("seed-c");
+    let derived_d = Literal::positive("derived-d");
+    let derived_e = Literal::positive("derived-e");
 
     engine.add_fact(a.clone()).unwrap();
     engine.add_fact(c.clone()).unwrap();
     engine
         .add_rule(Rule {
             id: "a-first".into(),
-            premises: vec![a],
-            conclusion: b.clone(),
+            premises: vec![seed_a],
+            conclusion: derived_b.clone(),
         })
         .unwrap();
     engine
         .add_rule(Rule {
             id: "z-second".into(),
-            premises: vec![c.clone()],
-            conclusion: d.clone(),
+            premises: vec![seed_c.clone()],
+            conclusion: derived_d.clone(),
         })
         .unwrap();
 
     let partial = engine.reason();
     assert_eq!(partial.stop_reason, iroka_cognition::StopReason::StepBudget);
     assert!(partial.is_partial());
-    assert!(partial.facts.contains(&b));
+    assert!(partial.facts.contains(&derived_b));
     assert_eq!(partial.derivations.len(), 1);
 
     // Inserting a lexicographically earlier rule changes sorted rule indices.
@@ -283,8 +283,8 @@ fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
     engine
         .add_rule(Rule {
             id: "0-new-earliest".into(),
-            premises: vec![c],
-            conclusion: e.clone(),
+            premises: vec![seed_c],
+            conclusion: derived_e.clone(),
         })
         .unwrap();
 
@@ -300,9 +300,9 @@ fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
 
     let report = complete.expect("rule-updated knowledge base must reach fixed point");
     assert_eq!(report.stop_reason, iroka_cognition::StopReason::FixedPoint);
-    assert!(report.facts.contains(&b));
-    assert!(report.facts.contains(&d));
-    assert!(report.facts.contains(&e));
+    assert!(report.facts.contains(&derived_b));
+    assert!(report.facts.contains(&derived_d));
+    assert!(report.facts.contains(&derived_e));
     assert_eq!(
         report
             .derivations
