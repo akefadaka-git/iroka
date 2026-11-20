@@ -905,6 +905,62 @@ mod tests {
     }
 
     #[test]
+    fn deadline_interruption_resumes_at_the_next_rule_and_reaches_fixed_point() {
+        let config = EngineConfig {
+            max_duration: Duration::from_nanos(5),
+            ..EngineConfig::default()
+        };
+        let mut brain = NativeReasoner::new(config).unwrap();
+        let a = Literal::positive("deadline_a");
+        let b = Literal::positive("deadline_b");
+        let c = Literal::positive("deadline_c");
+        brain.add_fact(a.clone()).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "a-first".into(),
+                premises: vec![a],
+                conclusion: b.clone(),
+            })
+            .unwrap();
+        brain
+            .add_rule(Rule {
+                id: "b-second".into(),
+                premises: vec![b.clone()],
+                conclusion: c.clone(),
+            })
+            .unwrap();
+
+        let mut clock_calls = 0usize;
+        let partial = brain.reason_with_elapsed(|| {
+            clock_calls += 1;
+            if clock_calls >= 4 {
+                Duration::from_nanos(5)
+            } else {
+                Duration::ZERO
+            }
+        });
+
+        assert_eq!(partial.stop_reason, StopReason::Deadline);
+        assert!(partial.is_partial());
+        assert!(!brain.facts.contains(&c));
+        assert!(brain.facts.contains(&b));
+
+        let complete = brain.reason_with_elapsed(|| Duration::ZERO);
+        assert_eq!(complete.stop_reason, StopReason::FixedPoint);
+        assert!(complete.is_complete());
+        assert!(complete.facts.contains(&b));
+        assert!(complete.facts.contains(&c));
+        assert_eq!(
+            complete
+                .derivations
+                .iter()
+                .map(|witness| witness.rule_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["a-first", "b-second"]
+        );
+    }
+
+    #[test]
     fn deadline_is_checked_inside_a_long_premise_scan() {
         let config = EngineConfig {
             max_duration: Duration::from_nanos(5),
