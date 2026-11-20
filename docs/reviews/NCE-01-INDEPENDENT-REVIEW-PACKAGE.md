@@ -54,9 +54,9 @@ Also inspect the repository workflow definitions and reproduce the production-fe
 
 ### Working-branch remediation delta (not a replacement for the pinned review target)
 
-- Latest exact-SHA verified working-branch head after R-05: `9ca49676fa2d64095014af8792930e0df3badd0c`
+- Latest exact-SHA verified working-branch head: `c3e051d8c8eee474c2cee63aaf7acb9e68de0451`
 - `crates/iroka-cognition/src/lib.rs` blob: `af97c78e0d736dbd6ed226f98fcf10738bc6de61`
-- The immutable baseline above remains the independent-review target. The working-branch source contains the R-01/R-02 remediation delta and must be reviewed as a distinct source revision before NCE-01 acceptance.
+- The immutable baseline above remains the independent-review target. The working-branch source contains the R-01–R-05 remediation and verification delta and must be reviewed as a distinct source revision before NCE-01 acceptance.
 - R-01 additions: `AssertedFact`, `add_fact_with_source`, opaque source IDs, a 32-identified-source-per-fact default bound (legacy `None` source markers do not consume this budget), and one witness per satisfied `(conclusion, rule_id)` pair, including alternate rule support for already-known conclusions.
 - R-02/R-04 additions: cooperative deadline checks during report materialization and explicit `ReasoningReport::is_complete()` / `is_partial()` semantics.
 - Current dedicated NCE-01 forward-reasoning unit-test count: 36; the cognition crate reports 50 tests including 14 backward-reasoning tests.
@@ -195,7 +195,7 @@ These points were identified during package preparation and must be confirmed, r
 | ID | Area | Preliminary observation | Reviewer disposition required |
 |---|---|---|---|
 | R-01 | Provenance | Initial-fact source metadata and alternative rule witnesses were missing. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED at `463abe7fd31b35358b01357c2f7957af8b199f81`; exact-SHA formatting, full workspace tests and Clippy passed. Independent review remains pending. |
-| R-02 | Deadline | The report finalization path originally lacked deadline checks. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED at `463abe7fd31b35358b01357c2f7957af8b199f81`; report materialization deadline regression test passes. Independent review remains pending. |
+| R-02 | Deadline | The report finalization path originally lacked deadline checks. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED; final report-boundary check and regression test verified at `c3e051d8c8eee474c2cee63aaf7acb9e68de0451`. Independent review remains pending. |
 | R-03 | Resource accounting | Configured limits bound retained engine state and inference work, but cannot bound memory already allocated by callers. | PARTIALLY REMEDIATED on the working branch: bounded borrowed-input APIs, incremental premise collection and rule-ID byte cap added; upstream transport/parser quotas remain an integration requirement. Independent review remains pending. |
 | R-04 | Partial result semantics | A report can contain facts and derivations accumulated before `Deadline`, `StepBudget` or `FactBudget`. | Confirm all consumers must treat such reports as incomplete, not as a completed closure. |
 | R-05 | Duplicate premises | Rule premises are stored as a vector and are not deduplicated. | **INTERNAL DISPOSITION DEFINED AND VERIFIED** at `9ca49676fa2d64095014af8792930e0df3badd0c`: duplicates are logically idempotent, retained in accepted order, and every occurrence counts toward per-rule and aggregate premise budgets. Independent review remains pending. |
@@ -355,6 +355,35 @@ The new tests cover all four outcomes when the query itself is negative:
 - neither polarity → `Unknown`;
 - additionally, a rule-derived negative literal is queryable as `Entailed` after fixed-point reasoning.
 
-**Verification status:** TESTS ADDED / EXACT-SHA CI PENDING. Rust kernel verification PR run #2263 (Run 44659355952) was created for commit `320929fc03256a4a942999301aa76e112af3340a` and was in progress at the time this package update was prepared. Do not mark this additional coverage verified until the exact-SHA workflow completes successfully and its logs confirm the new integration test count. The Native Cognition CI run for this commit has not yet been observed.
+**Verification status:** VERIFIED at the superseding exact SHA `c3e051d8c8eee474c2cee63aaf7acb9e68de0451`. The earlier test-only commit `320929fc03256a4a942999301aa76e112af3340a` was superseded before its CI completed; the final exact-SHA runs below include this test file and confirm all five cases passed.
 
 This addition is a test-only verification improvement. It does not change inference semantics, the NCE-01 authority boundary, R-03 ingress status, independent-review status, or merge/deployment governance.
+
+## NCE-01 exact-SHA verification update — 2026-11-20
+
+**Verified working-branch source:** `c3e051d8c8eee474c2cee63aaf7acb9e68de0451`  
+**Commit:** `fix(nce-01): enforce deadline at final report boundary`
+
+### Exact-SHA workflow results
+
+| Workflow | Run | Conclusion | Evidence |
+|---|---:|---|---|
+| Native Cognition CI #171 | 44659432995 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44659432995 |
+| Rust kernel verification #2266 | 44659433075 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44659433075 |
+
+Both workflow runs are associated with the exact SHA above and completed successfully. Job-level evidence confirms formatting, complete workspace tests and cognition Clippy passed in Native Cognition CI; formatting, all-target compilation, production-feature bypass check, complete workspace unit/contract tests and workspace Clippy passed in Rust kernel verification.
+
+### Test evidence from workflow logs
+
+Both workflow logs show: cognition crate unit tests **54 passed** (including final report-boundary deadline regression); duplicate-premise integration tests **3 passed**; negative-query integration tests **5 passed**; kernel tests **71 passed**; authorization-contract tests **2 passed**; zero test failures.
+
+The negative-query matrix verifies `Entailed`, `Refuted`, `Contradicted`, and `Unknown` for a negative query, plus rule-derived negative evidence. The final deadline-boundary regression verifies that a deadline reached after the final report item sets `StopReason::Deadline`, marks the report partial, preserves the materialized fact, and records elapsed time at/above the configured test threshold.
+
+### Internal disposition updates
+
+- **R-02 deadline behavior: VERIFIED-CLOSED internally** for the report-materialization boundary covered by the regression. This remains cooperative deadline enforcement, not preemptive cancellation or a hard real-time guarantee.
+- **Negative-literal query polarity: VERIFIED** by the five exact-SHA integration tests.
+- **R-05 duplicate-premise semantics: VERIFIED-CLOSED internally** remains supported by its exact-SHA evidence in §7.4.
+- **R-03 upstream ingress: PARTIAL / SPECIFIED — NOT IMPLEMENTED.** No adapter, transport parsing, adversarial integration test, concurrent maximum-profile RSS measurement, or peak-RSS qualification is present.
+- **Independent review: NOT PERFORMED.** The immutable review target remains `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`; this working-branch SHA is a separate remediation target for reviewer comparison.
+- PR #130 remains OPEN / DRAFT. No merge, deployment, or production activation is authorized.
