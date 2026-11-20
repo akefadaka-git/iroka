@@ -377,6 +377,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn authentication_failures_are_401_and_policy_denials_remain_403() {
+        assert_eq!(status_for_g05_error(&G05Error::AuthenticationRequired), (401, "Unauthorized"));
+        assert_eq!(status_for_g05_error(&G05Error::AuthenticationInvalid), (401, "Unauthorized"));
+        assert_eq!(status_for_g05_error(&G05Error::AuthorizationDenied), (403, "Forbidden"));
+    }
+
+    #[test]
     fn host_requires_loopback_binding_and_bounded_worker_count() {
         assert_eq!(
             validate_bind_address(SocketAddr::from(([0, 0, 0, 0], 8080))),
