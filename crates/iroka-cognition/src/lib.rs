@@ -205,7 +205,7 @@ pub struct NativeReasoner {
     facts: BTreeSet<Literal>,
     asserted_facts: BTreeSet<AssertedFact>,
     rules: Vec<Rule>,
-    derivations: BTreeMap<(Literal, String), Derivation>,
+    derivations: BTreeMap<String, Derivation>,
     // Resume bounded reasoning fairly across calls. A pass is complete only
     // after every rule has been visited since the last completed pass.
     next_rule_index: usize,
@@ -498,7 +498,7 @@ impl NativeReasoner {
                         self.pass_changed = true;
                     }
                     self.derivations
-                        .entry((rule.conclusion.clone(), rule.id.clone()))
+                        .entry(rule.id.clone())
                         .or_insert_with(|| Derivation {
                             fact: rule.conclusion.clone(),
                             rule_id: rule.id.clone(),
