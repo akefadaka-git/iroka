@@ -302,3 +302,140 @@ The repository now contains substantial G05, G01/G02 and G08 candidate work, but
 7. No verified Android-compatible on-device model/runtime artifact, signature/provenance chain, license, ABI/device floor or resource budget has been established.
 
 **Updated A2 status: PARTIAL / NOT CLOSED.** G05 and G08 Owner-approved architecture decisions improve the evidence base but do not close the Android integration blockers. No Android repository or application code has been created; no source implementation, merge, main modification, deployment or production activation was performed.
+
+
+## 9. G01/G02/G05/G11 candidate lineage — exact ancestry reconciliation
+
+Inspection of exact branch refs and pairwise GitHub compare results establishes the following ancestry. This is a source-lineage finding, not a merge or production approval.
+
+### 9.1 Semantic authority baseline
+
+**Canonical semantic integration candidate:** branch `feat/g05-g02-g11-activation-v12`, exact HEAD `b12739de686ac466dde02ad089f14e898eadffe9`.
+
+This branch contains the G01 identity/reviewer-proof, G02 Owner-governed organization authority, G05 memory activation and G11 audit composition:
+- G01 tenant-reconciliation candidate `c46f2b5876c0294481ee22dc0786fded1cdad9a6` is an ancestor of the v12 HEAD (94 commits behind it).
+- G02 Owner/organization-authority candidate `31dd1cff9ab48c7ecedb941e920281f5e1924051` is an ancestor of the v12 HEAD (175 commits behind it).
+- The v12 branch contains `iroka-kernel` and `iroka-g05-memory`; it is not an Android app or a complete hosted service.
+- G01 verifies the signed credential into an opaque `VerifiedPrincipal`, then separately verifies a short-lived Ed25519 reviewer proof against the current issuer/subject/credential/key binding and exact approval/resource tuple. Reviewer proof lifetime is at most 300 seconds; binding freshness is at most 30 seconds; proof use is one-time.
+- G02 is the sole organization designation/delegation authority. It resolves the current organization, tenant, reviewer, designation/delegation version and capability from Owner-signed authority state. G01 authentication or tenant membership alone does not imply an organization role.
+- G05 owns memory records, episodic opt-in and lifecycle. The v12 registry deliberately limits itself to episodic consent and migrates legacy G05-local reviewer tables out of the authority path. G05 consumes typed G01 proof and a fresh G02 decision.
+- G11 owns audit acceptance. Durable activation is staged as PendingReview -> PendingAudit -> G11 acknowledgment -> final repository compare-and-swap to Active. An acknowledgment must match the stable event ID and payload digest. This avoids reporting Active before the audit receipt and final version check.
+- The v12 concrete composition uses `SqliteSecurityStore` and `SqliteAuditSink`; these are single-node/test adapters, not a multi-instance production persistence claim.
+
+**Exact-head verification:** v12 commit `b12739de686ac466dde02ad089f14e898eadffe9`, workflow run [#43216600529](https://github.com/akefadaka-git/iroka/actions/runs/43216600529), success. Its job passed formatting, all-target compilation, production-feature exclusion, complete unit/contract tests and Clippy.
+
+### 9.2 PostgreSQL persistence ancestry
+
+The following chain is confirmed by pairwise comparisons with zero commits missing from the preceding baseline:
+
+1. **G05/G11 PostgreSQL base:** `feat/g05-postgres-g11-multiworker-a3`, HEAD `2bfac619b9601330b3343f86277bb5ba29ae22b2`. It is 110 commits ahead of v12 with no v12 commits missing. It adds the shared PostgreSQL G05 repository, migrations, G05/G11 outbox, lease-based multiworker delivery and ADR-0007. Exact-head runs [#43240878046](https://github.com/akefadaka-git/iroka/actions/runs/43240878046) and [#43240392654](https://github.com/akefadaka-git/iroka/actions/runs/43240392654) succeeded.
+2. **G02 PostgreSQL authority resolver:** `feat/g02-postgres-g09-resolver-a3`, HEAD `3e6273e592eb1c5d15cda398d51939cd19f0a7b5`. It is 10 commits ahead of the G05/G11 PostgreSQL base with no base commits missing. It adds G02 authority migrations and PostgreSQL resolver implementation. Exact-head runs [#43272969758](https://github.com/akefadaka-git/iroka/actions/runs/43272969758) and [#43272528554](https://github.com/akefadaka-git/iroka/actions/runs/43272528554) succeeded.
+3. **G05 HTTP host:** `feat/g05-http-host-a3`, HEAD `c8991fc61170bc04d7aeaea390a76a85900c2232`. It is 34 commits ahead of the G02 resolver branch with no resolver commits missing. It adds the G05 HTTP ingress host and includes the G02 PostgreSQL migrations/adapters. Exact-head run [#43280580981](https://github.com/akefadaka-git/iroka/actions/runs/43280580981) succeeded.
+
+The G05 HTTP host is narrow: it exposes `GET /healthz` and `POST /v1/g05/execute`, accepts a G01 credential in its request envelope, and runs G01/G02/G09 checks. It is not the first-party Android cognition/task API specified below.
+
+### 9.3 Divergent G02 command-processor fork
+
+A separate, newer G02 implementation branch exists:
+- `feat/g02-postgres-command-processor-a3`, HEAD `7290142ba083f77f565d4d1b0922a158b391d1d8`.
+- It is 60 commits ahead of the G05/G11 PostgreSQL base with no base commits missing.
+- Exact-head run [#43357789397](https://github.com/akefadaka-git/iroka/actions/runs/43357789397) succeeded; the other listed run #43357761138 was cancelled and is not used as passing evidence.
+- It includes the G02 PostgreSQL command processor and authority persistence work, but it does not include the G05 HTTP host branch's final HTTP host changes.
+
+Pairwise compare confirms `feat/g02-postgres-command-processor-a3` and `feat/g05-http-host-a3` are **diverged siblings**: relative to the command-processor branch, the HTTP-host branch has 11 commits not in it, while the command-processor branch has 27 commits not in the HTTP-host branch. They share the G05 PostgreSQL ancestry but neither is a superset of the other. The command-processor branch is 50 commits ahead of the G02 resolver branch; the HTTP-host branch is 34 commits ahead of that resolver branch.
+
+**Canonical lineage decision for A2:** retain v12 as the semantic authority baseline; retain G05 PostgreSQL -> G02 PostgreSQL resolver as the persistence lineage; designate the G02 command processor as the current G02 authority implementation candidate; designate the G05 HTTP host as the current narrow host candidate. Do not call these four refs one integrated build. A3 must reconcile the two sibling forks, preserve the later G02 command-processor changes, carry forward the host, and run one combined exact-head verification. No branch has been rebased, merged, modified or promoted in this A2 step.
+
+### 9.4 Authority graph and transaction boundaries
+
+The canonical authority direction is:
+
+`Android client -> first-party API ingress -> G01 VerifiedPrincipal -> tenant membership resolution -> G02 current organization/delegation decision -> capability/policy decision -> G05 domain operation -> G11 durable audit receipt -> final state CAS`
+
+Rules:
+- G01 owns credential verification, key trust/rotation/revocation and signed reviewer-proof verification. A normal authenticated principal is not a reviewer approval.
+- G02 owns Owner-signed organization creation, designation, delegation, suspension and revocation. No G05-local organization/reviewer registry is authoritative.
+- G05 owns memory content, provenance, consent and lifecycle. It must compare the G01 proof and G02 current decision to the exact record version/digest/purpose/classification/capability tuple.
+- G11 owns audit event acceptance and durable receipts; audit rows are evidence, not authority grants.
+- G09 revalidates current authority immediately before any protected external effect. A prior ALLOW or cached grant is not a reusable execution authorization.
+- G05 record mutation and creation of its content-free G11 outbox event must share one PostgreSQL transaction. G11 delivery is at-least-once with stable event IDs, payload-digest matching, leases and idempotent acknowledgment.
+- G02 authority mutation and G05 memory activation are not one distributed transaction. If current G02 authority cannot be re-established, G05 remains pending/denied. No cross-database atomicity claim is made.
+- G11 acceptance before final G05 CAS is a staged protocol, not a distributed transaction. Retries must be idempotent; a failed final CAS cannot reactivate or reuse a consumed approval.
+- SQLite is limited to development/single-process tests. Shared deployment requires PostgreSQL primary/linearizable authority reads, transactional CAS, multi-process tests, least-privilege roles and independently protected checkpoint-signing keys.
+
+## 10. First-party Android API contract proposal
+
+**Status: A2 design proposal, not yet Owner-frozen and not implemented.** This contract is independent of the TALORA-specific API. It is the proposed Android-facing surface over a single trusted IROKA service; the G05-only HTTP host is not adopted as the complete API.
+
+### 10.1 API conventions
+
+- Base path: `/api/v1`; HTTPS only; JSON UTF-8; explicit request/response schema versions.
+- Resource authentication: `Authorization: Bearer <short-lived IROKA access credential>`. No browser session cookies and no tokens in query strings.
+- Every request receives a server-generated correlation ID. Mutating requests require an `Idempotency-Key` scoped to the authenticated issuer, subject and resolved tenant.
+- Standard error envelope: RFC 9457 Problem Details (`application/problem+json`) with stable IROKA error code, correlation ID and retryability. Do not return stack traces, internal policy details or secret-bearing diagnostics.
+- Principal, reviewer, organization role, capability grant and approval status are never accepted as caller-authored authority fields. A tenant selector is only a selector; the server resolves and validates current membership.
+- Capability discovery is authorization-filtered. It reports only capabilities actually deployed, enabled and authorized for the current principal and tenant. A requested capability or execution mode is not itself a grant.
+- All task, event, memory and provider operations are subject to server-side quotas, bounded input/output, request deadlines, concurrency limits, idempotency and audit requirements.
+
+### 10.2 Core endpoint surface
+
+| Endpoint | Contract |
+|---|---|
+| `GET /api/v1/session` | Return the authenticated principal's safe display identity, current session expiry and server-resolved tenant choices; never expose trust secrets or raw policy internals. |
+| `GET /api/v1/capabilities` | Return the current principal/tenant's allowed capability IDs, versions, input/output schema refs, locales, execution modes actually available, limits and availability state. |
+| `POST /api/v1/tasks` | Submit a capability-versioned task with bounded input, locale, optional authorized context references and idempotency key. Return `202 Accepted`, task ID and initial state. |
+| `GET /api/v1/tasks/{task_id}` | Return state, timestamps, safe progress, result reference and terminal/error status after tenant/owner authorization. |
+| `GET /api/v1/tasks/{task_id}/events` | Stream durable progress events over HTTPS SSE; support replay using `Last-Event-ID`; authorize every stream and bound retention/connection count. |
+| `POST /api/v1/tasks/{task_id}/cancel` | Request idempotent cancellation only while the coordinator state permits it; report whether cancellation was accepted, already terminal or too late. Cancellation cannot reverse a committed protected effect. |
+| `POST /api/v1/session/logout` | Revoke the current device/session refresh-token family at the issuer and invalidate server session state; then clear local credentials. |
+
+Task submission proposal:
+- Required: `capability_id`, `capability_version`, `input`, `locale`, client-generated `request_id`.
+- Optional: tenant selector, authorized context references, requested execution preference (`cloud`, `on_device`, `hybrid`, `auto`).
+- The server derives principal and authorization from G01/G02. The server may downgrade or reject an execution preference; it never executes a caller-selected provider or model directly.
+- Initial task states: `accepted`, `queued`, `running`, `awaiting_authorization`, `succeeded`, `failed`, `cancelled`, `expired`. Only states supported by the deployed coordinator may be advertised.
+- Result payloads include capability/version, schema version, provenance/evidence references, locale, execution mode and explicit synthetic/test labeling when applicable. No fake adapter response may be presented as real inference.
+
+### 10.3 G05 memory API boundary
+
+G05 memory is exposed only through capability- and policy-checked service endpoints after its HTTP/service adapter is integrated and verified. Proposed resource operations are metadata-first list/read, propose/create, inspect, correct, restrict, consent grant/withdrawal, deletion request and deletion verification. Content retrieval is a separate authorized operation after metadata checks. Durable activation requires the G01 signed reviewer proof, G02 exact current designation/delegation decision, G11 receipt and final optimistic version CAS. No direct client database access, raw memory-store API, client-authored approval, or offline activation is permitted.
+
+## 11. Native Android authentication contract proposal
+
+**Status: proposed profile; no production issuer, client registration, key ceremony or Android login implementation has been established.**
+
+1. **Public client:** Android is a public OAuth client; no embedded client secret. Use Authorization Code + PKCE (S256) through the system browser/Custom Tabs, not an embedded WebView. Bind the callback to a verified HTTPS Android App Link or a tightly registered redirect URI; validate `state` and, where OIDC is used, `nonce`.
+2. **Issuer boundary:** login/credential issuance belongs to a trusted IROKA identity issuer. The issuer exchanges the authorization code and PKCE verifier for a short-lived IROKA G01 access credential. The Android app does not mint identities or sign G01 credentials.
+3. **Credential profile:** use the G01 compact JWS profile already implemented: EdDSA, `typ=IROKA-CREDENTIAL`, issuer/key ID, and claims `iss`, `sub`, `aud`, `exp`, `nbf`, `iat`, `jti`. The proposed resource audience is exactly `iroka-android-api`; the issuer must provision this audience and the verifier must check it exactly. Proposed access-token lifetime is 5–10 minutes, below the existing G01 maximum accepted lifetime of 3,600 seconds. Trust bundles remain root-signed, anti-rollback checked and rotated with controlled overlap.
+4. **No authority claims in the token:** do not treat client-supplied role, organization, reviewer, capability, memory consent or tenant claims as grants. G01 authenticates; the server resolves tenant membership and G02 authority for each privileged request. If a tenant selector is supplied, reject it unless the current G01/G02 stores confirm membership and scope.
+5. **Refresh lifecycle:** the issuer must issue opaque, high-entropy refresh tokens, store only their hashes server-side, rotate on every use, detect reuse, revoke the token family and expose device/session revocation. These issuer functions are not present in the current G01 credential verifier and must be separately implemented and verified. Refresh tokens never go to resource endpoints.
+6. **Revocation and device loss:** credential/key revocation checks must use authoritative state or an explicitly bounded freshness policy; unavailable or stale revocation state fails closed. Logout revokes the current device/session family. A lost device can be revoked without affecting other devices. No production device-attestation or proof-of-possession support is claimed in this proposal.
+7. **Android storage:** keep access credentials in memory where practical; protect refresh-token material using Android Keystore-backed encryption and exclude it from backups/logs/analytics. Do not store passwords or private issuer keys on device. Clear local tokens and cached sensitive data on logout/revocation.
+8. **No browser-cookie dependency:** the existing `__Host-` browser cookie contract is not the native Android authentication contract. Native requests use HTTPS bearer credentials; CSRF defenses are not substituted for bearer-token validation. TLS certificate validation is mandatory; no permissive trust manager or certificate bypass.
+9. **Offline:** offline use is limited to explicitly cacheable, non-sensitive content and local drafts. Offline task submissions may be stored as untrusted drafts but are not authorized, scheduled for protected effects, or executed until online re-authentication and fresh G01/G02/G09 checks. No stale capability snapshot authorizes execution.
+10. **Issuer acceptance tests:** PKCE interception/replay, redirect mismatch, state/nonce mismatch, wrong audience, invalid signature, unknown issuer/key, token expiry/not-before, credential/key revocation, stale/unavailable revocation service, refresh rotation/reuse, device revocation, logout, tenant switching, and concurrent session revocation.
+
+## 12. On-device runtime gate — unchanged and explicit
+
+No on-device model/runtime is selected or approved. A future candidate must provide all of:
+- immutable source/artifact provenance, signed release and independently verifiable SHA-256;
+- license and redistribution/derivative-use rights compatible with the app and target markets;
+- SBOM, vulnerability status, reproducible build or verifiable vendor build provenance;
+- Android runtime/library version, supported model format, ABI, Android API floor and device/SoC/GPU/NPU compatibility matrix;
+- measured peak RAM, storage, CPU/GPU/NPU utilization, cold-start/latency, battery and thermal behavior on representative low/mid/high devices;
+- data classification, on-device retention/deletion, telemetry/network behavior, update/rollback and artifact-integrity controls;
+- Amharic/English quality evidence, safety evaluation and a clear cloud fallback.
+Until all gates pass, cloud-authoritative execution is the only approved execution mode; the app may provide safe offline reading/drafting only. On-device inference must never gain G01/G02/G09 authority or execute protected external effects.
+
+## 13. Updated A2 disposition and required A3 work
+
+**A2 status remains PARTIAL / NOT CLOSED.** The semantic authority graph and API/native-auth design proposal are now specified with exact evidence. The production integration graph is not yet a single branch: the G02 command-processor fork and G05 HTTP-host fork require a controlled A3 reconciliation and combined exact-head verification. The first-party API host, native issuer lifecycle, and Android app do not yet exist.
+
+A3 implementation scope, only after separate Owner authorization:
+1. Reconcile `feat/g02-postgres-command-processor-a3` and `feat/g05-http-host-a3` without discarding either the later G02 command-processor work or the HTTP host; produce one exact integration commit/branch.
+2. Add cross-domain PostgreSQL integration tests for G01 credential/reviewer proof, G02 command/revocation/delegation, G05 transaction/CAS, G11 outbox/acknowledgment, worker restart/concurrency and failure injection.
+3. Establish the first-party `/api/v1` host and implement the approved Android API contract, capability registry and durable task/event/cancellation lifecycle; do not reuse TALORA API semantics without explicit adoption.
+4. Implement and test the native issuer/PKCE/refresh/revocation profile; do not enable production login before trust-root/key ceremony and issuer operations are verified.
+5. Keep the on-device runtime gated by Section 12 evidence.
+
+No A3 code, merge, rebase, branch deletion, production key provisioning, Android repository creation, deployment or main-branch modification was performed by this A2 reconciliation.
