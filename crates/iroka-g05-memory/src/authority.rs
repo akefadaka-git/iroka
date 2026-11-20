@@ -31,6 +31,17 @@ pub trait EpisodicConsentAuthority: Send + Sync {
 pub trait G02AuthorizationAuthority: Send + Sync {
     fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error>;
 
+    /// Resolve a task tenant selector to the exact canonical tenant reference
+    /// recorded by an active Owner-authorized G02 membership. Implementations
+    /// that cannot prove this binding must fail closed.
+    fn resolve_task_tenant(
+        &self,
+        _principal: &VerifiedPrincipal,
+        _tenant_selector: &str,
+    ) -> Result<String, G05Error> {
+        Err(G05Error::AuthorityUnavailable)
+    }
+
     fn resolve_g05_activation(
         &self,
         verified_proof: &VerifiedReviewerProof,
