@@ -813,3 +813,6 @@ mod tests {
         assert_ne!(first, request_digest(&changed).unwrap());
     }
 }
+
+#[cfg(test)]
+mod postgres_tests;
