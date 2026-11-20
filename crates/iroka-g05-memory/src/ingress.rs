@@ -407,6 +407,26 @@ mod http_ingress_tests {
     }
 
     #[test]
+    fn session_authentication_returns_only_g01_verified_identity() {
+        let (service, token) = make_service(
+            TestRevocations { revoked:false, unavailable:false },
+            TestG02 { member:true, emergency_stop:false },
+            TestG09 { stale_or_unavailable:None },
+        );
+        let principal = service.authenticate_http(Some(&format!("Bearer {token}"))).unwrap();
+        assert_eq!(principal.subject(), "subject:http-test");
+        assert_eq!(principal.issuer(), "issuer:test");
+        assert_eq!(
+            service.authenticate_http(None).err(),
+            Some(G05Error::AuthenticationRequired)
+        );
+        assert_eq!(
+            service.authenticate_http(Some("Bearer invalid.token")).err(),
+            Some(G05Error::AuthenticationInvalid)
+        );
+    }
+
+    #[test]
     fn http_missing_and_invalid_bearer_credentials_are_denied() {
         let (service, token) = make_service(
             TestRevocations { revoked:false, unavailable:false },
