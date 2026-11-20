@@ -60,3 +60,33 @@ fn source_budget_accepts_exact_limit_and_rejects_one_over_atomically() {
         vec!["source-a", "source-b"]
     );
 }
+
+
+#[test]
+fn fact_budget_exhaustion_stays_partial_and_never_emits_a_false_witness() {
+    let config = EngineConfig {
+        max_facts: 1,
+        ..EngineConfig::default()
+    };
+    let mut engine = NativeReasoner::new(config).unwrap();
+    let seed = Literal::positive("single-slot-seed");
+    let blocked = Literal::positive("must-not-be-inserted");
+    engine.add_fact(seed.clone()).unwrap();
+    engine
+        .add_rule(iroka_cognition::Rule {
+            id: "blocked-derivation".into(),
+            premises: vec![seed.clone()],
+            conclusion: blocked.clone(),
+        })
+        .unwrap();
+
+    for _ in 0..3 {
+        let report = engine.reason();
+        assert_eq!(report.stop_reason, StopReason::FactBudget);
+        assert!(report.is_partial());
+        assert!(!report.is_complete());
+        assert_eq!(report.facts, vec![seed.clone()]);
+        assert!(!report.facts.contains(&blocked));
+        assert!(report.derivations.is_empty());
+    }
+}
