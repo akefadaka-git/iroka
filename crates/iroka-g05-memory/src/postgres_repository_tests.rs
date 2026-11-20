@@ -33,6 +33,11 @@ fn admin(url: &str) -> Client {
         ))
         .expect("PostgreSQL migration");
     client
+        .batch_execute(include_str!(
+            "../migrations/postgres/0002_g11_audit_envelope.sql"
+        ))
+        .expect("G11 envelope migration");
+    client
 }
 
 fn repository(url: &str) -> PostgresMemoryRepository {
@@ -556,5 +561,25 @@ fn postgres_g11_receipt_creation_is_idempotent_and_chain_verifiable_after_restar
         &CheckpointTestPublicationVerifier,
     )
     .unwrap();
+
+    let envelope = G11AuditEnvelope {
+        event_id: format!("event:{suffix}:task-complete"),
+        event_type: "task.completed".into(),
+        subject_ref: "principal:task-audit-test".into(),
+        capability_id: "iroka.task.execute".into(),
+        resource_ref: format!("iroka:task:tenant:{suffix}:task:{suffix}"),
+        policy_version: "policy:task-test-v1".into(),
+        correlation_ref: format!("trace:task:{suffix}"),
+        occurred_at: 1_800_000_000,
+        subject_payload_sha256: "a".repeat(64),
+    };
+    let task_ack = recovered.append_envelope(&envelope).unwrap();
+    assert_eq!(task_ack, recovered.append_envelope(&envelope).unwrap());
+    assert_eq!(task_ack.payload_sha256(), g11_audit_envelope_sha256(&envelope));
+    assert_eq!(recovered.head().unwrap().0, 2);
+    recovered.verify_integrity().unwrap();
+    let mut changed_envelope = envelope.clone();
+    changed_envelope.subject_payload_sha256 = "b".repeat(64);
+    assert_eq!(recovered.append_envelope(&changed_envelope), Err(G05Error::AuditUnavailable));
     cleanup(&mut admin, &[memory_id]);
 }

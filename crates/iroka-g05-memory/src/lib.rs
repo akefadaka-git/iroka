@@ -291,6 +291,19 @@ pub struct AuditEvent {
     pub content_sha256: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct G11AuditEnvelope {
+    pub event_id: String,
+    pub event_type: String,
+    pub subject_ref: String,
+    pub capability_id: String,
+    pub resource_ref: String,
+    pub policy_version: String,
+    pub correlation_ref: String,
+    pub occurred_at: u64,
+    pub subject_payload_sha256: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationPolicy {
     pub max_working_ttl_secs: u64,
@@ -793,6 +806,11 @@ pub fn durable_activation_audit_event(record: &MemoryRecord) -> Result<AuditEven
 }
 
 pub fn audit_event_sha256(event: &AuditEvent) -> String {
+    let canonical = serde_json::to_vec(event).unwrap_or_default();
+    sha256_hex(&canonical)
+}
+
+pub fn g11_audit_envelope_sha256(event: &G11AuditEnvelope) -> String {
     let canonical = serde_json::to_vec(event).unwrap_or_default();
     sha256_hex(&canonical)
 }
