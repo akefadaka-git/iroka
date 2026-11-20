@@ -114,4 +114,13 @@ fn repeated_step_bounded_calls_resume_fairly_until_fixed_point() {
     assert_eq!(fourth.stop_reason, iroka_cognition::StopReason::FixedPoint);
     assert!(fourth.is_complete());
     assert!(fourth.facts.contains(&c));
+    assert_eq!(fourth.derivations.len(), 2);
+    assert_eq!(
+        fourth
+            .derivations
+            .iter()
+            .map(|witness| witness.rule_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a-first", "b-second"]
+    );
 }
