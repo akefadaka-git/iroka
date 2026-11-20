@@ -297,3 +297,19 @@ Multiplicative limits are additionally constrained by aggregate retained-state b
 These are cardinality bounds, not a byte-exact heap/RSS guarantee. B-tree/vector/string allocator overhead, capacity growth, sorting temporaries, caller-owned input allocations, iterator internals, and returned reports held by callers are outside a strict process-memory guarantee. Atom, rule ID, and source ID payloads remain capped at 256 UTF-8 bytes. A conservative payload-only retained-state envelope is therefore calculable, but must not be presented as a precise resident-memory ceiling. The crate has no network/file ingress layer; upstream request-size, parse-time, concurrency, and aggregate process-memory controls remain integration requirements.
 
 Regression coverage: caller configuration above each representative hard ceiling is rejected; aggregate premise overflow is rejected atomically; aggregate assertion overflow is rejected atomically. Exact-commit CI evidence is recorded only after the corresponding workflow runs complete.
+
+
+### Aggregate payload calculation and exact-SHA verification
+
+At the hard maxima, the engine-owned retained UTF-8 string payload has a cardinality-derived upper bound of approximately **42.0 MB (decimal)**: facts 2.56 MB (10,000 × 256 bytes), asserted-fact/source records 25.60 MB (50,000 × [256-byte atom + 256-byte source ID]), rule IDs and conclusions 1.024 MB (2,000 × [256 + 256 bytes]), and rule premises 12.80 MB (50,000 × 256 bytes). These categories are counted independently even where logical values overlap because the engine stores copies.
+
+A fully materialized report can add up to approximately **44.544 MB** of string payload: 2.56 MB facts, 25.60 MB asserted records, 2.56 MB contradiction pairs (at most 5,000 pairs), and 13.824 MB derivation witnesses (2,000 × 512-byte conclusion/rule-ID payload plus 50,000 × 256-byte premise payload). The temporary derivation-deduplication key set can add approximately 1.024 MB. Thus a conservative combined engine + report + derivation-key string-payload envelope is about **87.6 MB**, before allocator/container metadata, node pointers, vector capacity slack, alignment, transient sorting/allocation costs, and caller-held copies. This is a defensible payload bound, **not** a process RSS or total heap guarantee.
+
+The reasoning deadline applies to reasoning and report materialization, not input parsing or construction. `Rule` and `Literal` compatibility APIs receive already-allocated caller values; validate borrowed atoms with `Literal::try_positive`/`try_negative` before ownership, use the lazy premise iterator, and enforce raw input size and concurrency limits at any future ingress boundary. No network/file ingress service exists in this crate, so those upstream limits remain integration work.
+
+Exact-SHA verification for implementation commit `bcee3f5d5557361ec8349919171406094b69854d`:
+- Native Cognition CI push Run #148: PASS — https://github.com/akefadaka-git/iroka/actions/runs/44649515635
+- Native Cognition CI PR Run #149: PASS — https://github.com/akefadaka-git/iroka/actions/runs/44649522569
+- Rust kernel verification Run #2238: PASS — https://github.com/akefadaka-git/iroka/actions/runs/44649522520
+- Test totals: cognition 53 passed; kernel 71 passed; authorization-contract 2 passed; zero failures.
+- Formatting, workspace compile/check, complete workspace tests, production-feature bypass check, and Clippy: PASS.
