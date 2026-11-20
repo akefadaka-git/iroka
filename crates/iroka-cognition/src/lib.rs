@@ -208,6 +208,7 @@ pub struct NativeReasoner {
     // Resume bounded reasoning fairly across calls. A pass is complete only
     // after every rule has been visited since the last completed pass.
     next_rule_index: usize,
+    pass_start_index: usize,
     pass_changed: bool,
 }
 
@@ -243,6 +244,7 @@ impl NativeReasoner {
             asserted_facts: BTreeSet::new(),
             rules: Vec::new(),
             next_rule_index: 0,
+            pass_start_index: 0,
             pass_changed: false,
         })
     }
@@ -320,6 +322,7 @@ impl NativeReasoner {
         self.asserted_facts.insert(assertion);
         if new_fact {
             self.next_rule_index = 0;
+            self.pass_start_index = 0;
             self.pass_changed = false;
         }
         Ok(())
@@ -365,6 +368,7 @@ impl NativeReasoner {
         self.rules.sort_by(|a, b| a.id.cmp(&b.id));
         // Rule indices may have shifted; restart a complete deterministic pass.
         self.next_rule_index = 0;
+        self.pass_start_index = 0;
         self.pass_changed = false;
         Ok(())
     }
@@ -456,9 +460,9 @@ impl NativeReasoner {
                 break;
             }
 
-            let pass_start = self.next_rule_index % self.rules.len();
+            let call_start = self.next_rule_index % self.rules.len();
             for offset in 0..self.rules.len() {
-                let rule_index = (pass_start + offset) % self.rules.len();
+                let rule_index = (call_start + offset) % self.rules.len();
                 let rule = &self.rules[rule_index];
                 if elapsed() >= self.config.max_duration {
                     self.next_rule_index = rule_index;
@@ -503,7 +507,7 @@ impl NativeReasoner {
                 }
 
                 self.next_rule_index = (rule_index + 1) % self.rules.len();
-                if self.next_rule_index == pass_start {
+                if self.next_rule_index == self.pass_start_index {
                     if !self.pass_changed {
                         self.next_rule_index = 0;
                         self.pass_changed = false;
