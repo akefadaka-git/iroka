@@ -480,7 +480,7 @@ mod http_ingress_tests {
     }
 
     struct CountingPolicyResolver {
-        calls: std::sync::atomic::AtomicUsize,
+        calls: Arc<std::sync::atomic::AtomicUsize>,
     }
     impl G09PolicyResolver for CountingPolicyResolver {
         fn current_policy(&self, _: u64) -> Result<(Policy, bool), G05Error> {
@@ -509,10 +509,9 @@ mod http_ingress_tests {
             TestRevocations { revoked:false, unavailable:false }, 1_200,
         ).unwrap();
         let principal = credentials.authenticate(&token, "iroka-g05", 1_200).unwrap();
-        let resolver = Arc::new(CountingPolicyResolver {
-            calls: std::sync::atomic::AtomicUsize::new(0),
-        });
-        let revalidator = KernelG09ExecutionRevalidator::new(Arc::clone(&resolver));
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let resolver = CountingPolicyResolver { calls: Arc::clone(&calls) };
+        let revalidator = KernelG09ExecutionRevalidator::new(resolver);
         let mut retrieve = request();
         retrieve.operation = Operation::Retrieve;
         let mut propose = request();
@@ -520,7 +519,7 @@ mod http_ingress_tests {
 
         let decisions = revalidator.discover_allowed(&principal, &[retrieve, propose], 1_200).unwrap();
         assert_eq!(decisions, vec![true, false]);
-        assert_eq!(resolver.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
     fn signed_credential(subject: &str) -> (String, SigningKey, SignedTrustBundle, TrustRoot) {
