@@ -89,7 +89,15 @@ where
             recipient_refs: Vec::new(),
             correlation_ref: input.correlation_ref.to_owned(),
         };
-        self.g02.authorize_g05(&request).map_err(map_authority_error)?;
+        // G02 resolves the selector against its exact Owner-authorized
+        // membership key. No client-provided alias or tenant string is stored
+        // unless it is the canonical reference returned by this authority.
+        let canonical_tenant_ref = self.g02
+            .resolve_task_tenant(principal, input.tenant_ref)
+            .map_err(map_authority_error)?;
+        if canonical_tenant_ref != input.tenant_ref {
+            return Err(TaskApiError::Forbidden);
+        }
         self.g09
             .authorize_task_capability(principal, &request, input.capability_id, input.risk, input.now)
             .map_err(map_authority_error)
