@@ -27,11 +27,17 @@ fn source_budget_accepts_exact_limit_and_rejects_one_over_atomically() {
     let mut engine = NativeReasoner::new(config).unwrap();
     let fact = Literal::positive("bounded-source-fact");
 
-    engine.add_fact_with_source(fact.clone(), "source-a").unwrap();
-    engine.add_fact_with_source(fact.clone(), "source-b").unwrap();
+    engine
+        .add_fact_with_source(fact.clone(), "source-a")
+        .unwrap();
+    engine
+        .add_fact_with_source(fact.clone(), "source-b")
+        .unwrap();
 
     // Replaying an existing source is idempotent at capacity.
-    engine.add_fact_with_source(fact.clone(), "source-b").unwrap();
+    engine
+        .add_fact_with_source(fact.clone(), "source-b")
+        .unwrap();
 
     assert_eq!(
         engine.add_fact_with_source(fact.clone(), "source-c"),
@@ -41,7 +47,10 @@ fn source_budget_accepts_exact_limit_and_rejects_one_over_atomically() {
     let report = engine.reason();
     assert_eq!(report.stop_reason, StopReason::FixedPoint);
     assert_eq!(report.asserted_facts.len(), 2);
-    assert!(report.asserted_facts.iter().all(|assertion| assertion.fact == fact));
+    assert!(report
+        .asserted_facts
+        .iter()
+        .all(|assertion| assertion.fact == fact));
     assert_eq!(
         report
             .asserted_facts
