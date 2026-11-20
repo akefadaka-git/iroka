@@ -1396,12 +1396,30 @@ mod tests {
     #[test]
     fn rejects_caller_configurations_above_hard_resource_ceilings() {
         let invalid_configs = [
-            EngineConfig { max_inference_steps: 10_001, ..EngineConfig::default() },
-            EngineConfig { max_facts: 10_001, ..EngineConfig::default() },
-            EngineConfig { max_rules: 2_001, ..EngineConfig::default() },
-            EngineConfig { max_rule_premises: 257, ..EngineConfig::default() },
-            EngineConfig { max_sources_per_fact: 33, ..EngineConfig::default() },
-            EngineConfig { max_duration: Duration::from_millis(3_001), ..EngineConfig::default() },
+            EngineConfig {
+                max_inference_steps: 10_001,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_facts: 10_001,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_rules: 2_001,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_rule_premises: 257,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_sources_per_fact: 33,
+                ..EngineConfig::default()
+            },
+            EngineConfig {
+                max_duration: Duration::from_millis(3_001),
+                ..EngineConfig::default()
+            },
         ];
         for config in invalid_configs {
             assert_eq!(
@@ -1416,23 +1434,30 @@ mod tests {
         let mut brain = engine();
         let premises = vec![Literal::positive("p"); 256];
         for index in 0..195 {
-            brain.add_rule(Rule {
-                id: format!("r{index}"),
-                premises: premises.clone(),
-                conclusion: Literal::positive("done"),
-            }).unwrap();
+            brain
+                .add_rule(Rule {
+                    id: format!("r{index}"),
+                    premises: premises.clone(),
+                    conclusion: Literal::positive("done"),
+                })
+                .unwrap();
         }
-        brain.add_rule(Rule {
-            id: "r195".into(),
-            premises: vec![Literal::positive("p"); 80],
-            conclusion: Literal::positive("done"),
-        }).unwrap();
+        brain
+            .add_rule(Rule {
+                id: "r195".into(),
+                premises: vec![Literal::positive("p"); 80],
+                conclusion: Literal::positive("done"),
+            })
+            .unwrap();
         let before = brain.rules.len();
-        assert_eq!(brain.add_rule(Rule {
-            id: "overflow".into(),
-            premises: vec![Literal::positive("p")],
-            conclusion: Literal::positive("done"),
-        }), Err(EngineError::RulePremiseTotalBudgetExceeded));
+        assert_eq!(
+            brain.add_rule(Rule {
+                id: "overflow".into(),
+                premises: vec![Literal::positive("p")],
+                conclusion: Literal::positive("done"),
+            }),
+            Err(EngineError::RulePremiseTotalBudgetExceeded)
+        );
         assert_eq!(brain.rules.len(), before);
     }
 
@@ -1457,5 +1482,4 @@ mod tests {
         assert_eq!(brain.facts.len(), before_facts);
         assert_eq!(brain.asserted_facts.len(), MAX_TOTAL_ASSERTIONS);
     }
-
 }
