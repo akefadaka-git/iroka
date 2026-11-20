@@ -286,3 +286,14 @@ A finding is not closed by a code change alone. It requires a linked fix, regres
 - Any Owner decision to accept conditions, close the review gate, merge or proceed to another workstream is a separate explicit decision.
 
 **Current status:** PACKAGE PREPARED / INDEPENDENT REVIEW PENDING / OWNER DECISION PENDING.
+
+
+## R-03 aggregate resource ceilings (2026-11-20)
+
+Caller-supplied `EngineConfig` values are now validated against hard ceilings; defaults are not merely recommendations. The accepted maxima are 10,000 inference steps, 10,000 facts, 2,000 rules, 256 premises per rule, 32 distinct source IDs per asserted fact, and 3 seconds for reasoning/report materialization. A zero value returns `ZeroBudget`; any value above these ceilings returns `ConfigLimitExceeded`.
+
+Multiplicative limits are additionally constrained by aggregate retained-state budgets: at most 50,000 rule-premise entries across all rules and at most 50,000 distinct asserted-fact/source records across the reasoner. Both checks occur before mutation; rejected additions leave retained state unchanged. The per-rule and per-fact limits remain independently enforced. The aggregate rule-premise ceiling also bounds copied premise literals in derivation witnesses; the aggregate assertion ceiling bounds provenance records copied into reports.
+
+These are cardinality bounds, not a byte-exact heap/RSS guarantee. B-tree/vector/string allocator overhead, capacity growth, sorting temporaries, caller-owned input allocations, iterator internals, and returned reports held by callers are outside a strict process-memory guarantee. Atom, rule ID, and source ID payloads remain capped at 256 UTF-8 bytes. A conservative payload-only retained-state envelope is therefore calculable, but must not be presented as a precise resident-memory ceiling. The crate has no network/file ingress layer; upstream request-size, parse-time, concurrency, and aggregate process-memory controls remain integration requirements.
+
+Regression coverage: caller configuration above each representative hard ceiling is rejected; aggregate premise overflow is rejected atomically; aggregate assertion overflow is rejected atomically. Exact-commit CI evidence is recorded only after the corresponding workflow runs complete.
