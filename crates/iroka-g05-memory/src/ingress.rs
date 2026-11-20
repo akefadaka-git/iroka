@@ -570,6 +570,35 @@ mod http_ingress_tests {
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
+    #[test]
+    fn task_capability_authorization_returns_the_exact_policy_snapshot_version() {
+        let (token, _, bundle, root) = signed_credential("subject:http-test");
+        let anti_rollback = Arc::new(SqliteSecurityStore::open_in_memory().unwrap());
+        let credentials = Ed25519CredentialVerifier::from_signed_bundle(
+            &bundle, &root, &anti_rollback,
+            TestRevocations { revoked: false, unavailable: false }, 1_200,
+        ).unwrap();
+        let principal = credentials.authenticate(&token, "iroka-g05", 1_200).unwrap();
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let resolver = CountingPolicyResolver { calls: Arc::clone(&calls) };
+        let revalidator = KernelG09ExecutionRevalidator::new(resolver);
+        let request = request();
+
+        let version = revalidator.authorize_task_capability(
+            &principal, &request, "g05.memory.retrieve", RiskLevel::Moderate, 1_200,
+        ).unwrap();
+        assert_eq!(version, "policy-epoch-7");
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+        assert_eq!(
+            revalidator.authorize_task_capability(
+                &principal, &request, "g05.memory.delete.request", RiskLevel::Critical, 1_200,
+            ),
+            Err(G05Error::AuthorizationDenied)
+        );
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
     fn signed_credential(subject: &str) -> (String, SigningKey, SignedTrustBundle, TrustRoot) {
         let identity = SigningKey::from_bytes(&[101u8; 32]);
         let root_signer = SigningKey::from_bytes(&[102u8; 32]);
