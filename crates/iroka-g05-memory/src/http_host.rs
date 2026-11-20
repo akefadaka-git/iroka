@@ -43,7 +43,6 @@ pub trait G05OperationExecutor: Send + Sync + 'static {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct G05RequestEnvelope {
-    credential: String,
     request: AuthorizationRequest,
 }
 
@@ -187,7 +186,8 @@ where
             return Ok(());
         }
     };
-    let context = match ingress.authorize(&envelope.credential, envelope.request) {
+    let authorization = parsed.headers.get("authorization").map(String::as_str);
+    let context = match ingress.authorize_http(authorization, envelope.request) {
         Ok(context) => context,
         Err(error) => {
             let (status, label) = status_for_g05_error(&error);
@@ -195,7 +195,11 @@ where
             return Ok(());
         }
     };
-    let result = ingress.execute_external(&context, &envelope.credential, || {
+    // authorize_http has already validated the exact Bearer syntax and token.
+    let credential = authorization
+        .and_then(|header| header.strip_prefix("Bearer "))
+        .expect("successful HTTP authorization requires a Bearer credential");
+    let result = ingress.execute_external(&context, credential, || {
         executor.execute(&context)
     });
     match result {
@@ -235,6 +239,7 @@ enum HttpParseError {
 struct ParsedRequest {
     method: String,
     path: String,
+    headers: std::collections::HashMap<String, String>,
     body: Vec<u8>,
 }
 
@@ -321,6 +326,7 @@ fn read_request(
     Ok(ParsedRequest {
         method: method.to_owned(),
         path: path.to_owned(),
+        headers,
         body,
     })
 }
@@ -377,6 +383,26 @@ mod tests {
             validate_bind_address(SocketAddr::from(([127, 0, 0, 1], 8080))),
             Ok(())
         );
+    }
+
+    #[test]
+    fn parser_preserves_authorization_header_for_bearer_authentication() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let client = thread::spawn(move || {
+            let mut stream = TcpStream::connect(address).unwrap();
+            stream.write_all(
+                b"POST /v1/g05/execute HTTP/1.1\\r\\nHost: api.iroka.test\\r\\nX-Forwarded-Proto: https\\r\\nAuthorization: Bearer eyJhbGciOiJFZERTQSJ9.test.signature\\r\\nContent-Type: application/json\\r\\nContent-Length: 2\\r\\n\\r\\n{}",
+            ).unwrap();
+        });
+        let (mut server, _) = listener.accept().unwrap();
+        let allowed = HashSet::from(["api.iroka.test".to_owned()]);
+        let parsed = read_request(&mut server, &allowed).unwrap();
+        assert_eq!(
+            parsed.headers.get("authorization").map(String::as_str),
+            Some("Bearer eyJhbGciOiJFZERTQSJ9.test.signature")
+        );
+        client.join().unwrap();
     }
 
     #[test]
