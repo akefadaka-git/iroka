@@ -135,7 +135,7 @@ fn bounded_resumption_is_insertion_order_invariant() {
         max_inference_steps: 1,
         ..EngineConfig::default()
     };
-    let mut forward = fixture_with_config(false, config.clone());
+    let mut forward = fixture_with_config(false, config);
     let mut reverse = fixture_with_config(true, config);
 
     let mut forward_report = None;
@@ -179,7 +179,6 @@ fn bounded_resumption_is_insertion_order_invariant() {
     assert_eq!(left.asserted_facts, right.asserted_facts);
     assert_eq!(left.derivations, right.derivations);
 }
-
 
 #[test]
 fn adding_new_fact_after_partial_stop_restarts_scan_and_preserves_witnesses() {
