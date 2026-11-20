@@ -69,7 +69,6 @@ fn facts_contradictions_and_derivation_witnesses_are_insertion_order_invariant()
     assert_eq!(left.stop_reason, right.stop_reason);
 }
 
-
 #[test]
 fn repeated_step_bounded_calls_resume_fairly_until_fixed_point() {
     let config = EngineConfig {
