@@ -19,7 +19,7 @@ The transport-neutral route adapter obtains the principal from the existing G01 
 
 The request contains a tenant selector, idempotency key, client request ID, correlation ID, capability ID/version, expiry, and opaque input references. It does not accept prompt text, document bodies, credentials, or result payloads.
 
-The server resolves the canonical tenant and policy version. Idempotency is scoped by `(tenant_ref, principal_ref, idempotency_key)`. A byte-identical semantic request replay returns the original task; reuse with a different request digest returns HTTP 409.
+The server resolves the tenant selector by exact match against the active Owner-authorized G02 `tenant_ref` membership key and stores only the reference returned by G02. G02 currently defines no tenant-alias mapping: a selector that is not the exact canonical reference is denied. G09 then rechecks active membership and evaluates the deployment-granted capability and risk against one current signed policy snapshot. The policy evaluator currently enforces capability, risk, and emergency-stop state; task ownership is enforced separately by the task authorizer. Idempotency is scoped by `(tenant_ref, principal_ref, idempotency_key)`. A byte-identical semantic request replay returns the original task; reuse with a different request digest returns HTTP 409.
 
 ## Durable state and events
 
@@ -33,7 +33,7 @@ The database stores task metadata, input-reference identifiers, request digests,
 
 ## A3 gates still open
 
-- Concrete production `TaskAuthorizer` adapter backed by current G02 and G09 authority.
+- Exact-head CI for the canonical G02 tenant-resolution adapter and its PostgreSQL integration test.
 - PostgreSQL migration execution and integration tests for create/replay/conflict, transition CAS, event ordering, append-only enforcement, and cancellation races.
 - Worker lease/claim, bounded retries, expiry sweeper, and durable cancellation acknowledgment.
 - Result storage/encryption and result-reference authorization.
