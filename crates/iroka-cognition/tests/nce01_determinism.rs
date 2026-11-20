@@ -4,10 +4,7 @@ use iroka_cognition::{EngineConfig, Literal, NativeReasoner, Rule};
 
 fn fixture(reverse: bool) -> NativeReasoner {
     let mut engine = NativeReasoner::new(EngineConfig::default()).unwrap();
-    let facts = [
-        Literal::positive("seed_a"),
-        Literal::positive("seed_b"),
-    ];
+    let facts = [Literal::positive("seed_a"), Literal::positive("seed_b")];
     let rules = [
         Rule {
             id: "r-a".into(),
