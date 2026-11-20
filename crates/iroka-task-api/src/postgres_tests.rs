@@ -23,6 +23,26 @@ fn task(task_id: &str, digest: &str) -> TaskRecord {
     }
 }
 
+fn task_audit_event(
+    task: &TaskRecord, worker_ref: &str, next_version: u64,
+    event_type: &str, occurred_at: u64, outcome_code: &str,
+) -> TaskAuditEvent {
+    TaskAuditEvent {
+        event_id: format!("task:{}:v{}:{}", task.task_id, next_version, event_type),
+        event_type: event_type.into(),
+        task_id: task.task_id.clone(),
+        tenant_ref: task.tenant_ref.clone(),
+        principal_ref: task.principal_ref.clone(),
+        worker_ref: worker_ref.into(),
+        capability_id: task.capability_id.clone(),
+        policy_version: task.policy_version.clone(),
+        correlation_id: task.correlation_id.clone(),
+        task_version: next_version,
+        occurred_at,
+        outcome_code: outcome_code.into(),
+    }
+}
+
 fn initial_event(task: &TaskRecord) -> TaskEvent {
     TaskEvent {
         task_id: task.task_id.clone(),
@@ -138,7 +158,12 @@ fn postgres_idempotency_atomic_transitions_ordering_and_append_only() {
         occurred_at: 130, metadata: json!({"adapter_class":"test"}),
         result_ref: Some("result:pg-test".into()), error_code: None,
     };
-    repository.complete_lease(&renewed, succeeded).expect("lease-guarded completion");
+    let success_audit = task_audit_event(
+        &renewed.task, "worker:pg-test", 4, "task.completed", 130, "succeeded"
+    );
+    let success_receipt = TaskAuditReceipt::for_test(&success_audit);
+    repository.complete_lease(&renewed, succeeded, &success_audit, &success_receipt)
+        .expect("G11-receipted lease completion");
 
     let events = repository.events(&original.task_id, 0, 20).unwrap();
     assert_eq!(events.iter().map(|event| event.sequence).collect::<Vec<_>>(), vec![1, 2, 3, 4]);
@@ -164,9 +189,14 @@ fn postgres_idempotency_atomic_transitions_ordering_and_append_only() {
         occurred_at: 215, metadata: json!({"reason_code":"caller_cancelled"}),
         result_ref: None, error_code: None,
     }).expect("request cancellation while running");
+    let cancel_audit = task_audit_event(
+        &cancel_lease.task, "worker:cancel", 5, "task.cancelled", 220, "cancelled"
+    );
+    let cancel_receipt = TaskAuditReceipt::for_test(&cancel_audit);
     let cancelled = repository.acknowledge_cancel(
-        &cancel_lease, 220, json!({"reason_code":"worker_cancel_acknowledged"})
-    ).expect("worker acknowledges cancellation");
+        &cancel_lease, 220, json!({"reason_code":"worker_cancel_acknowledged"}),
+        &cancel_audit, &cancel_receipt,
+    ).expect("G11-receipted cancellation acknowledgement");
     assert_eq!(cancelled.state, TaskState::Cancelled);
     assert_eq!(repository.events(&cancel_task.task_id, 0, 20).unwrap().len(), 5);
 
@@ -233,9 +263,15 @@ fn postgres_idempotency_atomic_transitions_ordering_and_append_only() {
     let successor = repository.claim_next("worker:successor", 517, 10, 2)
         .expect("claim cancellation acknowledgement").expect("cancel-requested task requeued");
     assert_eq!(successor.task.state, TaskState::CancelRequested);
+    let successor_audit = task_audit_event(
+        &successor.task, "worker:successor", successor.task.task_version + 1,
+        "task.cancelled", 518, "cancelled"
+    );
+    let successor_receipt = TaskAuditReceipt::for_test(&successor_audit);
     let ack = repository.acknowledge_cancel(
-        &successor, 518, json!({"reason_code":"worker_cancel_acknowledged"})
-    ).expect("successor acknowledges cancellation");
+        &successor, 518, json!({"reason_code":"worker_cancel_acknowledged"}),
+        &successor_audit, &successor_receipt,
+    ).expect("successor acknowledges cancellation with G11 receipt");
     assert_eq!(ack.state, TaskState::Cancelled);
 
     // Optimistic version check rejects stale writers without appending an event.

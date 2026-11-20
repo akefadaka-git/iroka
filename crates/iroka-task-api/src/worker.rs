@@ -22,10 +22,14 @@ pub trait TaskWorkerRepository: Send + Sync {
         -> Result<Option<TaskLease>, TaskApiError>;
     fn renew_lease(&self, lease: &TaskLease, now: u64, lease_seconds: u64)
         -> Result<TaskLease, TaskApiError>;
-    fn complete_lease(&self, lease: &TaskLease, change: TaskTransition)
-        -> Result<TaskRecord, TaskApiError>;
-    fn acknowledge_cancel(&self, lease: &TaskLease, occurred_at: u64, metadata: Value)
-        -> Result<TaskRecord, TaskApiError>;
+    fn complete_lease(
+        &self, lease: &TaskLease, change: TaskTransition,
+        audit_event: &TaskAuditEvent, audit_receipt: &TaskAuditReceipt,
+    ) -> Result<TaskRecord, TaskApiError>;
+    fn acknowledge_cancel(
+        &self, lease: &TaskLease, occurred_at: u64, metadata: Value,
+        audit_event: &TaskAuditEvent, audit_receipt: &TaskAuditReceipt,
+    ) -> Result<TaskRecord, TaskApiError>;
     fn reclaim_expired_leases(
         &self, now: u64, max_attempts: u32, retry_delay_seconds: u64, limit: usize,
     ) -> Result<usize, TaskApiError>;
@@ -147,8 +151,10 @@ impl TaskWorkerRepository for PostgresTaskRepository {
         lease_from_row(&row)
     }
 
-    fn complete_lease(&self, lease: &TaskLease, change: TaskTransition)
-        -> Result<TaskRecord, TaskApiError> {
+    fn complete_lease(
+        &self, lease: &TaskLease, change: TaskTransition,
+        audit_event: &TaskAuditEvent, audit_receipt: &TaskAuditReceipt,
+    ) -> Result<TaskRecord, TaskApiError> {
         if change.task_id != lease.task.task_id || change.actor_ref != lease.worker_ref
             || !matches!(change.next_state,TaskState::Succeeded|TaskState::Failed)
             || !valid_event_metadata(&change.metadata)
@@ -170,6 +176,22 @@ impl TaskWorkerRepository for PostgresTaskRepository {
         let row=tx.query_opt(&sql,&[&change.task_id]).map_err(|_|TaskApiError::RepositoryUnavailable)?
             .ok_or(TaskApiError::NotFound)?;
         let current=lease_from_row(&row)?;
+        let expected_event_type = if change.next_state == TaskState::Succeeded {
+            "task.completed"
+        } else { "task.failed" };
+        let next_version = current.task.task_version.checked_add(1).ok_or(TaskApiError::Conflict)?;
+        let expected_outcome = if change.next_state == TaskState::Succeeded {
+            "succeeded"
+        } else {
+            change.error_code.as_deref().unwrap_or("failed")
+        };
+        let audit_envelope = audit_event.validate_for_task(
+            &current.task,&lease.worker_ref,expected_event_type,next_version,
+            change.occurred_at,expected_outcome,
+        )?;
+        if !audit_receipt.matches(audit_event,&audit_envelope) {
+            return Err(TaskApiError::AuthorityUnavailable);
+        }
         if current.task.state!=TaskState::Running || current.worker_ref!=lease.worker_ref
             || current.lease_token!=lease.lease_token || current.lease_expires_at<=change.occurred_at
             || current.task.expires_at<=change.occurred_at
@@ -196,8 +218,10 @@ impl TaskWorkerRepository for PostgresTaskRepository {
         Ok(task)
     }
 
-    fn acknowledge_cancel(&self, lease: &TaskLease, occurred_at: u64, metadata: Value)
-        -> Result<TaskRecord, TaskApiError> {
+    fn acknowledge_cancel(
+        &self, lease: &TaskLease, occurred_at: u64, metadata: Value,
+        audit_event: &TaskAuditEvent, audit_receipt: &TaskAuditReceipt,
+    ) -> Result<TaskRecord, TaskApiError> {
         if !valid_event_metadata(&metadata) || !valid_worker_ref(&lease.worker_ref) {
             return Err(TaskApiError::InvalidRequest);
         }
@@ -208,12 +232,18 @@ impl TaskWorkerRepository for PostgresTaskRepository {
         let row=tx.query_opt(&sql,&[&lease.task.task_id]).map_err(|_|TaskApiError::RepositoryUnavailable)?
             .ok_or(TaskApiError::NotFound)?;
         let current=lease_from_row(&row)?;
+        let next_version=current.task.task_version.checked_add(1).ok_or(TaskApiError::Conflict)?;
+        let audit_envelope=audit_event.validate_for_task(
+            &current.task,&lease.worker_ref,"task.cancelled",next_version,occurred_at,"cancelled",
+        )?;
+        if !audit_receipt.matches(audit_event,&audit_envelope) {
+            return Err(TaskApiError::AuthorityUnavailable);
+        }
         if current.task.state!=TaskState::CancelRequested || current.worker_ref!=lease.worker_ref
             || current.lease_token!=lease.lease_token || current.lease_expires_at<=occurred_at
             || occurred_at<current.task.updated_at {
             return Err(TaskApiError::Conflict);
         }
-        let next_version=current.task.task_version.checked_add(1).ok_or(TaskApiError::Conflict)?;
         let changed=tx.execute(
             "UPDATE iroka_tasks SET state='cancelled',task_version=$2,updated_at=$3,
                 lease_owner=NULL,lease_token=NULL,lease_expires_at=NULL

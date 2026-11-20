@@ -10,6 +10,9 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::sync::{Arc, Mutex};
 
+mod audit;
+pub use audit::{PostgresTaskAuditAuthority, TaskAuditAuthority, TaskAuditEvent, TaskAuditReceipt};
+
 mod worker;
 pub use worker::{TaskLease, TaskWorkerRepository};
 
