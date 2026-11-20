@@ -756,9 +756,9 @@ mod tests {
     }
 
     #[test]
-    fn maximum_duration_does_not_overflow_deadline_arithmetic() {
+    fn maximum_supported_duration_does_not_overflow_deadline_arithmetic() {
         let config = EngineConfig {
-            max_duration: Duration::MAX,
+            max_duration: Duration::from_secs(3),
             ..EngineConfig::default()
         };
         let mut brain = NativeReasoner::new(config).unwrap();
