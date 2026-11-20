@@ -205,6 +205,10 @@ pub struct NativeReasoner {
     facts: BTreeSet<Literal>,
     asserted_facts: BTreeSet<AssertedFact>,
     rules: Vec<Rule>,
+    // Resume bounded reasoning fairly across calls. A pass is complete only
+    // after every rule has been visited since the last completed pass.
+    next_rule_index: usize,
+    pass_changed: bool,
 }
 
 impl NativeReasoner {
@@ -238,6 +242,8 @@ impl NativeReasoner {
             facts: BTreeSet::new(),
             asserted_facts: BTreeSet::new(),
             rules: Vec::new(),
+            next_rule_index: 0,
+            pass_changed: false,
         })
     }
 
@@ -310,8 +316,12 @@ impl NativeReasoner {
         {
             return Err(EngineError::AssertionBudgetExceeded);
         }
-        self.facts.insert(fact);
+        let new_fact = self.facts.insert(fact);
         self.asserted_facts.insert(assertion);
+        if new_fact {
+            self.next_rule_index = 0;
+            self.pass_changed = false;
+        }
         Ok(())
     }
 
@@ -353,6 +363,9 @@ impl NativeReasoner {
         }
         self.rules.push(rule);
         self.rules.sort_by(|a, b| a.id.cmp(&b.id));
+        // Rule indices may have shifted; restart a complete deterministic pass.
+        self.next_rule_index = 0;
+        self.pass_changed = false;
         Ok(())
     }
 
@@ -436,13 +449,24 @@ impl NativeReasoner {
                 stop_reason = StopReason::Deadline;
                 break;
             }
-            let mut changed = false;
-            for rule in &self.rules {
+            if self.rules.is_empty() {
+                self.next_rule_index = 0;
+                self.pass_changed = false;
+                stop_reason = StopReason::FixedPoint;
+                break;
+            }
+
+            let pass_start = self.next_rule_index % self.rules.len();
+            for offset in 0..self.rules.len() {
+                let rule_index = (pass_start + offset) % self.rules.len();
+                let rule = &self.rules[rule_index];
                 if elapsed() >= self.config.max_duration {
+                    self.next_rule_index = rule_index;
                     stop_reason = StopReason::Deadline;
                     break 'reasoning;
                 }
                 if steps >= self.config.max_inference_steps {
+                    self.next_rule_index = rule_index;
                     stop_reason = StopReason::StepBudget;
                     break 'reasoning;
                 }
@@ -450,6 +474,7 @@ impl NativeReasoner {
                 let mut premises_satisfied = true;
                 for premise in &rule.premises {
                     if elapsed() >= self.config.max_duration {
+                        self.next_rule_index = rule_index;
                         stop_reason = StopReason::Deadline;
                         break 'reasoning;
                     }
@@ -461,11 +486,12 @@ impl NativeReasoner {
                 if premises_satisfied {
                     if !self.facts.contains(&rule.conclusion) {
                         if self.facts.len() >= self.config.max_facts {
+                            self.next_rule_index = rule_index;
                             stop_reason = StopReason::FactBudget;
                             break 'reasoning;
                         }
                         self.facts.insert(rule.conclusion.clone());
-                        changed = true;
+                        self.pass_changed = true;
                     }
                     if recorded_derivations.insert((rule.conclusion.clone(), rule.id.clone())) {
                         derivations.push(Derivation {
@@ -475,10 +501,18 @@ impl NativeReasoner {
                         });
                     }
                 }
-            }
-            if !changed {
-                stop_reason = StopReason::FixedPoint;
-                break;
+
+                self.next_rule_index = (rule_index + 1) % self.rules.len();
+                if self.next_rule_index == pass_start {
+                    if !self.pass_changed {
+                        self.next_rule_index = 0;
+                        self.pass_changed = false;
+                        stop_reason = StopReason::FixedPoint;
+                        break 'reasoning;
+                    }
+                    // A complete pass derived new facts; begin another pass.
+                    self.pass_changed = false;
+                }
             }
         }
         // Report construction is part of the cooperative deadline budget.
