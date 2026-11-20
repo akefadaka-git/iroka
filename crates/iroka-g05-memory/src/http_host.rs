@@ -193,6 +193,32 @@ where
         return Ok(());
     }
 
+    if parsed.method == "GET" && parsed.path == "/api/v1/capabilities" {
+        let tenant_ref = match parsed.headers.get("x-iroka-tenant-ref") {
+            Some(value) if !value.trim().is_empty() => value.as_str(),
+            _ => {
+                write_response(stream, 400, "Bad Request", &json!({
+                    "error": "tenant_selector_required"
+                }));
+                return Ok(());
+            }
+        };
+        let authorization = parsed.headers.get("authorization").map(String::as_str);
+        match ingress.discover_http_capabilities(authorization, tenant_ref) {
+            Ok(capabilities) => write_response(stream, 200, "OK", &json!({
+                "tenant_ref": tenant_ref,
+                "capabilities": capabilities,
+                "authority": ["g01", "g02", "g09"],
+                "discovery": "live_server_side_authorization_checks"
+            })),
+            Err(error) => {
+                let (status, label) = status_for_g05_error(&error);
+                write_response(stream, status, label, &json!({"error":format!("{error:?}")}));
+            }
+        }
+        return Ok(());
+    }
+
     if parsed.method != "POST" || parsed.path != "/v1/g05/execute" {
         write_response(stream, 404, "Not Found", &json!({"error":"not_found"}));
         return Ok(());
