@@ -15,6 +15,11 @@ pub const MAX_IDEMPOTENCY_KEY_BYTES: usize = 128;
 pub const MAX_TASK_REF_BYTES: usize = 256;
 pub const MAX_EVENT_PAGE: usize = 100;
 pub const MAX_TASK_TTL_SECONDS: u64 = 86_400;
+pub const MAX_TASK_REQUEST_BODY_BYTES: usize = 65_536;
+
+fn task_request_body_within_limit(body: &[u8]) -> bool {
+    body.len() <= MAX_TASK_REQUEST_BODY_BYTES
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TaskApiError {
@@ -619,6 +624,9 @@ pub fn route_authenticated<R: TaskRepository, A: TaskAuthorizer>(
     };
     let (path, query) = request.path.split_once('?').unwrap_or((&request.path, ""));
     if request.method == "POST" && path == "/api/v1/tasks" {
+        if !task_request_body_within_limit(&request.body) {
+            return error_response(413, "task_request_too_large");
+        }
         if !header_is_json(&request.headers) {
             return error_response(415, "application_json_required");
         }
@@ -763,6 +771,12 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn task_http_body_limit_accepts_boundary_and_rejects_oversize() {
+        assert!(task_request_body_within_limit(&vec![0; MAX_TASK_REQUEST_BODY_BYTES]));
+        assert!(!task_request_body_within_limit(&vec![0; MAX_TASK_REQUEST_BODY_BYTES + 1]));
+    }
 
     #[test]
     fn task_state_machine_rejects_terminal_and_skipped_transitions() {
