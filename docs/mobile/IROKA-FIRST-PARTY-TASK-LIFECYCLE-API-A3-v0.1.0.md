@@ -1,6 +1,6 @@
 # IROKA first-party task lifecycle API — A3 contract
 
-Status: implementation in progress; no production task worker or protected-effect dispatcher is enabled.
+Status: PostgreSQL lifecycle integration tests pass; G02/G09 production adapter implemented and undergoing exact-head CI. No live HTTP task route, worker, or protected-effect dispatcher is enabled.
 
 ## Routes
 
@@ -13,7 +13,7 @@ All routes are under `/api/v1`, require HTTPS at the trusted transport boundary,
 | GET | `/api/v1/tasks/{task_id}/events?after={sequence}&limit={n}` | Read durable ordered event history |
 | POST | `/api/v1/tasks/{task_id}/cancel` | Request cancellation |
 
-The transport-neutral route adapter obtains the principal from the existing G01 ingress. It never accepts caller-authored subject, tenant membership, role, permission, policy version, or authorization booleans. A server-side `TaskAuthorizer` must resolve G02 tenant authority and G09 capability policy at request time. If no compliant adapter is configured, task operations must fail closed.
+The transport-neutral route adapter obtains the principal from the existing G01 ingress. It never accepts caller-authored subject, tenant membership, role, permission, policy version, or authorization booleans. The production `G02G09TaskAuthorizer` composes current G02 tenant membership/emergency-stop checks with a G09 capability decision against one signed policy snapshot. The exact policy version returned by that decision is persisted with the task. Deployment-owned capability/version/risk grants are allowlisted; Android cannot choose risk, grant permissions, or supply policy versions. Read and cancel require separate `iroka.task.read` and `iroka.task.cancel` G09 capabilities and are currently owner-only. If no compliant adapter is configured, task operations must fail closed.
 
 ## Submission and idempotency
 
