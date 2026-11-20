@@ -35,6 +35,21 @@ pub trait G09ExecutionRevalidator: Send + Sync {
         request: &AuthorizationRequest,
         now: u64,
     ) -> Result<(), G05Error>;
+
+    /// Evaluate a discovery batch against one authoritative policy snapshot.
+    /// Implementations that cannot provide snapshot consistency must fail closed.
+    fn discover_allowed(
+        &self,
+        principal: &VerifiedPrincipal,
+        requests: &[AuthorizationRequest],
+        now: u64,
+    ) -> Result<Vec<bool>, G05Error> {
+        requests.iter().map(|request| match self.revalidate(principal, request, now) {
+            Ok(()) => Ok(true),
+            Err(G05Error::AuthorizationDenied) => Ok(false),
+            Err(error) => Err(error),
+        }).collect()
+    }
 }
 
 /// Kernel-backed G09 execution gate. The resolver is the trusted G09 policy
@@ -50,6 +65,38 @@ impl<P> KernelG09ExecutionRevalidator<P> {
 }
 
 impl<P: G09PolicyResolver> G09ExecutionRevalidator for KernelG09ExecutionRevalidator<P> {
+    fn discover_allowed(
+        &self,
+        principal: &VerifiedPrincipal,
+        requests: &[AuthorizationRequest],
+        now: u64,
+    ) -> Result<Vec<bool>, G05Error> {
+        // Resolve the signed policy and emergency-stop state exactly once for
+        // the entire discovery response. Resource scope is checked per request.
+        let (policy, emergency_stop) = self.policies.current_policy(now)?;
+        requests.iter().map(|request| {
+            if request.principal_ref != principal.subject() {
+                return Ok(false);
+            }
+            match self.policies.authorize_resource_scope(principal, request, now) {
+                Ok(()) => {}
+                Err(G05Error::AuthorizationDenied) => return Ok(false),
+                Err(error) => return Err(error),
+            }
+            let kernel_request = iroka_kernel::AuthorizationRequest::new(
+                principal.subject(),
+                capability_for(request.operation),
+                format!(
+                    "g05:tenant:{}:memory:{}",
+                    request.tenant_ref,
+                    request.memory_id.as_deref().unwrap_or("*")
+                ),
+                risk_for(request.operation),
+            );
+            Ok(evaluate(&kernel_request, &policy, emergency_stop).code() == DecisionCode::Allow)
+        }).collect()
+    }
+
     fn revalidate(
         &self,
         principal: &VerifiedPrincipal,
@@ -286,31 +333,41 @@ where
             Operation::GrantEpisodicConsent,
             Operation::WithdrawEpisodicConsent,
         ];
-        let mut capabilities = Vec::new();
-        for operation in operations {
-            let request = AuthorizationRequest {
-                operation,
-                principal_ref: principal.subject().to_owned(),
-                tenant_ref: tenant_ref.to_owned(),
-                subject_ref: principal.subject().to_owned(),
-                purpose: crate::Purpose::TaskContinuity,
-                classification: crate::Classification::Internal,
-                memory_id: None,
-                recipient_refs: Vec::new(),
-                correlation_ref: "api-capability-discovery".to_owned(),
-            };
-            match self.g02.authorize_g05(&request) {
-                Ok(()) => {}
-                Err(G05Error::AuthorizationDenied) => continue,
-                Err(error) => return Err(error),
-            }
-            match self.g09.revalidate(&principal, &request, now) {
-                Ok(()) => capabilities.push(capability_for(operation)),
-                Err(G05Error::AuthorizationDenied) => continue,
+        let requests = operations.into_iter().map(|operation| AuthorizationRequest {
+            operation,
+            principal_ref: principal.subject().to_owned(),
+            tenant_ref: tenant_ref.to_owned(),
+            subject_ref: principal.subject().to_owned(),
+            purpose: crate::Purpose::TaskContinuity,
+            classification: crate::Classification::Internal,
+            memory_id: None,
+            recipient_refs: Vec::new(),
+            correlation_ref: "api-capability-discovery".to_owned(),
+        }).collect::<Vec<_>>();
+
+        // G02 is authoritative for tenant membership/organization scope.
+        // Evaluate every candidate before asking G09; any non-denial failure
+        // aborts the response rather than returning a partial capability set.
+        let mut g02_allowed = Vec::with_capacity(requests.len());
+        for request in &requests {
+            match self.g02.authorize_g05(request) {
+                Ok(()) => g02_allowed.push(true),
+                Err(G05Error::AuthorizationDenied) => g02_allowed.push(false),
                 Err(error) => return Err(error),
             }
         }
-        Ok(capabilities)
+        let candidates = requests.iter().zip(&g02_allowed)
+            .filter_map(|(request, allowed)| allowed.then_some(request.clone()))
+            .collect::<Vec<_>>();
+        let decisions = self.g09.discover_allowed(&principal, &candidates, now)?;
+        if decisions.len() != candidates.len() {
+            return Err(G05Error::AuthorityUnavailable);
+        }
+        let mut decision_iter = decisions.into_iter();
+        Ok(requests.into_iter().zip(g02_allowed).filter_map(|(request, g02_ok)| {
+            if !g02_ok { return None; }
+            decision_iter.next().filter(|allowed| *allowed).map(|_| capability_for(request.operation))
+        }).collect())
     }
 
     /// Execute an external effect only after fresh G01 revocation, G02 authority,
