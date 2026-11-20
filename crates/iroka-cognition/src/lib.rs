@@ -8,7 +8,7 @@ pub use backward::{
     SearchStop, Substitution, Term,
 };
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 const MAX_ATOM_BYTES: usize = 256;
@@ -205,6 +205,7 @@ pub struct NativeReasoner {
     facts: BTreeSet<Literal>,
     asserted_facts: BTreeSet<AssertedFact>,
     rules: Vec<Rule>,
+    derivations: BTreeMap<(Literal, String), Derivation>,
     // Resume bounded reasoning fairly across calls. A pass is complete only
     // after every rule has been visited since the last completed pass.
     next_rule_index: usize,
@@ -243,6 +244,7 @@ impl NativeReasoner {
             facts: BTreeSet::new(),
             asserted_facts: BTreeSet::new(),
             rules: Vec::new(),
+            derivations: BTreeMap::new(),
             next_rule_index: 0,
             pass_start_index: 0,
             pass_changed: false,
@@ -444,8 +446,6 @@ impl NativeReasoner {
     where
         F: FnMut() -> Duration,
     {
-        let mut derivations = Vec::new();
-        let mut recorded_derivations = BTreeSet::new();
         let mut steps = 0usize;
         let mut stop_reason;
         'reasoning: loop {
@@ -497,13 +497,13 @@ impl NativeReasoner {
                         self.facts.insert(rule.conclusion.clone());
                         self.pass_changed = true;
                     }
-                    if recorded_derivations.insert((rule.conclusion.clone(), rule.id.clone())) {
-                        derivations.push(Derivation {
+                    self.derivations
+                        .entry((rule.conclusion.clone(), rule.id.clone()))
+                        .or_insert_with(|| Derivation {
                             fact: rule.conclusion.clone(),
                             rule_id: rule.id.clone(),
                             premises: rule.premises.clone(),
                         });
-                    }
                 }
 
                 self.next_rule_index = (rule_index + 1) % self.rules.len();
@@ -519,7 +519,7 @@ impl NativeReasoner {
                 }
             }
         }
-        self.materialize_report(elapsed, stop_reason, steps, derivations)
+        self.materialize_report(elapsed, stop_reason, steps)
     }
 
     /// Builds a bounded report under the same cooperative deadline.
@@ -528,7 +528,6 @@ impl NativeReasoner {
         mut elapsed: F,
         mut stop_reason: StopReason,
         steps: usize,
-        derivations: Vec<Derivation>,
     ) -> ReasoningReport
     where
         F: FnMut() -> Duration,
@@ -566,9 +565,19 @@ impl NativeReasoner {
                 }
             }
         }
+        // Provenance witnesses persist with the monotonic fact/rule state,
+        // so a closure completed across multiple bounded calls retains all
+        // witnesses discovered in earlier calls.
+        let mut derivations = Vec::new();
+        for derivation in self.derivations.values() {
+            if elapsed() >= self.config.max_duration {
+                stop_reason = StopReason::Deadline;
+                break;
+            }
+            derivations.push(derivation.clone());
+        }
         // Enforce the deadline at the final report boundary as well. In
-        // particular, the last fact/source batch may consume the remaining
-        // budget without another loop iteration to observe the deadline.
+        // particular, the last report item may consume the remaining budget.
         let final_elapsed = elapsed();
         if final_elapsed >= self.config.max_duration {
             stop_reason = StopReason::Deadline;
