@@ -21,6 +21,10 @@ The request contains a tenant selector, idempotency key, client request ID, corr
 
 The server resolves the tenant selector by exact match against the active Owner-authorized G02 `tenant_ref` membership key and stores only the reference returned by G02. G02 currently defines no tenant-alias mapping: a selector that is not the exact canonical reference is denied. G09 then rechecks active membership and evaluates the deployment-granted capability and risk against one current signed policy snapshot. The policy evaluator currently enforces capability, risk, and emergency-stop state; task ownership is enforced separately by the task authorizer. Idempotency is scoped by `(tenant_ref, principal_ref, idempotency_key)`. A byte-identical semantic request replay returns the original task; reuse with a different request digest returns HTTP 409.
 
+## G11 audit envelope
+
+The shared PostgreSQL G11 chain now supports a domain-neutral, content-free audit envelope alongside the existing G05 memory event domain. Task events retain their own task/tenant/principal/capability/resource identifiers and are not represented as memory records. G11 acceptance remains idempotent by event ID and envelope digest; both domains share the serialized chain head and append-only receipt ledger. Task completion and protected-effect dispatch are not yet wired to require these receipts.
+
 ## Worker lease boundary
 
 The PostgreSQL worker repository supports atomic claim, lease renewal, lease-token-guarded completion, and durable cancellation acknowledgement. Claim uses `FOR UPDATE SKIP LOCKED`; the database generates each lease token. These are internal repository operations only: no worker HTTP endpoint, worker-service authentication, model invocation, or protected-effect dispatcher is enabled. Lease-expiry reclaim, bounded retry scheduling, and the expiry sweeper remain open.
