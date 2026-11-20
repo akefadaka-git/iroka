@@ -713,6 +713,38 @@ fn task_error_response(error: TaskApiError) -> TaskHttpResponse {
     error_response(status, code)
 }
 
+/// G01-wired route entry point. The bearer token is verified by the existing
+/// first-party ingress before the task service sees a principal. The injected
+/// TaskAuthorizer remains responsible for current G02 and G09 decisions.
+pub fn route_with_g01<R, G, C, E, T, A>(
+    ingress: &iroka_g05_memory::G05IngressService<R, G, C, E>,
+    service: &TaskService<T, A>,
+    request: TaskHttpRequest,
+    now: u64,
+) -> TaskHttpResponse
+where
+    R: iroka_kernel::RevocationChecker,
+    G: iroka_g05_memory::G02AuthorizationAuthority,
+    C: iroka_g05_memory::TrustedClock,
+    E: iroka_g05_memory::G09ExecutionRevalidator,
+    T: TaskRepository,
+    A: TaskAuthorizer,
+{
+    let authorization = request.headers.iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("authorization"))
+        .map(|(_, value)| value.as_str());
+    match ingress.authenticate_http(authorization) {
+        Ok(principal) => route_authenticated(service, Some(&principal), request, now),
+        Err(iroka_g05_memory::G05Error::AuthenticationRequired
+            | iroka_g05_memory::G05Error::AuthenticationInvalid) =>
+            error_response(401, "authentication_invalid"),
+        Err(iroka_g05_memory::G05Error::AuthorityUnavailable
+            | iroka_g05_memory::G05Error::RepositoryUnavailable) =>
+            error_response(503, "authentication_authority_unavailable"),
+        Err(_) => error_response(403, "authentication_denied"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
