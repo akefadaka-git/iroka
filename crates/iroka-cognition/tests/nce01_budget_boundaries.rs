@@ -91,7 +91,6 @@ fn fact_budget_exhaustion_stays_partial_and_never_emits_a_false_witness() {
     }
 }
 
-
 #[test]
 fn malformed_late_iterator_item_rejects_rule_atomically() {
     use std::cell::Cell;
