@@ -242,7 +242,6 @@ fn adding_new_fact_after_partial_stop_restarts_scan_and_preserves_witnesses() {
     );
 }
 
-
 #[test]
 fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
     let config = EngineConfig {
