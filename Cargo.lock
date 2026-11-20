@@ -519,6 +519,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "iroka-task-api"
+version = "0.1.0"
+dependencies = [
+ "iroka-g05-memory",
+ "iroka-kernel",
+ "native-tls",
+ "postgres",
+ "postgres-native-tls",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
