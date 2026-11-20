@@ -260,14 +260,14 @@ fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
     engine.add_fact(c.clone()).unwrap();
     engine
         .add_rule(Rule {
-            id: "z-first".into(),
+            id: "a-first".into(),
             premises: vec![a],
             conclusion: b.clone(),
         })
         .unwrap();
     engine
         .add_rule(Rule {
-            id: "y-second".into(),
+            id: "z-second".into(),
             premises: vec![c.clone()],
             conclusion: d.clone(),
         })
@@ -283,7 +283,7 @@ fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
     // The engine must restart its pass and preserve the already-recorded witness.
     engine
         .add_rule(Rule {
-            id: "a-new-earliest".into(),
+            id: "0-new-earliest".into(),
             premises: vec![c],
             conclusion: e.clone(),
         })
@@ -310,6 +310,6 @@ fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
             .iter()
             .map(|witness| witness.rule_id.as_str())
             .collect::<Vec<_>>(),
-        vec!["a-new-earliest", "y-second", "z-first"]
+        vec!["0-new-earliest", "a-first", "z-second"]
     );
 }
