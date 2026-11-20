@@ -816,3 +816,6 @@ mod tests {
 
 #[cfg(test)]
 mod postgres_tests;
+
+mod authority;
+pub use authority::{G02G09TaskAuthorizer, TaskCapabilityGrant};
