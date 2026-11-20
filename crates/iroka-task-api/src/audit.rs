@@ -165,3 +165,136 @@ impl TaskAuditAuthority for PostgresTaskAuditAuthority {
         })
     }
 }
+
+/// Opaque permit proving that G11 durably accepted the exact task effect-attempt event.
+#[derive(Debug, PartialEq, Eq)]
+pub struct TaskEffectPermit {
+    event_id: String,
+    payload_sha256: String,
+    accepted_at: u64,
+}
+
+impl TaskEffectPermit {
+    pub fn event_id(&self) -> &str { &self.event_id }
+    pub fn payload_sha256(&self) -> &str { &self.payload_sha256 }
+    pub fn accepted_at(&self) -> u64 { self.accepted_at }
+}
+
+/// Pre-effect audit gate. A protected-effect implementation must obtain this
+/// permit before invoking its external executor; unavailable G11 fails closed.
+pub struct TaskEffectAuditGate<A> {
+    authority: A,
+}
+
+impl<A: TaskAuditAuthority> TaskEffectAuditGate<A> {
+    pub fn new(authority: A) -> Self { Self { authority } }
+
+    pub fn record_before_effect(
+        &self,
+        task: &TaskRecord,
+        worker_ref: &str,
+        next_task_version: u64,
+        occurred_at: u64,
+        event: &TaskAuditEvent,
+    ) -> Result<TaskEffectPermit, TaskApiError> {
+        let envelope = event.validate_for_task(
+            task, worker_ref, "task.effect.attempted", next_task_version,
+            occurred_at, "attempted",
+        )?;
+        let receipt = self.authority.append(event)?;
+        if !receipt.matches(event, &envelope) {
+            return Err(TaskApiError::AuthorityUnavailable);
+        }
+        Ok(TaskEffectPermit {
+            event_id: receipt.event_id,
+            payload_sha256: receipt.payload_sha256,
+            accepted_at: receipt.accepted_at,
+        })
+    }
+}
+
+#[cfg(test)]
+mod effect_gate_tests {
+    use super::*;
+
+    struct AcceptingAudit;
+    impl TaskAuditAuthority for AcceptingAudit {
+        fn append(&self, event: &TaskAuditEvent) -> Result<TaskAuditReceipt, TaskApiError> {
+            Ok(TaskAuditReceipt::for_test(event))
+        }
+    }
+
+    struct UnavailableAudit;
+    impl TaskAuditAuthority for UnavailableAudit {
+        fn append(&self, _event: &TaskAuditEvent) -> Result<TaskAuditReceipt, TaskApiError> {
+            Err(TaskApiError::AuthorityUnavailable)
+        }
+    }
+
+    fn fixture() -> (TaskRecord, TaskAuditEvent) {
+        let task = TaskRecord {
+            task_id: "task:audit-gate".into(),
+            tenant_ref: "tenant:audit-gate".into(),
+            principal_ref: "principal:audit-gate".into(),
+            capability_id: "iroka.task.execute".into(),
+            capability_version: "v1".into(),
+            policy_version: "policy:v1".into(),
+            idempotency_key: "idem:audit-gate".into(),
+            request_sha256: "a".repeat(64),
+            correlation_id: "trace:audit-gate".into(),
+            client_request_id: "client:audit-gate".into(),
+            state: crate::TaskState::Running,
+            task_version: 3,
+            created_at: 10,
+            updated_at: 20,
+            expires_at: 1000,
+            result_ref: None,
+            error_code: None,
+        };
+        let event = TaskAuditEvent {
+            event_id: "task:task:audit-gate:v4:task.effect.attempted".into(),
+            event_type: "task.effect.attempted".into(),
+            task_id: task.task_id.clone(),
+            tenant_ref: task.tenant_ref.clone(),
+            principal_ref: task.principal_ref.clone(),
+            worker_ref: "worker:audit-gate".into(),
+            capability_id: task.capability_id.clone(),
+            policy_version: task.policy_version.clone(),
+            correlation_id: task.correlation_id.clone(),
+            task_version: 4,
+            occurred_at: 30,
+            outcome_code: "attempted".into(),
+        };
+        (task,event)
+    }
+
+    #[test]
+    fn pre_effect_gate_returns_permit_only_after_matching_g11_receipt() {
+        let (task,event)=fixture();
+        let gate=TaskEffectAuditGate::new(AcceptingAudit);
+        let permit=gate.record_before_effect(&task,"worker:audit-gate",4,30,&event).unwrap();
+        assert_eq!(permit.event_id(),event.event_id);
+        assert_eq!(permit.accepted_at(),30);
+    }
+
+    #[test]
+    fn pre_effect_gate_rejects_non_effect_events() {
+        let (task,mut event)=fixture();
+        event.event_type="task.completed".into();
+        let gate=TaskEffectAuditGate::new(AcceptingAudit);
+        assert_eq!(
+            gate.record_before_effect(&task,"worker:audit-gate",4,30,&event),
+            Err(TaskApiError::AuthorityUnavailable)
+        );
+    }
+
+    #[test]
+    fn pre_effect_gate_fails_closed_when_g11_is_unavailable() {
+        let (task,event)=fixture();
+        let gate=TaskEffectAuditGate::new(UnavailableAudit);
+        assert_eq!(
+            gate.record_before_effect(&task,"worker:audit-gate",4,30,&event),
+            Err(TaskApiError::AuthorityUnavailable)
+        );
+    }
+}

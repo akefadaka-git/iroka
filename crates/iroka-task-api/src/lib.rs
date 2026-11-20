@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use std::sync::{Arc, Mutex};
 
 mod audit;
-pub use audit::{PostgresTaskAuditAuthority, TaskAuditAuthority, TaskAuditEvent, TaskAuditReceipt};
+pub use audit::{PostgresTaskAuditAuthority, TaskAuditAuthority, TaskAuditEvent, TaskAuditReceipt, TaskEffectAuditGate, TaskEffectPermit};
 
 mod worker;
 pub use worker::{TaskLease, TaskWorkerRepository};

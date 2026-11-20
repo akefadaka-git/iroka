@@ -23,7 +23,7 @@ The server resolves the tenant selector by exact match against the active Owner-
 
 ## G11 audit envelope
 
-The shared PostgreSQL G11 chain now supports a domain-neutral, content-free audit envelope alongside the existing G05 memory event domain. Task events retain their own task/tenant/principal/capability/resource identifiers and are not represented as memory records. G11 acceptance remains idempotent by event ID and envelope digest; both domains share the serialized chain head and append-only receipt ledger. Task terminal completion and cancellation acknowledgement now require a matching G11 receipt. A protected-effect dispatcher and pre-effect receipt gate remain unimplemented; no external effect is enabled.
+The shared PostgreSQL G11 chain now supports a domain-neutral, content-free audit envelope alongside the existing G05 memory event domain. Task events retain their own task/tenant/principal/capability/resource identifiers and are not represented as memory records. G11 acceptance remains idempotent by event ID and envelope digest; both domains share the serialized chain head and append-only receipt ledger. Task terminal completion and cancellation acknowledgement now require a matching G11 receipt. A typed pre-effect G11 permit gate is implemented and tested. A protected-effect executor, worker-service authentication, and live worker host remain unimplemented; no external effect is enabled.
 
 ## Worker lease boundary
 
