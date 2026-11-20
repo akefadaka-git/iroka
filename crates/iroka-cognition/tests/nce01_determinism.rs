@@ -255,12 +255,12 @@ fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
     let derived_d = Literal::positive("derived-d");
     let derived_e = Literal::positive("derived-e");
 
-    engine.add_fact(a.clone()).unwrap();
-    engine.add_fact(c.clone()).unwrap();
+    engine.add_fact(seed_a.clone()).unwrap();
+    engine.add_fact(seed_c.clone()).unwrap();
     engine
         .add_rule(Rule {
             id: "a-first".into(),
-            premises: vec![seed_a],
+            premises: vec![seed_a.clone()],
             conclusion: derived_b.clone(),
         })
         .unwrap();
