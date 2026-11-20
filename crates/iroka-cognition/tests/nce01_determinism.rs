@@ -241,3 +241,75 @@ fn adding_new_fact_after_partial_stop_restarts_scan_and_preserves_witnesses() {
         vec!["a-first", "b-later"]
     );
 }
+
+
+#[test]
+fn adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses() {
+    let config = EngineConfig {
+        max_inference_steps: 1,
+        ..EngineConfig::default()
+    };
+    let mut engine = NativeReasoner::new(config).unwrap();
+    let a = Literal::positive("seed-a");
+    let b = Literal::positive("derived-b");
+    let c = Literal::positive("seed-c");
+    let d = Literal::positive("derived-d");
+    let e = Literal::positive("derived-e");
+
+    engine.add_fact(a.clone()).unwrap();
+    engine.add_fact(c.clone()).unwrap();
+    engine
+        .add_rule(Rule {
+            id: "z-first".into(),
+            premises: vec![a],
+            conclusion: b.clone(),
+        })
+        .unwrap();
+    engine
+        .add_rule(Rule {
+            id: "y-second".into(),
+            premises: vec![c.clone()],
+            conclusion: d.clone(),
+        })
+        .unwrap();
+
+    let partial = engine.reason();
+    assert_eq!(partial.stop_reason, iroka_cognition::StopReason::StepBudget);
+    assert!(partial.is_partial());
+    assert!(partial.facts.contains(&b));
+    assert_eq!(partial.derivations.len(), 1);
+
+    // Inserting a lexicographically earlier rule changes sorted rule indices.
+    // The engine must restart its pass and preserve the already-recorded witness.
+    engine
+        .add_rule(Rule {
+            id: "a-new-earliest".into(),
+            premises: vec![c],
+            conclusion: e.clone(),
+        })
+        .unwrap();
+
+    let mut complete = None;
+    for _ in 0..32 {
+        let report = engine.reason();
+        if report.is_complete() {
+            complete = Some(report);
+            break;
+        }
+        assert_eq!(report.stop_reason, iroka_cognition::StopReason::StepBudget);
+    }
+
+    let report = complete.expect("rule-updated knowledge base must reach fixed point");
+    assert_eq!(report.stop_reason, iroka_cognition::StopReason::FixedPoint);
+    assert!(report.facts.contains(&b));
+    assert!(report.facts.contains(&d));
+    assert!(report.facts.contains(&e));
+    assert_eq!(
+        report
+            .derivations
+            .iter()
+            .map(|witness| witness.rule_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a-new-earliest", "y-second", "z-first"]
+    );
+}
