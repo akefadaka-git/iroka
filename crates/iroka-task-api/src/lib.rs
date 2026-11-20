@@ -10,6 +10,9 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::sync::{Arc, Mutex};
 
+mod worker;
+pub use worker::{TaskLease, TaskWorkerRepository};
+
 pub const TASK_CONTRACT_VERSION: &str = "1.0.0";
 pub const MAX_IDEMPOTENCY_KEY_BYTES: usize = 128;
 pub const MAX_TASK_REF_BYTES: usize = 256;
@@ -395,7 +398,10 @@ impl PostgresTaskRepository {
         let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
         let row = client.query_one(
             "SELECT to_regclass('public.iroka_tasks') IS NOT NULL
-                AND to_regclass('public.iroka_task_events') IS NOT NULL",
+                AND to_regclass('public.iroka_task_events') IS NOT NULL
+                AND (SELECT count(*)=5 FROM information_schema.columns
+                     WHERE table_schema='public' AND table_name='iroka_tasks'
+                       AND column_name IN ('lease_owner','lease_token','lease_expires_at','attempt_count','next_attempt_at'))",
             &[],
         ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
         if row.get::<_, bool>(0) { Ok(()) } else { Err(TaskApiError::RepositoryUnavailable) }
@@ -532,6 +538,15 @@ impl TaskRepository for PostgresTaskRepository {
         let row = tx.query_opt(&sql,&[&change.task_id]).map_err(|_| TaskApiError::RepositoryUnavailable)?
             .ok_or(TaskApiError::NotFound)?;
         let current = task_from_row(&row)?;
+        // Running/completion/expiry and cancellation acknowledgement are lease-owned.
+        if change.next_state == TaskState::Running
+            || change.next_state == TaskState::Succeeded
+            || change.next_state == TaskState::Expired
+            || (current.state == TaskState::Running && change.next_state != TaskState::CancelRequested)
+            || (current.state == TaskState::CancelRequested && change.next_state == TaskState::Cancelled)
+        {
+            return Err(TaskApiError::Forbidden);
+        }
         if current.task_version != change.expected_version
             || !current.state.permits(change.next_state)
             || change.occurred_at < current.updated_at

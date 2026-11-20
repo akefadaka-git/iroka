@@ -9,7 +9,7 @@ fn task(task_id: &str, digest: &str) -> TaskRecord {
         capability_id: "iroka.answer".into(),
         capability_version: "1.0.0".into(),
         policy_version: "policy:pg-test".into(),
-        idempotency_key: "idem:pg-test".into(),
+        idempotency_key: format!("idem:{task_id}"),
         request_sha256: digest.into(),
         correlation_id: "trace:pg-test".into(),
         client_request_id: "client:pg-test".into(),
@@ -51,6 +51,8 @@ fn postgres_idempotency_atomic_transitions_ordering_and_append_only() {
     ).expect("reset isolated test database");
     client.batch_execute(include_str!("../migrations/postgres/0001_task_lifecycle.sql"))
         .expect("apply task lifecycle migration");
+    client.batch_execute(include_str!("../migrations/postgres/0002_task_worker_leases.sql"))
+        .expect("apply worker lease migration");
 
     let repository = PostgresTaskRepository {
         client: Arc::new(Mutex::new(client)),
@@ -120,26 +122,52 @@ fn postgres_idempotency_atomic_transitions_ordering_and_append_only() {
         result_ref: None, error_code: None,
     };
     repository.transition(queued).expect("accepted -> queued");
-    let running = TaskTransition {
-        task_id: original.task_id.clone(), expected_version: 2,
-        next_state: TaskState::Running, actor_ref: "worker:pg-test".into(),
-        occurred_at: 120, metadata: json!({"attempt":1}),
-        result_ref: None, error_code: None,
-    };
-    repository.transition(running).expect("queued -> running");
+    let lease = repository.claim_next("worker:pg-test", 120, 30, 3)
+        .expect("claim next queued task").expect("one queued task");
+    assert_eq!(lease.task.state, TaskState::Running);
+    assert_eq!(lease.attempt, 1);
+    assert_eq!(lease.lease_expires_at, 150);
+    let renewed = repository.renew_lease(&lease, 125, 30).expect("renew live lease");
+    assert_eq!(renewed.lease_expires_at, 155);
+    let mut forged = renewed.clone();
+    forged.lease_token = "00000000-0000-0000-0000-000000000000".into();
+    assert_eq!(repository.renew_lease(&forged, 126, 30), Err(TaskApiError::Conflict));
     let succeeded = TaskTransition {
         task_id: original.task_id.clone(), expected_version: 3,
         next_state: TaskState::Succeeded, actor_ref: "worker:pg-test".into(),
         occurred_at: 130, metadata: json!({"adapter_class":"test"}),
         result_ref: Some("result:pg-test".into()), error_code: None,
     };
-    repository.transition(succeeded).expect("running -> succeeded");
+    repository.complete_lease(&renewed, succeeded).expect("lease-guarded completion");
 
     let events = repository.events(&original.task_id, 0, 20).unwrap();
     assert_eq!(events.iter().map(|event| event.sequence).collect::<Vec<_>>(), vec![1, 2, 3, 4]);
     assert_eq!(events.iter().map(|event| event.state).collect::<Vec<_>>(),
         vec![TaskState::Accepted, TaskState::Queued, TaskState::Running, TaskState::Succeeded]);
     assert_eq!(events.iter().map(|event| event.task_version).collect::<Vec<_>>(), vec![1, 2, 3, 4]);
+
+    // Running cancellation remains pending until the lease owner acknowledges it.
+    let cancel_task = task("task:pg-cancel", &"c".repeat(64));
+    repository.create(&cancel_task, &initial_event(&cancel_task)).expect("create cancellation task");
+    repository.transition(TaskTransition {
+        task_id: cancel_task.task_id.clone(), expected_version: 1,
+        next_state: TaskState::Queued, actor_ref: "scheduler:pg-test".into(),
+        occurred_at: 200, metadata: json!({"reason_code":"scheduled"}),
+        result_ref: None, error_code: None,
+    }).expect("queue cancellation task");
+    let cancel_lease = repository.claim_next("worker:cancel", 210, 30, 3)
+        .expect("claim cancellation task").expect("queued cancellation task");
+    repository.transition(TaskTransition {
+        task_id: cancel_task.task_id.clone(), expected_version: cancel_lease.task.task_version,
+        next_state: TaskState::CancelRequested, actor_ref: "principal:pg-test".into(),
+        occurred_at: 215, metadata: json!({"reason_code":"caller_cancelled"}),
+        result_ref: None, error_code: None,
+    }).expect("request cancellation while running");
+    let cancelled = repository.acknowledge_cancel(
+        &cancel_lease, 220, json!({"reason_code":"worker_cancel_acknowledged"})
+    ).expect("worker acknowledges cancellation");
+    assert_eq!(cancelled.state, TaskState::Cancelled);
+    assert_eq!(repository.events(&cancel_task.task_id, 0, 20).unwrap().len(), 5);
 
     // Optimistic version check rejects stale writers without appending an event.
     let stale = TaskTransition {
