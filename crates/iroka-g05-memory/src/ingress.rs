@@ -415,7 +415,7 @@ mod http_ingress_tests {
         );
         let principal = service.authenticate_http(Some(&format!("Bearer {token}"))).unwrap();
         assert_eq!(principal.subject(), "subject:http-test");
-        assert_eq!(principal.issuer(), "issuer:test");
+        assert_eq!(principal.issuer(), "issuer:http-test");
         assert_eq!(
             service.authenticate_http(None).err(),
             Some(G05Error::AuthenticationRequired)
