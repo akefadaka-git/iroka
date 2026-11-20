@@ -743,7 +743,6 @@ pub fn route_with_g01<R, G, C, E, T, A>(
     ingress: &iroka_g05_memory::G05IngressService<R, G, C, E>,
     service: &TaskService<T, A>,
     request: TaskHttpRequest,
-    now: u64,
 ) -> TaskHttpResponse
 where
     R: iroka_kernel::RevocationChecker,
@@ -756,8 +755,8 @@ where
     let authorization = request.headers.iter()
         .find(|(key, _)| key.eq_ignore_ascii_case("authorization"))
         .map(|(_, value)| value.as_str());
-    match ingress.authenticate_http(authorization) {
-        Ok(principal) => route_authenticated(service, Some(&principal), request, now),
+    match ingress.authenticate_http_with_time(authorization) {
+        Ok((principal, trusted_now)) => route_authenticated(service, Some(&principal), request, trusted_now),
         Err(iroka_g05_memory::G05Error::AuthenticationRequired
             | iroka_g05_memory::G05Error::AuthenticationInvalid) =>
             error_response(401, "authentication_invalid"),
