@@ -119,7 +119,7 @@ fn malformed_late_iterator_item_rejects_rule_atomically() {
         .add_rule_from_iter(
             "reusable-after-invalid-input",
             [Literal::positive("valid-premise")],
-            Literal::positive("conclusion")
+            Literal::positive("conclusion"),
         )
         .unwrap();
 }
