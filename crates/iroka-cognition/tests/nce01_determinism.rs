@@ -90,7 +90,7 @@ fn repeated_step_bounded_calls_resume_fairly_until_fixed_point() {
     engine
         .add_rule(Rule {
             id: "b-second".into(),
-            premises: vec![b],
+            premises: vec![b.clone()],
             conclusion: c.clone(),
         })
         .unwrap();
