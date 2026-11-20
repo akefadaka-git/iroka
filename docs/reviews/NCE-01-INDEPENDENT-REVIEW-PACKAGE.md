@@ -313,3 +313,8 @@ Exact-SHA verification for implementation commit `bcee3f5d5557361ec8349919171406
 - Rust kernel verification Run #2238: PASS — https://github.com/akefadaka-git/iroka/actions/runs/44649522520
 - Test totals: cognition 53 passed; kernel 71 passed; authorization-contract 2 passed; zero failures.
 - Formatting, workspace compile/check, complete workspace tests, production-feature bypass check, and Clippy: PASS.
+
+
+## R-03 upstream ingress contract — specification only
+
+Added `docs/architecture/NCE-01-INGRESS-RESOURCE-CONTRACT.md`. It defines the proposed 32 MiB raw/decompressed body cap, streaming count/byte validation, request-wide limits, 5-second end-to-end deadline, cancellation, weighted memory admission, one maximum-profile request per worker until peak-RSS qualification, process memory isolation, partial-result semantics, and adversarial acceptance tests. This is **SPECIFIED / NOT IMPLEMENTED**. The repository has no NCE-01 ingress adapter; no network endpoint or production listener was added. R-03 remains PARTIAL. Peak RSS, concurrency safety, and adapter integration tests are NOT RUN and cannot be claimed from the cognition crate CI.
