@@ -48,6 +48,20 @@ pub trait G09ExecutionRevalidator: Send + Sync {
         // explicitly implement an atomic/snapshot-consistent batch decision.
         Err(G05Error::AuthorityUnavailable)
     }
+
+    /// Authorize a first-party task capability against one current G09 policy
+    /// snapshot and return that exact snapshot's version for task provenance.
+    /// Implementations without snapshot-bound decisions fail closed.
+    fn authorize_task_capability(
+        &self,
+        _principal: &VerifiedPrincipal,
+        _request: &AuthorizationRequest,
+        _capability_id: &str,
+        _risk: RiskLevel,
+        _now: u64,
+    ) -> Result<String, G05Error> {
+        Err(G05Error::AuthorityUnavailable)
+    }
 }
 
 /// Kernel-backed G09 execution gate. The resolver is the trusted G09 policy
@@ -63,6 +77,40 @@ impl<P> KernelG09ExecutionRevalidator<P> {
 }
 
 impl<P: G09PolicyResolver> G09ExecutionRevalidator for KernelG09ExecutionRevalidator<P> {
+    fn authorize_task_capability(
+        &self,
+        principal: &VerifiedPrincipal,
+        request: &AuthorizationRequest,
+        capability_id: &str,
+        risk: RiskLevel,
+        now: u64,
+    ) -> Result<String, G05Error> {
+        if request.principal_ref != principal.subject()
+            || capability_id.trim().is_empty()
+            || capability_id.len() > 256
+            || capability_id.chars().any(char::is_control)
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        self.policies.authorize_resource_scope(principal, request, now)?;
+        let (policy, emergency_stop) = self.policies.current_policy(now)?;
+        let resource = format!(
+            "iroka:tenant:{}:task:{}",
+            request.tenant_ref,
+            request.memory_id.as_deref().unwrap_or("*")
+        );
+        let kernel_request = iroka_kernel::AuthorizationRequest::new(
+            principal.subject(),
+            capability_id,
+            resource,
+            risk,
+        );
+        match evaluate(&kernel_request, &policy, emergency_stop).code() {
+            DecisionCode::Allow => Ok(policy.version().to_owned()),
+            _ => Err(G05Error::AuthorizationDenied),
+        }
+    }
+
     fn discover_allowed(
         &self,
         principal: &VerifiedPrincipal,
