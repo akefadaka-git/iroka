@@ -336,7 +336,11 @@ impl NativeReasoner {
         if rule.premises.len() > self.config.max_rule_premises {
             return Err(EngineError::RulePremiseBudgetExceeded);
         }
-        let retained_premises: usize = self.rules.iter().map(|existing| existing.premises.len()).sum();
+        let retained_premises: usize = self
+            .rules
+            .iter()
+            .map(|existing| existing.premises.len())
+            .sum();
         if retained_premises.saturating_add(rule.premises.len()) > MAX_TOTAL_RULE_PREMISES {
             return Err(EngineError::RulePremiseTotalBudgetExceeded);
         }
@@ -1391,12 +1395,20 @@ mod tests {
     }
     #[test]
     fn rejects_caller_configurations_above_hard_resource_ceilings() {
-        let too_many_facts = EngineConfig { max_facts: 10_001, ..EngineConfig::default() };
-        assert_eq!(NativeReasoner::new(too_many_facts).err(), Some(EngineError::ConfigLimitExceeded));
-        let too_many_sources = EngineConfig { max_sources_per_fact: 33, ..EngineConfig::default() };
-        assert_eq!(NativeReasoner::new(too_many_sources).err(), Some(EngineError::ConfigLimitExceeded));
-        let too_long = EngineConfig { max_duration: Duration::from_millis(3_001), ..EngineConfig::default() };
-        assert_eq!(NativeReasoner::new(too_long).err(), Some(EngineError::ConfigLimitExceeded));
+        let invalid_configs = [
+            EngineConfig { max_inference_steps: 10_001, ..EngineConfig::default() },
+            EngineConfig { max_facts: 10_001, ..EngineConfig::default() },
+            EngineConfig { max_rules: 2_001, ..EngineConfig::default() },
+            EngineConfig { max_rule_premises: 257, ..EngineConfig::default() },
+            EngineConfig { max_sources_per_fact: 33, ..EngineConfig::default() },
+            EngineConfig { max_duration: Duration::from_millis(3_001), ..EngineConfig::default() },
+        ];
+        for config in invalid_configs {
+            assert_eq!(
+                NativeReasoner::new(config).err(),
+                Some(EngineError::ConfigLimitExceeded)
+            );
+        }
     }
 
     #[test]
@@ -1432,7 +1444,10 @@ mod tests {
             brain.add_fact_with_source(fact.clone(), &format!("source-{index}")).unwrap();
         }
         let before_facts = brain.facts.len();
-        assert_eq!(brain.add_fact_with_source(fact.clone(), "overflow-source"), Err(EngineError::AssertionBudgetExceeded));
+        assert_eq!(
+            brain.add_fact_with_source(fact.clone(), "overflow-source"),
+            Err(EngineError::AssertionBudgetExceeded)
+        );
         assert_eq!(brain.facts.len(), before_facts);
         assert_eq!(brain.asserted_facts.len(), MAX_TOTAL_ASSERTIONS);
     }
