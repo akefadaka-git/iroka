@@ -116,7 +116,7 @@ pub struct TaskSubmission {
     pub input_refs: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskRecord {
     pub task_id: String,
     pub tenant_ref: String,
@@ -572,6 +572,145 @@ impl TaskRepository for PostgresTaskRepository {
             })
         }).collect()
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct TaskHttpRequest {
+    pub method: String,
+    pub path: String,
+    pub headers: std::collections::HashMap<String, String>,
+    pub body: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskHttpResponse {
+    pub status: u16,
+    pub headers: std::collections::HashMap<String, String>,
+    pub body: Vec<u8>,
+}
+
+/// Authenticated transport-neutral routes. The caller MUST obtain principal
+/// from G01 verification (for example G05IngressService::authenticate_http);
+/// this function never trusts identity, tenant, role or permission fields in
+/// the request body or headers.
+pub fn route_authenticated<R: TaskRepository, A: TaskAuthorizer>(
+    service: &TaskService<R, A>,
+    principal: Option<&VerifiedPrincipal>,
+    request: TaskHttpRequest,
+    now: u64,
+) -> TaskHttpResponse {
+    let Some(principal) = principal else {
+        return error_response(401, "authentication_required");
+    };
+    let (path, query) = request.path.split_once('?').unwrap_or((&request.path, ""));
+    if request.method == "POST" && path == "/api/v1/tasks" {
+        if !header_is_json(&request.headers) {
+            return error_response(415, "application_json_required");
+        }
+        let submission: TaskSubmission = match serde_json::from_slice(&request.body) {
+            Ok(value) => value,
+            Err(_) => return error_response(400, "invalid_task_request"),
+        };
+        return match service.submit(principal, submission, now) {
+            Ok((task, created)) => json_response(202, json!({
+                "task_id": task.task_id,
+                "state": task.state,
+                "task_version": task.task_version,
+                "created": created,
+                "status_url": format!("/api/v1/tasks/{}", task.task_id),
+                "events_url": format!("/api/v1/tasks/{}/events", task.task_id)
+            })),
+            Err(error) => task_error_response(error),
+        };
+    }
+
+    let Some(rest) = path.strip_prefix("/api/v1/tasks/") else {
+        return error_response(404, "not_found");
+    };
+    if let Some(task_id) = rest.strip_suffix("/events") {
+        if request.method != "GET" || task_id.is_empty() || task_id.contains('/') {
+            return error_response(404, "not_found");
+        }
+        let after = query_value(query, "after").unwrap_or("0").parse::<u64>();
+        let limit = query_value(query, "limit").unwrap_or("50").parse::<usize>();
+        let (Ok(after), Ok(limit)) = (after, limit) else {
+            return error_response(400, "invalid_event_cursor");
+        };
+        return match service.events(principal, task_id, after, limit, now) {
+            Ok(events) => {
+                let next = events.last().map_or(after, |event| event.sequence);
+                json_response(200, json!({
+                    "task_id": task_id,
+                    "events": events,
+                    "next_after_sequence": next,
+                    "has_more": events.len() == limit
+                }))
+            }
+            Err(error) => task_error_response(error),
+        };
+    }
+    if let Some(task_id) = rest.strip_suffix("/cancel") {
+        if request.method != "POST" || task_id.is_empty() || task_id.contains('/') {
+            return error_response(404, "not_found");
+        }
+        return match service.cancel(principal, task_id, now) {
+            Ok(task) => json_response(202, json!({
+                "task_id": task.task_id,
+                "state": task.state,
+                "task_version": task.task_version
+            })),
+            Err(error) => task_error_response(error),
+        };
+    }
+    if request.method == "GET" && !rest.is_empty() && !rest.contains('/') {
+        return match service.get(principal, rest, now) {
+            Ok(task) => json_response(200, json!({"task":task})),
+            Err(error) => task_error_response(error),
+        };
+    }
+    error_response(404, "not_found")
+}
+
+fn header_is_json(headers: &std::collections::HashMap<String, String>) -> bool {
+    headers.iter().find(|(key, _)| key.eq_ignore_ascii_case("content-type"))
+        .is_some_and(|(_, value)| value.split(';').next().unwrap_or("").trim()
+            .eq_ignore_ascii_case("application/json"))
+}
+
+fn query_value<'a>(query: &'a str, key: &str) -> Option<&'a str> {
+    query.split('&').filter_map(|part| part.split_once('='))
+        .find_map(|(name, value)| (name == key).then_some(value))
+}
+
+fn json_response(status: u16, body: Value) -> TaskHttpResponse {
+    let bytes = serde_json::to_vec(&body).unwrap_or_else(|_| b"{}".to_vec());
+    TaskHttpResponse {
+        status,
+        headers: std::collections::HashMap::from([
+            ("content-type".into(), "application/json".into()),
+            ("cache-control".into(), "no-store".into()),
+            ("x-content-type-options".into(), "nosniff".into()),
+        ]),
+        body: bytes,
+    }
+}
+
+fn error_response(status: u16, code: &str) -> TaskHttpResponse {
+    json_response(status, json!({"error":{"code":code}}))
+}
+
+fn task_error_response(error: TaskApiError) -> TaskHttpResponse {
+    let (status, code) = match error {
+        TaskApiError::InvalidRequest => (400, "invalid_request"),
+        TaskApiError::Unauthorized => (401, "unauthorized"),
+        TaskApiError::Forbidden => (403, "forbidden"),
+        TaskApiError::NotFound => (404, "not_found"),
+        TaskApiError::Conflict => (409, "conflict"),
+        TaskApiError::CapacityUnavailable => (503, "capacity_unavailable"),
+        TaskApiError::AuthorityUnavailable => (503, "authority_unavailable"),
+        TaskApiError::RepositoryUnavailable => (503, "repository_unavailable"),
+    };
+    error_response(status, code)
 }
 
 #[cfg(test)]
