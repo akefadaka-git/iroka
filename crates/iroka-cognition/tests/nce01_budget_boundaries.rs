@@ -61,7 +61,6 @@ fn source_budget_accepts_exact_limit_and_rejects_one_over_atomically() {
     );
 }
 
-
 #[test]
 fn fact_budget_exhaustion_stays_partial_and_never_emits_a_false_witness() {
     let config = EngineConfig {
