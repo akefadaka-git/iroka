@@ -425,3 +425,47 @@ Verified workflow stages:
 - R-03 upstream ingress remains **PARTIAL / SPECIFIED — NOT IMPLEMENTED**. No concrete ingress adapter, transport-level adversarial integration suite, concurrent maximum-profile peak-RSS measurement, or concurrency qualification is claimed.
 - Independent review remains **NOT PERFORMED** against the immutable review target `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`; the working-branch remediation is a separate review delta.
 - PR #130 remains OPEN / DRAFT. No merge, deployment or production activation is authorized.
+
+
+## NCE-01 determinism, bounded-resumption and resource-boundary verification — 2026-11-20
+
+**Verified implementation SHA:**  a7d1dbd4b1653b3198e06abdaa788680ecb5d9c9
+
+### Additional regression coverage
+
+The working branch now includes the following verified tests beyond the original fair-resumption regression:
+
+- **bounded_resumption_is_insertion_order_invariant**: constructs the same facts and rules in forward and reverse insertion order, repeatedly reasons under a one-step budget, and compares the final facts, contradictions, asserted-fact records and derivation witnesses.
+- **adding_new_fact_after_partial_stop_restarts_scan_and_preserves_witnesses**: after a one-step partial report, inserts new evidence; verifies the pass cursor is reset, the new conclusion is eventually derived, and the witness from the earlier partial call remains in the final fixed-point report.
+- **deadline_interruption_resumes_at_the_next_rule_and_reaches_fixed_point**: uses the internal deterministic clock seam to interrupt a pass at a deadline boundary after the first rule; verifies the next call resumes at the next rule, derives the downstream conclusion and reaches a fixed point with both witnesses retained.
+- **accepts_configuration_at_every_hard_resource_ceiling**: verifies exact accepted values for all six engine configuration ceilings (10,000 inference steps, 10,000 facts, 2,000 rules, 256 premises/rule, 32 sources/fact and three seconds).
+- **source_budget_accepts_exact_limit_and_rejects_one_over_atomically**: verifies exact source-cap acceptance, duplicate-source idempotency at capacity, and rejection of the next distinct source without altering retained provenance.
+
+These supplement existing checks for fact/rule and premise limits, exact aggregate premise and assertion ceilings, zero/over-limit configuration rejection, iterator early-stop behavior, adversarially ordered generated chains, exhaustive reference reachability over all three-node graphs, deadline interruption inside premise scans, and deadline enforcement during report materialization.
+
+### Exact-SHA CI evidence
+
+Both workflows completed successfully on exact SHA  a7d1dbd4b1653b3198e06abdaa788680ecb5d9c9:
+
+| Workflow | Run | Conclusion | Evidence |
+|---|---:|---|---|
+| Native Cognition CI #212 | 44673418286 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44673418286 |
+| Rust kernel verification #2309 | 44673418232 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44673418232 |
+
+Verified stages:
+- Native Cognition CI: formatting, complete workspace/all-target tests, and cognition Clippy passed.
+- Rust kernel verification: formatting, locked all-target workspace compilation, production-feature/no-default-features check, complete locked workspace tests, and workspace Clippy passed.
+- Test totals in both logs: cognition unit tests **55 passed**; budget-boundary integration tests **2 passed**; determinism/resumption integration tests **4 passed**; duplicate-premise integration tests **3 passed**; negative-query integration tests **5 passed**; kernel tests **71 passed**; authorization-contract tests **2 passed**; zero failures.
+
+### Internal verification disposition
+
+- Deterministic results across fact/rule insertion orders: **VERIFIED**.
+- Fair resumption across repeated step-budget calls: **VERIFIED**.
+- Fair resumption after a deadline interruption: **VERIFIED** by the deterministic clock-seam regression.
+- Cursor reset after new fact insertion and retention of prior witnesses: **VERIFIED**.
+- Exact configured resource ceilings and per-fact source boundary behavior: **VERIFIED**.
+- Existing exact aggregate rule-premise and asserted-record boundary tests remain passing.
+- These are internal engineering verification results, not independent review or production qualification.
+- R-03 upstream ingress remains **PARTIAL / SPECIFIED — NOT IMPLEMENTED**. No concrete adapter, transport-level adversarial integration suite, concurrent maximum-profile peak-RSS measurement, or concurrency qualification is claimed.
+- Independent review remains **NOT PERFORMED** against immutable target a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2; the working-branch changes remain a separate review delta.
+- PR #130 remains OPEN / DRAFT. No merge, deployment or production activation is authorized.
