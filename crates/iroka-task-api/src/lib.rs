@@ -1,0 +1,604 @@
+//! First-party task lifecycle service.
+//! Task records persist only operational metadata and digests. Inputs, prompts,
+//! outputs and credentials are never written by this crate.
+use iroka_kernel::VerifiedPrincipal;
+use native_tls::TlsConnector;
+use postgres::{Client, Row};
+use postgres_native_tls::MakeTlsConnector;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use std::sync::{Arc, Mutex};
+
+pub const TASK_CONTRACT_VERSION: &str = "1.0.0";
+pub const MAX_IDEMPOTENCY_KEY_BYTES: usize = 128;
+pub const MAX_TASK_REF_BYTES: usize = 256;
+pub const MAX_EVENT_PAGE: usize = 100;
+pub const MAX_TASK_TTL_SECONDS: u64 = 86_400;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TaskApiError {
+    InvalidRequest,
+    Unauthorized,
+    Forbidden,
+    NotFound,
+    Conflict,
+    CapacityUnavailable,
+    AuthorityUnavailable,
+    RepositoryUnavailable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskState {
+    Accepted,
+    Queued,
+    Running,
+    AwaitingAuthorization,
+    Succeeded,
+    Failed,
+    CancelRequested,
+    Cancelled,
+    Expired,
+}
+
+impl TaskState {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Accepted => "accepted",
+            Self::Queued => "queued",
+            Self::Running => "running",
+            Self::AwaitingAuthorization => "awaiting_authorization",
+            Self::Succeeded => "succeeded",
+            Self::Failed => "failed",
+            Self::CancelRequested => "cancel_requested",
+            Self::Cancelled => "cancelled",
+            Self::Expired => "expired",
+        }
+    }
+
+    fn parse(value: &str) -> Result<Self, TaskApiError> {
+        match value {
+            "accepted" => Ok(Self::Accepted),
+            "queued" => Ok(Self::Queued),
+            "running" => Ok(Self::Running),
+            "awaiting_authorization" => Ok(Self::AwaitingAuthorization),
+            "succeeded" => Ok(Self::Succeeded),
+            "failed" => Ok(Self::Failed),
+            "cancel_requested" => Ok(Self::CancelRequested),
+            "cancelled" => Ok(Self::Cancelled),
+            "expired" => Ok(Self::Expired),
+            _ => Err(TaskApiError::RepositoryUnavailable),
+        }
+    }
+
+    fn permits(self, next: Self) -> bool {
+        use TaskState as S;
+        matches!(
+            (self, next),
+            (S::Accepted, S::Queued)
+                | (S::Accepted, S::AwaitingAuthorization)
+                | (S::Accepted, S::Failed)
+                | (S::Accepted, S::Cancelled)
+                | (S::Queued, S::Running)
+                | (S::Queued, S::CancelRequested)
+                | (S::Queued, S::Cancelled)
+                | (S::Queued, S::Failed)
+                | (S::Queued, S::Expired)
+                | (S::Running, S::AwaitingAuthorization)
+                | (S::Running, S::Succeeded)
+                | (S::Running, S::Failed)
+                | (S::Running, S::CancelRequested)
+                | (S::AwaitingAuthorization, S::Queued)
+                | (S::AwaitingAuthorization, S::Failed)
+                | (S::AwaitingAuthorization, S::Cancelled)
+                | (S::AwaitingAuthorization, S::Expired)
+                | (S::CancelRequested, S::Cancelled)
+        )
+    }
+
+    fn terminal(self) -> bool {
+        matches!(self, Self::Succeeded | Self::Failed | Self::Cancelled | Self::Expired)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TaskSubmission {
+    pub tenant_selector: String,
+    pub idempotency_key: String,
+    pub client_request_id: String,
+    pub correlation_id: String,
+    pub capability_id: String,
+    pub capability_version: String,
+    pub expires_at: u64,
+    /// Opaque source references only. No prompt or document body is accepted.
+    pub input_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskRecord {
+    pub task_id: String,
+    pub tenant_ref: String,
+    pub principal_ref: String,
+    pub capability_id: String,
+    pub capability_version: String,
+    pub policy_version: String,
+    pub idempotency_key: String,
+    pub request_sha256: String,
+    pub correlation_id: String,
+    pub client_request_id: String,
+    pub state: TaskState,
+    pub task_version: u64,
+    pub created_at: u64,
+    pub updated_at: u64,
+    pub expires_at: u64,
+    pub result_ref: Option<String>,
+    pub error_code: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TaskEvent {
+    pub task_id: String,
+    pub sequence: u64,
+    pub event_id: String,
+    pub event_type: String,
+    pub state: TaskState,
+    pub task_version: u64,
+    pub actor_ref: String,
+    pub occurred_at: u64,
+    /// Content-free, allowlisted operational metadata.
+    pub metadata: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskAuthorization {
+    pub tenant_ref: String,
+    pub policy_version: String,
+}
+
+pub trait TaskAuthorizer: Send + Sync {
+    /// Must derive tenant membership and capability permission from current
+    /// G02/G09 server-side authority. The tenant selector is untrusted input.
+    fn authorize_submit(
+        &self,
+        principal: &VerifiedPrincipal,
+        request: &TaskSubmission,
+        now: u64,
+    ) -> Result<TaskAuthorization, TaskApiError>;
+
+    fn authorize_read(
+        &self,
+        principal: &VerifiedPrincipal,
+        task: &TaskRecord,
+        now: u64,
+    ) -> Result<(), TaskApiError>;
+
+    fn authorize_cancel(
+        &self,
+        principal: &VerifiedPrincipal,
+        task: &TaskRecord,
+        now: u64,
+    ) -> Result<(), TaskApiError>;
+}
+
+pub trait TaskRepository: Send + Sync {
+    fn create(&self, task: &TaskRecord, initial_event: &TaskEvent)
+        -> Result<(TaskRecord, bool), TaskApiError>;
+    fn get(&self, task_id: &str) -> Result<Option<TaskRecord>, TaskApiError>;
+    fn transition(
+        &self,
+        task_id: &str,
+        expected_version: u64,
+        next_state: TaskState,
+        actor_ref: &str,
+        occurred_at: u64,
+        metadata: Value,
+        result_ref: Option<&str>,
+        error_code: Option<&str>,
+    ) -> Result<TaskRecord, TaskApiError>;
+    fn events(
+        &self,
+        task_id: &str,
+        after_sequence: u64,
+        limit: usize,
+    ) -> Result<Vec<TaskEvent>, TaskApiError>;
+}
+
+pub struct TaskService<R, A> {
+    repository: R,
+    authorizer: A,
+}
+
+impl<R: TaskRepository, A: TaskAuthorizer> TaskService<R, A> {
+    pub fn new(repository: R, authorizer: A) -> Self {
+        Self { repository, authorizer }
+    }
+
+    pub fn submit(
+        &self,
+        principal: &VerifiedPrincipal,
+        request: TaskSubmission,
+        now: u64,
+    ) -> Result<(TaskRecord, bool), TaskApiError> {
+        validate_submission(&request, now)?;
+        let authorization = self.authorizer.authorize_submit(principal, &request, now)?;
+        if authorization.tenant_ref.trim().is_empty()
+            || authorization.policy_version.trim().is_empty()
+            || authorization.tenant_ref != request.tenant_selector
+        {
+            return Err(TaskApiError::Forbidden);
+        }
+        let request_sha256 = request_digest(&request)?;
+        let task_id = digest_hex(
+            format!("{}:{}:{}", authorization.tenant_ref, principal.subject(), request.idempotency_key)
+                .as_bytes(),
+        );
+        let task = TaskRecord {
+            task_id: format!("task_{}", &task_id[..32]),
+            tenant_ref: authorization.tenant_ref,
+            principal_ref: principal.subject().to_owned(),
+            capability_id: request.capability_id,
+            capability_version: request.capability_version,
+            policy_version: authorization.policy_version,
+            idempotency_key: request.idempotency_key,
+            request_sha256,
+            correlation_id: request.correlation_id,
+            client_request_id: request.client_request_id,
+            state: TaskState::Accepted,
+            task_version: 1,
+            created_at: now,
+            updated_at: now,
+            expires_at: request.expires_at,
+            result_ref: None,
+            error_code: None,
+        };
+        let event = TaskEvent {
+            task_id: task.task_id.clone(),
+            sequence: 1,
+            event_id: format!("{}:event:1", task.task_id),
+            event_type: "task.accepted".into(),
+            state: TaskState::Accepted,
+            task_version: 1,
+            actor_ref: principal.subject().to_owned(),
+            occurred_at: now,
+            metadata: json!({"contract_version": TASK_CONTRACT_VERSION}),
+        };
+        self.repository.create(&task, &event)
+    }
+
+    pub fn get(
+        &self,
+        principal: &VerifiedPrincipal,
+        task_id: &str,
+        now: u64,
+    ) -> Result<TaskRecord, TaskApiError> {
+        let task = self.repository.get(task_id)?.ok_or(TaskApiError::NotFound)?;
+        self.authorizer.authorize_read(principal, &task, now)?;
+        Ok(task)
+    }
+
+    pub fn events(
+        &self,
+        principal: &VerifiedPrincipal,
+        task_id: &str,
+        after_sequence: u64,
+        limit: usize,
+        now: u64,
+    ) -> Result<Vec<TaskEvent>, TaskApiError> {
+        if limit == 0 || limit > MAX_EVENT_PAGE {
+            return Err(TaskApiError::InvalidRequest);
+        }
+        let task = self.repository.get(task_id)?.ok_or(TaskApiError::NotFound)?;
+        self.authorizer.authorize_read(principal, &task, now)?;
+        self.repository.events(task_id, after_sequence, limit)
+    }
+
+    pub fn cancel(
+        &self,
+        principal: &VerifiedPrincipal,
+        task_id: &str,
+        now: u64,
+    ) -> Result<TaskRecord, TaskApiError> {
+        let task = self.repository.get(task_id)?.ok_or(TaskApiError::NotFound)?;
+        self.authorizer.authorize_cancel(principal, &task, now)?;
+        let next = match task.state {
+            TaskState::Accepted | TaskState::Queued | TaskState::AwaitingAuthorization => {
+                TaskState::Cancelled
+            }
+            TaskState::Running => TaskState::CancelRequested,
+            state if state.terminal() || state == TaskState::CancelRequested => {
+                return Err(TaskApiError::Conflict);
+            }
+            _ => return Err(TaskApiError::Conflict),
+        };
+        self.repository.transition(
+            task_id,
+            task.task_version,
+            next,
+            principal.subject(),
+            now,
+            json!({"reason_code":"caller_cancelled"}),
+            None,
+            None,
+        )
+    }
+}
+
+fn validate_submission(request: &TaskSubmission, now: u64) -> Result<(), TaskApiError> {
+    for value in [
+        request.tenant_selector.as_str(),
+        request.idempotency_key.as_str(),
+        request.client_request_id.as_str(),
+        request.correlation_id.as_str(),
+        request.capability_id.as_str(),
+        request.capability_version.as_str(),
+    ] {
+        if value.trim().is_empty() || value.chars().any(char::is_control) {
+            return Err(TaskApiError::InvalidRequest);
+        }
+    }
+    if request.idempotency_key.len() > MAX_IDEMPOTENCY_KEY_BYTES
+        || request.tenant_selector.len() > MAX_TASK_REF_BYTES
+        || request.client_request_id.len() > MAX_TASK_REF_BYTES
+        || request.correlation_id.len() > MAX_TASK_REF_BYTES
+        || request.capability_id.len() > MAX_TASK_REF_BYTES
+        || request.capability_version.len() > MAX_TASK_REF_BYTES
+        || request.expires_at <= now
+        || request.expires_at - now > MAX_TASK_TTL_SECONDS
+        || request.input_refs.len() > 16
+        || request.input_refs.iter().any(|value| {
+            value.trim().is_empty()
+                || value.len() > MAX_TASK_REF_BYTES
+                || value.chars().any(char::is_control)
+        })
+    {
+        return Err(TaskApiError::InvalidRequest);
+    }
+    Ok(())
+}
+
+fn request_digest(request: &TaskSubmission) -> Result<String, TaskApiError> {
+    let bytes = serde_json::to_vec(request).map_err(|_| TaskApiError::InvalidRequest)?;
+    Ok(digest_hex(&bytes))
+}
+
+fn digest_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect()
+}
+
+#[derive(Clone)]
+pub struct PostgresTaskRepository {
+    client: Arc<Mutex<Client>>,
+}
+
+impl PostgresTaskRepository {
+    pub fn connect(connection_string: &str) -> Result<Self, TaskApiError> {
+        if !connection_string.contains("sslmode=verify-full") {
+            return Err(TaskApiError::RepositoryUnavailable);
+        }
+        let tls = TlsConnector::builder().build()
+            .map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
+            .map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        Ok(Self { client: Arc::new(Mutex::new(client)) })
+    }
+
+    pub fn verify_schema(&self) -> Result<(), TaskApiError> {
+        let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let row = client.query_one(
+            "SELECT to_regclass('public.iroka_tasks') IS NOT NULL
+                AND to_regclass('public.iroka_task_events') IS NOT NULL",
+            &[],
+        ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        if row.get::<_, bool>(0) { Ok(()) } else { Err(TaskApiError::RepositoryUnavailable) }
+    }
+}
+
+fn task_from_row(row: &Row) -> Result<TaskRecord, TaskApiError> {
+    let version: i64 = row.get("task_version");
+    let created: i64 = row.get("created_at");
+    let updated: i64 = row.get("updated_at");
+    let expires: i64 = row.get("expires_at");
+    Ok(TaskRecord {
+        task_id: row.get("task_id"),
+        tenant_ref: row.get("tenant_ref"),
+        principal_ref: row.get("principal_ref"),
+        capability_id: row.get("capability_id"),
+        capability_version: row.get("capability_version"),
+        policy_version: row.get("policy_version"),
+        idempotency_key: row.get("idempotency_key"),
+        request_sha256: row.get("request_sha256"),
+        correlation_id: row.get("correlation_id"),
+        client_request_id: row.get("client_request_id"),
+        state: TaskState::parse(&row.get::<_, String>("state"))?,
+        task_version: u64::try_from(version).map_err(|_| TaskApiError::RepositoryUnavailable)?,
+        created_at: u64::try_from(created).map_err(|_| TaskApiError::RepositoryUnavailable)?,
+        updated_at: u64::try_from(updated).map_err(|_| TaskApiError::RepositoryUnavailable)?,
+        expires_at: u64::try_from(expires).map_err(|_| TaskApiError::RepositoryUnavailable)?,
+        result_ref: row.get("result_ref"),
+        error_code: row.get("error_code"),
+    })
+}
+
+const TASK_COLUMNS: &str = "task_id,tenant_ref,principal_ref,capability_id,capability_version,
+    policy_version,idempotency_key,request_sha256,correlation_id,client_request_id,state,
+    task_version,created_at,updated_at,expires_at,result_ref,error_code";
+
+impl TaskRepository for PostgresTaskRepository {
+    fn create(&self, task: &TaskRecord, initial_event: &TaskEvent)
+        -> Result<(TaskRecord, bool), TaskApiError> {
+        let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let mut tx = client.transaction().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let inserted = tx.query_opt(
+            "INSERT INTO iroka_tasks
+             (task_id,tenant_ref,principal_ref,capability_id,capability_version,policy_version,
+              idempotency_key,request_sha256,correlation_id,client_request_id,state,task_version,
+              created_at,updated_at,expires_at)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+             ON CONFLICT (tenant_ref,principal_ref,idempotency_key) DO NOTHING
+             RETURNING task_id",
+            &[&task.task_id,&task.tenant_ref,&task.principal_ref,&task.capability_id,
+              &task.capability_version,&task.policy_version,&task.idempotency_key,
+              &task.request_sha256,&task.correlation_id,&task.client_request_id,
+              &task.state.as_str(),&(task.task_version as i64),&(task.created_at as i64),
+              &(task.updated_at as i64),&(task.expires_at as i64)],
+        ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        if inserted.is_some() {
+            let metadata = initial_event.metadata.clone();
+            tx.execute(
+                "INSERT INTO iroka_task_events
+                 (task_id,sequence,event_id,event_type,task_state,task_version,actor_ref,occurred_at,metadata_json)
+                 VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+                &[&initial_event.task_id,&(initial_event.sequence as i64),&initial_event.event_id,
+                  &initial_event.event_type,&initial_event.state.as_str(),
+                  &(initial_event.task_version as i64),&initial_event.actor_ref,
+                  &(initial_event.occurred_at as i64),&metadata],
+            ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
+            tx.commit().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+            return Ok((task.clone(), true));
+        }
+        let sql = format!("SELECT {TASK_COLUMNS} FROM iroka_tasks
+            WHERE tenant_ref=$1 AND principal_ref=$2 AND idempotency_key=$3");
+        let existing = tx.query_opt(&sql,&[&task.tenant_ref,&task.principal_ref,&task.idempotency_key])
+            .map_err(|_| TaskApiError::RepositoryUnavailable)?
+            .ok_or(TaskApiError::RepositoryUnavailable)?;
+        let existing = task_from_row(&existing)?;
+        if existing.request_sha256 != task.request_sha256 {
+            return Err(TaskApiError::Conflict);
+        }
+        tx.commit().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        Ok((existing, false))
+    }
+
+    fn get(&self, task_id: &str) -> Result<Option<TaskRecord>, TaskApiError> {
+        let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let sql = format!("SELECT {TASK_COLUMNS} FROM iroka_tasks WHERE task_id=$1");
+        client.query_opt(&sql,&[&task_id]).map_err(|_| TaskApiError::RepositoryUnavailable)?
+            .map(|row| task_from_row(&row)).transpose()
+    }
+
+    fn transition(
+        &self, task_id: &str, expected_version: u64, next_state: TaskState,
+        actor_ref: &str, occurred_at: u64, metadata: Value,
+        result_ref: Option<&str>, error_code: Option<&str>,
+    ) -> Result<TaskRecord, TaskApiError> {
+        if !metadata.is_object() || metadata.to_string().len() > 4096 {
+            return Err(TaskApiError::InvalidRequest);
+        }
+        let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let mut tx = client.transaction().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let sql = format!("SELECT {TASK_COLUMNS} FROM iroka_tasks WHERE task_id=$1 FOR UPDATE");
+        let row = tx.query_opt(&sql,&[&task_id]).map_err(|_| TaskApiError::RepositoryUnavailable)?
+            .ok_or(TaskApiError::NotFound)?;
+        let current = task_from_row(&row)?;
+        if current.task_version != expected_version || !current.state.permits(next_state)
+            || occurred_at < current.updated_at || occurred_at > current.expires_at
+        {
+            return Err(TaskApiError::Conflict);
+        }
+        let next_version = current.task_version.checked_add(1).ok_or(TaskApiError::Conflict)?;
+        tx.execute(
+            "UPDATE iroka_tasks SET state=$2,task_version=$3,updated_at=$4,
+                result_ref=COALESCE($5,result_ref),error_code=COALESCE($6,error_code)
+             WHERE task_id=$1 AND task_version=$7",
+            &[&task_id,&next_state.as_str(),&(next_version as i64),&(occurred_at as i64),
+              &result_ref,&error_code,&(expected_version as i64)],
+        ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let event_type = format!("task.{}", next_state.as_str());
+        let event_id = format!("{task_id}:event:{next_version}");
+        tx.execute(
+            "INSERT INTO iroka_task_events
+             (task_id,sequence,event_id,event_type,task_state,task_version,actor_ref,occurred_at,metadata_json)
+             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+            &[&task_id,&(next_version as i64),&event_id,&event_type,&next_state.as_str(),
+              &(next_version as i64),&actor_ref,&(occurred_at as i64),&metadata],
+        ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let updated = tx.query_one(&sql.replace(" FOR UPDATE",""),&[&task_id])
+            .map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        tx.commit().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        task_from_row(&updated)
+    }
+
+    fn events(&self, task_id: &str, after_sequence: u64, limit: usize)
+        -> Result<Vec<TaskEvent>, TaskApiError> {
+        let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        let rows = client.query(
+            "SELECT task_id,sequence,event_id,event_type,task_state,task_version,
+                actor_ref,occurred_at,metadata_json
+             FROM iroka_task_events WHERE task_id=$1 AND sequence>$2
+             ORDER BY sequence ASC LIMIT $3",
+            &[&task_id,&(after_sequence as i64),&(limit as i64)],
+        ).map_err(|_| TaskApiError::RepositoryUnavailable)?;
+        rows.iter().map(|row| {
+            let sequence: i64 = row.get("sequence");
+            let version: i64 = row.get("task_version");
+            let occurred: i64 = row.get("occurred_at");
+            Ok(TaskEvent {
+                task_id: row.get("task_id"),
+                sequence: u64::try_from(sequence).map_err(|_| TaskApiError::RepositoryUnavailable)?,
+                event_id: row.get("event_id"),
+                event_type: row.get("event_type"),
+                state: TaskState::parse(&row.get::<_, String>("task_state"))?,
+                task_version: u64::try_from(version).map_err(|_| TaskApiError::RepositoryUnavailable)?,
+                actor_ref: row.get("actor_ref"),
+                occurred_at: u64::try_from(occurred).map_err(|_| TaskApiError::RepositoryUnavailable)?,
+                metadata: row.get("metadata_json"),
+            })
+        }).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn task_state_machine_rejects_terminal_and_skipped_transitions() {
+        assert!(TaskState::Accepted.permits(TaskState::Queued));
+        assert!(TaskState::Running.permits(TaskState::Succeeded));
+        assert!(TaskState::Running.permits(TaskState::CancelRequested));
+        assert!(TaskState::CancelRequested.permits(TaskState::Cancelled));
+        assert!(!TaskState::Accepted.permits(TaskState::Succeeded));
+        assert!(!TaskState::Succeeded.permits(TaskState::Queued));
+        assert!(!TaskState::Cancelled.permits(TaskState::Running));
+    }
+
+    #[test]
+    fn task_submission_bounds_and_expiry_are_enforced() {
+        let request = TaskSubmission {
+            tenant_selector: "tenant:1".into(),
+            idempotency_key: "idem:1".into(),
+            client_request_id: "client:1".into(),
+            correlation_id: "trace:1".into(),
+            capability_id: "iroka.answer".into(),
+            capability_version: "1.0".into(),
+            expires_at: 100,
+            input_refs: vec!["document:1@rev:1".into()],
+        };
+        assert_eq!(validate_submission(&request, 50), Ok(()));
+        assert_eq!(validate_submission(&request, 100), Err(TaskApiError::InvalidRequest));
+        let mut invalid = request;
+        invalid.idempotency_key = "x".repeat(MAX_IDEMPOTENCY_KEY_BYTES + 1);
+        assert_eq!(validate_submission(&invalid, 50), Err(TaskApiError::InvalidRequest));
+    }
+
+    #[test]
+    fn task_request_digest_is_stable_and_changes_with_request() {
+        let request = TaskSubmission {
+            tenant_selector: "tenant:1".into(),
+            idempotency_key: "idem:1".into(),
+            client_request_id: "client:1".into(),
+            correlation_id: "trace:1".into(),
+            capability_id: "iroka.answer".into(),
+            capability_version: "1.0".into(),
+            expires_at: 100,
+            input_refs: vec!["document:1@rev:1".into()],
+        };
+        let first = request_digest(&request).unwrap();
+        assert_eq!(first, request_digest(&request).unwrap());
+        let mut changed = request;
+        changed.input_refs.push("document:2@rev:1".into());
+        assert_ne!(first, request_digest(&changed).unwrap());
+    }
+}
