@@ -174,6 +174,25 @@ where
         write_response(stream, 200, "OK", &json!({"status":"ready"}));
         return Ok(());
     }
+    if parsed.method == "GET" && parsed.path == "/api/v1/session" {
+        let authorization = parsed.headers.get("authorization").map(String::as_str);
+        match ingress.authenticate_http(authorization) {
+            Ok(principal) => write_response(stream, 200, "OK", &json!({
+                "authenticated": true,
+                "principal": {
+                    "subject_ref": principal.subject(),
+                    "issuer": principal.issuer()
+                },
+                "authentication": "g01"
+            })),
+            Err(error) => {
+                let (status, label) = status_for_g05_error(&error);
+                write_response(stream, status, label, &json!({"error":format!("{error:?}")}));
+            }
+        }
+        return Ok(());
+    }
+
     if parsed.method != "POST" || parsed.path != "/v1/g05/execute" {
         write_response(stream, 404, "Not Found", &json!({"error":"not_found"}));
         return Ok(());
@@ -299,19 +318,19 @@ fn read_request(
     {
         return Err(HttpParseError::Invalid);
     }
-    if method == "POST" {
-        if headers
+    if !(method == "GET" && path == "/healthz")
+        && headers
             .get("x-forwarded-proto")
             .map_or(true, |value| !value.eq_ignore_ascii_case("https"))
-        {
-            return Err(HttpParseError::Invalid);
-        }
-        if headers
+    {
+        return Err(HttpParseError::Invalid);
+    }
+    if method == "POST"
+        && headers
             .get("content-type")
             .map_or(true, |value| !value.split(';').next().unwrap_or("").trim().eq_ignore_ascii_case("application/json"))
-        {
-            return Err(HttpParseError::Invalid);
-        }
+    {
+        return Err(HttpParseError::Invalid);
     }
     let content_length = headers
         .get("content-length")
