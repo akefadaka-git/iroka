@@ -425,9 +425,34 @@ const TASK_COLUMNS: &str = "task_id,tenant_ref,principal_ref,capability_id,capab
     policy_version,idempotency_key,request_sha256,correlation_id,client_request_id,state,
     task_version,created_at,updated_at,expires_at,result_ref,error_code";
 
+fn valid_event_metadata(metadata: &Value) -> bool {
+    let Some(object) = metadata.as_object() else { return false };
+    if metadata.to_string().len() > 4096 { return false; }
+    object.iter().all(|(key, value)| {
+        matches!(key.as_str(),
+            "reason_code" | "error_code" | "retryable" | "adapter_class" |
+            "worker_ref" | "attempt" | "contract_version"
+        ) && match value {
+            Value::String(text) => !text.is_empty() && text.len() <= 256
+                && !text.chars().any(char::is_control),
+            Value::Bool(_) | Value::Number(_) => true,
+            _ => false,
+        }
+    })
+}
+
 impl TaskRepository for PostgresTaskRepository {
     fn create(&self, task: &TaskRecord, initial_event: &TaskEvent)
         -> Result<(TaskRecord, bool), TaskApiError> {
+        if initial_event.task_id != task.task_id
+            || initial_event.sequence != 1
+            || initial_event.task_version != 1
+            || initial_event.state != task.state
+            || initial_event.actor_ref != task.principal_ref
+            || !valid_event_metadata(&initial_event.metadata)
+        {
+            return Err(TaskApiError::InvalidRequest);
+        }
         let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
         let mut tx = client.transaction().map_err(|_| TaskApiError::RepositoryUnavailable)?;
         let inserted = tx.query_opt(
@@ -483,7 +508,7 @@ impl TaskRepository for PostgresTaskRepository {
         actor_ref: &str, occurred_at: u64, metadata: Value,
         result_ref: Option<&str>, error_code: Option<&str>,
     ) -> Result<TaskRecord, TaskApiError> {
-        if !metadata.is_object() || metadata.to_string().len() > 4096 {
+        if !valid_event_metadata(&metadata) {
             return Err(TaskApiError::InvalidRequest);
         }
         let mut client = self.client.lock().map_err(|_| TaskApiError::RepositoryUnavailable)?;
