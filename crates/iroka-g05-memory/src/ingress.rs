@@ -166,6 +166,18 @@ pub fn compose_postgres_g05_ingress<C: TrustedClock>(
     )
 }
 
+fn bearer_token(header: Option<&str>) -> Result<&str, G05Error> {
+    let header = header.ok_or(G05Error::AuthenticationRequired)?;
+    let token = header
+        .strip_prefix("Bearer ")
+        .filter(|value| !value.trim().is_empty())
+        .ok_or(G05Error::AuthenticationInvalid)?;
+    if token.bytes().any(|byte| byte.is_ascii_whitespace()) {
+        return Err(G05Error::AuthenticationInvalid);
+    }
+    Ok(token)
+}
+
 pub struct G05IngressService<R, G, C, E> {
     credentials: Ed25519CredentialVerifier<R>,
     g02: G,
@@ -225,18 +237,24 @@ where
 
     /// HTTP boundary entry point. Only a single Bearer credential is accepted;
     /// absent, malformed, or alternate authentication schemes fail closed.
+    /// Authenticate a Bearer credential for read-only identity/session endpoints.
+    /// This establishes G01 identity only; it does not grant tenant membership,
+    /// organization authority, capabilities, or permission for protected effects.
+    pub fn authenticate_http(
+        &self,
+        authorization_header: Option<&str>,
+    ) -> Result<VerifiedPrincipal, G05Error> {
+        let token = bearer_token(authorization_header)?;
+        let now = self.clock.now_unix_seconds()?;
+        self.authenticate(token, now)
+    }
+
     pub fn authorize_http(
         &self,
         authorization_header: Option<&str>,
         request: AuthorizationRequest,
     ) -> Result<AuthenticatedG05Request, G05Error> {
-        let header = authorization_header.ok_or(G05Error::AuthenticationRequired)?;
-        let token = header.strip_prefix("Bearer ")
-            .filter(|value| !value.trim().is_empty())
-            .ok_or(G05Error::AuthenticationInvalid)?;
-        if token.bytes().any(|byte| byte.is_ascii_whitespace()) {
-            return Err(G05Error::AuthenticationInvalid);
-        }
+        let token = bearer_token(authorization_header)?;
         self.authorize(token, request)
     }
 
