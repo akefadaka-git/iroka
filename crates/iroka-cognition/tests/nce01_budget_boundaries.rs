@@ -90,3 +90,38 @@ fn fact_budget_exhaustion_stays_partial_and_never_emits_a_false_witness() {
         assert!(report.derivations.is_empty());
     }
 }
+
+
+#[test]
+fn malformed_late_iterator_item_rejects_rule_atomically() {
+    use std::cell::Cell;
+
+    let mut engine = NativeReasoner::new(EngineConfig::default()).unwrap();
+    let consumed = Cell::new(0usize);
+    let premises = [
+        Literal::positive("valid-prefix"),
+        Literal::positive(" "),
+        Literal::positive("must-not-be-consumed"),
+    ]
+    .into_iter()
+    .inspect(|_| consumed.set(consumed.get() + 1));
+
+    assert_eq!(
+        engine.add_rule_from_iter(
+            "reusable-after-invalid-input",
+            premises,
+            Literal::positive("conclusion")
+        ),
+        Err(EngineError::EmptyAtom)
+    );
+    assert_eq!(consumed.get(), 2);
+
+    // The rejected prefix was never retained and the ID was not reserved.
+    engine
+        .add_rule_from_iter(
+            "reusable-after-invalid-input",
+            [Literal::positive("valid-premise")],
+            Literal::positive("conclusion")
+        )
+        .unwrap();
+}
