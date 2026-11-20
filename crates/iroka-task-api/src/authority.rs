@@ -59,6 +59,15 @@ impl<G, E> G02G09TaskAuthorizer<G, E> {
     }
 }
 
+struct TaskCapabilityRequest<'a> {
+    tenant_ref: &'a str,
+    task_ref: Option<&'a str>,
+    correlation_ref: &'a str,
+    capability_id: &'a str,
+    risk: RiskLevel,
+    now: u64,
+}
+
 impl<G, E> G02G09TaskAuthorizer<G, E>
 where
     G: G02AuthorizationAuthority,
@@ -67,27 +76,22 @@ where
     fn authorize_capability(
         &self,
         principal: &VerifiedPrincipal,
-        tenant_ref: &str,
-        task_ref: Option<&str>,
-        correlation_ref: &str,
-        capability_id: &str,
-        risk: RiskLevel,
-        now: u64,
+        input: TaskCapabilityRequest<'_>,
     ) -> Result<String, TaskApiError> {
         let request = AuthorizationRequest {
             operation: Operation::InspectMetadata,
             principal_ref: principal.subject().to_owned(),
-            tenant_ref: tenant_ref.to_owned(),
+            tenant_ref: input.tenant_ref.to_owned(),
             subject_ref: principal.subject().to_owned(),
             purpose: Purpose::TaskContinuity,
             classification: Classification::Internal,
-            memory_id: task_ref.map(str::to_owned),
+            memory_id: input.task_ref.map(str::to_owned),
             recipient_refs: Vec::new(),
-            correlation_ref: correlation_ref.to_owned(),
+            correlation_ref: input.correlation_ref.to_owned(),
         };
         self.g02.authorize_g05(&request).map_err(map_authority_error)?;
         self.g09
-            .authorize_task_capability(principal, &request, capability_id, risk, now)
+            .authorize_task_capability(principal, &request, input.capability_id, input.risk, input.now)
             .map_err(map_authority_error)
     }
 
@@ -120,12 +124,14 @@ where
         }).ok_or(TaskApiError::Forbidden)?;
         let policy_version = self.authorize_capability(
             principal,
-            &request.tenant_selector,
-            None,
-            &request.correlation_id,
-            &grant.capability_id,
-            grant.risk,
-            now,
+            TaskCapabilityRequest {
+                tenant_ref: &request.tenant_selector,
+                task_ref: None,
+                correlation_ref: &request.correlation_id,
+                capability_id: &grant.capability_id,
+                risk: grant.risk,
+                now,
+            },
         )?;
         Ok(TaskAuthorization {
             tenant_ref: request.tenant_selector.clone(),
@@ -142,12 +148,14 @@ where
         self.require_task_owner(principal, task)?;
         self.authorize_capability(
             principal,
-            &task.tenant_ref,
-            Some(&task.task_id),
-            &task.correlation_id,
-            TASK_READ_CAPABILITY,
-            RiskLevel::Moderate,
-            now,
+            TaskCapabilityRequest {
+                tenant_ref: &task.tenant_ref,
+                task_ref: Some(&task.task_id),
+                correlation_ref: &task.correlation_id,
+                capability_id: TASK_READ_CAPABILITY,
+                risk: RiskLevel::Moderate,
+                now,
+            },
         )?;
         Ok(())
     }
@@ -161,12 +169,14 @@ where
         self.require_task_owner(principal, task)?;
         self.authorize_capability(
             principal,
-            &task.tenant_ref,
-            Some(&task.task_id),
-            &task.correlation_id,
-            TASK_CANCEL_CAPABILITY,
-            RiskLevel::High,
-            now,
+            TaskCapabilityRequest {
+                tenant_ref: &task.tenant_ref,
+                task_ref: Some(&task.task_id),
+                correlation_ref: &task.correlation_id,
+                capability_id: TASK_CANCEL_CAPABILITY,
+                risk: RiskLevel::High,
+                now,
+            },
         )?;
         Ok(())
     }
