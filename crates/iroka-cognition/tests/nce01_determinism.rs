@@ -179,3 +179,66 @@ fn bounded_resumption_is_insertion_order_invariant() {
     assert_eq!(left.asserted_facts, right.asserted_facts);
     assert_eq!(left.derivations, right.derivations);
 }
+
+
+#[test]
+fn adding_new_fact_after_partial_stop_restarts_scan_and_preserves_witnesses() {
+    let config = EngineConfig {
+        max_inference_steps: 1,
+        ..EngineConfig::default()
+    };
+    let mut engine = NativeReasoner::new(config).unwrap();
+    let a = Literal::positive("a");
+    let b = Literal::positive("b");
+    let c = Literal::positive("c");
+    let d = Literal::positive("d");
+
+    engine.add_fact(a.clone()).unwrap();
+    engine
+        .add_rule(Rule {
+            id: "a-first".into(),
+            premises: vec![a],
+            conclusion: b.clone(),
+        })
+        .unwrap();
+    engine
+        .add_rule(Rule {
+            id: "b-later".into(),
+            premises: vec![c.clone()],
+            conclusion: d.clone(),
+        })
+        .unwrap();
+
+    let partial = engine.reason();
+    assert_eq!(partial.stop_reason, iroka_cognition::StopReason::StepBudget);
+    assert!(partial.is_partial());
+    assert!(partial.facts.contains(&b));
+    assert_eq!(partial.derivations.len(), 1);
+
+    // A newly asserted fact invalidates the old pass cursor. The engine must
+    // restart deterministically while retaining the earlier rule witness.
+    engine.add_fact(c).unwrap();
+
+    let mut complete = None;
+    for _ in 0..16 {
+        let report = engine.reason();
+        if report.is_complete() {
+            complete = Some(report);
+            break;
+        }
+        assert_eq!(report.stop_reason, iroka_cognition::StopReason::StepBudget);
+    }
+
+    let report = complete.expect("updated knowledge base must reach fixed point");
+    assert_eq!(report.stop_reason, iroka_cognition::StopReason::FixedPoint);
+    assert!(report.facts.contains(&b));
+    assert!(report.facts.contains(&d));
+    assert_eq!(
+        report
+            .derivations
+            .iter()
+            .map(|witness| witness.rule_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["a-first", "b-later"]
+    );
+}
