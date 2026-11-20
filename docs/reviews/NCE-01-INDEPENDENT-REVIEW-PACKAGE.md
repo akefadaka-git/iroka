@@ -387,3 +387,41 @@ The negative-query matrix verifies `Entailed`, `Refuted`, `Contradicted`, and `U
 - **R-03 upstream ingress: PARTIAL / SPECIFIED — NOT IMPLEMENTED.** No adapter, transport parsing, adversarial integration test, concurrent maximum-profile RSS measurement, or peak-RSS qualification is present.
 - **Independent review: NOT PERFORMED.** The immutable review target remains `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`; this working-branch SHA is a separate remediation target for reviewer comparison.
 - PR #130 remains OPEN / DRAFT. No merge, deployment, or production activation is authorized.
+
+
+## NCE-01 fair bounded-call resumption — exact-SHA verification (2026-11-20)
+
+**Verified implementation SHA:** `748a1a2184174638c4842f2a814b1a55e348d2b2`  
+**Preceding implementation SHA:** `15ab25a0298d47545310bb59d68c578964efebfc`
+
+The implementation now persists a deterministic rule cursor and pass-progress state across bounded `reason()` calls. When a call stops at `StepBudget` or `Deadline`, the next call resumes at the next unprocessed rule instead of repeatedly restarting at the first rule. A completed pass that derived facts causes another pass; a completed pass without new facts establishes `FixedPoint`. Adding a new asserted fact or rule resets pass traversal so the enlarged knowledge base is reconsidered. Derivation witnesses persist across bounded calls and are materialized in deterministic rule-ID order.
+
+The dedicated integration test `crates/iroka-cognition/tests/nce01_determinism.rs` verifies:
+- facts, contradictions, assertions and derivation witnesses are invariant under reversed fact/rule insertion order;
+- repeated one-step calls make progress across a two-rule chain rather than starving the later rule;
+- the fixed-point report after several partial calls retains both derivation witnesses in stable rule-ID order.
+
+The exact-head CI initially exposed one lint-only issue on `15ab25a0298d47545310bb59d68c578964efebfc`: an unnecessary `mut` on the local `stop_reason` binding. Formatting and all tests passed on that SHA, but Clippy failed in both workflows. Commit `748a1a2184174638c4842f2a814b1a55e348d2b2` removes only that unnecessary mutability; no inference behavior or test semantics changed.
+
+### Exact-SHA workflow evidence
+
+Both workflows completed successfully on exact SHA `748a1a2184174638c4842f2a814b1a55e348d2b2`:
+
+| Workflow | Run | Conclusion | Evidence |
+|---|---:|---|---|
+| Native Cognition CI #197 | 44672948746 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44672948746 |
+| Rust kernel verification #2302 | 44672948827 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44672948827 |
+
+Verified workflow stages:
+- Native Cognition CI: `cargo fmt --all -- --check`, `cargo test --workspace --all-targets`, and `cargo clippy -p iroka-cognition --all-targets -- -D warnings` all passed.
+- Rust kernel verification: formatting, `cargo check --workspace --all-targets --locked`, production-feature/no-default-features check, complete locked workspace tests, and workspace Clippy all passed.
+- Test totals in both logs: cognition unit tests **54 passed**; determinism integration tests **2 passed**; duplicate-premise integration tests **3 passed**; negative-query integration tests **5 passed**; kernel tests **71 passed**; authorization-contract tests **2 passed**; zero failures.
+
+### Internal verification disposition
+
+- Fair bounded-call resumption and persistent derivation witnesses: **VERIFIED** on exact SHA above.
+- Insertion-order determinism and bounded-call progress: **VERIFIED** by the dedicated integration tests.
+- The CI evidence establishes the tested implementation and lint/build status; it is not an independent security review or production qualification.
+- R-03 upstream ingress remains **PARTIAL / SPECIFIED — NOT IMPLEMENTED**. No concrete ingress adapter, transport-level adversarial integration suite, concurrent maximum-profile peak-RSS measurement, or concurrency qualification is claimed.
+- Independent review remains **NOT PERFORMED** against the immutable review target `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`; the working-branch remediation is a separate review delta.
+- PR #130 remains OPEN / DRAFT. No merge, deployment or production activation is authorized.
