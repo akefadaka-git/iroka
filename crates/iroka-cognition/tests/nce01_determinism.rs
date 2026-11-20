@@ -3,7 +3,11 @@
 use iroka_cognition::{EngineConfig, Literal, NativeReasoner, Rule};
 
 fn fixture(reverse: bool) -> NativeReasoner {
-    let mut engine = NativeReasoner::new(EngineConfig::default()).unwrap();
+    fixture_with_config(reverse, EngineConfig::default())
+}
+
+fn fixture_with_config(reverse: bool, config: EngineConfig) -> NativeReasoner {
+    let mut engine = NativeReasoner::new(config).unwrap();
     let facts = [Literal::positive("seed_a"), Literal::positive("seed_b")];
     let rules = [
         Rule {
@@ -123,4 +127,56 @@ fn repeated_step_bounded_calls_resume_fairly_until_fixed_point() {
             .collect::<Vec<_>>(),
         vec!["a-first", "b-second"]
     );
+}
+
+
+#[test]
+fn bounded_resumption_is_insertion_order_invariant() {
+    let config = EngineConfig {
+        max_inference_steps: 1,
+        ..EngineConfig::default()
+    };
+    let mut forward = fixture_with_config(false, config.clone());
+    let mut reverse = fixture_with_config(true, config);
+
+    let mut forward_report = None;
+    let mut reverse_report = None;
+    for _ in 0..64 {
+        if forward_report.is_none() {
+            let report = forward.reason();
+            assert!(
+                report.is_complete() || report.is_partial(),
+                "reasoning report must explicitly describe completion"
+            );
+            if report.is_complete() {
+                forward_report = Some(report);
+            } else {
+                assert_eq!(report.stop_reason, iroka_cognition::StopReason::StepBudget);
+            }
+        }
+        if reverse_report.is_none() {
+            let report = reverse.reason();
+            assert!(
+                report.is_complete() || report.is_partial(),
+                "reasoning report must explicitly describe completion"
+            );
+            if report.is_complete() {
+                reverse_report = Some(report);
+            } else {
+                assert_eq!(report.stop_reason, iroka_cognition::StopReason::StepBudget);
+            }
+        }
+        if forward_report.is_some() && reverse_report.is_some() {
+            break;
+        }
+    }
+
+    let left = forward_report.expect("forward insertion order must reach fixed point");
+    let right = reverse_report.expect("reverse insertion order must reach fixed point");
+    assert_eq!(left.stop_reason, iroka_cognition::StopReason::FixedPoint);
+    assert_eq!(right.stop_reason, iroka_cognition::StopReason::FixedPoint);
+    assert_eq!(left.facts, right.facts);
+    assert_eq!(left.contradictions, right.contradictions);
+    assert_eq!(left.asserted_facts, right.asserted_facts);
+    assert_eq!(left.derivations, right.derivations);
 }
