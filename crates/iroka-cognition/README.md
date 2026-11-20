@@ -130,3 +130,8 @@ Exact-SHA verification for implementation commit `bcee3f5d5557361ec8349919171406
 - Rust kernel verification Run #2238: PASS — https://github.com/akefadaka-git/iroka/actions/runs/44649522520
 - Test totals: cognition 53 passed; kernel 71 passed; authorization-contract 2 passed; zero failures.
 - Formatting, workspace compile/check, complete workspace tests, production-feature bypass check, and Clippy: PASS.
+
+
+### Upstream ingress contract (R-03)
+
+The transport-neutral upstream requirements are specified in [NCE-01 Upstream Ingress Resource Contract](../../docs/architecture/NCE-01-INGRESS-RESOURCE-CONTRACT.md). This is a design contract only: no HTTP/IPC/file-ingress adapter exists in this crate, and raw-body limits, streaming parsing, end-to-end deadlines, admission control, process memory limits, and peak-RSS qualification remain NOT IMPLEMENTED. R-03 therefore remains PARTIAL until a concrete adapter is separately scoped, implemented, and verified.
