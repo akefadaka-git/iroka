@@ -519,6 +519,20 @@ impl NativeReasoner {
                 }
             }
         }
+        self.materialize_report(elapsed, stop_reason, steps, derivations)
+    }
+
+    /// Builds a bounded report under the same cooperative deadline.
+    fn materialize_report<F>(
+        &self,
+        mut elapsed: F,
+        mut stop_reason: StopReason,
+        steps: usize,
+        derivations: Vec<Derivation>,
+    ) -> ReasoningReport
+    where
+        F: FnMut() -> Duration,
+    {
         // Report construction is part of the cooperative deadline budget.
         // If it expires here, the returned fact/contradiction lists are partial
         // and `is_partial()` remains true.
