@@ -159,6 +159,8 @@ pub enum G05Error {
     ApprovalBindingMismatch,
     ApprovalExpired,
     ReviewerNotAuthorized,
+    AuthenticationRequired,
+    AuthenticationInvalid,
     AuthorizationDenied,
     TenantScopeMismatch,
     SubjectScopeMismatch,
