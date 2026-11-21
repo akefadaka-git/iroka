@@ -223,12 +223,13 @@ impl iroka_kernel::RevocationChecker for PostgresOwnerSignatureVerifier {
     }
 }
 
+#[cfg(test)]
 impl crate::G02AuthorizationAuthority for PostgresOwnerSignatureVerifier {
     /// Resolve G02 membership from the PostgreSQL primary on every request.
     /// G01 credential verification/revocation is performed by the ingress
     /// credential verifier using this same authority object; G09 policy and
     /// emergency-stop state are revalidated independently by its resolver.
-    fn authorize_g05(&self, request: &crate::AuthorizationRequest) -> Result<(), G05Error> {
+    fn authorize_g05(&self, request: &crate::AuthorizationRequest, _now: u64) -> Result<(), G05Error> {
         if request.principal_ref.trim().is_empty()
             || request.subject_ref.trim().is_empty()
             || request.tenant_ref.trim().is_empty()
