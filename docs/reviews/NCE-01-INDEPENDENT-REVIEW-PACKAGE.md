@@ -1,0 +1,508 @@
+# NCE-01 Independent Review Package
+
+**Review status:** PREPARED — independent review NOT YET PERFORMED  
+**Review target (immutable source revision):** `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`  
+**Repository:** `akefadaka-git/iroka`  
+**Working branch / PR:** `feat/native-cognition-a3` / [PR #130](https://github.com/akefadaka-git/iroka/pull/130)  
+**Review scope:** NCE-01 only — propositional forward inference, contradiction semantics, provenance, resource limits and deadline behavior.  
+**Governance:** PR #130 must remain OPEN and DRAFT. No merge, deployment, production activation, NCE-02 expansion or acceptance of review findings is implied by this package.
+
+## 1. Purpose and reviewer independence
+
+This package enables an independent Rust, logic-programming and security reviewer to assess NCE-01 without relying on the implementation author's conclusions. It records the exact source target, reproducible CI evidence, review questions, preliminary risks and required verdict format.
+
+The CI runs are implementation verification, not independent security review. The preliminary observations in §7 are review leads, not final findings. The reviewer should independently inspect the pinned source and reproduce tests before reaching conclusions.
+
+**Do not silently substitute the current PR head for the pinned source.** If the source changes, record the new SHA, compare the diff, and decide whether the review must be repeated.
+
+## 2. Pinned source and evidence
+
+### Source identity
+
+- Commit: `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`
+- Source file: `crates/iroka-cognition/src/lib.rs`
+- Source blob at the pinned revision: `1c6e8df3e02962ab63ab778d445a5822bf4817cf`
+- NCE-01 implementation: `NativeReasoner`, `EngineConfig`, `Literal`, `Rule`, `QueryResult`, `Derivation`, `Contradiction`, `ReasoningReport`.
+- NCE-01 source areas: validation and insertion at approximately lines 153–195; query semantics at 198–209; forward reasoning and report construction at 211–290; atom validation at 292 onward; NCE-01 tests begin in the test module.
+
+### Exact-SHA CI evidence
+
+Both workflows completed successfully for the pinned source SHA:
+
+| Workflow | Run | Result | Evidence |
+|---|---:|---|---|
+| Native Cognition CI | #68 | PASS | [Run 44589981910](https://github.com/akefadaka-git/iroka/actions/runs/44589981910) |
+| Rust kernel verification | #2199 | PASS | [Run 44589980137](https://github.com/akefadaka-git/iroka/actions/runs/44589980137) |
+
+Recorded log totals: 38 cognition tests, 71 kernel tests and 2 authorization-contract tests passed. Formatting, compilation, production-feature check and Clippy passed in the kernel workflow; formatting, workspace tests and Clippy passed in Native Cognition CI.
+
+These results establish CI status only. They do not establish logical soundness, completeness, resistance to every adversarial input, production suitability or independent approval.
+
+### Reproduction
+
+From a clean checkout of the pinned revision:
+
+```sh
+git checkout --detach a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2
+cargo fmt --all -- --check
+cargo test -p iroka-cognition
+cargo clippy -p iroka-cognition --all-targets -- -D warnings
+cargo test --workspace
+```
+
+Also inspect the repository workflow definitions and reproduce the production-feature check used by Rust kernel verification. Record Rust toolchain version, host/target, command output and any environment deviations. Do not treat a local run on a different toolchain as a replacement for the pinned CI evidence.
+
+### Working-branch remediation delta (not a replacement for the pinned review target)
+
+- Latest exact-SHA verified working-branch head: `c3e051d8c8eee474c2cee63aaf7acb9e68de0451`
+- `crates/iroka-cognition/src/lib.rs` blob: `af97c78e0d736dbd6ed226f98fcf10738bc6de61`
+- The immutable baseline above remains the independent-review target. The working-branch source contains the R-01–R-05 remediation and verification delta and must be reviewed as a distinct source revision before NCE-01 acceptance.
+- R-01 additions: `AssertedFact`, `add_fact_with_source`, opaque source IDs, a 32-identified-source-per-fact default bound (legacy `None` source markers do not consume this budget), and one witness per satisfied `(conclusion, rule_id)` pair, including alternate rule support for already-known conclusions.
+- R-02/R-04 additions: cooperative deadline checks during report materialization and explicit `ReasoningReport::is_complete()` / `is_partial()` semantics.
+- Current dedicated NCE-01 forward-reasoning unit-test count: 36; the cognition crate reports 50 tests including 14 backward-reasoning tests.
+- Exact-SHA CI for the verified working-branch source is recorded in §7.2. Earlier formatting, test and Clippy failures were corrected and their reruns passed.
+## 3. System model and intended semantics
+
+NCE-01 is a deterministic propositional forward-chaining engine. It stores positive and explicitly negative literals, applies rules whose complete premise lists are present, and repeats passes until no new fact is derived or a configured stop condition occurs.
+
+It does **not** implement negation-as-failure, closed-world inference, probabilistic confidence, default logic or classical explosion. A negative literal is explicit evidence, not the absence of a positive literal.
+
+For a queried literal (p), the intended four outcomes are:
+
+| Evidence in fact set | Query result |
+|---|---|
+| (p) only | `Entailed` |
+| complement of (p) only | `Refuted` |
+| neither | `Unknown` |
+| both | `Contradicted` |
+
+The reviewer must verify that this table holds for both directly inserted and rule-derived evidence, including when the query itself is negative.
+
+## 4. Review scope and required checks
+
+### A. Inference soundness and fixed-point behavior
+
+1. Confirm every inserted conclusion has a rule whose complete premise set was present at the time of derivation.
+2. Confirm rules are applied deterministically, including when inserted in different orders.
+3. Verify that cycles terminate at a fixed point and cannot produce duplicate facts or unbounded duplicate derivations.
+4. Verify multi-step chains, multiple rules with the same conclusion, rules whose conclusion is already a fact, and rules whose premises include explicit negative literals.
+5. Independently compare small generated rule/fact systems against a simple reference evaluator. Include reordered rules, cycles, disconnected components and mutually dependent rules.
+6. Clarify the contract for a rule whose premises contain duplicates. The current representation permits duplicate premises; confirm that this is semantically harmless and does not distort accounting.
+7. Determine whether the implementation promises only sound derivation or also completeness when a budget is reached. A budget stop must never be presented as a fixed point.
+
+**Required verdict:** PASS / PASS WITH CONDITIONS / FAIL, with counterexamples and reproducible tests.
+
+### B. Contradiction semantics
+
+1. Verify all positive/negative pairs are reported exactly once, in stable order.
+2. Verify contradictions can be introduced directly or derived through rules.
+3. Verify a contradiction in one atom does not cause unrelated conclusions to be inferred (no explosion).
+4. Verify querying a negative literal applies the same four-valued semantics with the polarity reversed correctly.
+5. Verify budget/deadline termination still reports contradictions among the facts accumulated so far, while not implying the knowledge base is complete.
+6. Confirm API documentation distinguishes explicit negative evidence from negation-as-failure and from absence of evidence.
+
+**Required verdict:** PASS / PASS WITH CONDITIONS / FAIL.
+
+### C. Provenance integrity
+
+1. For every derived fact, verify that its recorded rule ID and premise list exactly match an accepted rule.
+2. Verify the recorded premises were present when the conclusion was derived and that deterministic rule ordering makes the selected derivation reproducible.
+3. Test chains where a premise is itself derived, multiple derivations exist for the same conclusion, and a contradiction is derived through separate paths.
+4. Verify one deterministic witness is retained for each satisfied (conclusion, rule ID) pair, including alternative rule IDs supporting an already-known conclusion.
+5. Verify asserted facts are represented separately from derived witnesses, including legacy assertions without a source ID and source-aware assertions.
+6. Verify source identifiers are bounded, deduplicated and treated as opaque metadata, not authenticated identity, trust, chronology or evidence quality.
+7. Verify a witness is not recorded when fact-budget exhaustion prevents a new conclusion from being inserted.
+8. Verify no witness refers to a nonexistent rule or a premise that was not present when the rule fired.
+
+**Required verdict:** PASS / PASS WITH CONDITIONS / FAIL, including whether provenance is a minimal witness or audit-grade lineage.
+
+### D. Resource exhaustion and input validation
+
+Review every configured and implicit bound:
+
+- `max_inference_steps` (default 10,000)
+- `max_facts` (default 10,000)
+- `max_rules` (default 2,000)
+- `max_rule_premises` (default 256)
+- `max_sources_per_fact` (default 32)
+- source identifier byte length (256 bytes)
+- `max_duration` (default three seconds)
+- atom byte length (256 bytes)
+- non-empty atom/rule ID and non-empty rule premise list
+
+Required checks:
+
+1. Zero values are rejected for all configured resource limits.
+2. Exact-limit values are accepted and one-over values rejected without mutating engine state.
+3. Duplicate fact insertion at capacity remains idempotent; a new fact at capacity fails.
+4. Rule insertion failures do not consume rule IDs, append partial rules or alter ordering.
+5. Step-budget and fact-budget exhaustion are distinguishable from fixed-point completion.
+6. Test large but permitted fact/rule/premise counts, repeated invocations, and adversarially ordered rules.
+7. Inspect allocation behavior and complexity. The engine bounds retained facts, rules and premises, but callers construct owned strings/vectors before passing them to the API; state clearly what memory is and is not bounded by this component.
+8. Check integer and duration edge cases, including `Duration::MAX`, very large counters and report-size growth.
+
+**Required verdict:** PASS / PASS WITH CONDITIONS / FAIL, with a table of tested boundary values and observed outcomes.
+
+### E. Deadline and bounded-stop behavior
+
+1. Verify deadline checks occur before reasoning, between rule evaluations and inside premise evaluation.
+2. Verify a long rule cannot monopolize execution without deadline checks.
+3. Verify the deadline stop does not derive the conclusion of a rule whose premise scan was interrupted.
+4. Measure worst-case runtime near configured maxima on a constrained target, not only a developer workstation.
+5. Verify deadline checks during report materialization. If report generation is interrupted, ensure the stop reason is `Deadline` and the returned facts/contradictions are explicitly partial.
+6. Verify `elapsed_micros` includes the intended work and that deadline reporting is not confused with hard real-time cancellation. The implementation uses cooperative elapsed-time checks; it does not provide preemptive cancellation.
+7. Verify repeated calls after a budget/deadline stop have documented semantics and cannot be mistaken for one continuous bounded session.
+
+**Required verdict:** PASS / PASS WITH CONDITIONS / FAIL. Include maximum observed duration, test host/target and whether report finalization is inside the deadline contract.
+
+## 5. Required adversarial test matrix
+
+At minimum, independently run or add tests for:
+
+| Test family | Minimum cases |
+|---|---|
+| Rule soundness | Missing one premise; all premises present; negative premise; conclusion already present |
+| Rule ordering | Reverse insertion order; lexical ID order; same conclusion from multiple rules |
+| Cycles | Self-loop; two-rule cycle; longer cycle; cycle with an unreachable component |
+| Contradictions | Direct; derived; both sides derived; multiple contradictory atoms; query negative literal |
+| Provenance | Chain; alternative derivations; already-asserted conclusion; source metadata; source bounds; premise not present |
+| Budgets | Exact and one-over facts/rules/premises/steps; zero config; no partial mutation |
+| Deadline | Before first rule; between rules; during maximum-premise scan; during final report construction |
+| Scale | Configured maximums; near-maximum combinations; repeated reasoning calls |
+| Determinism | Same input built in multiple insertion orders; byte-for-byte equivalent semantic report |
+
+The existing test suite includes a 64-topology three-node reachability comparison, a generated adversarial chain, a 256-premise deadline test and a 512-fact/512-rule workload. The reviewer should independently validate their assertions and supplement any missing cases above.
+
+## 6. Threat and misuse boundaries
+
+The review must explicitly consider:
+
+- Untrusted or malformed rule/fact input.
+- Excessive input construction before engine validation.
+- Contradictory or misleading evidence being misinterpreted as certainty.
+- Partial knowledge after budget/deadline stops being treated as complete.
+- Provenance being overstated as source-authenticated or audit-grade.
+- Deterministic ordering being mistaken for truth or evidence quality.
+- Resource exhaustion caused by many rules, large premise lists, repeated invocations or report generation.
+- Downstream components treating a reasoning result as authorization.
+
+NCE-01 output is a reasoning result, never an authorization decision. Kernel authority and policy enforcement remain outside and above this engine.
+
+## 7. Preliminary review leads — NOT independent findings
+
+These points were identified during package preparation and must be confirmed, rejected or refined by the independent reviewer:
+
+| ID | Area | Preliminary observation | Reviewer disposition required |
+|---|---|---|---|
+| R-01 | Provenance | Initial-fact source metadata and alternative rule witnesses were missing. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED at `463abe7fd31b35358b01357c2f7957af8b199f81`; exact-SHA formatting, full workspace tests and Clippy passed. Independent review remains pending. |
+| R-02 | Deadline | The report finalization path originally lacked deadline checks. | INTERNAL REMEDIATION IMPLEMENTED AND VERIFIED; final report-boundary check and regression test verified at `c3e051d8c8eee474c2cee63aaf7acb9e68de0451`. Independent review remains pending. |
+| R-03 | Resource accounting | Configured limits bound retained engine state and inference work, but cannot bound memory already allocated by callers. | PARTIALLY REMEDIATED on the working branch: bounded borrowed-input APIs, incremental premise collection and rule-ID byte cap added; upstream transport/parser quotas remain an integration requirement. Independent review remains pending. |
+| R-04 | Partial result semantics | A report can contain facts and derivations accumulated before `Deadline`, `StepBudget` or `FactBudget`. | Confirm all consumers must treat such reports as incomplete, not as a completed closure. |
+| R-05 | Duplicate premises | Rule premises are stored as a vector and are not deduplicated. | **INTERNAL DISPOSITION DEFINED AND VERIFIED** at `9ca49676fa2d64095014af8792930e0df3badd0c`: duplicates are logically idempotent, retained in accepted order, and every occurrence counts toward per-rule and aggregate premise budgets. Independent review remains pending. |
+
+These are review questions, not declarations of defects. No severity or remediation is assigned until independently assessed.
+
+### 7.2 Internal verification and closure record — 2026-11-19
+
+**R-01 internal status: VERIFIED-CLOSED.** This is an engineering closure for the working-branch remediation only; it is not independent review, acceptance of the immutable baseline, or production approval.
+
+Verified source:
+- Commit: `463abe7fd31b35358b01357c2f7957af8b199f81`
+- Cognition source blob: `4c772c681cf8df15b607e22c4b642f24721a868a`
+
+Exact-SHA workflow evidence:
+- [Native Cognition CI #116 — Run 44596021400](https://github.com/akefadaka-git/iroka/actions/runs/44596021400): PASS. `cargo fmt --all -- --check`, `cargo test --workspace --all-targets`, and `cargo clippy -p iroka-cognition --all-targets -- -D warnings` passed.
+- [Rust kernel verification #2222 — Run 44596021385](https://github.com/akefadaka-git/iroka/actions/runs/44596021385): PASS. Formatting, workspace compilation, the no-default-features check, `cargo test --workspace --all-targets --locked`, and full-workspace Clippy passed.
+
+Recorded test totals: 47 cognition-crate tests (33 NCE-01 forward-reasoning tests and 14 backward-reasoning tests), 71 kernel tests, and 2 authorization-contract tests. All required checks passed on the exact commit above.
+
+R-01 provenance implementation and regression tests are internally verified. R-02 report-materialization deadline handling is also internally verified by the exact-SHA test run. Independent review remains NOT PERFORMED and the review target remains the immutable baseline in §2. R-03 and R-05 remain open review/remediation work.
+
+### 7.1 R-01 internal remediation and binding provenance contract
+
+The working-branch implementation defines the following bounded NCE-01 contract. This is an internal engineering disposition, not an independent reviewer verdict:
+
+1. **Asserted-input record:** every asserted fact is exposed through `ReasoningReport::asserted_facts`. The compatibility `add_fact` method records `source_id: None`; `add_fact_with_source` records an opaque caller-supplied source identifier.
+2. **Source identifier semantics:** source IDs are caller-provided labels only. The engine does not authenticate the source, assess trust, timestamp the evidence, or validate the truth of a claim. Empty IDs and IDs over 256 UTF-8 bytes are rejected.
+3. **Bounded source multiplicity:** identical `(fact, source_id)` assertions are idempotent. Distinct source IDs per fact are capped by `EngineConfig::max_sources_per_fact` (default 32). The fact counts once against `max_facts`.
+4. **Alternative derivation witnesses:** the report retains one deterministic witness per distinct `(conclusion, rule_id)` pair whose complete premises are satisfied. Different rules supporting the same conclusion are retained, even when the conclusion was already asserted or derived. A rule is recorded at most once per `reason()` call.
+5. **Witness integrity:** the witness is recorded only after the conclusion is already present or successfully inserted. If fact-budget exhaustion prevents insertion of a new conclusion, no witness is emitted for that failed derivation.
+6. **Scope limitation:** the report is a bounded set of direct rule witnesses, not a recursively expanded proof DAG or complete proof-history database. Witnesses refer to the accepted rule's full premise vector; premise derivations can be followed through other witnesses. Cycles can occur across witness records.
+7. **Trust boundary:** source IDs and rule witnesses are provenance metadata, not authenticated evidence, source reputation, trust scores, chronology, audit-grade chain of custody, or authorization.
+
+Regression tests added on the working branch cover multiple independent rules for one conclusion, support for an already-asserted conclusion, asserted facts with and without source IDs, source ID validation, per-fact source bounds, and cycle witness behavior. These tests still require fresh exact-SHA CI execution.
+
+### 7.3 R-03 caller-side resource accounting disposition
+
+**Internal status: PARTIAL — engine-side API controls implemented; upstream ingress controls remain an integration requirement.**
+
+The working branch now:
+1. Adds `Literal::try_positive(&str)` and `Literal::try_negative(&str)`, validating UTF-8 byte length and blankness before creating an owned atom string.
+2. Changes `add_fact_with_source` to accept a borrowed source ID and check its 256-byte limit before copying it into engine-owned metadata.
+3. Adds `add_rule_from_iter`, which consumes a lazy premise iterator incrementally and stops after observing the first premise beyond `max_rule_premises`; its engine-owned premise vector never grows beyond the configured bound.
+4. Caps retained rule IDs at 256 UTF-8 bytes and checks length before whitespace scanning and duplicate comparison.
+5. Documents that the compatibility constructors `Literal::positive/negative` and `add_rule(Rule)` receive already-materialized caller-owned strings/vectors and therefore cannot prevent those prior allocations.
+
+The NCE-01 crate has no HTTP, file, database-ingestion or other external input service. Any future upstream boundary must impose a raw request/body byte limit before parsing, count/cap facts, rules and premises before collecting them, validate string lengths before cloning, and apply aggregate-memory, concurrency and request-deadline controls. The reasoner deadline does not cover parsing or API input construction. The independent reviewer must verify these boundaries and any integration-specific guards; do not claim that engine-side limits protect upstream deserialization.
+
+Exact-SHA verification of the R-03 implementation on `b027860e5714463ce1ad51cdec1ef347b803cd81` passed:
+- [Native Cognition CI #132 — Run 44597222447](https://github.com/akefadaka-git/iroka/actions/runs/44597222447): formatting, 50 cognition-crate tests, workspace tests and cognition Clippy PASS.
+- [Rust kernel verification #2230 — Run 44597222456](https://github.com/akefadaka-git/iroka/actions/runs/44597222456): formatting, workspace compilation, no-default-features check, 50 cognition-crate tests, 71 kernel tests, 2 authorization-contract tests and full-workspace Clippy PASS.
+
+The crate-level R-03 contract is therefore internally verified. The external-ingress requirement remains an integration dependency, not a claim that NCE-01 can bound caller memory before parsing.
+
+## 8. Out-of-scope components
+
+- NCE-02 backward chaining, unification and proof search.
+- Constraint, arithmetic, temporal, causal, probabilistic or natural-language reasoning.
+- Knowledge ingestion, evidence trust, durable memory, planning, learning, perception, orchestration and agent execution.
+- Kernel authorization, deployment, production data and operational readiness.
+
+The cognition crate currently contains a separate backward-reasoning module. Its presence does not expand this NCE-01 review. Reviewers should avoid treating NCE-02 tests as NCE-01 evidence.
+
+## 9. Reviewer report template
+
+The independent reviewer should return a signed or attributable report containing:
+
+1. Reviewer name/organization, relevant expertise, date and independence/conflict statement.
+2. Exact repository, source SHA and source blob SHA reviewed.
+3. Toolchain, environment, commands and reproducibility results.
+4. Per-area verdicts for inference soundness, contradiction semantics, provenance, resource exhaustion and deadline behavior.
+5. Findings with unique ID, severity (Critical/High/Medium/Low/Informational), affected file/line, exploit or failure preconditions, impact, reproducible evidence and remediation.
+6. Explicit treatment of R-01 through R-05.
+7. Tests added or run, including failures and deviations from this package.
+8. Residual risks and conditions for acceptance.
+9. Overall recommendation: ACCEPT, ACCEPT WITH CONDITIONS, or REJECT.
+10. Reviewer identity/signature or verifiable review record.
+
+A finding is not closed by a code change alone. It requires a linked fix, regression test, fresh exact-SHA CI evidence and reviewer confirmation where the finding affects the review verdict.
+
+## 10. Governance and closure gates
+
+- PR #130 remains OPEN and DRAFT while independent review is pending.
+- Do not merge, deploy, activate in production or mark NCE-01 independently reviewed based on this package.
+- Any reviewer finding that requires code changes must be handled on the authorized feature branch, followed by fresh exact-SHA verification and a review delta.
+- The pinned source review is complete only when the reviewer report is received and all blocking findings have a documented disposition.
+- Any Owner decision to accept conditions, close the review gate, merge or proceed to another workstream is a separate explicit decision.
+
+**Current status:** PACKAGE PREPARED / INDEPENDENT REVIEW PENDING / OWNER DECISION PENDING.
+
+
+## R-03 aggregate resource ceilings (2026-11-20)
+
+Caller-supplied `EngineConfig` values are now validated against hard ceilings; defaults are not merely recommendations. The accepted maxima are 10,000 inference steps, 10,000 facts, 2,000 rules, 256 premises per rule, 32 distinct source IDs per asserted fact, and 3 seconds for reasoning/report materialization. A zero value returns `ZeroBudget`; any value above these ceilings returns `ConfigLimitExceeded`.
+
+Multiplicative limits are additionally constrained by aggregate retained-state budgets: at most 50,000 rule-premise entries across all rules and at most 50,000 distinct asserted-fact/source records across the reasoner. Both checks occur before mutation; rejected additions leave retained state unchanged. The per-rule and per-fact limits remain independently enforced. The aggregate rule-premise ceiling also bounds copied premise literals in derivation witnesses; the aggregate assertion ceiling bounds provenance records copied into reports.
+
+These are cardinality bounds, not a byte-exact heap/RSS guarantee. B-tree/vector/string allocator overhead, capacity growth, sorting temporaries, caller-owned input allocations, iterator internals, and returned reports held by callers are outside a strict process-memory guarantee. Atom, rule ID, and source ID payloads remain capped at 256 UTF-8 bytes. A conservative payload-only retained-state envelope is therefore calculable, but must not be presented as a precise resident-memory ceiling. The crate has no network/file ingress layer; upstream request-size, parse-time, concurrency, and aggregate process-memory controls remain integration requirements.
+
+Regression coverage: caller configuration above each representative hard ceiling is rejected; aggregate premise overflow is rejected atomically; aggregate assertion overflow is rejected atomically. Exact-commit CI evidence is recorded only after the corresponding workflow runs complete.
+
+
+### Aggregate payload calculation and exact-SHA verification
+
+At the hard maxima, the engine-owned retained UTF-8 string payload has a cardinality-derived upper bound of approximately **42.0 MB (decimal)**: facts 2.56 MB (10,000 × 256 bytes), asserted-fact/source records 25.60 MB (50,000 × [256-byte atom + 256-byte source ID]), rule IDs and conclusions 1.024 MB (2,000 × [256 + 256 bytes]), and rule premises 12.80 MB (50,000 × 256 bytes). These categories are counted independently even where logical values overlap because the engine stores copies.
+
+A fully materialized report can add up to approximately **44.544 MB** of string payload: 2.56 MB facts, 25.60 MB asserted records, 2.56 MB contradiction pairs (at most 5,000 pairs), and 13.824 MB derivation witnesses (2,000 × 512-byte conclusion/rule-ID payload plus 50,000 × 256-byte premise payload). The temporary derivation-deduplication key set can add approximately 1.024 MB. Thus a conservative combined engine + report + derivation-key string-payload envelope is about **87.6 MB**, before allocator/container metadata, node pointers, vector capacity slack, alignment, transient sorting/allocation costs, and caller-held copies. This is a defensible payload bound, **not** a process RSS or total heap guarantee.
+
+The reasoning deadline applies to reasoning and report materialization, not input parsing or construction. `Rule` and `Literal` compatibility APIs receive already-allocated caller values; validate borrowed atoms with `Literal::try_positive`/`try_negative` before ownership, use the lazy premise iterator, and enforce raw input size and concurrency limits at any future ingress boundary. No network/file ingress service exists in this crate, so those upstream limits remain integration work.
+
+Exact-SHA verification for implementation commit `bcee3f5d5557361ec8349919171406094b69854d`:
+- Native Cognition CI push Run #148: PASS — https://github.com/akefadaka-git/iroka/actions/runs/44649515635
+- Native Cognition CI PR Run #149: PASS — https://github.com/akefadaka-git/iroka/actions/runs/44649522569
+- Rust kernel verification Run #2238: PASS — https://github.com/akefadaka-git/iroka/actions/runs/44649522520
+- Test totals: cognition 53 passed; kernel 71 passed; authorization-contract 2 passed; zero failures.
+- Formatting, workspace compile/check, complete workspace tests, production-feature bypass check, and Clippy: PASS.
+
+
+## R-03 upstream ingress contract — specification only
+
+Added `docs/architecture/NCE-01-INGRESS-RESOURCE-CONTRACT.md`. It defines the proposed 32 MiB raw/decompressed body cap, streaming count/byte validation, request-wide limits, 5-second end-to-end deadline, cancellation, weighted memory admission, one maximum-profile request per worker until peak-RSS qualification, process memory isolation, partial-result semantics, and adversarial acceptance tests. This is **SPECIFIED / NOT IMPLEMENTED**. The repository has no NCE-01 ingress adapter; no network endpoint or production listener was added. R-03 remains PARTIAL. Peak RSS, concurrency safety, and adapter integration tests are NOT RUN and cannot be claimed from the cognition crate CI.
+
+
+### 7.4 R-05 duplicate-premise disposition and exact-SHA verification — 2026-11-20
+
+**R-05 internal status: VERIFIED-CLOSED.** This is an internal engineering disposition supported by regression tests and exact-SHA CI. It is not an independent reviewer verdict or production approval.
+
+**Decision:** duplicate premises are accepted and retained in caller order; they are not normalized or deduplicated.
+
+- Logical semantics are idempotent: one present instance of literal `p` satisfies a body containing `p, p`; if `p` is absent, the duplicated body is unsatisfied.
+- Every submitted occurrence counts toward `max_rule_premises` and the aggregate 50,000-premise ceiling.
+- The derivation witness preserves the accepted premise vector, including duplicate occurrences and their order.
+- Duplicate premises do not create duplicate facts or multiple witnesses for the same (conclusion, rule ID).
+- This preserves caller representation and prevents duplicate-heavy input from bypassing resource accounting. It does not claim duplicate occurrences are independent evidence.
+
+**Regression tests:** `crates/iroka-cognition/tests/nce01_duplicate_premises.rs` verifies (1) one matching fact satisfies a duplicated premise and the witness retains both occurrences; (2) an absent duplicated premise does not derive a conclusion; and (3) duplicate occurrences count toward the exact aggregate ceiling, accepting the boundary and rejecting the next occurrence.
+
+**Exact-SHA verification — commit `9ca49676fa2d64095014af8792930e0df3badd0c`:**
+
+- [Native Cognition CI #163 — Run 44659045226](https://github.com/akefadaka-git/iroka/actions/runs/44659045226): PASS. Formatting, workspace tests and cognition Clippy all passed.
+- [Rust kernel verification #2258 — Run 44659045276](https://github.com/akefadaka-git/iroka/actions/runs/44659045276): PASS. Formatting, all-target compilation, production-feature bypass check, complete workspace tests and workspace Clippy all passed.
+- Test totals in each run: cognition crate 53 passed; duplicate-premise integration tests 3 passed; kernel 71 passed; authorization-contract 2 passed; zero failures.
+- Both workflow runs completed successfully and their commit association is the exact SHA above.
+
+R-05 is therefore internally VERIFIED-CLOSED. Independent review of the immutable baseline and working-branch remediation remains NOT PERFORMED. R-03 upstream ingress remains PARTIAL / SPECIFIED — NOT IMPLEMENTED; this CI does not establish adapter integration, adversarial transport tests, concurrency safety or peak RSS. PR #130 remains OPEN and DRAFT; no merge, deployment or production activation is authorized.
+
+
+## NCE-01 additional verification — negative-literal query polarity (2026-11-20)
+
+A further coverage gap was identified in the test inventory: the four-valued query contract was tested for positive queries, but lacked a focused matrix for querying an explicitly negative literal. Added `crates/iroka-cognition/tests/nce01_negative_query_semantics.rs` on commit `320929fc03256a4a942999301aa76e112af3340a`.
+
+The new tests cover all four outcomes when the query itself is negative:
+- explicit negative evidence only → `Entailed`;
+- positive complement only → `Refuted`;
+- both polarities → `Contradicted`;
+- neither polarity → `Unknown`;
+- additionally, a rule-derived negative literal is queryable as `Entailed` after fixed-point reasoning.
+
+**Verification status:** VERIFIED at the superseding exact SHA `c3e051d8c8eee474c2cee63aaf7acb9e68de0451`. The earlier test-only commit `320929fc03256a4a942999301aa76e112af3340a` was superseded before its CI completed; the final exact-SHA runs below include this test file and confirm all five cases passed.
+
+This addition is a test-only verification improvement. It does not change inference semantics, the NCE-01 authority boundary, R-03 ingress status, independent-review status, or merge/deployment governance.
+
+## NCE-01 exact-SHA verification update — 2026-11-20
+
+**Verified working-branch source:** `c3e051d8c8eee474c2cee63aaf7acb9e68de0451`  
+**Commit:** `fix(nce-01): enforce deadline at final report boundary`
+
+### Exact-SHA workflow results
+
+| Workflow | Run | Conclusion | Evidence |
+|---|---:|---|---|
+| Native Cognition CI #171 | 44659432995 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44659432995 |
+| Rust kernel verification #2266 | 44659433075 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44659433075 |
+
+Both workflow runs are associated with the exact SHA above and completed successfully. Job-level evidence confirms formatting, complete workspace tests and cognition Clippy passed in Native Cognition CI; formatting, all-target compilation, production-feature bypass check, complete workspace unit/contract tests and workspace Clippy passed in Rust kernel verification.
+
+### Test evidence from workflow logs
+
+Both workflow logs show: cognition crate unit tests **54 passed** (including final report-boundary deadline regression); duplicate-premise integration tests **3 passed**; negative-query integration tests **5 passed**; kernel tests **71 passed**; authorization-contract tests **2 passed**; zero test failures.
+
+The negative-query matrix verifies `Entailed`, `Refuted`, `Contradicted`, and `Unknown` for a negative query, plus rule-derived negative evidence. The final deadline-boundary regression verifies that a deadline reached after the final report item sets `StopReason::Deadline`, marks the report partial, preserves the materialized fact, and records elapsed time at/above the configured test threshold.
+
+### Internal disposition updates
+
+- **R-02 deadline behavior: VERIFIED-CLOSED internally** for the report-materialization boundary covered by the regression. This remains cooperative deadline enforcement, not preemptive cancellation or a hard real-time guarantee.
+- **Negative-literal query polarity: VERIFIED** by the five exact-SHA integration tests.
+- **R-05 duplicate-premise semantics: VERIFIED-CLOSED internally** remains supported by its exact-SHA evidence in §7.4.
+- **R-03 upstream ingress: PARTIAL / SPECIFIED — NOT IMPLEMENTED.** No adapter, transport parsing, adversarial integration test, concurrent maximum-profile RSS measurement, or peak-RSS qualification is present.
+- **Independent review: NOT PERFORMED.** The immutable review target remains `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`; this working-branch SHA is a separate remediation target for reviewer comparison.
+- PR #130 remains OPEN / DRAFT. No merge, deployment, or production activation is authorized.
+
+
+## NCE-01 fair bounded-call resumption — exact-SHA verification (2026-11-20)
+
+**Verified implementation SHA:** `748a1a2184174638c4842f2a814b1a55e348d2b2`  
+**Preceding implementation SHA:** `15ab25a0298d47545310bb59d68c578964efebfc`
+
+The implementation now persists a deterministic rule cursor and pass-progress state across bounded `reason()` calls. When a call stops at `StepBudget` or `Deadline`, the next call resumes at the next unprocessed rule instead of repeatedly restarting at the first rule. A completed pass that derived facts causes another pass; a completed pass without new facts establishes `FixedPoint`. Adding a new asserted fact or rule resets pass traversal so the enlarged knowledge base is reconsidered. Derivation witnesses persist across bounded calls and are materialized in deterministic rule-ID order.
+
+The dedicated integration test `crates/iroka-cognition/tests/nce01_determinism.rs` verifies:
+- facts, contradictions, assertions and derivation witnesses are invariant under reversed fact/rule insertion order;
+- repeated one-step calls make progress across a two-rule chain rather than starving the later rule;
+- the fixed-point report after several partial calls retains both derivation witnesses in stable rule-ID order.
+
+The exact-head CI initially exposed one lint-only issue on `15ab25a0298d47545310bb59d68c578964efebfc`: an unnecessary `mut` on the local `stop_reason` binding. Formatting and all tests passed on that SHA, but Clippy failed in both workflows. Commit `748a1a2184174638c4842f2a814b1a55e348d2b2` removes only that unnecessary mutability; no inference behavior or test semantics changed.
+
+### Exact-SHA workflow evidence
+
+Both workflows completed successfully on exact SHA `748a1a2184174638c4842f2a814b1a55e348d2b2`:
+
+| Workflow | Run | Conclusion | Evidence |
+|---|---:|---|---|
+| Native Cognition CI #197 | 44672948746 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44672948746 |
+| Rust kernel verification #2302 | 44672948827 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44672948827 |
+
+Verified workflow stages:
+- Native Cognition CI: `cargo fmt --all -- --check`, `cargo test --workspace --all-targets`, and `cargo clippy -p iroka-cognition --all-targets -- -D warnings` all passed.
+- Rust kernel verification: formatting, `cargo check --workspace --all-targets --locked`, production-feature/no-default-features check, complete locked workspace tests, and workspace Clippy all passed.
+- Test totals in both logs: cognition unit tests **54 passed**; determinism integration tests **2 passed**; duplicate-premise integration tests **3 passed**; negative-query integration tests **5 passed**; kernel tests **71 passed**; authorization-contract tests **2 passed**; zero failures.
+
+### Internal verification disposition
+
+- Fair bounded-call resumption and persistent derivation witnesses: **VERIFIED** on exact SHA above.
+- Insertion-order determinism and bounded-call progress: **VERIFIED** by the dedicated integration tests.
+- The CI evidence establishes the tested implementation and lint/build status; it is not an independent security review or production qualification.
+- R-03 upstream ingress remains **PARTIAL / SPECIFIED — NOT IMPLEMENTED**. No concrete ingress adapter, transport-level adversarial integration suite, concurrent maximum-profile peak-RSS measurement, or concurrency qualification is claimed.
+- Independent review remains **NOT PERFORMED** against the immutable review target `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`; the working-branch remediation is a separate review delta.
+- PR #130 remains OPEN / DRAFT. No merge, deployment or production activation is authorized.
+
+
+## NCE-01 determinism, bounded-resumption and resource-boundary verification — 2026-11-20
+
+**Verified implementation SHA:**  a7d1dbd4b1653b3198e06abdaa788680ecb5d9c9
+
+### Additional regression coverage
+
+The working branch now includes the following verified tests beyond the original fair-resumption regression:
+
+- **bounded_resumption_is_insertion_order_invariant**: constructs the same facts and rules in forward and reverse insertion order, repeatedly reasons under a one-step budget, and compares the final facts, contradictions, asserted-fact records and derivation witnesses.
+- **adding_new_fact_after_partial_stop_restarts_scan_and_preserves_witnesses**: after a one-step partial report, inserts new evidence; verifies the pass cursor is reset, the new conclusion is eventually derived, and the witness from the earlier partial call remains in the final fixed-point report.
+- **deadline_interruption_resumes_at_the_next_rule_and_reaches_fixed_point**: uses the internal deterministic clock seam to interrupt a pass at a deadline boundary after the first rule; verifies the next call resumes at the next rule, derives the downstream conclusion and reaches a fixed point with both witnesses retained.
+- **accepts_configuration_at_every_hard_resource_ceiling**: verifies exact accepted values for all six engine configuration ceilings (10,000 inference steps, 10,000 facts, 2,000 rules, 256 premises/rule, 32 sources/fact and three seconds).
+- **source_budget_accepts_exact_limit_and_rejects_one_over_atomically**: verifies exact source-cap acceptance, duplicate-source idempotency at capacity, and rejection of the next distinct source without altering retained provenance.
+
+These supplement existing checks for fact/rule and premise limits, exact aggregate premise and assertion ceilings, zero/over-limit configuration rejection, iterator early-stop behavior, adversarially ordered generated chains, exhaustive reference reachability over all three-node graphs, deadline interruption inside premise scans, and deadline enforcement during report materialization.
+
+### Exact-SHA CI evidence
+
+Both workflows completed successfully on exact SHA  a7d1dbd4b1653b3198e06abdaa788680ecb5d9c9:
+
+| Workflow | Run | Conclusion | Evidence |
+|---|---:|---|---|
+| Native Cognition CI #212 | 44673418286 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44673418286 |
+| Rust kernel verification #2309 | 44673418232 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44673418232 |
+
+Verified stages:
+- Native Cognition CI: formatting, complete workspace/all-target tests, and cognition Clippy passed.
+- Rust kernel verification: formatting, locked all-target workspace compilation, production-feature/no-default-features check, complete locked workspace tests, and workspace Clippy passed.
+- Test totals in both logs: cognition unit tests **55 passed**; budget-boundary integration tests **2 passed**; determinism/resumption integration tests **4 passed**; duplicate-premise integration tests **3 passed**; negative-query integration tests **5 passed**; kernel tests **71 passed**; authorization-contract tests **2 passed**; zero failures.
+
+### Internal verification disposition
+
+- Deterministic results across fact/rule insertion orders: **VERIFIED**.
+- Fair resumption across repeated step-budget calls: **VERIFIED**.
+- Fair resumption after a deadline interruption: **VERIFIED** by the deterministic clock-seam regression.
+- Cursor reset after new fact insertion and retention of prior witnesses: **VERIFIED**.
+- Exact configured resource ceilings and per-fact source boundary behavior: **VERIFIED**.
+- Existing exact aggregate rule-premise and asserted-record boundary tests remain passing.
+- These are internal engineering verification results, not independent review or production qualification.
+- R-03 upstream ingress remains **PARTIAL / SPECIFIED — NOT IMPLEMENTED**. No concrete adapter, transport-level adversarial integration suite, concurrent maximum-profile peak-RSS measurement, or concurrency qualification is claimed.
+- Independent review remains **NOT PERFORMED** against immutable target a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2; the working-branch changes remain a separate review delta.
+- PR #130 remains OPEN / DRAFT. No merge, deployment or production activation is authorized.
+
+
+## NCE-01 additional adversarial regression verification — 2026-11-20
+
+**Verified implementation SHA:** `043c95eba74d5ae06e8ce23fc311f1c2f8da2560`
+
+### Added regression cases
+
+Three additional adversarial cases were added and passed:
+
+1. `adding_rule_after_partial_stop_restarts_scan_and_preserves_witnesses`: after a one-step partial run, inserts a lexicographically earlier rule (changing sorted rule indices), then verifies all conclusions are eventually derived, fixed point is reached, and the pre-existing witness remains present in deterministic rule-ID order.
+2. `fact_budget_exhaustion_stays_partial_and_never_emits_a_false_witness`: with the fact store exactly at capacity, repeats reasoning three times and verifies every report remains `FactBudget` / partial, the blocked conclusion is absent, and no derivation witness is emitted.
+3. `malformed_late_iterator_item_rejects_rule_atomically`: feeds a valid premise followed by a blank invalid premise and a sentinel tail; verifies the iterator consumes only the first two items, rejects the rule, and permits reuse of the rule ID with a valid input.
+
+### Exact-SHA workflow evidence
+
+Both workflows completed successfully on exact SHA `043c95eba74d5ae06e8ce23fc311f1c2f8da2560`:
+
+| Workflow | Run | Conclusion | Evidence |
+|---|---:|---|---|
+| Native Cognition CI #234 | 44675355783 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44675355783 |
+| Rust kernel verification #2319 | 44675355858 | PASS | https://github.com/akefadaka-git/iroka/actions/runs/44675355858 |
+
+Verified stages:
+- Native Cognition CI: formatting, complete workspace/all-target tests, and cognition Clippy all passed.
+- Rust kernel verification: formatting, locked workspace/all-target compilation, production-feature/no-default-features check, complete locked workspace tests, and workspace Clippy all passed.
+- Test totals in both logs: cognition unit tests **55 passed**; budget-boundary integration tests **4 passed**; determinism/resumption integration tests **5 passed**; duplicate-premise integration tests **3 passed**; negative-query integration tests **5 passed**; kernel tests **71 passed**; authorization-contract tests **2 passed**; zero failures.
+
+### Verification disposition
+
+- Rule insertion during partial reasoning and deterministic resumption: **VERIFIED**.
+- Repeated fact-budget exhaustion remains explicitly partial and does not emit a false witness: **VERIFIED**.
+- Malformed late premise input is rejected atomically without over-consuming the lazy iterator or reserving the rule ID: **VERIFIED**.
+- Combined with the previously recorded exhaustive three-node reachability, adversarial generated-chain, cycle, contradiction, deadline, aggregate-budget, source-provenance, and insertion-order tests, the current in-crate determinism/resource-boundary/adversarial test set is **CI VERIFIED** on the exact SHA above.
+- This does not close R-03 upstream ingress: no adapter exists, so transport body limits, streaming parser behavior, cancellation/admission control, concurrent maximum-profile peak-RSS, and ingress-level adversarial integration remain **NOT IMPLEMENTED / NOT RUN**.
+- Independent review remains **NOT PERFORMED** and is reserved for the completed project review stage. The immutable review target remains `a8cb72825eb12beefc40fcd63e3c7eae5f49d8f2`; this working-branch verification is remediation evidence, not the independent review itself.
+- PR #130 remains OPEN / DRAFT. No merge, deployment, or production activation is authorized.
