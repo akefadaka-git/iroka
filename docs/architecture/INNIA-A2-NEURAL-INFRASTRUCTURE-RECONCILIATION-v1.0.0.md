@@ -471,3 +471,16 @@ The following is a proposed A2 integration contract, not an A3 code authorizatio
 | Temporal integration A2 closure | **PARTIAL / OPEN** |
 
 **Required next step:** complete a read-only API-to-time-use inventory for every public G08 mutation and freeze the corrected contract. Then, only under the separately approved G08 A3 scope, replace caller time fields with internally injected trusted-time observations and verify the exact candidate. This work is G08 temporal infrastructure, not neural runtime implementation. It does not authorize modification of PR #63, PR #121, merge, deployment or production activation.
+
+
+## 17. Dedicated G08 temporal A2 proposal artifact
+
+Created the separate documentation-only proposal:
+
+- Path: `docs/architecture/G08-TEMPORAL-INTEGRATION-A2-CONTRACT-v1.0.0.md`
+- Creation commit: `5f74aa4805495e7f47a50be3c1db812fdda4a9a2`
+- Status stated in document: **A2 PROPOSAL — pending Owner disposition; NOT APPROVED**.
+- Scope: canonical UTC instants, monotonic and logical clock separation, signed quorum source independence, structured observation evidence, one-observation-per-mutation API boundary, workflow deadlines, leases, retries, cancellation, restart recovery, G11 atomic audit evidence, Ethiopian/Gregorian calendar presentation separation, failure semantics and exact-head acceptance matrix.
+- No source, manifest, lockfile, workflow, migration, configuration or runtime file changed.
+
+The proposal does not resolve the caller-time defect by itself. It records the contract required before any separately authorized G08 A3 temporal refactor. Owner decisions and source roster/anti-rollback evidence remain outstanding.
