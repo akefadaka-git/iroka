@@ -733,7 +733,7 @@ mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
     use postgres::NoTls;
-    use crate::G09PolicyResolver;
+    use crate::{G02AuthorizationAuthority, G09PolicyResolver};
 
     struct FixedClock(u64);
     impl crate::TrustedClock for FixedClock {
