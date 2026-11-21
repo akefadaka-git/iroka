@@ -392,7 +392,15 @@ impl PostgresG02Authority {
         tx.execute(
             "INSERT INTO g02_owner_commands(command_id,owner_subject,signer_issuer,signer_key_id,issued_at,expires_at,payload_canonical,payload_sha256,signature,command_kind) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
             &[&p.command_id,&p.owner_subject,&p.issuer,&p.key_id,&to_i64(p.issued_at)?,&to_i64(p.expires_at)?,&bytes,&digest,&command.signature,&kind])
-            .map_err(|e| if e.as_db_error().is_some_and(|db| db.code().code()=="23505") { G02AuthorityError::Replay } else { G02AuthorityError::DatabaseUnavailable })?;
+            .map_err(|e| {
+                #[cfg(test)]
+                eprintln!("G02 command-history INSERT failed: {e:?}");
+                if e.as_db_error().is_some_and(|db| db.code().code()=="23505") {
+                    G02AuthorityError::Replay
+                } else {
+                    G02AuthorityError::DatabaseUnavailable
+                }
+            })?;
 
         match &p.action {
             OwnerCommandAction::PublishPolicy {
