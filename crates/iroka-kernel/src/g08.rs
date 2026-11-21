@@ -2498,7 +2498,6 @@ mod tests {
         let request = WorkflowCancellationRequest {
             tenant_selector: "tenant:test".into(),
             workflow_id: workflow.workflow_id.clone(),
-            now: 1_800_000_002,
         };
         let cancelled = store
             .cancel_workflow(
