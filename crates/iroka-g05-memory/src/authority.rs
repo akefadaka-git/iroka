@@ -29,7 +29,7 @@ pub trait EpisodicConsentAuthority: Send + Sync {
 }
 
 pub trait G02AuthorizationAuthority: Send + Sync {
-    fn authorize_g05(&self, request: &AuthorizationRequest, now: u64) -> Result<(), G05Error>;
+    fn authorize_g05(&self, request: &AuthorizationRequest) -> Result<(), G05Error>;
 
     fn resolve_g05_activation(
         &self,
