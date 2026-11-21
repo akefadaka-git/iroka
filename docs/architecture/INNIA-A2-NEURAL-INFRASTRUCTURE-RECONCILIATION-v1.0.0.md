@@ -379,3 +379,18 @@ The exact INGA candidate was re-inspected at `e2ad1dc6a7916028dbcdfbd2d2ec948e0a
 - The GitHub connector available for this work exposes workflow-run reads but no workflow-dispatch/action trigger. No dispatch was attempted, no source/manifest/workflow file was changed to manufacture a trigger, and no run is claimed.
 
 **Disposition:** workflow definition is technically capable of manual dispatch, but exact-head INGA verification remains **NOT RUN** because this execution path cannot invoke that dispatch. The workflow configuration itself is **PASS / INSPECTED**; INGA formatting, compilation, tests and Clippy remain **NOT RUN / UNVERIFIED**. Do not interpret the presence of `workflow_dispatch` as evidence that a run occurred.
+
+
+## 15. Mainline authority-contract reconciliation (2026-11-21)
+
+The four authoritative contract documents and corresponding kernel modules were re-read from `main` at baseline `1aea1447eadf1d827d702fd6c4034fa058aac21e`.
+
+| Domain | Mainline evidence | What is established | What remains outside the mainline baseline |
+|---|---|---|---|
+| G01 | `docs/architecture/G01-IDENTITY-CONTRACT.md` (blob `bb3786ba04b5163b39896d871a1447ec757759b7`); `identity.rs` (blob `36b4230be95e4f72f79e1d4b6b1b29e9062de051`) | Ed25519 compact-JWS contract; exact issuer/kid/audience and signed claims; fail-closed revocation boundary; verified principal is distinct from authorization | Production trust-root ceremony, authoritative revocation storage/operations, issuer/key provisioning and operational distribution. Mainline identity module retains test-only legacy assertion adapter; later G01 candidate branch must be separately reviewed.
+| G02 | `docs/architecture/G02-GOVERNANCE-CONTRACT.md` (blob `5bfdaab549b8879e2d3dabe46fa593fe6e412bae`); `governance.rs` (blob `83dc762add000528a48f2f91acbbec200ec0a226`) | Direct Owner authority model; signed, exact-scope approval payload; replay/revocation/audit fail-closed requirements; approval does not execute | No real Owner key provisioned; authority/approval registries and production command path are not established by the mainline contract module. PR #80/#82 are later candidate increments and not assumed merged.
+| G11 | `docs/architecture/G11-ASSURANCE-CONTRACT.md` (blob `3373a0ac3ed2a1f6a17d128064150ef0f278d352`) and `G11-AUDIT-INTEGRITY-CONTRACT.md` (blob `69aa4f5dd02255ff05f47a0b60fc8195c72ac060`); `assurance.rs` (blob `52e52dfe8f1bf78b9c84034c92232c15ce79e105`) | Common audit event fields; audit failure converts positive decision to ESCALATE; SQLite reference sink and tamper-evident hash-chain design | External immutable checkpoint anchor/signing, retention/export/recovery drills, operational access controls, multi-node transactional adapter, and G09 side-effect outcome evidence.
+
+**Integration finding:** the documents establish compatible principles but do not constitute one executable end-to-end principal → organization/tenant resolution → Owner/policy approval → durable audit → G09 execution grant contract. G01 verified identity is not tenant authority; G02 approval is not an execution grant; G11 audit is not a replacement for G01/G02 authoritative registries. INGA must consume opaque, versioned results from those owners and must not derive or persist substitute identities, tenants, approvals or audit state.
+
+**Disposition:** architectural ownership boundaries are **PASS / DOCUMENTED**. End-to-end production authority integration is **PARTIAL / NOT VERIFIED**. A2-NN-03, A2-NN-04 and A2-NN-07 remain open.
