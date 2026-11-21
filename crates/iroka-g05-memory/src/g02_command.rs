@@ -133,10 +133,11 @@ pub enum G02AuthorityError {
     VersionConflict,
     InvalidTransition,
     DatabaseUnavailable,
+    ClockUnavailable,
 }
 
 pub struct PostgresG02Authority {
-    client: Client,
+    client: Arc<Mutex<Client>>,
     roots: Vec<TrustRoot>,
 }
 
@@ -163,12 +164,22 @@ impl PostgresG02Authority {
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
-        Ok(Self { client, roots })
+        Ok(Self { client: Arc::new(Mutex::new(client)), roots })
     }
 
     /// Installs only a root-signed, bounded, sorted registry. The DB high-water
     /// mark and key rows commit together, preventing registry rollback.
     pub fn install_registry(
+        &mut self,
+        registry: &SignedOwnerKeyRegistry,
+        clock: &dyn crate::TrustedClock,
+    ) -> Result<(), G02AuthorityError> {
+        let now = clock.now_unix_seconds().map_err(|_| G02AuthorityError::ClockUnavailable)?;
+        if now == 0 { return Err(G02AuthorityError::ClockUnavailable); }
+        self.install_registry_at(registry, now)
+    }
+
+    fn install_registry_at(
         &mut self,
         registry: &SignedOwnerKeyRegistry,
         now: u64,
@@ -214,8 +225,8 @@ impl PostgresG02Authority {
             .verify(&bytes, &sig)
             .map_err(|_| G02AuthorityError::InvalidRootSignature)?;
         let digest = hex(&Sha256::digest(&bytes));
-        let mut tx = self
-            .client
+        let mut client = self.client.lock().map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        let mut tx = client
             .transaction()
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         tx.query_one("SELECT pg_advisory_xact_lock($1)", &[&REGISTRY_LOCK])
@@ -249,6 +260,16 @@ impl PostgresG02Authority {
     pub fn execute(
         &mut self,
         command: &SignedOwnerCommand,
+        clock: &dyn crate::TrustedClock,
+    ) -> Result<String, G02AuthorityError> {
+        let now = clock.now_unix_seconds().map_err(|_| G02AuthorityError::ClockUnavailable)?;
+        if now == 0 { return Err(G02AuthorityError::ClockUnavailable); }
+        self.execute_at(command, now)
+    }
+
+    fn execute_at(
+        &mut self,
+        command: &SignedOwnerCommand,
         now: u64,
     ) -> Result<String, G02AuthorityError> {
         let p = &command.payload;
@@ -268,8 +289,8 @@ impl PostgresG02Authority {
         let digest = hex(&Sha256::digest(&bytes));
         let signature = Signature::from_slice(&command.signature)
             .map_err(|_| G02AuthorityError::InvalidOwnerSignature)?;
-        let mut tx = self
-            .client
+        let mut client = self.client.lock().map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        let mut tx = client
             .transaction()
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         tx.batch_execute("SELECT pg_advisory_xact_lock_shared(77305113)")
@@ -435,6 +456,74 @@ impl PostgresG02Authority {
         tx.commit()
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         Ok(digest)
+    }
+}
+
+
+impl crate::G02AuthorizationAuthority for PostgresG02Authority {
+    fn authorize_g05(
+        &self,
+        request: &crate::AuthorizationRequest,
+        now: u64,
+    ) -> Result<(), crate::G05Error> {
+        if now == 0 || request.principal_ref.trim().is_empty()
+            || request.subject_ref.trim().is_empty() || request.tenant_ref.trim().is_empty()
+        {
+            return Err(crate::G05Error::AuthorizationDenied);
+        }
+        let now_limit = i64::try_from(now.saturating_add(30))
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        let mut client = self.client.lock()
+            .map_err(|_| crate::G05Error::AuthorityUnavailable)?;
+        let membership = client.query_opt(
+            "SELECT active, version, updated_at, command_id FROM g02_tenant_memberships
+             WHERE subject_ref=$1 AND tenant_ref=$2",
+            &[&request.principal_ref, &request.tenant_ref],
+        ).map_err(|_| crate::G05Error::AuthorityUnavailable)?
+            .ok_or(crate::G05Error::TenantScopeMismatch)?;
+        let active: bool = membership.get(0);
+        let version: i64 = membership.get(1);
+        let updated_at: i64 = membership.get(2);
+        let command_id: String = membership.get(3);
+        if !active || version <= 0 {
+            return Err(crate::G05Error::TenantScopeMismatch);
+        }
+        if updated_at < 0 || updated_at > now_limit || command_id.trim().is_empty() {
+            return Err(crate::G05Error::AuthorityUnavailable);
+        }
+        let command_exists: bool = client.query_one(
+            "SELECT EXISTS(SELECT 1 FROM g02_owner_commands WHERE command_id=$1)",
+            &[&command_id],
+        ).map_err(|_| crate::G05Error::AuthorityUnavailable)?.get(0);
+        if !command_exists {
+            return Err(crate::G05Error::AuthorityUnavailable);
+        }
+        let emergency = client.query_opt(
+            "SELECT active, version, changed_at FROM g02_emergency_stop WHERE singleton=TRUE",
+            &[],
+        ).map_err(|_| crate::G05Error::AuthorityUnavailable)?
+            .ok_or(crate::G05Error::AuthorityUnavailable)?;
+        let stopped: bool = emergency.get(0);
+        let stop_version: i64 = emergency.get(1);
+        let changed_at: i64 = emergency.get(2);
+        if stop_version <= 0 || changed_at < 0 || changed_at > now_limit {
+            return Err(crate::G05Error::AuthorityUnavailable);
+        }
+        if stopped {
+            return Err(crate::G05Error::AuthorizationDenied);
+        }
+        Ok(())
+    }
+
+    fn resolve_g05_activation(
+        &self,
+        _verified_proof: &iroka_kernel::VerifiedReviewerProof,
+        _receipt: &crate::DurableApprovalReceipt,
+        _record: &crate::MemoryRecord,
+        _reviewer: &iroka_kernel::VerifiedPrincipal,
+        _now: u64,
+    ) -> Result<iroka_kernel::G05ActivationDecision, crate::G05Error> {
+        Err(crate::G05Error::ReviewerNotAuthorized)
     }
 }
 
@@ -670,7 +759,7 @@ mod tests {
             .expect("G02 revocation projections migration");
         drop(client);
         PostgresG02Authority {
-            client: Client::connect(url, NoTls).expect("authority PostgreSQL connection"),
+            client: Arc::new(Mutex::new(Client::connect(url, NoTls).expect("authority PostgreSQL connection"))),
             roots,
         }
     }
@@ -748,7 +837,7 @@ mod tests {
             .to_bytes()
             .to_vec();
         authority
-            .install_registry(&registry, 1_100)
+            .install_registry_at(&registry, 1_100)
             .expect("root-verified registry");
 
         let membership = signed_command(
@@ -770,7 +859,7 @@ mod tests {
         );
         let membership_id = membership.payload.command_id.clone();
         let digest = authority
-            .execute(&membership, 1_101)
+            .execute_at(&membership, 1_101)
             .expect("signed membership command");
         let row = authority.client.query_one(
             "SELECT active,version FROM g02_tenant_memberships WHERE subject_ref=$1 AND tenant_ref=$2",
@@ -822,7 +911,7 @@ mod tests {
             &owner_a,
         );
         assert_eq!(
-            authority.execute(&rollback_command, 1_106),
+            authority.execute_at(&rollback_command, 1_106),
             Err(G02AuthorityError::DatabaseUnavailable)
         );
         let rolled_back: i64 = authority
@@ -848,7 +937,7 @@ mod tests {
             .expect("remove rollback fault");
 
         assert_eq!(
-            authority.execute(&membership, 1_101),
+            authority.execute_at(&membership, 1_101),
             Err(G02AuthorityError::Replay)
         );
 
@@ -869,7 +958,7 @@ mod tests {
             &owner_b,
         );
         authority
-            .execute(&revoke, 1_111)
+            .execute_at(&revoke, 1_111)
             .expect("second Owner key revokes first");
         let after_revocation = signed_command(
             OwnerCommandPayload {
@@ -889,7 +978,7 @@ mod tests {
             &owner_a,
         );
         assert_eq!(
-            authority.execute(&after_revocation, 1_121),
+            authority.execute_at(&after_revocation, 1_121),
             Err(G02AuthorityError::OwnerKeyRevoked)
         );
     }
@@ -941,7 +1030,7 @@ mod tests {
             signature: Vec::new(),
         };
         registry.signature = root_signer.sign(&registry.signing_bytes().unwrap()).to_bytes().to_vec();
-        authority.install_registry(&registry, 1_100).unwrap();
+        authority.install_registry_at(&registry, 1_100).unwrap();
 
         let prior_stop: Option<(bool, i64)> = authority.client.query_opt(
             "SELECT active,version FROM g02_emergency_stop WHERE singleton=TRUE", &[]
@@ -959,7 +1048,7 @@ mod tests {
                 active: stop_active, version: stop_version as u64, reason_code: "test baseline".into()
             },
         }, &owner_a);
-        authority.execute(&stop, 1_101).unwrap();
+        authority.execute_at(&stop, 1_101).unwrap();
 
         let policy_payload = crate::PostgresPolicySnapshotPayload {
             schema_id: "iroka.g02.policy-snapshot".into(),
@@ -1030,7 +1119,7 @@ mod tests {
                 reason_code: "test revocation".into(),
             },
         }, &owner_b);
-        authority.execute(&revoke, 1_202).unwrap();
+        authority.execute_at(&revoke, 1_202).unwrap();
         assert_eq!(resolver.current_policy(1_203), Err(crate::G05Error::AuthorizationDenied));
     }
 
