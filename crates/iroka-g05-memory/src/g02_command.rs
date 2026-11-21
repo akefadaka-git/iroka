@@ -1080,7 +1080,7 @@ mod tests {
             canonical_payload: canonical.clone(),
             signature: owner_a.sign(&policy_signing).to_bytes().to_vec(),
         };
-        authority.client.execute(
+        authority.client.lock().unwrap().execute(
             "INSERT INTO g02_policy_snapshots(policy_id,epoch,policy_version,owner_subject,
                 signer_issuer,signer_key_id,issued_at,expires_at,canonical_payload,
                 payload_sha256,signature)
@@ -1089,7 +1089,7 @@ mod tests {
               &snapshot.signer_issuer,&snapshot.signer_key_id,&1_100_i64,&2_000_i64,
               &snapshot.canonical_payload,&snapshot.payload_sha256,&snapshot.signature],
         ).unwrap();
-        authority.client.execute(
+        authority.client.lock().unwrap().execute(
             "INSERT INTO g02_policy_heads(policy_id,current_epoch,current_payload_sha256)
              VALUES($1,$2,$3)",
             &[&snapshot.policy_id,&1_i64,&snapshot.payload_sha256],
