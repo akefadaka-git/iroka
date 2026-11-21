@@ -367,3 +367,15 @@ This is a sequencing recommendation, not an A3 authorization:
 
 ---
 **End of INNIA A2 read-only reconciliation v1.0.0**
+
+
+## 14. INGA exact-head verification trigger audit (2026-11-21)
+
+The exact INGA candidate was re-inspected at `e2ad1dc6a7916028dbcdfbd2d2ec948e0a554f4d`.
+
+- The root workspace manifest at this candidate includes both `crates/iroka-kernel` and `crates/iroka-brain`; the neurogenetic implementation is in `crates/iroka-brain/src/neurogenetic.rs` (blob `5165ada49403c96dffca6aef69b612c6e1ee2cb3`). The crate manifest is `crates/iroka-brain/Cargo.toml` (blob `e09ffd8379988e0f3de3fd2a670f8e6c2c3be3f4`). This is not a separate `crates/inga` crate; INGA currently extends the BRAIN crate.
+- The workflow definition at `.github/workflows/rust-kernel.yml` (blob `f259c08b457f544eae7cafe4755aa1faab1dbe7c`) defines `workflow_dispatch`, but its automatic `pull_request` trigger is restricted to base branches `main` and `architecture/igacms-a2-ci-base`. Its path filter includes `crates/**` and root Cargo manifests/lockfile, so INGA source changes are in scope only when the PR base and path conditions are met.
+- The workflow checks out the exact PR head SHA and runs `cargo fmt --all -- --check`, `cargo check --workspace --all-targets --locked`, no-default-features check, `cargo test --workspace --all-targets --locked` and Clippy with warnings denied (pedantic lint allowed).
+- The GitHub connector available for this work exposes workflow-run reads but no workflow-dispatch/action trigger. No dispatch was attempted, no source/manifest/workflow file was changed to manufacture a trigger, and no run is claimed.
+
+**Disposition:** workflow definition is technically capable of manual dispatch, but exact-head INGA verification remains **NOT RUN** because this execution path cannot invoke that dispatch. The workflow configuration itself is **PASS / INSPECTED**; INGA formatting, compilation, tests and Clippy remain **NOT RUN / UNVERIFIED**. Do not interpret the presence of `workflow_dispatch` as evidence that a run occurred.
