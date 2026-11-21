@@ -2,7 +2,7 @@
 //! G01 credentials, G02 tenant/organization authority, and G09 execution policy
 //! are revalidated at ingress and again immediately before every external effect.
 //! No caller-supplied principal, authorization boolean, or timestamp is accepted.
-use crate::{AuthorizationRequest, G02AuthorizationAuthority, G02PolicySnapshotVerifier, G05Error, Operation, PostgresG02RegistrySnapshotVerifier, PostgresG09PolicyResolver, PostgresOwnerSignatureVerifier};
+use crate::{AuthorizationRequest, G02AuthorizationAuthority, G02PolicySnapshotVerifier, G05Error, Operation, PostgresG02Authority, PostgresG02RegistrySnapshotVerifier, PostgresG09PolicyResolver, PostgresOwnerSignatureVerifier};
 use iroka_kernel::{
     evaluate, CredentialError, DecisionCode, Ed25519CredentialVerifier, Policy, RevocationChecker,
     RiskLevel, VerifiedPrincipal,
@@ -146,14 +146,14 @@ pub type PostgresG05IngressService<
     V = PostgresG02RegistrySnapshotVerifier,
 > = G05IngressService<
     PostgresOwnerSignatureVerifier,
-    PostgresOwnerSignatureVerifier,
+    PostgresG02Authority,
     C,
     KernelG09ExecutionRevalidator<PostgresG09PolicyResolver<V>>,
 >;
 
 pub fn compose_postgres_g05_ingress<C, V>(
     credentials: Ed25519CredentialVerifier<PostgresOwnerSignatureVerifier>,
-    g02_authority: PostgresOwnerSignatureVerifier,
+    g02_authority: PostgresG02Authority,
     clock: C,
     g09_policy: PostgresG09PolicyResolver<V>,
     expected_audience: impl Into<String>,
@@ -219,7 +219,7 @@ where
         if request.principal_ref != principal.subject() {
             return Err(G05Error::AuthorizationDenied);
         }
-        self.g02.authorize_g05(&request)?;
+        self.g02.authorize_g05(&request, now)?;
         self.g09.revalidate(&principal, &request, now)?;
         Ok(AuthenticatedG05Request {
             principal,
@@ -262,7 +262,7 @@ where
         {
             return Err(G05Error::AuthorizationDenied);
         }
-        self.g02.authorize_g05(&context.request)?;
+        self.g02.authorize_g05(&context.request, now)?;
         self.g09.revalidate(&current, &context.request, now)?;
         effect()
     }
@@ -324,7 +324,7 @@ mod http_ingress_tests {
 
     struct TestG02 { member: bool, emergency_stop: bool }
     impl G02AuthorizationAuthority for TestG02 {
-        fn authorize_g05(&self, _: &AuthorizationRequest) -> Result<(), G05Error> {
+        fn authorize_g05(&self, _: &AuthorizationRequest, _now: u64) -> Result<(), G05Error> {
             if !self.member { return Err(G05Error::TenantScopeMismatch); }
             if self.emergency_stop { return Err(G05Error::AuthorizationDenied); }
             Ok(())
