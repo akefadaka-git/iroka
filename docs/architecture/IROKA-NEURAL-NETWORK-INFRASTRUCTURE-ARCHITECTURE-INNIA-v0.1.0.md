@@ -3,7 +3,7 @@
 **Document ID:** INNIA-A1-ARCH-001  
 **Version:** 0.1.0  
 **Status:** Owner-requested A1 architecture proposal; pending review and freeze  
-**Repository:** aефadaka-git/iroka  
+**Repository:** akefadaka-git/iroka  
 **Normative relationship:** Subordinate to IROKA ZERO constitutional principles, the twelve-chromosome Genome, the Governed Kernel and approved IGACMS contracts.
 
 ## 1. Purpose and architectural position
