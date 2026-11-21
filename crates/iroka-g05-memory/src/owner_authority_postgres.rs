@@ -17,9 +17,8 @@ use native_tls::TlsConnector;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{G02PolicySnapshot, G05Error};
 #[cfg(test)]
-use crate::G02PolicySnapshotVerifier;
+use crate::{G02PolicySnapshot, G02PolicySnapshotVerifier, G05Error};
 
 const OWNER_ISSUER: &str = "iroka:owner-authority";
 #[cfg(test)]
