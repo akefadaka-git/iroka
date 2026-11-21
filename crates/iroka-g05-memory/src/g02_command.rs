@@ -163,9 +163,17 @@ impl PostgresG02Authority {
         }
         let tls = TlsConnector::builder()
             .build()
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         Ok(Self { client: Arc::new(Mutex::new(client)), roots, clock })
     }
 
@@ -226,18 +234,34 @@ impl PostgresG02Authority {
             .verify(&bytes, &sig)
             .map_err(|_| G02AuthorityError::InvalidRootSignature)?;
         let digest = hex(&Sha256::digest(&bytes));
-        let mut client = self.client.lock().map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        let mut client = self.client.lock().map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         let mut tx = client
             .transaction()
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         tx.query_one("SELECT pg_advisory_xact_lock($1)", &[&REGISTRY_LOCK])
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         let current: Option<i64> = tx
             .query_one(
                 "SELECT max(version) FROM g02_owner_key_registry_versions",
                 &[],
             )
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?
             .get(0);
         if current.is_some_and(|v| p.version <= v as u64) {
             return Err(G02AuthorityError::RegistryRollback);
@@ -245,15 +269,27 @@ impl PostgresG02Authority {
         tx.execute(
             "INSERT INTO g02_owner_key_registry_versions(version,root_key_id,issued_at,expires_at,payload_sha256,signed_payload,signature) VALUES($1,$2,$3,$4,$5,$6,$7)",
             &[&to_i64(p.version)?, &registry.root_key_id, &to_i64(p.issued_at)?, &to_i64(p.expires_at)?, &digest, &bytes, &registry.signature])
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         for k in &p.keys {
             tx.execute(
                 "INSERT INTO g02_owner_keys(registry_version,owner_subject,issuer,key_id,public_key,not_before,not_after) VALUES($1,$2,$3,$4,$5,$6,$7)",
                 &[&to_i64(p.version)?, &k.owner_subject, &k.issuer, &k.key_id, &&k.public_key[..], &to_i64(k.not_before)?, &to_i64(k.not_after)?])
-                .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         }
         tx.commit()
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })
     }
 
     /// Re-checks the current registry and revocation while holding the signer
@@ -289,19 +325,35 @@ impl PostgresG02Authority {
         let digest = hex(&Sha256::digest(&bytes));
         let signature = Signature::from_slice(&command.signature)
             .map_err(|_| G02AuthorityError::InvalidOwnerSignature)?;
-        let mut client = self.client.lock().map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        let mut client = self.client.lock().map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         let mut tx = client
             .transaction()
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         tx.batch_execute("SELECT pg_advisory_xact_lock_shared(77305113)")
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         let key = tx.query_opt(
             "SELECT k.public_key,k.not_before,k.not_after,v.expires_at
              FROM g02_owner_keys k JOIN g02_owner_key_registry_versions v ON v.version=k.registry_version
              WHERE k.registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions)
                AND k.issuer=$1 AND k.key_id=$2 AND k.owner_subject=$3 FOR UPDATE OF k",
             &[&p.issuer,&p.key_id,&p.owner_subject])
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?.ok_or(G02AuthorityError::UnknownOwnerKey)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?.ok_or(G02AuthorityError::UnknownOwnerKey)?;
         let public_key: Vec<u8> = key.get(0);
         let not_before: i64 = key.get(1);
         let not_after: i64 = key.get(2);
@@ -380,7 +432,11 @@ impl PostgresG02Authority {
                     &[policy_id,&to_i64(*epoch)?,policy_version,&p.owner_subject,&p.issuer,&p.key_id,&to_i64(*issued_at)?,&to_i64(*expires_at)?,canonical_payload,payload_sha256,policy_signature])
                     .map_err(|_| G02AuthorityError::VersionConflict)?;
                 let changed=tx.execute("INSERT INTO g02_policy_heads(policy_id,current_epoch,current_payload_sha256) VALUES($1,$2,$3) ON CONFLICT(policy_id) DO UPDATE SET current_epoch=EXCLUDED.current_epoch,current_payload_sha256=EXCLUDED.current_payload_sha256,updated_at=clock_timestamp() WHERE g02_policy_heads.current_epoch < EXCLUDED.current_epoch",
-                    &[policy_id,&to_i64(*epoch)?,payload_sha256]).map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                    &[policy_id,&to_i64(*epoch)?,payload_sha256]).map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
                 if changed != 1 {
                     return Err(G02AuthorityError::VersionConflict);
                 }
@@ -395,7 +451,11 @@ impl PostgresG02Authority {
                     return Err(G02AuthorityError::Malformed);
                 }
                 let changed=tx.execute("INSERT INTO g02_tenant_memberships(subject_ref,tenant_ref,active,version,updated_at,command_id) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(subject_ref,tenant_ref) DO UPDATE SET active=EXCLUDED.active,version=EXCLUDED.version,updated_at=EXCLUDED.updated_at,command_id=EXCLUDED.command_id WHERE g02_tenant_memberships.version < EXCLUDED.version",
-                    &[subject_ref,tenant_ref,active,&to_i64(*version)?,&to_i64(now)?,&p.command_id]).map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                    &[subject_ref,tenant_ref,active,&to_i64(*version)?,&to_i64(now)?,&p.command_id]).map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
                 if changed != 1 {
                     return Err(G02AuthorityError::VersionConflict);
                 }
@@ -409,7 +469,11 @@ impl PostgresG02Authority {
                     return Err(G02AuthorityError::Malformed);
                 }
                 let current=tx.query_opt("SELECT active,version FROM g02_emergency_stop WHERE singleton=TRUE FOR UPDATE", &[])
-                    .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                    .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
                 match current {
                     None if *version != 1 => return Err(G02AuthorityError::VersionConflict),
                     None => {}
@@ -424,7 +488,11 @@ impl PostgresG02Authority {
                     }
                 }
                 let changed=tx.execute("INSERT INTO g02_emergency_stop(singleton,active,version,reason_code,changed_by_command_id,changed_at) VALUES(TRUE,$1,$2,$3,$4,$5)",
-                    &[active,&to_i64(*version)?,reason_code,&p.command_id,&to_i64(now)?]).map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                    &[active,&to_i64(*version)?,reason_code,&p.command_id,&to_i64(now)?]).map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
                 if changed != 1 {
                     return Err(G02AuthorityError::VersionConflict);
                 }
@@ -434,7 +502,11 @@ impl PostgresG02Authority {
                 key_id,
                 reason_code,
             } => {
-                let target = tx.query_opt("SELECT key_id FROM g02_owner_keys WHERE registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions) AND issuer=$1 AND key_id=$2 FOR UPDATE", &[issuer,key_id]).map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                let target = tx.query_opt("SELECT key_id FROM g02_owner_keys WHERE registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions) AND issuer=$1 AND key_id=$2 FOR UPDATE", &[issuer,key_id]).map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
                 if target.is_none() {
                     return Err(G02AuthorityError::UnknownOwnerKey);
                 }
@@ -452,9 +524,17 @@ impl PostgresG02Authority {
         let outbox = json!({"command_id":p.command_id,"command_kind":kind,"payload_sha256":digest});
         tx.execute("INSERT INTO g02_authority_outbox(event_id,command_id,event_kind,payload_sha256,payload_json,occurred_at) VALUES($1,$2,$3,$4,$5,$6)",
             &[&format!("g02:{}",p.command_id),&p.command_id,&kind,&digest,&outbox,&to_i64(now)?])
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         tx.commit()
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         Ok(digest)
     }
 }
@@ -565,9 +645,17 @@ impl PostgresG02RegistrySnapshotVerifier {
             }
         }
         let tls = TlsConnector::builder().build()
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
-            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+            .map_err(|error| {
+                #[cfg(test)]
+                eprintln!("G02 PostgreSQL operation failed at {}:{}: {error}", file!(), line!());
+                G02AuthorityError::DatabaseUnavailable
+            })?;
         Ok(Self { client: Arc::new(Mutex::new(client)), roots })
     }
 }
