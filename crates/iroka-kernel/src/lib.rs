@@ -5,22 +5,53 @@
 
 mod assurance;
 mod audit_store;
+mod checkpoint;
+mod checkpoint_quorum;
+mod cultural_context;
 mod decision;
+mod ethical_programme;
+mod g05_activation;
 #[cfg(test)]
 mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod operational_self_model;
+mod organization_authority;
 mod owner_approval;
 mod policy;
+mod prosperity_scenarios;
 mod request;
+mod reviewer_proof;
 mod security_store;
 mod service;
+mod teaching_profiles;
+mod tenant;
 mod trust_lifecycle;
 
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
-pub use audit_store::{AuditStoreError, SqliteAuditSink};
+pub use audit_store::{AuditStoreError, MemoryAuditReceipt, SqliteAuditSink};
+pub use checkpoint_quorum::{
+    receipt_bundle_digest, verify_checkpoint_quorum, CheckpointExpectation, QuorumError, RetentionReceiptPayload,
+    RetentionTrust, SignedRetentionReceipt, SignedWitnessReceipt, VerifiedCheckpointQuorum,
+    WitnessReceiptPayload, WitnessTrust, CONFIGURED_WITNESS_COUNT, REQUIRED_RETENTION_DOMAINS,
+    REQUIRED_WITNESS_QUORUM,
+};
+pub use checkpoint::{
+    sign_and_publish_checkpoint, verify_published_checkpoint, CheckpointError, CheckpointPayload,
+    CheckpointSigner, ExternalCheckpointPublisher, ExternalPublicationReceipt,
+    ExternalPublicationVerifier, PublishedCheckpoint, SignedCheckpoint, G11_CHECKPOINT_SCHEMA_ID,
+};
+pub use cultural_context::{
+    CalendarSystem, CommunityReviewStatus, CulturalContextError, CulturalContextRecord,
+    ScriptSystem,
+};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use ethical_programme::{
+    BehavioralOutcome, BehavioralReview, BehavioralReviewError, BehavioralTrait, EthicalPrinciple,
+    EvidenceKind, EvidenceReference, EvidenceValidationError, LicenceStatus, TraitAssessment,
+};
+pub use g05_activation::{G05ActivationDecision, G05ActivationDecisionError, G05ActivationTuple};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
@@ -31,8 +62,8 @@ pub(crate) use identity::{authenticate, IdentityAssertion, IdentityError, Identi
 #[cfg(any(test, feature = "dev-no-revocations"))]
 pub use identity_crypto::NoRevocations;
 pub use identity_crypto::{
-    CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError, TrustStore,
-    TrustedKey,
+    CredentialError, Ed25519CredentialVerifier, RevocationChecker, RevocationError,
+    TrustConfigError, TrustStore, TrustedKey,
 };
 pub use igacms::{
     authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical,
@@ -43,16 +74,36 @@ pub use igacms::{
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
 };
+pub use operational_self_model::{
+    OperationalSelfModel, SelfClaimCategory, SelfClaimStatus, SelfModelClaim, SelfModelError,
+};
+pub use organization_authority::{
+    DelegationContext, OrganizationAuthorityAction, OrganizationAuthorityError,
+    OrganizationAuthorityPayload, OrganizationAuthorityResolver, OrganizationContext,
+    SignedOrganizationAuthorityCommand,
+};
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
     OwnerSecurityCommandPayload, SignedOwnerApproval, SignedOwnerSecurityCommand, TrustedOwnerKey,
 };
 pub use policy::{Policy, RiskLevel};
+pub use prosperity_scenarios::{
+    BusinessScenario, ScenarioCase, ScenarioComparison, ScenarioComparisonResult, ScenarioError,
+    ScenarioResult,
+};
 pub use request::AuthorizationRequest;
+pub use reviewer_proof::{
+    ReviewerKeyBinding, ReviewerKeyBindingResolver, ReviewerProofError, ReviewerProofPayload,
+    ReviewerProofVerifier, SignedReviewerProof, VerifiedReviewerProof,
+};
 pub use security_store::{SecurityStoreError, SqliteSecurityStore};
 pub use service::authorize_authenticated_with_owner_approval;
 #[cfg(test)]
 pub(crate) use service::{authorize, authorize_authenticated};
+pub use teaching_profiles::{
+    HumanReviewRequirement, ImpactLevel, TeachingMode, TeachingProfileError, TeachingTaskProfile,
+};
+pub use tenant::{TenantContext, TenantMembershipResolver, TenantResolutionError};
 pub use trust_lifecycle::{
     verify_and_install_trust_bundle, verify_and_install_trust_bundle_with_roots, SignedTrustBundle,
     TrustBundleError, TrustBundlePayload, TrustRoot, TrustRootSet, TrustSnapshotManager,
