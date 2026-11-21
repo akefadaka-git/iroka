@@ -1000,23 +1000,29 @@ mod tests {
             authority.execute_at(&rollback_command, 1_106),
             Err(G02AuthorityError::DatabaseUnavailable)
         );
-        let rolled_back: i64 = authority.client.lock().unwrap().query_one(
-                "SELECT count(*) FROM g02_owner_commands WHERE command_id=$1",
-                &[&rollback_command_id],
-            )
-            .expect("rolled-back command history")
-            .get(0);
-        let rolled_back_projection: i64 = authority.client.lock().unwrap().query_one(
+        // The injected outbox trigger deliberately aborts a PostgreSQL transaction.
+        // Verify rollback through a fresh connection so this assertion does not depend
+        // on reusing a client whose transaction just observed a server-side error.
+        let mut verification_client =
+            Client::connect(&url, NoTls).expect("verification PostgreSQL connection after rollback");
+        let rolled_back: i64 = verification_client.query_one(
+            "SELECT count(*) FROM g02_owner_commands WHERE command_id=$1",
+            &[&rollback_command_id],
+        ).expect("rolled-back command history on fresh connection").get(0);
+        let rolled_back_projection: i64 = verification_client.query_one(
             "SELECT count(*) FROM g02_tenant_memberships WHERE subject_ref=$1 AND tenant_ref=$2",
             &[&rollback_subject, &tenant_ref],
-        ).expect("rolled-back membership projection").get(0);
+        ).expect("rolled-back membership projection on fresh connection").get(0);
         assert_eq!(rolled_back, 0);
         assert_eq!(rolled_back_projection, 0);
-        authority.client.lock().unwrap().batch_execute(
-                "DROP TRIGGER g02_test_fail_authority_outbox ON g02_authority_outbox;
+        verification_client.batch_execute(
+            "DROP TRIGGER g02_test_fail_authority_outbox ON g02_authority_outbox;
              DROP FUNCTION g02_test_fail_authority_outbox();",
-            )
-            .expect("remove rollback fault");
+        ).expect("remove rollback fault");
+        // Continue subsequent replay/revocation assertions on a clean connection.
+        authority.client = Arc::new(Mutex::new(
+            Client::connect(&url, NoTls).expect("reconnected authority PostgreSQL client"),
+        ));
 
         assert_eq!(
             authority.execute_at(&membership, 1_101),
