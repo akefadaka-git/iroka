@@ -888,6 +888,11 @@ mod tests {
             recipient_refs: vec![],
             correlation_ref: format!("g02-ingress-{suffix}"),
         };
+        let prior_stop_version: Option<i64> = authority.client.lock().unwrap()
+            .query_one("SELECT max(version) FROM g02_emergency_stop", &[])
+            .expect("emergency-stop high-water mark")
+            .get(0);
+        let stop_base_version = prior_stop_version.unwrap_or(0) as u64;
         let baseline_stop = signed_command(
             OwnerCommandPayload {
                 command_id: format!("g02-stop-baseline-{}", unique_test_suffix()),
@@ -898,7 +903,7 @@ mod tests {
                 expires_at: 1_200,
                 action: OwnerCommandAction::SetEmergencyStop {
                     active: false,
-                    version: 1,
+                    version: stop_base_version + 1,
                     reason_code: "baseline".into(),
                 },
             },
@@ -917,7 +922,7 @@ mod tests {
                 expires_at: 1_200,
                 action: OwnerCommandAction::SetEmergencyStop {
                     active: true,
-                    version: 2,
+                    version: stop_base_version + 2,
                     reason_code: "integration test".into(),
                 },
             },
@@ -939,7 +944,7 @@ mod tests {
                 expires_at: 1_200,
                 action: OwnerCommandAction::SetEmergencyStop {
                     active: false,
-                    version: 3,
+                    version: stop_base_version + 3,
                     reason_code: "restore integration test".into(),
                 },
             },
