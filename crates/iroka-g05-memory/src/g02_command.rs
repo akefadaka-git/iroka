@@ -798,9 +798,7 @@ mod tests {
             provenance_ref: "test-only-root-provenance".into(),
         };
         let mut authority = test_authority(&url, vec![root.clone()]);
-        let current: Option<i64> = authority
-            .client
-            .query_one(
+        let current: Option<i64> = authority.client.lock().unwrap().query_one(
                 "SELECT max(version) FROM g02_owner_key_registry_versions",
                 &[],
             )
@@ -867,12 +865,12 @@ mod tests {
         let digest = authority
             .execute_at(&membership, 1_101)
             .expect("signed membership command");
-        let row = authority.client.query_one(
+        let row = authority.client.lock().unwrap().query_one(
             "SELECT active,version FROM g02_tenant_memberships WHERE subject_ref=$1 AND tenant_ref=$2",
             &[&subject_ref, &tenant_ref]).expect("membership projection");
         assert!(row.get::<_, bool>(0));
         assert_eq!(row.get::<_, i64>(1), 1);
-        let outbox: i64 = authority.client.query_one(
+        let outbox: i64 = authority.client.lock().unwrap().query_one(
             "SELECT count(*) FROM g02_authority_outbox WHERE command_id=$1 AND payload_sha256=$2",
             &[&membership_id,&digest]).expect("atomic G11 outbox").get(0);
         assert_eq!(outbox, 1);
@@ -895,9 +893,7 @@ mod tests {
              BEFORE INSERT ON g02_authority_outbox
              FOR EACH ROW EXECUTE FUNCTION g02_test_fail_authority_outbox();"
         );
-        authority
-            .client
-            .batch_execute(&trigger_sql)
+        authority.client.lock().unwrap().batch_execute(&trigger_sql)
             .expect("install rollback fault");
         let rollback_command = signed_command(
             OwnerCommandPayload {
@@ -920,23 +916,19 @@ mod tests {
             authority.execute_at(&rollback_command, 1_106),
             Err(G02AuthorityError::DatabaseUnavailable)
         );
-        let rolled_back: i64 = authority
-            .client
-            .query_one(
+        let rolled_back: i64 = authority.client.lock().unwrap().query_one(
                 "SELECT count(*) FROM g02_owner_commands WHERE command_id=$1",
                 &[&rollback_command_id],
             )
             .expect("rolled-back command history")
             .get(0);
-        let rolled_back_projection: i64 = authority.client.query_one(
+        let rolled_back_projection: i64 = authority.client.lock().unwrap().query_one(
             "SELECT count(*) FROM g02_tenant_memberships WHERE subject_ref=$1 AND tenant_ref=$2",
             &[&rollback_subject, &tenant_ref],
         ).expect("rolled-back membership projection").get(0);
         assert_eq!(rolled_back, 0);
         assert_eq!(rolled_back_projection, 0);
-        authority
-            .client
-            .batch_execute(
+        authority.client.lock().unwrap().batch_execute(
                 "DROP TRIGGER g02_test_fail_authority_outbox ON g02_authority_outbox;
              DROP FUNCTION g02_test_fail_authority_outbox();",
             )
@@ -1004,7 +996,7 @@ mod tests {
             provenance_ref: "test-only-root-provenance".into(),
         };
         let mut authority = test_authority(&url, vec![root.clone()]);
-        let version: i64 = authority.client.query_one(
+        let version: i64 = authority.client.lock().unwrap().query_one(
             "SELECT COALESCE(max(version),0)+1 FROM g02_owner_key_registry_versions", &[]
         ).unwrap().get(0);
         let registry_payload = OwnerKeyRegistryPayload {
@@ -1038,7 +1030,7 @@ mod tests {
         registry.signature = root_signer.sign(&registry.signing_bytes().unwrap()).to_bytes().to_vec();
         authority.install_registry_at(&registry, 1_100).unwrap();
 
-        let prior_stop: Option<(bool, i64)> = authority.client.query_opt(
+        let prior_stop: Option<(bool, i64)> = authority.client.lock().unwrap().query_opt(
             "SELECT active,version FROM g02_emergency_stop WHERE singleton=TRUE", &[]
         ).unwrap().map(|row| (row.get(0), row.get(1)));
         let stop_active = !prior_stop.map(|state| state.0).unwrap_or(true);
