@@ -139,6 +139,7 @@ pub enum G02AuthorityError {
 pub struct PostgresG02Authority {
     client: Arc<Mutex<Client>>,
     roots: Vec<TrustRoot>,
+    clock: Arc<dyn crate::TrustedClock>,
 }
 
 impl PostgresG02Authority {
@@ -146,6 +147,7 @@ impl PostgresG02Authority {
     pub fn connect(
         connection_string: &str,
         roots: Vec<TrustRoot>,
+        clock: Arc<dyn crate::TrustedClock>,
     ) -> Result<Self, G02AuthorityError> {
         if !connection_string.contains("sslmode=verify-full") || roots.is_empty() {
             return Err(G02AuthorityError::InvalidRoot);
@@ -164,7 +166,7 @@ impl PostgresG02Authority {
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
-        Ok(Self { client: Arc::new(Mutex::new(client)), roots })
+        Ok(Self { client: Arc::new(Mutex::new(client)), roots, clock })
     }
 
     /// Installs only a root-signed, bounded, sorted registry. The DB high-water
@@ -172,9 +174,8 @@ impl PostgresG02Authority {
     pub fn install_registry(
         &mut self,
         registry: &SignedOwnerKeyRegistry,
-        clock: &dyn crate::TrustedClock,
     ) -> Result<(), G02AuthorityError> {
-        let now = clock.now_unix_seconds().map_err(|_| G02AuthorityError::ClockUnavailable)?;
+        let now = self.clock.now_unix_seconds().map_err(|_| G02AuthorityError::ClockUnavailable)?;
         if now == 0 { return Err(G02AuthorityError::ClockUnavailable); }
         self.install_registry_at(registry, now)
     }
@@ -260,9 +261,8 @@ impl PostgresG02Authority {
     pub fn execute(
         &mut self,
         command: &SignedOwnerCommand,
-        clock: &dyn crate::TrustedClock,
     ) -> Result<String, G02AuthorityError> {
-        let now = clock.now_unix_seconds().map_err(|_| G02AuthorityError::ClockUnavailable)?;
+        let now = self.clock.now_unix_seconds().map_err(|_| G02AuthorityError::ClockUnavailable)?;
         if now == 0 { return Err(G02AuthorityError::ClockUnavailable); }
         self.execute_at(command, now)
     }
@@ -464,8 +464,9 @@ impl crate::G02AuthorizationAuthority for PostgresG02Authority {
     fn authorize_g05(
         &self,
         request: &crate::AuthorizationRequest,
-        now: u64,
+        request: &crate::AuthorizationRequest,
     ) -> Result<(), crate::G05Error> {
+        let now = self.clock.now_unix_seconds()?;
         if now == 0 || request.principal_ref.trim().is_empty()
             || request.subject_ref.trim().is_empty() || request.tenant_ref.trim().is_empty()
         {
@@ -735,6 +736,11 @@ mod tests {
     use postgres::NoTls;
     use crate::G09PolicyResolver;
 
+    struct FixedClock(u64);
+    impl crate::TrustedClock for FixedClock {
+        fn now_unix_seconds(&self) -> Result<u64, crate::G05Error> { Ok(self.0) }
+    }
+
     fn test_authority(url: &str, roots: Vec<TrustRoot>) -> PostgresG02Authority {
         let mut client = Client::connect(url, NoTls).expect("test PostgreSQL connection");
         client
@@ -761,6 +767,7 @@ mod tests {
         PostgresG02Authority {
             client: Arc::new(Mutex::new(Client::connect(url, NoTls).expect("authority PostgreSQL connection"))),
             roots,
+            clock: Arc::new(FixedClock(1_200)),
         }
     }
 
