@@ -101,7 +101,6 @@ pub struct CreateWorkflow {
     pub contract_version: String,
     pub idempotency_key: String,
     pub input_digest: [u8; 32],
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -175,7 +174,6 @@ pub struct TaskTransitionRequest {
     pub task_id: String,
     pub expected_version: u64,
     pub next_state: TaskState,
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -272,14 +270,12 @@ pub struct TaskRetryRequest {
     pub tenant_selector: String,
     pub task_id: String,
     pub failure: RetryFailureClass,
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkflowCancellationRequest {
     pub tenant_selector: String,
     pub workflow_id: String,
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -435,8 +431,12 @@ impl SqliteWorkflowStore {
         clock: &dyn TrustedClock,
         request: &CreateWorkflow,
     ) -> Result<WorkflowReceipt, G08Error> {
-        let now = clock.now_unix_seconds().map_err(|_| G08Error::TrustedTimeUnavailable)?;
-        if now == 0 { return Err(G08Error::TrustedTimeUnavailable); }
+        let now = clock
+            .now_unix_seconds()
+            .map_err(|_| G08Error::TrustedTimeUnavailable)?;
+        if now == 0 {
+            return Err(G08Error::TrustedTimeUnavailable);
+        }
 
         validate_request(request)?;
         let scope = authority.resolve_tenant(principal, &request.tenant_selector, now)?;
@@ -580,8 +580,12 @@ impl SqliteWorkflowStore {
         workflow_id: &str,
         tasks: &[TaskSpec],
     ) -> Result<Vec<TaskReceipt>, G08Error> {
-        let now = clock.now_unix_seconds().map_err(|_| G08Error::TrustedTimeUnavailable)?;
-        if now == 0 { return Err(G08Error::TrustedTimeUnavailable); }
+        let now = clock
+            .now_unix_seconds()
+            .map_err(|_| G08Error::TrustedTimeUnavailable)?;
+        if now == 0 {
+            return Err(G08Error::TrustedTimeUnavailable);
+        }
 
         if workflow_id.trim().is_empty() || now == 0 || tasks.is_empty() || tasks.len() > 256 {
             return Err(G08Error::InvalidInput);
@@ -745,8 +749,12 @@ impl SqliteWorkflowStore {
         clock: &dyn TrustedClock,
         request: &TaskTransitionRequest,
     ) -> Result<TaskReceipt, G08Error> {
-        let now = clock.now_unix_seconds().map_err(|_| G08Error::TrustedTimeUnavailable)?;
-        if now == 0 { return Err(G08Error::TrustedTimeUnavailable); }
+        let now = clock
+            .now_unix_seconds()
+            .map_err(|_| G08Error::TrustedTimeUnavailable)?;
+        if now == 0 {
+            return Err(G08Error::TrustedTimeUnavailable);
+        }
 
         if request.task_id.trim().is_empty() || request.expected_version == 0 || now == 0 {
             return Err(G08Error::InvalidInput);
@@ -900,11 +908,8 @@ impl SqliteWorkflowStore {
                 let ready_event_id = format!(
                     "g08_task_evt_{}",
                     hex_digest(&Sha256::digest(
-                        format!(
-                            "{ready_task_id}:{next_ready_version}:{}:unblocked",
-                            now
-                        )
-                        .as_bytes()
+                        format!("{ready_task_id}:{next_ready_version}:{}:unblocked", now)
+                            .as_bytes()
                     ))
                 );
                 transaction
@@ -1559,8 +1564,12 @@ impl SqliteWorkflowStore {
         request: &TaskRetryRequest,
         policy: RetryPolicy,
     ) -> Result<Option<RetrySchedule>, G08Error> {
-        let now = clock.now_unix_seconds().map_err(|_| G08Error::TrustedTimeUnavailable)?;
-        if now == 0 { return Err(G08Error::TrustedTimeUnavailable); }
+        let now = clock
+            .now_unix_seconds()
+            .map_err(|_| G08Error::TrustedTimeUnavailable)?;
+        if now == 0 {
+            return Err(G08Error::TrustedTimeUnavailable);
+        }
 
         if request.task_id.trim().is_empty() || now == 0 {
             return Err(G08Error::InvalidInput);
@@ -1631,11 +1640,7 @@ impl SqliteWorkflowStore {
         let event_id = format!(
             "g08_retry_evt_{}",
             hex_digest(&Sha256::digest(
-                format!(
-                    "{}:{}:{}:{}",
-                    request.task_id, attempts, now, event_type
-                )
-                .as_bytes()
+                format!("{}:{}:{}:{}", request.task_id, attempts, now, event_type).as_bytes()
             ))
         );
         transaction
@@ -1670,8 +1675,12 @@ impl SqliteWorkflowStore {
         clock: &dyn TrustedClock,
         request: &WorkflowCancellationRequest,
     ) -> Result<WorkflowCancellationReceipt, G08Error> {
-        let now = clock.now_unix_seconds().map_err(|_| G08Error::TrustedTimeUnavailable)?;
-        if now == 0 { return Err(G08Error::TrustedTimeUnavailable); }
+        let now = clock
+            .now_unix_seconds()
+            .map_err(|_| G08Error::TrustedTimeUnavailable)?;
+        if now == 0 {
+            return Err(G08Error::TrustedTimeUnavailable);
+        }
 
         if request.workflow_id.trim().is_empty() || now == 0 {
             return Err(G08Error::InvalidInput);
@@ -2075,7 +2084,11 @@ mod tests {
     }
 
     struct FixedClock(u64);
-    impl TrustedClock for FixedClock { fn now_unix_seconds(&self) -> Result<u64, crate::TrustedTimeError> { Ok(self.0) } }
+    impl TrustedClock for FixedClock {
+        fn now_unix_seconds(&self) -> Result<u64, crate::TrustedTimeError> {
+            Ok(self.0)
+        }
+    }
 
     fn principal() -> VerifiedPrincipal {
         VerifiedPrincipal::from_verified_credential(
@@ -2107,7 +2120,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         assert_eq!(receipt.state, WorkflowState::Draft);
@@ -2129,7 +2142,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         let second = store
@@ -2137,7 +2150,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         assert_eq!(first.workflow_id, second.workflow_id);
@@ -2158,7 +2171,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
 
@@ -2168,12 +2181,7 @@ mod tests {
             "credential:other".into(),
         );
         assert_eq!(
-            store.create_workflow(
-                &authority,
-                &other,
-                &FixedClock(1_800_000_000),
-                &request()
-            ),
+            store.create_workflow(&authority, &other, &FixedClock(1_800_000_000), &request()),
             Err(G08Error::TenantAuthorityRejected)
         );
         assert_eq!(store.workflow_count().unwrap(), 1);
@@ -2192,7 +2200,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         let mut conflicting = request();
@@ -2260,7 +2268,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         let created = store
@@ -2274,7 +2282,7 @@ mod tests {
                     task_key: "retry-me".into(),
                     task_type: "compute".into(),
                     depends_on: vec![],
-                }]
+                }],
             )
             .unwrap();
         let policy = RetryPolicy::new(3, 5, 10).unwrap();
@@ -2318,7 +2326,7 @@ mod tests {
                     task_id: created[0].task_id.clone(),
                     failure: RetryFailureClass::WorkerUnavailable,
                 },
-                policy
+                policy,
             )
             .unwrap()
             .unwrap();
@@ -2378,7 +2386,7 @@ mod tests {
                     task_id: created[0].task_id.clone(),
                     failure: RetryFailureClass::TransientStore,
                 },
-                policy
+                policy,
             )
             .unwrap()
             .unwrap();
@@ -2416,16 +2424,16 @@ mod tests {
         assert_eq!(
             store
                 .schedule_task_retry(
-                &authority,
-                &principal(),
-                &FixedClock(1_800_000_019),
-                &TaskRetryRequest {
+                    &authority,
+                    &principal(),
+                    &FixedClock(1_800_000_019),
+                    &TaskRetryRequest {
                         tenant_selector: "tenant:test".into(),
                         task_id: created[0].task_id.clone(),
                         failure: RetryFailureClass::WorkerUnavailable,
                     },
-                policy
-            )
+                    policy
+                )
                 .unwrap(),
             None
         );
@@ -2457,7 +2465,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         let created = store
@@ -2478,7 +2486,7 @@ mod tests {
                         task_type: "transform".into(),
                         depends_on: vec!["active".into()],
                     },
-                ]
+                ],
             )
             .unwrap();
         let lease = store
@@ -2504,7 +2512,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_002),
-                &request
+                &request,
             )
             .unwrap();
         assert_eq!(cancelled.cancelled_tasks, 2);
@@ -2514,7 +2522,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_002),
-                &request
+                &request,
             )
             .unwrap();
         assert_eq!(replay.cancelled_tasks, 2);
@@ -2575,26 +2583,26 @@ mod tests {
             let store = SqliteWorkflowStore::open(&path).unwrap();
             let workflow = store
                 .create_workflow(
-                &authority,
-                &principal(),
-                &FixedClock(1_800_000_000),
-                &request()
-            )
+                    &authority,
+                    &principal(),
+                    &FixedClock(1_800_000_000),
+                    &request(),
+                )
                 .unwrap();
             workflow_id = workflow.workflow_id;
             let tasks = store
                 .create_task_graph(
-                &authority,
-                &principal(),
-                &FixedClock(1_800_000_000),
-                "tenant:test",
-                &workflow_id,
-                &[TaskSpec {
+                    &authority,
+                    &principal(),
+                    &FixedClock(1_800_000_000),
+                    "tenant:test",
+                    &workflow_id,
+                    &[TaskSpec {
                         task_key: "recoverable".into(),
                         task_type: "compute".into(),
                         depends_on: vec![],
-                    }]
-            )
+                    }],
+                )
                 .unwrap();
             task_id_value = tasks[0].task_id.clone();
             let first = store
@@ -2670,7 +2678,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         store
@@ -2684,7 +2692,7 @@ mod tests {
                     task_key: "single-winner".into(),
                     task_type: "compute".into(),
                     depends_on: vec![],
-                }]
+                }],
             )
             .unwrap();
         let barrier = Arc::new(Barrier::new(3));
@@ -2737,7 +2745,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         let tasks = [TaskSpec {
@@ -2752,7 +2760,7 @@ mod tests {
                 &FixedClock(1_800_000_000),
                 "tenant:test",
                 &workflow.workflow_id,
-                &tasks
+                &tasks,
             )
             .unwrap();
         let first = store
@@ -2824,7 +2832,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         store
@@ -2838,7 +2846,7 @@ mod tests {
                     task_key: "first".into(),
                     task_type: "compute".into(),
                     depends_on: vec![],
-                }]
+                }],
             )
             .unwrap();
         let claim = store
@@ -2902,7 +2910,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         let tasks = [
@@ -2924,7 +2932,7 @@ mod tests {
                 &FixedClock(1_800_000_000),
                 "tenant:test",
                 &workflow.workflow_id,
-                &tasks
+                &tasks,
             )
             .unwrap();
         let claim = store
@@ -3066,7 +3074,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         let tasks = [
@@ -3088,7 +3096,7 @@ mod tests {
                 &FixedClock(1_800_000_000),
                 "tenant:test",
                 &workflow.workflow_id,
-                &tasks
+                &tasks,
             )
             .unwrap();
         assert_eq!(created.len(), 2);
@@ -3115,7 +3123,7 @@ mod tests {
                 &FixedClock(1_800_000_001),
                 "tenant:test",
                 &workflow.workflow_id,
-                &tasks
+                &tasks,
             )
             .unwrap();
         assert_eq!(created, replay);
@@ -3134,7 +3142,7 @@ mod tests {
                     task_id: source.task_id.clone(),
                     expected_version: 1,
                     next_state: TaskState::Running,
-                }
+                },
             )
             .unwrap();
         store
@@ -3147,7 +3155,7 @@ mod tests {
                     task_id: source.task_id.clone(),
                     expected_version: 2,
                     next_state: TaskState::Succeeded,
-                }
+                },
             )
             .unwrap();
 
@@ -3259,7 +3267,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         let created = store
@@ -3273,7 +3281,7 @@ mod tests {
                     task_key: "signed-worker-task".into(),
                     task_type: "compute".into(),
                     depends_on: vec![],
-                }]
+                }],
             )
             .unwrap();
 
@@ -3380,7 +3388,7 @@ mod tests {
                 &authority,
                 &principal(),
                 &FixedClock(1_800_000_000),
-                &request()
+                &request(),
             )
             .unwrap();
         store
@@ -3394,7 +3402,7 @@ mod tests {
                     task_key: "must-remain-ready".into(),
                     task_type: "compute".into(),
                     depends_on: vec![],
-                }]
+                }],
             )
             .unwrap();
 
