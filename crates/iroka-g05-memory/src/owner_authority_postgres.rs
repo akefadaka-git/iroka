@@ -22,6 +22,7 @@ use crate::{G02PolicySnapshot, G05Error};
 use crate::G02PolicySnapshotVerifier;
 
 const OWNER_ISSUER: &str = "iroka:owner-authority";
+#[cfg(test)]
 const POLICY_DOMAIN: &[u8] = b"IROKA:G02:POLICY-SNAPSHOT:V1\0";
 const MAX_COMMAND_TTL: u64 = 900;
 const CLOCK_SKEW: u64 = 30;
@@ -330,6 +331,7 @@ pub struct PolicySnapshotPayload {
     pub expires_at: u64,
 }
 impl PolicySnapshotPayload {
+    #[cfg(test)]
     fn validate(&self, row: &G02PolicySnapshot, now: u64) -> Result<(), G02CommandError> {
         if row.signer_issuer != OWNER_ISSUER
             || self.schema_id != "iroka.g02.policy-snapshot" || self.contract_version != "1.0"
@@ -353,6 +355,7 @@ impl PolicySnapshotPayload {
         Ok(())
     }
 }
+#[cfg(test)]
 fn sorted_unique(v: &[String]) -> bool { v.windows(2).all(|w| w[0] < w[1]) }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PolicyRiskLevel { Low, Moderate, High, Critical }
