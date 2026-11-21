@@ -280,7 +280,7 @@ fn postgres_g02_ingress_adapter_denies_inactive_membership_and_emergency_stop() 
     });
     auth.apply_security_command(&active, 1_201).unwrap();
     let emergency = command(&signer, "owner-key", &unique("ingress-stop-active"), G02SecurityAction::SetEmergencyStop {
-        active: true, version: 2, reason: "emergency test".into()
+        active: true, version: baseline_version as u64 + 1, reason: "emergency test".into()
     });
     auth.apply_security_command(&emergency, 1_202).unwrap();
     assert_eq!(auth.authorize_g05(&request), Err(G05Error::AuthorizationDenied));
