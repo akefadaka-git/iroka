@@ -272,7 +272,7 @@ fn postgres_g02_ingress_adapter_denies_inactive_membership_and_emergency_stop() 
         classification: Classification::Internal, memory_id: None, recipient_refs: vec![],
         correlation_ref: unique("ingress-trace"),
     };
-    assert_eq!(auth.authorize_g05(&request, 1_201), Err(G05Error::TenantScopeMismatch));
+    assert_eq!(auth.authorize_g05(&request), Err(G05Error::TenantScopeMismatch));
 
     let active = command(&signer, "owner-key", &unique("ingress-active"), G02SecurityAction::SetTenantMembership {
         subject: subject.clone(), tenant_id: tenant, active: true, version: 2,
@@ -283,7 +283,7 @@ fn postgres_g02_ingress_adapter_denies_inactive_membership_and_emergency_stop() 
         active: true, version: baseline_version as u64 + 1, reason: "emergency test".into()
     });
     auth.apply_security_command(&emergency, 1_202).unwrap();
-    assert_eq!(auth.authorize_g05(&request, 1_202), Err(G05Error::AuthorizationDenied));
+    assert_eq!(auth.authorize_g05(&request), Err(G05Error::AuthorizationDenied));
     let restore = command(&signer, "owner-key", &unique("ingress-stop-restore"), G02SecurityAction::SetEmergencyStop {
         active: false, version: baseline_version as u64 + 2, reason: "restore shared integration-test state".into()
     });
