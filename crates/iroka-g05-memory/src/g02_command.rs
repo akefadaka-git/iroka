@@ -464,7 +464,6 @@ impl crate::G02AuthorizationAuthority for PostgresG02Authority {
     fn authorize_g05(
         &self,
         request: &crate::AuthorizationRequest,
-        request: &crate::AuthorizationRequest,
     ) -> Result<(), crate::G05Error> {
         let now = self.clock.now_unix_seconds()?;
         if now == 0 || request.principal_ref.trim().is_empty()
