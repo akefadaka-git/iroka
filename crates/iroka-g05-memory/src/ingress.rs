@@ -12,6 +12,12 @@ pub trait TrustedClock: Send + Sync {
     fn now_unix_seconds(&self) -> Result<u64, G05Error>;
 }
 
+impl<T: TrustedClock + ?Sized> TrustedClock for std::sync::Arc<T> {
+    fn now_unix_seconds(&self) -> Result<u64, G05Error> {
+        (**self).now_unix_seconds()
+    }
+}
+
 /// G09 policy source must return a fresh authoritative policy snapshot and
 /// emergency-stop state on every invocation. A stale/unavailable source denies.
 pub trait G09PolicyResolver: Send + Sync {
