@@ -888,28 +888,35 @@ mod tests {
             recipient_refs: vec![],
             correlation_ref: format!("g02-ingress-{suffix}"),
         };
-        let prior_stop_version: Option<i64> = authority.client.lock().unwrap()
-            .query_one("SELECT max(version) FROM g02_emergency_stop", &[])
-            .expect("emergency-stop high-water mark")
-            .get(0);
-        let stop_base_version = prior_stop_version.unwrap_or(0) as u64;
-        let baseline_stop = signed_command(
-            OwnerCommandPayload {
-                command_id: format!("g02-stop-baseline-{}", unique_test_suffix()),
-                owner_subject: "owner:iroka-test".into(),
-                issuer: "iroka:owner-authority".into(),
-                key_id: "owner-a".into(),
-                issued_at: 1_100,
-                expires_at: 1_200,
-                action: OwnerCommandAction::SetEmergencyStop {
-                    active: false,
-                    version: stop_base_version + 1,
-                    reason_code: "baseline".into(),
+        let prior_stop: Option<(bool, i64)> = authority.client.lock().unwrap()
+            .query_opt("SELECT active, version FROM g02_emergency_stop WHERE singleton=TRUE", &[])
+            .expect("emergency-stop baseline")
+            .map(|row| (row.get(0), row.get(1)));
+        let (mut baseline_version, needs_baseline) = match prior_stop {
+            None => (0_u64, true),
+            Some((true, version)) => (version as u64, true),
+            Some((false, version)) => (version as u64, false),
+        };
+        if needs_baseline {
+            baseline_version += 1;
+            let baseline_stop = signed_command(
+                OwnerCommandPayload {
+                    command_id: format!("g02-stop-baseline-{}", unique_test_suffix()),
+                    owner_subject: "owner:iroka-test".into(),
+                    issuer: "iroka:owner-authority".into(),
+                    key_id: "owner-a".into(),
+                    issued_at: 1_100,
+                    expires_at: 1_200,
+                    action: OwnerCommandAction::SetEmergencyStop {
+                        active: false,
+                        version: baseline_version,
+                        reason_code: "baseline".into(),
+                    },
                 },
-            },
-            &owner_a,
-        );
-        authority.execute_at(&baseline_stop, 1_102).unwrap();
+                &owner_a,
+            );
+            authority.execute_at(&baseline_stop, 1_102).unwrap();
+        }
         assert_eq!(authority.authorize_g05(&auth_request), Ok(()));
 
         let emergency_stop = signed_command(
@@ -922,7 +929,7 @@ mod tests {
                 expires_at: 1_200,
                 action: OwnerCommandAction::SetEmergencyStop {
                     active: true,
-                    version: stop_base_version + 2,
+                    version: baseline_version + 1,
                     reason_code: "integration test".into(),
                 },
             },
@@ -944,7 +951,7 @@ mod tests {
                 expires_at: 1_200,
                 action: OwnerCommandAction::SetEmergencyStop {
                     active: false,
-                    version: stop_base_version + 3,
+                    version: baseline_version + 2,
                     reason_code: "restore integration test".into(),
                 },
             },
