@@ -394,3 +394,80 @@ The four authoritative contract documents and corresponding kernel modules were 
 **Integration finding:** the documents establish compatible principles but do not constitute one executable end-to-end principal → organization/tenant resolution → Owner/policy approval → durable audit → G09 execution grant contract. G01 verified identity is not tenant authority; G02 approval is not an execution grant; G11 audit is not a replacement for G01/G02 authoritative registries. INGA must consume opaque, versioned results from those owners and must not derive or persist substitute identities, tenants, approvals or audit state.
 
 **Disposition:** architectural ownership boundaries are **PASS / DOCUMENTED**. End-to-end production authority integration is **PARTIAL / NOT VERIFIED**. A2-NN-03, A2-NN-04 and A2-NN-07 remain open.
+
+
+## 16. G08 temporal integration reconciliation (2026-11-21)
+
+### 16.1 Existing G08 temporal capability
+
+The unmerged G08 durable coordinator candidate is PR #63, branch `feat/g08-a3-durable-coordinator`, current documented head `716cb7c50047179fb02a04f3f35b52cd2e634deb`. Its coordinator source blob at the inspected branch revision is `e9745890c21bc79a76327a889d0b2ecfca21e8c1`; trusted-time source blob is `5087bcb2b99722653981f275221d2c942a0be3b1`; trusted adapter source is `crates/iroka-kernel/src/g08_trust_adapters.rs`. This is a separate unmerged candidate, not mainline capability.
+
+The candidate contains a substantive time primitive:
+- `TrustedClock` has no wall-clock fallback and returns unavailable/invalid errors.
+- `SqliteQuorumTrustedClock` verifies Ed25519-signed attestations from distinct configured source IDs, enforces a configured quorum and maximum skew (hard-capped at 10 seconds), checks source key validity, a maximum 30-second attestation lifetime, per-source monotonic sequence, and a persistent global nondecreasing high-water mark.
+- A fresh quorum is required after process restart. Within one process, `std::time::Instant` advances the accepted Unix-second anchor; after the shortest attestation expiry, the clock fails closed.
+- The SQLite replay guard is transactionally monotonic across processes sharing the same database file. The implementation explicitly does not claim protection against privileged database snapshot rollback or independent multi-host databases.
+- Worker proofs use the injected trusted clock for proof validity, bounded to 30 seconds, and bind worker, key, operation, tenant selector, resource, sequence and nonce.
+
+This provides a trusted-time *primitive* and worker-authentication integration, not yet a complete coordinator temporal integration.
+
+### 16.2 Blocking temporal integration defect
+
+The coordinator's public mutation request/data model still accepts caller-provided time values, including:
+- `CreateWorkflow.now`;
+- task-graph creation's `now` argument;
+- `TaskTransitionRequest.now`;
+- legacy `TaskClaimRequest.now`;
+- `TaskLeaseRenewalRequest.now` and `TaskLeaseCompletionRequest.now`;
+- `TaskRetryRequest.now`;
+- `WorkflowCancellationRequest.now`.
+
+The threat model itself states that every public coordinator mutation must obtain one `TrustedClock` observation internally, remove caller-supplied time fields, and reuse that exact observation for tenant-authority freshness, state writes, lease comparisons, retry scheduling, cancellation and event timestamps. The inspected public types and methods do not yet satisfy that requirement. Worker-proof authentication's injected clock does not automatically make unrelated coordinator mutation timestamps trustworthy.
+
+Consequences: a caller can potentially submit stale/future timestamps into coordinator operations that use those request values for freshness, deadlines, leases, retries or persisted event time. The implementation must not be represented as meeting its own A4 temporal invariant until this API boundary is corrected and verified.
+
+### 16.3 Temporal model required for INNIA/G08
+
+The following is a proposed A2 integration contract, not an A3 code authorization:
+
+1. **One canonical instant:** internal security and lifecycle timestamps use UTC Unix time from the injected G08 trusted clock. Caller timestamps are metadata only and never control authorization, expiry, lease, retry, retention or ordering decisions.
+2. **One observation per mutation:** each public state-changing operation captures exactly one trusted-time observation at entry and threads that immutable value through tenant membership freshness checks, worker proof validation, lease/deadline decisions, transition records, retry schedules and persisted timestamps. Do not call the clock repeatedly mid-transaction and create inconsistent instants.
+3. **Fail closed:** missing quorum, stale/expired attestations, invalid signatures, duplicate source IDs, skew violation, source sequence rollback, global high-water rollback, persistence error or clock-anchor expiry rejects the mutation before state change. No `SystemTime`, caller value or host wall clock fallback.
+4. **Clock domains:** distinguish wall-clock UTC instant (cross-process persisted deadline/event), process monotonic elapsed time (in-process lease/anchor progression), and logical per-workflow/event sequence (causal ordering). Never compare or substitute one domain for another.
+5. **Bounded lifecycle:** define maximum workflow deadline horizon, task lease duration/renewal horizon, retry backoff and total retry elapsed time, cancellation cutoff and membership/policy freshness windows. Reject overflow and invalid ranges; no unbounded schedule or retry.
+6. **Atomic evidence:** persist state transition and append-only transition event in one transaction with the same trusted instant, sequence and canonical payload digest. G11 audit/outbox integration must preserve this event identity; local SQLite evidence is not external witness anchoring.
+7. **Recovery:** after restart require a fresh trusted quorum before recovery decisions; recompute expired leases/deadlines against the newly trusted instant; make recovery idempotent and preserve transition history. Do not infer external side-effect outcomes (G09 is outside G08 v0).
+8. **Clock-source independence:** distinct source IDs are not sufficient proof of independent operators or infrastructure. A2 must define the time-source trust roster, administrative separation, key custody/rotation/revocation, quorum size, skew policy, outage behavior and independent anti-rollback anchor.
+9. **Localization separation:** persist and compare instants in UTC. Local civil-time schedules and user display are separate presentation/calendar adapters with explicit IANA timezone and calendar identifier. Ethiopian-calendar display may be supported for the Ethiopia-first interface, but must never alter security ordering or timestamp arithmetic. Ambiguous/nonexistent daylight-saving local times in other zones require explicit resolution policy.
+10. **Temporal observability:** each time observation should have a stable observation/attestation-set digest, source IDs and sequences, accepted instant, expiry, quorum/skew result and clock-policy version recorded as bounded evidence. Do not log private keys or raw sensitive payloads.
+
+### 16.4 A2 temporal decisions still required
+
+| ID | Decision | Required evidence / owner |
+|---|---|---|
+| G08-T01 | Define trusted time-source roster and independence criteria | G08/G01; source operators, key IDs, custody, rotation and revocation evidence |
+| G08-T02 | Define quorum, skew and stale-source policy | G08; quantitative availability/security trade-off and negative vectors |
+| G08-T03 | Select external anti-rollback anchor for clock/replay high-water | G08/G11; restore-attack design and independent checkpoint verification |
+| G08-T04 | Remove caller time from every public mutation boundary | G08; API inventory, exact-head code, compile/tests and caller-misuse negative tests |
+| G08-T05 | Freeze one-observation-per-mutation semantics | G08/G01/G02/G11; tenant freshness, worker auth, state/event atomicity contract |
+| G08-T06 | Define deadlines, lease horizons, retry elapsed-time budget and cancellation precedence | G08; bounded numerical policy and state-machine vectors |
+| G08-T07 | Define recovery and restart behavior under expired clock quorum | G08/G11; no-state-change-on-clock-failure tests and idempotent recovery vectors |
+| G08-T08 | Define UTC persistence vs Ethiopia-first calendar/timezone presentation | G03/G08/UI; canonical storage and localization contract; no local-time security arithmetic |
+| G08-T09 | Define clock attestation evidence and G11 event binding | G08/G11; versioned evidence schema and audit/checkpoint mapping |
+
+### 16.5 Temporal integration disposition
+
+| Item | Result |
+|---|---|
+| TrustedClock interface in PR #63 | PASS / PRESENT on unmerged candidate |
+| Signed quorum time adapter | PASS / PRESENT as candidate implementation; production source roster unverified |
+| Persistent source/global high-water | PASS / PRESENT in SQLite candidate; privileged rollback protection missing |
+| Fresh quorum after restart | PASS / PRESENT in candidate tests |
+| Worker proof time validation | PASS / PRESENT in candidate path |
+| Every coordinator mutation uses internal trusted time | **FAIL / NOT SATISFIED** — caller time fields remain in public APIs |
+| One observation reused across all temporal checks and event writes | NOT VERIFIED |
+| External anti-rollback anchor and production time-source custody | MISSING |
+| UTC plus Ethiopia-first calendar presentation contract | NOT FROZEN |
+| Temporal integration A2 closure | **PARTIAL / OPEN** |
+
+**Required next step:** complete a read-only API-to-time-use inventory for every public G08 mutation and freeze the corrected contract. Then, only under the separately approved G08 A3 scope, replace caller time fields with internally injected trusted-time observations and verify the exact candidate. This work is G08 temporal infrastructure, not neural runtime implementation. It does not authorize modification of PR #63, PR #121, merge, deployment or production activation.
