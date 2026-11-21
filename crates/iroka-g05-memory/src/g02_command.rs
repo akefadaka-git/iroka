@@ -875,6 +875,78 @@ mod tests {
             &[&membership_id,&digest]).expect("atomic G11 outbox").get(0);
         assert_eq!(outbox, 1);
 
+        // The canonical G02 adapter authorizes only an active membership
+        // committed by a signed Owner command and fails closed on emergency stop.
+        let auth_request = crate::AuthorizationRequest {
+            operation: crate::Operation::Retrieve,
+            principal_ref: subject_ref.clone(),
+            tenant_ref: tenant_ref.clone(),
+            subject_ref: subject_ref.clone(),
+            purpose: crate::Purpose::TaskContinuity,
+            classification: crate::Classification::Internal,
+            memory_id: None,
+            recipient_refs: vec![],
+            correlation_ref: format!("g02-ingress-{suffix}"),
+        };
+        let baseline_stop = signed_command(
+            OwnerCommandPayload {
+                command_id: format!("g02-stop-baseline-{}", unique_test_suffix()),
+                owner_subject: "owner:iroka-test".into(),
+                issuer: "iroka:owner-authority".into(),
+                key_id: "owner-a".into(),
+                issued_at: 1_100,
+                expires_at: 1_200,
+                action: OwnerCommandAction::SetEmergencyStop {
+                    active: false,
+                    version: 1,
+                    reason_code: "baseline".into(),
+                },
+            },
+            &owner_a,
+        );
+        authority.execute_at(&baseline_stop, 1_102).unwrap();
+        assert_eq!(authority.authorize_g05(&auth_request), Ok(()));
+
+        let emergency_stop = signed_command(
+            OwnerCommandPayload {
+                command_id: format!("g02-stop-active-{}", unique_test_suffix()),
+                owner_subject: "owner:iroka-test".into(),
+                issuer: "iroka:owner-authority".into(),
+                key_id: "owner-a".into(),
+                issued_at: 1_103,
+                expires_at: 1_200,
+                action: OwnerCommandAction::SetEmergencyStop {
+                    active: true,
+                    version: 2,
+                    reason_code: "integration test".into(),
+                },
+            },
+            &owner_a,
+        );
+        authority.execute_at(&emergency_stop, 1_104).unwrap();
+        assert_eq!(
+            authority.authorize_g05(&auth_request),
+            Err(crate::G05Error::AuthorizationDenied)
+        );
+
+        let restore_stop = signed_command(
+            OwnerCommandPayload {
+                command_id: format!("g02-stop-restore-{}", unique_test_suffix()),
+                owner_subject: "owner:iroka-test".into(),
+                issuer: "iroka:owner-authority".into(),
+                key_id: "owner-a".into(),
+                issued_at: 1_105,
+                expires_at: 1_200,
+                action: OwnerCommandAction::SetEmergencyStop {
+                    active: false,
+                    version: 3,
+                    reason_code: "restore integration test".into(),
+                },
+            },
+            &owner_a,
+        );
+        authority.execute_at(&restore_stop, 1_106).unwrap();
+
         // Inject an outbox failure after the command and projection writes.
         // All three writes must roll back as one transaction.
         let rollback_command_id = format!("g02-rollback-{}", unique_test_suffix());
