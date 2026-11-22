@@ -319,8 +319,9 @@ def check_r03_semantics(instance, gene_id, side):
         deadlines = instance["deadlines"]["by_task_class"]
         if not unique(priorities, "class_id"):
             raise ValueError("R-03 scheduler priority class identifiers must be unique")
-        if not unique(quotas, "class_id") or not unique(deadlines, "class_id"):
-            raise ValueError("R-03 scheduler quota/deadline class identifiers must be unique")
+        quota_keys = [(q["class_id"], q["resource"]) for q in quotas]
+        if len(quota_keys) != len(set(quota_keys)) or not unique(deadlines, "class_id"):
+            raise ValueError("R-03 scheduler quota class/resource pairs and deadline class identifiers must be unique")
         if any(q["window_seconds"] <= 0 for q in quotas):
             raise ValueError("R-03 quota measurement windows must be positive")
 
@@ -399,6 +400,15 @@ def check_r03_semantic_rejections(instance, gene_id, side):
         candidate = copy.deepcopy(instance)
         candidate["candidate_metrics"]["metrics"][0]["window_seconds"] += 1
         candidates.append(candidate)
+
+    if gene_id == "g08.scheduler-policy" and side == "input":
+        # A task class may have multiple quotas, provided each resource dimension is unique.
+        candidate = copy.deepcopy(instance)
+        additional_quota = copy.deepcopy(candidate["quotas"]["by_task_class"][0])
+        additional_quota["resource"] = "memory"
+        additional_quota["unit"] = "gibibytes"
+        candidate["quotas"]["by_task_class"].append(additional_quota)
+        check_r03_semantics(candidate, gene_id, side)
 
     for candidate in candidates:
         try:
