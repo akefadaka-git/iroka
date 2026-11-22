@@ -461,6 +461,7 @@ def main():
     proposal = load(CONTRACTS)
     genome = load(GENOME)
     fixtures = load(FIXTURES)
+    authorization_scopes = load(AUTHORIZATION_SCOPES)
 
     if proposal.get("status") != "OWNER_APPROVED_NORMATIVE_BASELINE":
         raise ValueError("Gene contract amendment is not Owner-approved")
@@ -512,6 +513,7 @@ def main():
                 raise ValueError("Root object must be closed: " + str(path))
 
             check_contract_schema(gene_id, side, spec, schema)
+            r04_scope_assertions += check_r04_scope_registry(gene_id, side, schema, authorization_scopes)
             for field in spec["properties"]:
                 if field["type"] == "array":
                     array_schema = dereference(schema, schema.get("properties", {}).get(field["name"], {}))
@@ -584,6 +586,7 @@ def main():
     print("PASS: " + str(nested_mutation_negatives) + " R-03 nested unknown-field and missing-required mutations rejected")
     print("PASS: " + str(nested_semantic_negatives) + " R-03 inconsistent cross-field mutations rejected")
     print("PASS: R-03 cross-field invariants for uncertainty, normalized schema, resource limits, scheduler policy, coordination state and metric comparability")
+    print("PASS: R-04 canonical authorization scope registry; " + str(r04_scope_assertions) + " registered/invalid identifier assertions across four schema fields")
     print("PASS: R-04 canonical authorization scope registry; " + str(r04_scope_assertions) + " registered/invalid identifier assertions across four schema fields")
     print("UNRESOLVED: " + str(len(underspecified_arrays)) + " generic array fields lack approved item contracts")
     for item in underspecified_arrays:
