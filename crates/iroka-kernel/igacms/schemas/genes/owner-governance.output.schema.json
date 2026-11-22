@@ -9,6 +9,7 @@
     "approval_valid": { "type": "boolean" },
     "authorized_scope": {
       "type": "array",
+      "uniqueItems": true,
       "items": { "type": "string", "enum": ["execution:effect:admit","execution:effect:execute","governance:approval:issue","governance:approval:revoke","memory:record:read","memory:record:write","knowledge:source:retrieve","identity:credential:verify"] }
     },
     "decision": { "type": "string", "enum": ["approved","rejected","expired"] },
