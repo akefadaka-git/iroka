@@ -1,7 +1,9 @@
 name: GENESIS gene schema closure
 on:
   push:
-    branches: [architecture/genesis-gene-contract-amendment-proposal]
+    branches:
+      - architecture/genesis-gene-contract-amendment-proposal
+      - implementation/genesis-a3-r03-nested-object-contracts
     paths:
       - "crates/iroka-kernel/igacms/genome-v1.0.0.json"
       - "crates/iroka-kernel/igacms/schemas/genes/**"
