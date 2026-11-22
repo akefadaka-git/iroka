@@ -11,6 +11,7 @@ mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod memory_classification;
 mod owner_approval;
 mod policy;
 mod request;
@@ -42,6 +43,10 @@ pub use igacms::{
     verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
+};
+pub use memory_classification::{
+    evaluate_memory_classification, MemoryClassificationEvidence, MemoryClassificationInput,
+    MemoryClassificationOutput, MemoryClassificationPolicy, MemoryHandlingControl,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
