@@ -227,6 +227,46 @@ def check_negative_mutations(validator, instance, spec, gene_id, side):
     return rejected
 
 
+
+NESTED_OBJECT_FIELDS = {
+    ("g03.uncertainty-calculus", "output"): ["uncertainty_bounds"],
+    ("g04.knowledge-schema", "output"): ["normalized_schema"],
+    ("g07.capability-profile", "input"): ["resource_limits"],
+    ("g07.capability-profile", "output"): ["limits"],
+    ("g08.scheduler-policy", "input"): ["priorities", "quotas", "deadlines"],
+    ("g08.scheduler-policy", "output"): ["normalized_policy"],
+    ("g08.coordination-state", "input"): ["lease_epochs"],
+    ("g08.coordination-state", "output"): ["canonical_state"],
+    ("g10.evaluation-record", "input"): ["baseline_metrics", "candidate_metrics"],
+}
+
+
+def check_nested_object_contracts(validator, instance, gene_id, side):
+    """Exercise R-03 nested object closure and required-member rejection."""
+    rejected = 0
+    for name in NESTED_OBJECT_FIELDS.get((gene_id, side), []):
+        schema = validator.schema["properties"][name]
+        if schema.get("type") != "object" or schema.get("additionalProperties") is not False:
+            raise ValueError("R-03 nested object must be closed: " + gene_id + "/" + side + "/" + name)
+        required = schema.get("required", [])
+        if not required or not set(required).issubset(set(schema.get("properties", {}))):
+            raise ValueError("R-03 nested object must declare required members: " + gene_id + "/" + side + "/" + name)
+        value = instance.get(name)
+        if not isinstance(value, dict) or not validator.evolve(schema=schema).is_valid(value):
+            raise ValueError("R-03 positive nested object invalid: " + gene_id + "/" + side + "/" + name)
+        candidate = copy.deepcopy(instance)
+        candidate[name]["__unexpected_nested_field__"] = True
+        if validator.is_valid(candidate):
+            raise ValueError("R-03 nested unknown property accepted: " + gene_id + "/" + side + "/" + name)
+        rejected += 1
+        candidate = copy.deepcopy(instance)
+        del candidate[name][required[0]]
+        if validator.is_valid(candidate):
+            raise ValueError("R-03 missing nested required property accepted: " + gene_id + "/" + side + "/" + name)
+        rejected += 1
+    return rejected
+
+
 def main():
     proposal = load(CONTRACTS)
     genome = load(GENOME)
@@ -244,7 +284,7 @@ def main():
     ):
         raise ValueError("Expected exactly 36 matching gene contracts, Genome genes and conformance cases")
 
-    resolved = positive = negative = mutation_negatives = 0
+    resolved = positive = negative = mutation_negatives = nested_mutation_negatives = 0
     underspecified_arrays = []
     schema_ids = set()
     schema_paths = set()
@@ -334,6 +374,9 @@ def main():
             mutation_negatives += check_negative_mutations(
                 validator, vectors["positive"]["instance"], spec, gene_id, side
             )
+            nested_mutation_negatives += check_nested_object_contracts(
+                validator, vectors["positive"]["instance"], gene_id, side
+            )
             resolved += 1
 
     if (resolved, positive, negative) != (72, 72, 72):
@@ -344,6 +387,7 @@ def main():
     print("PASS: all internal $refs resolve; external refs and cycles rejected")
     print("PASS: 36 gene cases; 72 positive vectors and 72 missing-field negatives")
     print("PASS: " + str(mutation_negatives) + " generated invalid-type, enum, array-item and unknown-field mutations rejected")
+    print("PASS: " + str(nested_mutation_negatives) + " R-03 nested unknown-field and missing-required mutations rejected")
     print("UNRESOLVED: " + str(len(underspecified_arrays)) + " generic array fields lack approved item contracts")
     for item in underspecified_arrays:
         print("CONTRACT-GAP: " + item["gene_id"] + "/" + item["side"] + "/" + item["field"])
