@@ -11,6 +11,7 @@ on:
       - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
       - "tools/genesis/**"
       - ".github/workflows/genesis-gene-schemas.yml"
+      - ".github/workflows/rust-kernel.yml"
   pull_request:
     branches:
       - main
