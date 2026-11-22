@@ -10,6 +10,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "tools/genesis/**"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
