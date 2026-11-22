@@ -428,14 +428,20 @@ mod tests {
             Err("labels_must_be_unique_exact_policy_identifiers".into())
         );
         value.labels = vec!["pii ".into()];
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("labels_must_be_unique_exact_policy_identifiers".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("labels_must_be_unique_exact_policy_identifiers".into())
+        );
         value.labels = vec!["unknown".into()];
         assert_eq!(
             evaluate_memory_classification(&value, &policy()),
             Err("label_not_approved".into())
         );
         value.labels = vec!["pii".into(), "pii".into()];
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("labels_must_be_unique_exact_policy_identifiers".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("labels_must_be_unique_exact_policy_identifiers".into())
+        );
     }
 
     #[test]
@@ -472,7 +478,10 @@ mod tests {
         value
             .version_bound_evidence
             .insert(POLICY_DIGEST_KEY.into(), json!("caller-controlled"));
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("provenance_or_version_evidence_missing_or_reserved".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("provenance_or_version_evidence_missing_or_reserved".into())
+        );
     }
 
     #[test]
