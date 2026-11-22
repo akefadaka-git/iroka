@@ -55,7 +55,51 @@
     },
     "resource_limits": {
       "type": "object",
-      "description": "resource_limits — approved input field for g07.capability-profile"
+      "properties": {
+        "limits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "resource": {
+                "type": "string",
+                "enum": [
+                  "cpu",
+                  "memory",
+                  "storage",
+                  "execution_time",
+                  "concurrency",
+                  "token_consumption"
+                ]
+              },
+              "value": {
+                "type": "number",
+                "minimum": 0
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              },
+              "maximum": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "resource",
+              "value",
+              "unit",
+              "maximum"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "limits"
+      ],
+      "additionalProperties": false
     },
     "policy_id": {
       "type": "string",
