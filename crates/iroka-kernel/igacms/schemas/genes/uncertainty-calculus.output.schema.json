@@ -35,9 +35,6 @@
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
-    },
-    "version_bound_evidence": {
-      "$ref": "#/$defs/version_bound_evidence"
     }
   },
   "required": [
@@ -45,8 +42,7 @@
     "estimates",
     "uncertainty_bounds",
     "calibration_status",
-    "evidence",
-    "version_bound_evidence"
+    "evidence"
   ],
   "additionalProperties": false,
   "$defs": {
