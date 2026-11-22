@@ -10,7 +10,8 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[2]
 GENOME = ROOT / "crates/iroka-kernel/igacms/genome-v1.0.0.json"
 CONTRACTS = ROOT / "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
-FIXTURES = ROOT / "crates/iroka-kernel/igacms/conformance/gene-io-v1.0.0.json"\nAUTHORIZATION_SCOPES = ROOT / "crates/iroka-kernel/igacms/registries/authorization-scopes-v1.0.0.json"
+FIXTURES = ROOT / "crates/iroka-kernel/igacms/conformance/gene-io-v1.0.0.json"
+AUTHORIZATION_SCOPES = ROOT / "crates/iroka-kernel/igacms/registries/authorization-scopes-v1.0.0.json"
 
 
 def load(path):
@@ -582,7 +583,8 @@ def main():
     print("PASS: " + str(mutation_negatives) + " generated invalid-type, enum, array-item and unknown-field mutations rejected")
     print("PASS: " + str(nested_mutation_negatives) + " R-03 nested unknown-field and missing-required mutations rejected")
     print("PASS: " + str(nested_semantic_negatives) + " R-03 inconsistent cross-field mutations rejected")
-    print("PASS: R-03 cross-field invariants for uncertainty, normalized schema, resource limits, scheduler policy, coordination state and metric comparability")\n    print("PASS: R-04 canonical authorization scope registry; " + str(r04_scope_assertions) + " registered/invalid identifier assertions across four schema fields")
+    print("PASS: R-03 cross-field invariants for uncertainty, normalized schema, resource limits, scheduler policy, coordination state and metric comparability")
+    print("PASS: R-04 canonical authorization scope registry; " + str(r04_scope_assertions) + " registered/invalid identifier assertions across four schema fields")
     print("UNRESOLVED: " + str(len(underspecified_arrays)) + " generic array fields lack approved item contracts")
     for item in underspecified_arrays:
         print("CONTRACT-GAP: " + item["gene_id"] + "/" + item["side"] + "/" + item["field"])
