@@ -55,9 +55,6 @@
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
-    },
-    "version_bound_evidence": {
-      "$ref": "#/$defs/version_bound_evidence"
     }
   },
   "required": [
@@ -65,8 +62,7 @@
     "trust_level",
     "signature_valid",
     "policy_digest",
-    "evidence",
-    "version_bound_evidence"
+    "evidence"
   ],
   "additionalProperties": false
 }
