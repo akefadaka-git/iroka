@@ -138,7 +138,8 @@ def check_contract_schema(gene_id, side, spec, schema):
         raise ValueError("Contract required list disagrees with property flags: " + gene_id + "/" + side)
 
     schema_properties = schema.get("properties", {})
-    expected_names = set(declared_names) | {"version_bound_evidence"}
+    evidence_field = "version_bound_evidence" if side == "input" else "evidence"
+    expected_names = set(declared_names) | {evidence_field}
     if set(schema_properties) != expected_names:
         missing = sorted(expected_names - set(schema_properties))
         extra = sorted(set(schema_properties) - expected_names)
@@ -147,7 +148,7 @@ def check_contract_schema(gene_id, side, spec, schema):
             + " missing=" + repr(missing) + " extra=" + repr(extra)
         )
 
-    expected_required = contract_required | {"version_bound_evidence"}
+    expected_required = contract_required | {evidence_field}
     if set(schema.get("required", [])) != expected_required:
         raise ValueError("Schema required fields mismatch: " + gene_id + "/" + side)
 
@@ -216,7 +217,10 @@ def check_negative_mutations(validator, instance, spec, gene_id, side):
     rejected += 1
 
     candidate = copy.deepcopy(instance)
-    candidate["version_bound_evidence"] = "not-an-object"
+    if side == "input":
+        candidate["version_bound_evidence"] = "not-an-object"
+    else:
+        candidate["evidence"]["version_bound_evidence"] = "not-an-object"
     if validator.is_valid(candidate):
         raise ValueError("Non-object version-bound evidence accepted: " + gene_id + "/" + side)
     rejected += 1
@@ -288,11 +292,22 @@ def main():
                             "schema_path": relative_path,
                             "issue": "approved contract declares generic array without item structure"
                         })
-            version_evidence = dereference(schema, schema.get("properties", {}).get("version_bound_evidence", {}))
-            if version_evidence.get("type") != "object":
-                raise ValueError("Version-bound evidence must be an object: " + str(path))
-            if "version_bound_evidence" not in schema.get("required", []):
-                raise ValueError("Version-bound evidence requirement missing: " + str(path))
+            if side == "input":
+                version_evidence = dereference(schema, schema.get("properties", {}).get("version_bound_evidence", {}))
+                if version_evidence.get("type") != "object":
+                    raise ValueError("Input version-bound evidence must be an object: " + str(path))
+                if "version_bound_evidence" not in schema.get("required", []):
+                    raise ValueError("Input version-bound evidence requirement missing: " + str(path))
+            else:
+                evidence = dereference(schema, schema.get("properties", {}).get("evidence", {}))
+                if evidence.get("type") != "object" or evidence.get("additionalProperties") is not False:
+                    raise ValueError("Output evidence wrapper must be a closed object: " + str(path))
+                if not {"provenance", "version_bound_evidence"}.issubset(set(evidence.get("required", []))):
+                    raise ValueError("Output evidence wrapper must require provenance and version-bound evidence: " + str(path))
+                for name in ("provenance", "version_bound_evidence"):
+                    nested = dereference(schema, evidence.get("properties", {}).get(name, {}))
+                    if nested.get("type") != "object":
+                        raise ValueError("Output evidence member must be an object: " + name + " in " + str(path))
 
             required = set(schema.get("required", []))
             if "provenance" not in required:
