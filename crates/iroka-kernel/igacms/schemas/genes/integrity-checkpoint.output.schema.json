@@ -49,9 +49,6 @@
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
-    },
-    "version_bound_evidence": {
-      "$ref": "#/$defs/version_bound_evidence"
     }
   },
   "required": [
@@ -59,8 +56,7 @@
     "accepted",
     "sequence",
     "continuity_verified",
-    "evidence",
-    "version_bound_evidence"
+    "evidence"
   ],
   "additionalProperties": false
 }
