@@ -11,6 +11,7 @@ mod governance;
 mod identity;
 mod identity_crypto;
 mod igacms;
+mod memory_classification;
 mod owner_approval;
 mod policy;
 mod request;
@@ -33,6 +34,10 @@ pub use identity_crypto::NoRevocations;
 pub use identity_crypto::{
     CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError, TrustStore,
     TrustedKey,
+};
+pub use memory_classification::{
+    evaluate_memory_classification, MemoryClassificationEvidence, MemoryClassificationInput,
+    MemoryClassificationOutput, MemoryClassificationPolicy, MemoryHandlingControl,
 };
 pub use igacms::{
     authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical,
