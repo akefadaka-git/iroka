@@ -452,6 +452,20 @@ mod tests {
     }
 
     #[test]
+    fn restricted_classification_requires_all_working_memory_exclusions() {
+        let mut value = policy();
+        value
+            .controls_by_classification
+            .get_mut("RESTRICTED")
+            .unwrap()
+            .retain(|item| item.action != "deny_working_memory_cache");
+        assert_eq!(
+            validate_policy(&value),
+            Err("restricted_classification_working_memory_controls_incomplete")
+        );
+    }
+
+    #[test]
     fn rejects_unknown_normalized_duplicate_and_malformed_labels() {
         let mut value = input();
         value.labels = vec!["PII".into()];
