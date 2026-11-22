@@ -111,6 +111,10 @@ fn valid_identifier(value: &str) -> bool {
         })
 }
 
+fn valid_classification(value: &str) -> bool {
+    matches!(value, "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED")
+}
+
 fn valid_purpose(value: &str) -> bool {
     let bytes = value.as_bytes();
     !bytes.is_empty()
@@ -152,7 +156,7 @@ fn validate_policy(policy: &MemoryClassificationPolicy) -> Result<(), &'static s
 
     let mut ranks = BTreeSet::new();
     for (classification, rank) in &policy.classification_rank {
-        if !valid_identifier(classification) || !ranks.insert(*rank) {
+        if !valid_classification(classification) || !ranks.insert(*rank) {
             return Err("classification_rank_malformed_or_ambiguous");
         }
     }
@@ -183,6 +187,21 @@ fn validate_policy(policy: &MemoryClassificationPolicy) -> Result<(), &'static s
             .ok_or("handling_controls_missing_for_classification")?;
         if controls.is_empty() || controls.len() > policy.maximum_controls {
             return Err("handling_controls_outside_policy");
+        }
+        if classification == "RESTRICTED" {
+            for required_action in [
+                "deny_working_memory",
+                "deny_working_memory_cache",
+                "deny_working_memory_derived",
+                "deny_working_memory_retrieval_candidate",
+            ] {
+                if !controls
+                    .iter()
+                    .any(|control| control.action == required_action && control.mandatory)
+                {
+                    return Err("restricted_classification_working_memory_controls_incomplete");
+                }
+            }
         }
         let mut control_ids = BTreeSet::new();
         for control in controls {
@@ -316,45 +335,58 @@ mod tests {
     fn policy() -> MemoryClassificationPolicy {
         MemoryClassificationPolicy::new(
             BTreeMap::from([
-                ("public".into(), "public".into()),
-                ("internal".into(), "internal".into()),
-                ("restricted".into(), "restricted".into()),
+                ("public".into(), "PUBLIC".into()),
+                ("internal".into(), "INTERNAL".into()),
+                ("restricted".into(), "RESTRICTED".into()),
             ]),
             BTreeMap::from([
-                ("public".into(), 0),
-                ("internal".into(), 1),
-                ("confidential".into(), 2),
-                ("restricted".into(), 3),
+                ("PUBLIC".into(), 0),
+                ("INTERNAL".into(), 1),
+                ("CONFIDENTIAL".into(), 2),
+                ("RESTRICTED".into(), 3),
             ]),
             BTreeMap::from([
-                ("pii".into(), "confidential".into()),
-                ("legal_hold".into(), "restricted".into()),
-                ("team_only".into(), "internal".into()),
+                ("pii".into(), "CONFIDENTIAL".into()),
+                ("legal_hold".into(), "RESTRICTED".into()),
+                ("team_only".into(), "INTERNAL".into()),
             ]),
             BTreeMap::from([
                 (
-                    "public".into(),
+                    "PUBLIC".into(),
                     vec![control("public-restrict-retention", "restrict_retention")],
                 ),
                 (
-                    "internal".into(),
+                    "INTERNAL".into(),
                     vec![control("internal-restrict-export", "restrict_export")],
                 ),
                 (
-                    "confidential".into(),
+                    "CONFIDENTIAL".into(),
                     vec![control(
                         "confidential-require-encryption",
                         "require_encryption_at_rest",
                     )],
                 ),
                 (
-                    "restricted".into(),
+                    "RESTRICTED".into(),
                     vec![
                         control(
                             "restricted-require-encryption",
                             "require_encryption_at_rest",
                         ),
                         control("restricted-deny-export", "deny_export"),
+                        control("restricted-deny-working-memory", "deny_working_memory"),
+                        control(
+                            "restricted-deny-working-memory-cache",
+                            "deny_working_memory_cache",
+                        ),
+                        control(
+                            "restricted-deny-working-memory-derived",
+                            "deny_working_memory_derived",
+                        ),
+                        control(
+                            "restricted-deny-working-memory-candidates",
+                            "deny_working_memory_retrieval_candidate",
+                        ),
                     ],
                 ),
             ]),
@@ -390,7 +422,7 @@ mod tests {
     #[test]
     fn selects_highest_explicit_classification_rank() {
         let result = evaluate_memory_classification(&input(), &policy()).unwrap();
-        assert_eq!(result.classification, "internal");
+        assert_eq!(result.classification, "INTERNAL");
         assert_eq!(result.handling_controls.len(), 1);
         assert!(!result.evidence.provenance.is_empty());
     }
@@ -400,7 +432,7 @@ mod tests {
         let mut value = input();
         value.labels = vec!["pii".into()];
         let result = evaluate_memory_classification(&value, &policy()).unwrap();
-        assert_eq!(result.classification, "confidential");
+        assert_eq!(result.classification, "CONFIDENTIAL");
     }
 
     #[test]
@@ -408,7 +440,7 @@ mod tests {
         let mut value = input();
         value.labels = vec!["legal_hold".into()];
         let result = evaluate_memory_classification(&value, &policy()).unwrap();
-        assert_eq!(result.classification, "restricted");
+        assert_eq!(result.classification, "RESTRICTED");
         assert!(result
             .handling_controls
             .iter()
@@ -487,7 +519,7 @@ mod tests {
     #[test]
     fn rejects_ambiguous_policy_rank_and_non_restrictive_controls() {
         let mut value = policy();
-        value.classification_rank.insert("restricted".into(), 1);
+        value.classification_rank.insert("RESTRICTED".into(), 1);
         assert_eq!(
             validate_policy(&value),
             Err("classification_rank_malformed_or_ambiguous")
@@ -495,7 +527,7 @@ mod tests {
         value = policy();
         value
             .controls_by_classification
-            .get_mut("internal")
+            .get_mut("INTERNAL")
             .unwrap()[0]
             .action = "grant_access".into();
         assert_eq!(
