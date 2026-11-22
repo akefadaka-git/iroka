@@ -139,8 +139,10 @@ def check_r04_scope_registry(gene_id, side, schema, registry):
     identifiers = [entry["id"] for entry in registry.get("scopes", [])]
     if not identifiers or len(identifiers) != len(set(identifiers)):
         raise ValueError("R-04 registry must contain unique canonical identifiers")
-    if registry.get("registry_id") != "iroka.authorization-scopes.v1" or registry.get("version") != "1.0.0":
-        raise ValueError("R-04 authorization scope registry identity/version mismatch")
+    if (registry.get("registry_id") != "iroka.authorization-scopes.v1" or registry.get("version") != "1.0.0"
+            or registry.get("status") != "OWNER_APPROVED_NORMATIVE_BASELINE"
+            or registry.get("identifier_format") != "<domain>:<resource>:<action>"):
+        raise ValueError("R-04 authorization scope registry identity/version/approval/format mismatch")
     for identifier in identifiers:
         parts = identifier.split(":")
         if len(parts) != 3 or any(not part or not part.isascii() or part.lower() != part or not all(ch.islower() or ch.isdigit() or ch == "-" for ch in part) for part in parts):
