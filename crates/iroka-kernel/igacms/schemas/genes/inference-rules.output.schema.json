@@ -45,9 +45,6 @@
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
-    },
-    "version_bound_evidence": {
-      "$ref": "#/$defs/version_bound_evidence"
     }
   },
   "required": [
@@ -55,8 +52,7 @@
     "conclusion_set",
     "applied_rule_ids",
     "unsupported_steps",
-    "evidence",
-    "version_bound_evidence"
+    "evidence"
   ],
   "additionalProperties": false,
   "$defs": {
