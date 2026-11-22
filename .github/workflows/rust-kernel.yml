@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - feat/igacms-a3-implementation
-      - implementation/genesis-a3-r03-nested-object-contracts
+      - implementation/genesis-a3-r03-nested-object-contracts\n      - implementation/genesis-a3-r04-canonical-authorization-scopes
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
