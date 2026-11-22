@@ -358,6 +358,59 @@ def check_r03_semantics(instance, gene_id, side):
 
 
 
+
+def check_r03_semantic_rejections(instance, gene_id, side):
+    """Prove the semantic checker rejects deliberately inconsistent nested records."""
+    rejected = 0
+    candidates = []
+    if gene_id == "g03.uncertainty-calculus" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["uncertainty_bounds"]["hypotheses"][0]["lower_bound"] = 0.9
+        candidates.append(candidate)
+    if gene_id == "g04.knowledge-schema" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["normalized_schema"]["required_fields"].append("undeclared_property")
+        candidates.append(candidate)
+    if gene_id == "g07.capability-profile" and side == "input":
+        candidate = copy.deepcopy(instance)
+        candidate["resource_limits"]["limits"][0]["value"] = candidate["resource_limits"]["limits"][0]["maximum"] + 1
+        candidates.append(candidate)
+    if gene_id == "g07.capability-profile" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["limits"]["effective"]["limits"][0]["value"] = candidate["limits"]["requested"]["limits"][0]["value"] + 1
+        candidates.append(candidate)
+    if gene_id == "g08.scheduler-policy" and side == "input":
+        candidate = copy.deepcopy(instance)
+        candidate["quotas"]["by_task_class"].append(copy.deepcopy(candidate["quotas"]["by_task_class"][0]))
+        candidates.append(candidate)
+    if gene_id == "g08.scheduler-policy" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["normalized_policy"]["quotas"]["by_task_class"].append(copy.deepcopy(candidate["normalized_policy"]["quotas"]["by_task_class"][0]))
+        candidates.append(candidate)
+    if gene_id == "g08.coordination-state" and side == "input":
+        candidate = copy.deepcopy(instance)
+        candidate["lease_epochs"]["epochs"].append(copy.deepcopy(candidate["lease_epochs"]["epochs"][0]))
+        candidates.append(candidate)
+    if gene_id == "g08.coordination-state" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["canonical_state"]["participants"].append(copy.deepcopy(candidate["canonical_state"]["participants"][0]))
+        candidates.append(candidate)
+    if gene_id == "g10.evaluation-record" and side == "input":
+        candidate = copy.deepcopy(instance)
+        candidate["candidate_metrics"]["metrics"][0]["window_seconds"] += 1
+        candidates.append(candidate)
+
+    for candidate in candidates:
+        try:
+            check_r03_semantics(candidate, gene_id, side)
+        except ValueError:
+            rejected += 1
+        else:
+            raise ValueError("R-03 inconsistent cross-field mutation accepted: " + gene_id + "/" + side)
+    return rejected
+
+
+
 def main():
     proposal = load(CONTRACTS)
     genome = load(GENOME)
@@ -375,7 +428,7 @@ def main():
     ):
         raise ValueError("Expected exactly 36 matching gene contracts, Genome genes and conformance cases")
 
-    resolved = positive = negative = mutation_negatives = nested_mutation_negatives = 0
+    resolved = positive = negative = mutation_negatives = nested_mutation_negatives = nested_semantic_negatives = 0
     underspecified_arrays = []
     schema_ids = set()
     schema_paths = set()
@@ -469,6 +522,9 @@ def main():
                 validator, vectors["positive"]["instance"], gene_id, side
             )
             check_r03_semantics(vectors["positive"]["instance"], gene_id, side)
+            nested_semantic_negatives += check_r03_semantic_rejections(
+                vectors["positive"]["instance"], gene_id, side
+            )
             resolved += 1
 
     if (resolved, positive, negative) != (72, 72, 72):
@@ -480,6 +536,7 @@ def main():
     print("PASS: 36 gene cases; 72 positive vectors and 72 missing-field negatives")
     print("PASS: " + str(mutation_negatives) + " generated invalid-type, enum, array-item and unknown-field mutations rejected")
     print("PASS: " + str(nested_mutation_negatives) + " R-03 nested unknown-field and missing-required mutations rejected")
+    print("PASS: " + str(nested_semantic_negatives) + " R-03 inconsistent cross-field mutations rejected")
     print("PASS: R-03 cross-field invariants for uncertainty, normalized schema, resource limits, scheduler policy, coordination state and metric comparability")
     print("UNRESOLVED: " + str(len(underspecified_arrays)) + " generic array fields lack approved item contracts")
     for item in underspecified_arrays:
