@@ -41,11 +41,111 @@
     },
     "baseline_metrics": {
       "type": "object",
-      "description": "baseline_metrics — approved input field for g10.evaluation-record"
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "metric_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              },
+              "aggregation": {
+                "type": "string",
+                "enum": [
+                  "mean",
+                  "median",
+                  "min",
+                  "max",
+                  "sum",
+                  "count",
+                  "p95",
+                  "p99"
+                ]
+              },
+              "window_seconds": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "metric_id",
+              "value",
+              "unit",
+              "aggregation",
+              "window_seconds"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "metrics"
+      ],
+      "additionalProperties": false
     },
     "candidate_metrics": {
       "type": "object",
-      "description": "candidate_metrics — approved input field for g10.evaluation-record"
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "metric_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              },
+              "aggregation": {
+                "type": "string",
+                "enum": [
+                  "mean",
+                  "median",
+                  "min",
+                  "max",
+                  "sum",
+                  "count",
+                  "p95",
+                  "p99"
+                ]
+              },
+              "window_seconds": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "metric_id",
+              "value",
+              "unit",
+              "aggregation",
+              "window_seconds"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "metrics"
+      ],
+      "additionalProperties": false
     },
     "evaluator_id": {
       "type": "string",

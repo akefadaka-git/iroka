@@ -69,7 +69,167 @@
     },
     "limits": {
       "type": "object",
-      "description": "limits — approved output field for g07.capability-profile"
+      "properties": {
+        "requested": {
+          "type": "object",
+          "properties": {
+            "limits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "resource": {
+                    "type": "string",
+                    "enum": [
+                      "cpu",
+                      "memory",
+                      "storage",
+                      "execution_time",
+                      "concurrency",
+                      "token_consumption"
+                    ]
+                  },
+                  "value": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maximum": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "resource",
+                  "value",
+                  "unit",
+                  "maximum"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "limits"
+          ],
+          "additionalProperties": false
+        },
+        "policy_imposed": {
+          "type": "object",
+          "properties": {
+            "limits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "resource": {
+                    "type": "string",
+                    "enum": [
+                      "cpu",
+                      "memory",
+                      "storage",
+                      "execution_time",
+                      "concurrency",
+                      "token_consumption"
+                    ]
+                  },
+                  "value": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maximum": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "resource",
+                  "value",
+                  "unit",
+                  "maximum"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "limits"
+          ],
+          "additionalProperties": false
+        },
+        "effective": {
+          "type": "object",
+          "properties": {
+            "limits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "resource": {
+                    "type": "string",
+                    "enum": [
+                      "cpu",
+                      "memory",
+                      "storage",
+                      "execution_time",
+                      "concurrency",
+                      "token_consumption"
+                    ]
+                  },
+                  "value": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "maximum": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "resource",
+                  "value",
+                  "unit",
+                  "maximum"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "limits"
+          ],
+          "additionalProperties": false
+        },
+        "enforcement_status": {
+          "type": "string",
+          "enum": [
+            "enforced",
+            "partially_enforced",
+            "not_enforced"
+          ]
+        }
+      },
+      "required": [
+        "requested",
+        "policy_imposed",
+        "effective",
+        "enforcement_status"
+      ],
+      "additionalProperties": false
     },
     "authority_granted": {
       "type": "boolean",

@@ -2,7 +2,9 @@ name: Rust kernel verification
 
 on:
   push:
-    branches: [feat/igacms-a3-implementation]
+    branches:
+      - feat/igacms-a3-implementation
+      - implementation/genesis-a3-r03-nested-object-contracts
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
@@ -46,7 +48,6 @@ jobs:
           rustup default stable
           rustc --version
           cargo --version
-
 
       - name: Check formatting
         run: cargo fmt --all -- --check

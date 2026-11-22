@@ -93,7 +93,46 @@
     },
     "lease_epochs": {
       "type": "object",
-      "description": "lease_epochs — approved input field for g08.coordination-state"
+      "properties": {
+        "epochs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "participant_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "epoch": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "participant_id",
+              "epoch"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        },
+        "monotonicity": {
+          "type": "string",
+          "enum": [
+            "strictly_increasing",
+            "non_decreasing"
+          ]
+        },
+        "fencing_required": {
+          "const": true
+        }
+      },
+      "required": [
+        "epochs",
+        "monotonicity",
+        "fencing_required"
+      ],
+      "additionalProperties": false
     },
     "checkpoint_refs": {
       "type": "array",

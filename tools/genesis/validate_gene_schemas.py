@@ -227,6 +227,200 @@ def check_negative_mutations(validator, instance, spec, gene_id, side):
     return rejected
 
 
+
+NESTED_OBJECT_FIELDS = {
+    ("g03.uncertainty-calculus", "output"): ["uncertainty_bounds"],
+    ("g04.knowledge-schema", "output"): ["normalized_schema"],
+    ("g07.capability-profile", "input"): ["resource_limits"],
+    ("g07.capability-profile", "output"): ["limits"],
+    ("g08.scheduler-policy", "input"): ["priorities", "quotas", "deadlines"],
+    ("g08.scheduler-policy", "output"): ["normalized_policy"],
+    ("g08.coordination-state", "input"): ["lease_epochs"],
+    ("g08.coordination-state", "output"): ["canonical_state"],
+    ("g10.evaluation-record", "input"): ["baseline_metrics", "candidate_metrics"],
+}
+
+
+def check_nested_object_contracts(validator, instance, gene_id, side):
+    """Exercise R-03 nested object closure and required-member rejection."""
+    rejected = 0
+    for name in NESTED_OBJECT_FIELDS.get((gene_id, side), []):
+        schema = validator.schema["properties"][name]
+        if schema.get("type") != "object" or schema.get("additionalProperties") is not False:
+            raise ValueError("R-03 nested object must be closed: " + gene_id + "/" + side + "/" + name)
+        required = schema.get("required", [])
+        if not required or not set(required).issubset(set(schema.get("properties", {}))):
+            raise ValueError("R-03 nested object must declare required members: " + gene_id + "/" + side + "/" + name)
+        value = instance.get(name)
+        if not isinstance(value, dict) or not validator.evolve(schema=schema).is_valid(value):
+            raise ValueError("R-03 positive nested object invalid: " + gene_id + "/" + side + "/" + name)
+        candidate = copy.deepcopy(instance)
+        candidate[name]["__unexpected_nested_field__"] = True
+        if validator.is_valid(candidate):
+            raise ValueError("R-03 nested unknown property accepted: " + gene_id + "/" + side + "/" + name)
+        rejected += 1
+        candidate = copy.deepcopy(instance)
+        del candidate[name][required[0]]
+        if validator.is_valid(candidate):
+            raise ValueError("R-03 missing nested required property accepted: " + gene_id + "/" + side + "/" + name)
+        rejected += 1
+    return rejected
+
+
+
+def check_r03_semantics(instance, gene_id, side):
+    """Check cross-field invariants that JSON Schema cannot express by itself."""
+    def unique(items, key):
+        values = [item[key] for item in items]
+        return len(values) == len(set(values))
+
+    if gene_id == "g03.uncertainty-calculus" and side == "output":
+        bounds = instance["uncertainty_bounds"]
+        for hypothesis in bounds["hypotheses"]:
+            if hypothesis["lower_bound"] > hypothesis["upper_bound"]:
+                raise ValueError("R-03 uncertainty lower_bound exceeds upper_bound")
+
+    if gene_id == "g04.knowledge-schema" and side == "output":
+        normalized = instance["normalized_schema"]
+        if not set(normalized["required_fields"]).issubset(set(normalized["properties"])):
+            raise ValueError("R-03 normalized schema requires an undeclared property")
+        for name, definition in normalized["properties"].items():
+            if definition["required"] != (name in normalized["required_fields"]):
+                raise ValueError("R-03 normalized schema required flags disagree")
+
+    if gene_id == "g07.capability-profile" and side == "input":
+        limits = instance["resource_limits"]["limits"]
+        if not unique(limits, "resource"):
+            raise ValueError("R-03 resource limit dimensions must be unique")
+        if any(entry["value"] > entry["maximum"] for entry in limits):
+            raise ValueError("R-03 requested resource limit exceeds its maximum")
+
+    if gene_id == "g07.capability-profile" and side == "output":
+        limits = instance["limits"]
+        maps = {}
+        for stage in ("requested", "policy_imposed", "effective"):
+            entries = limits[stage]["limits"]
+            if not unique(entries, "resource"):
+                raise ValueError("R-03 capability limit dimensions must be unique")
+            maps[stage] = {entry["resource"]: entry for entry in entries}
+        for resource, effective in maps["effective"].items():
+            requested = maps["requested"].get(resource)
+            imposed = maps["policy_imposed"].get(resource)
+            if requested is None or imposed is None:
+                raise ValueError("R-03 effective limit lacks requested or policy-imposed counterpart")
+            if effective["unit"] != requested["unit"] or effective["unit"] != imposed["unit"]:
+                raise ValueError("R-03 resource limit units disagree")
+            if effective["value"] > min(requested["value"], imposed["value"]):
+                raise ValueError("R-03 effective limit exceeds requested or policy-imposed limit")
+
+    if gene_id == "g08.scheduler-policy" and side == "input":
+        priorities = instance["priorities"]["by_task_class"]
+        quotas = instance["quotas"]["by_task_class"]
+        deadlines = instance["deadlines"]["by_task_class"]
+        if not unique(priorities, "class_id"):
+            raise ValueError("R-03 scheduler priority class identifiers must be unique")
+        quota_keys = [(q["class_id"], q["resource"]) for q in quotas]
+        if len(quota_keys) != len(set(quota_keys)) or not unique(deadlines, "class_id"):
+            raise ValueError("R-03 scheduler quota class/resource pairs and deadline class identifiers must be unique")
+        if any(q["window_seconds"] <= 0 for q in quotas):
+            raise ValueError("R-03 quota measurement windows must be positive")
+
+    if gene_id == "g08.scheduler-policy" and side == "output":
+        policy = instance["normalized_policy"]
+        if policy["priorities"]["ordering"] != "ascending" or policy["priorities"]["lower_number_is_higher"] is not True:
+            raise ValueError("R-03 normalized scheduler priority ordering is not canonical")
+        if not unique(policy["priorities"]["by_task_class"], "class_id"):
+            raise ValueError("R-03 normalized scheduler priority class identifiers must be unique")
+        quota_keys = [(q["class_id"], q["resource"]) for q in policy["quotas"]["by_task_class"]]
+        if len(quota_keys) != len(set(quota_keys)):
+            raise ValueError("R-03 normalized scheduler quota dimensions must be unique per class")
+
+    if gene_id == "g08.coordination-state" and side == "input":
+        epochs = instance["lease_epochs"]["epochs"]
+        if not unique(epochs, "participant_id"):
+            raise ValueError("R-03 lease epoch participant identifiers must be unique")
+
+    if gene_id == "g08.coordination-state" and side == "output":
+        state = instance["canonical_state"]
+        if not unique(state["participants"], "participant_id"):
+            raise ValueError("R-03 canonical state participant identifiers must be unique")
+        if len(state["checkpoint_refs"]) != len(set(state["checkpoint_refs"])):
+            raise ValueError("R-03 canonical checkpoint references must be unique")
+
+    if gene_id == "g10.evaluation-record" and side == "input":
+        baseline = {m["metric_id"]: m for m in instance["baseline_metrics"]["metrics"]}
+        candidate = {m["metric_id"]: m for m in instance["candidate_metrics"]["metrics"]}
+        if set(baseline) != set(candidate):
+            raise ValueError("R-03 baseline/candidate metric identifiers must match")
+        for metric_id in baseline:
+            left, right = baseline[metric_id], candidate[metric_id]
+            if (left["unit"], left["aggregation"], left["window_seconds"]) != (right["unit"], right["aggregation"], right["window_seconds"]):
+                raise ValueError("R-03 baseline/candidate metric definitions are not comparable")
+
+
+
+
+def check_r03_semantic_rejections(instance, gene_id, side):
+    """Prove the semantic checker rejects deliberately inconsistent nested records."""
+    rejected = 0
+    candidates = []
+    if gene_id == "g03.uncertainty-calculus" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["uncertainty_bounds"]["hypotheses"][0]["lower_bound"] = 0.9
+        candidates.append(candidate)
+    if gene_id == "g04.knowledge-schema" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["normalized_schema"]["required_fields"].append("undeclared_property")
+        candidates.append(candidate)
+    if gene_id == "g07.capability-profile" and side == "input":
+        candidate = copy.deepcopy(instance)
+        candidate["resource_limits"]["limits"][0]["value"] = candidate["resource_limits"]["limits"][0]["maximum"] + 1
+        candidates.append(candidate)
+    if gene_id == "g07.capability-profile" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["limits"]["effective"]["limits"][0]["value"] = candidate["limits"]["requested"]["limits"][0]["value"] + 1
+        candidates.append(candidate)
+    if gene_id == "g08.scheduler-policy" and side == "input":
+        candidate = copy.deepcopy(instance)
+        candidate["quotas"]["by_task_class"].append(copy.deepcopy(candidate["quotas"]["by_task_class"][0]))
+        candidates.append(candidate)
+    if gene_id == "g08.scheduler-policy" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["normalized_policy"]["quotas"]["by_task_class"].append(copy.deepcopy(candidate["normalized_policy"]["quotas"]["by_task_class"][0]))
+        candidates.append(candidate)
+    if gene_id == "g08.coordination-state" and side == "input":
+        candidate = copy.deepcopy(instance)
+        candidate["lease_epochs"]["epochs"].append(copy.deepcopy(candidate["lease_epochs"]["epochs"][0]))
+        candidates.append(candidate)
+    if gene_id == "g08.coordination-state" and side == "output":
+        candidate = copy.deepcopy(instance)
+        candidate["canonical_state"]["participants"].append(copy.deepcopy(candidate["canonical_state"]["participants"][0]))
+        candidates.append(candidate)
+    if gene_id == "g10.evaluation-record" and side == "input":
+        candidate = copy.deepcopy(instance)
+        candidate["candidate_metrics"]["metrics"][0]["window_seconds"] += 1
+        candidates.append(candidate)
+
+    if gene_id == "g08.scheduler-policy" and side == "input":
+        # A task class may have multiple quotas, provided each resource dimension is unique.
+        candidate = copy.deepcopy(instance)
+        additional_quota = copy.deepcopy(candidate["quotas"]["by_task_class"][0])
+        additional_quota["resource"] = "memory"
+        additional_quota["unit"] = "gibibytes"
+        candidate["quotas"]["by_task_class"].append(additional_quota)
+        check_r03_semantics(candidate, gene_id, side)
+
+    for candidate in candidates:
+        try:
+            check_r03_semantics(candidate, gene_id, side)
+        except ValueError:
+            rejected += 1
+        else:
+            raise ValueError("R-03 inconsistent cross-field mutation accepted: " + gene_id + "/" + side)
+    return rejected
+
+
+
 def main():
     proposal = load(CONTRACTS)
     genome = load(GENOME)
@@ -244,7 +438,7 @@ def main():
     ):
         raise ValueError("Expected exactly 36 matching gene contracts, Genome genes and conformance cases")
 
-    resolved = positive = negative = mutation_negatives = 0
+    resolved = positive = negative = mutation_negatives = nested_mutation_negatives = nested_semantic_negatives = 0
     underspecified_arrays = []
     schema_ids = set()
     schema_paths = set()
@@ -334,6 +528,13 @@ def main():
             mutation_negatives += check_negative_mutations(
                 validator, vectors["positive"]["instance"], spec, gene_id, side
             )
+            nested_mutation_negatives += check_nested_object_contracts(
+                validator, vectors["positive"]["instance"], gene_id, side
+            )
+            check_r03_semantics(vectors["positive"]["instance"], gene_id, side)
+            nested_semantic_negatives += check_r03_semantic_rejections(
+                vectors["positive"]["instance"], gene_id, side
+            )
             resolved += 1
 
     if (resolved, positive, negative) != (72, 72, 72):
@@ -344,6 +545,9 @@ def main():
     print("PASS: all internal $refs resolve; external refs and cycles rejected")
     print("PASS: 36 gene cases; 72 positive vectors and 72 missing-field negatives")
     print("PASS: " + str(mutation_negatives) + " generated invalid-type, enum, array-item and unknown-field mutations rejected")
+    print("PASS: " + str(nested_mutation_negatives) + " R-03 nested unknown-field and missing-required mutations rejected")
+    print("PASS: " + str(nested_semantic_negatives) + " R-03 inconsistent cross-field mutations rejected")
+    print("PASS: R-03 cross-field invariants for uncertainty, normalized schema, resource limits, scheduler policy, coordination state and metric comparability")
     print("UNRESOLVED: " + str(len(underspecified_arrays)) + " generic array fields lack approved item contracts")
     for item in underspecified_arrays:
         print("CONTRACT-GAP: " + item["gene_id"] + "/" + item["side"] + "/" + item["field"])

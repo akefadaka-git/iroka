@@ -823,9 +823,15 @@
               }
             ],
             "uncertainty_bounds": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g03.uncertainty-calculus",
-              "gene_version": "1.0.0"
+              "calibration_method": "synthetic-calibration-v1",
+              "probability_scale": "unit_interval",
+              "hypotheses": [
+                {
+                  "hypothesis_id": "hypothesis-001",
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.8
+                }
+              ]
             },
             "calibration_status": "valid",
             "evidence": {
@@ -932,9 +938,21 @@
           "instance": {
             "schema_id": "fixture-schema_id",
             "normalized_schema": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g04.knowledge-schema",
-              "gene_version": "1.0.0"
+              "dialect": "https://json-schema.org/draft/2020-12/schema",
+              "schema_id": "urn:iroka:fixture:knowledge",
+              "schema_version": "1.0.0",
+              "properties": {
+                "concept_id": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Synthetic concept identifier"
+                }
+              },
+              "required_fields": [
+                "concept_id"
+              ],
+              "compatibility": "backward-compatible",
+              "schema_digest": "sha256:synthetic-schema-digest"
             },
             "schema_digest": "fixture-schema_digest",
             "validation_status": "valid",
@@ -1847,9 +1865,14 @@
               "fixture-value"
             ],
             "resource_limits": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g07.capability-profile",
-              "gene_version": "1.0.0"
+              "limits": [
+                {
+                  "resource": "cpu",
+                  "value": 2,
+                  "unit": "cores",
+                  "maximum": 4
+                }
+              ]
             },
             "policy_id": "fixture-policy_id",
             "provenance": {
@@ -1900,9 +1923,37 @@
               "fixture-value"
             ],
             "limits": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g07.capability-profile",
-              "gene_version": "1.0.0"
+              "requested": {
+                "limits": [
+                  {
+                    "resource": "cpu",
+                    "value": 2,
+                    "unit": "cores",
+                    "maximum": 4
+                  }
+                ]
+              },
+              "policy_imposed": {
+                "limits": [
+                  {
+                    "resource": "cpu",
+                    "value": 4,
+                    "unit": "cores",
+                    "maximum": 4
+                  }
+                ]
+              },
+              "effective": {
+                "limits": [
+                  {
+                    "resource": "cpu",
+                    "value": 2,
+                    "unit": "cores",
+                    "maximum": 4
+                  }
+                ]
+              },
+              "enforcement_status": "enforced"
             },
             "authority_granted": true,
             "evidence": {
@@ -2155,19 +2206,36 @@
               }
             ],
             "priorities": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g08.scheduler-policy",
-              "gene_version": "1.0.0"
+              "ordering": "ascending",
+              "lower_number_is_higher": true,
+              "by_task_class": [
+                {
+                  "class_id": "interactive",
+                  "priority": 1
+                }
+              ]
             },
             "quotas": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g08.scheduler-policy",
-              "gene_version": "1.0.0"
+              "by_task_class": [
+                {
+                  "class_id": "interactive",
+                  "resource": "execution_time",
+                  "limit": 30,
+                  "unit": "seconds",
+                  "window_seconds": 60,
+                  "burst_limit": 45,
+                  "reset_policy": "rolling"
+                }
+              ]
             },
             "deadlines": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g08.scheduler-policy",
-              "gene_version": "1.0.0"
+              "by_task_class": [
+                {
+                  "class_id": "interactive",
+                  "deadline_at": "2026-11-22T18:00:00Z",
+                  "expiry_behavior": "reject"
+                }
+              ]
             },
             "provenance": {
               "source_id": "synthetic-fixture",
@@ -2220,9 +2288,39 @@
           "instance": {
             "policy_id": "fixture-policy_id",
             "normalized_policy": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g08.scheduler-policy",
-              "gene_version": "1.0.0"
+              "policy_version": "1.0.0",
+              "priorities": {
+                "ordering": "ascending",
+                "lower_number_is_higher": true,
+                "by_task_class": [
+                  {
+                    "class_id": "interactive",
+                    "priority": 1
+                  }
+                ]
+              },
+              "quotas": {
+                "by_task_class": [
+                  {
+                    "class_id": "interactive",
+                    "resource": "execution_time",
+                    "limit": 30,
+                    "unit": "seconds",
+                    "window_seconds": 60,
+                    "burst_limit": 45,
+                    "reset_policy": "rolling"
+                  }
+                ]
+              },
+              "deadlines": {
+                "by_task_class": [
+                  {
+                    "class_id": "interactive",
+                    "deadline_at": "2026-11-22T18:00:00Z",
+                    "expiry_behavior": "reject"
+                  }
+                ]
+              }
             },
             "feasibility": "feasible",
             "violations": [
@@ -2291,9 +2389,14 @@
               }
             ],
             "lease_epochs": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g08.coordination-state",
-              "gene_version": "1.0.0"
+              "epochs": [
+                {
+                  "participant_id": "worker-001",
+                  "epoch": 3
+                }
+              ],
+              "monotonicity": "strictly_increasing",
+              "fencing_required": true
             },
             "checkpoint_refs": [
               "fixture-value"
@@ -2340,9 +2443,19 @@
           "instance": {
             "run_id": "fixture-run_id",
             "canonical_state": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g08.coordination-state",
-              "gene_version": "1.0.0"
+              "state_version": "1.0.0",
+              "sequence": 7,
+              "participants": [
+                {
+                  "participant_id": "worker-001",
+                  "state": "active",
+                  "lease_epoch": 3
+                }
+              ],
+              "checkpoint_refs": [
+                "checkpoint:synthetic-001"
+              ],
+              "state_digest": "sha256:synthetic-state-digest"
             },
             "state_digest": "fixture-state_digest",
             "conflicts": [
@@ -2897,14 +3010,26 @@
             "proposal_id": "fixture-proposal_id",
             "suite_digest": "fixture-suite_digest",
             "baseline_metrics": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g10.evaluation-record",
-              "gene_version": "1.0.0"
+              "metrics": [
+                {
+                  "metric_id": "latency_p95",
+                  "value": 120,
+                  "unit": "milliseconds",
+                  "aggregation": "p95",
+                  "window_seconds": 300
+                }
+              ]
             },
             "candidate_metrics": {
-              "source_id": "synthetic-fixture",
-              "gene_id": "g10.evaluation-record",
-              "gene_version": "1.0.0"
+              "metrics": [
+                {
+                  "metric_id": "latency_p95",
+                  "value": 105,
+                  "unit": "milliseconds",
+                  "aggregation": "p95",
+                  "window_seconds": 300
+                }
+              ]
             },
             "evaluator_id": "fixture-evaluator_id",
             "environment_digest": "fixture-environment_digest",
