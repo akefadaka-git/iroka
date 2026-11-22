@@ -4,9 +4,11 @@ on:
     branches:
       - architecture/genesis-gene-contract-amendment-proposal
       - implementation/genesis-a3-r03-nested-object-contracts
+      - implementation/genesis-a3-r04-canonical-authorization-scopes
     paths:
       - "crates/iroka-kernel/igacms/genome-v1.0.0.json"
       - "crates/iroka-kernel/igacms/schemas/genes/**"
+      - "crates/iroka-kernel/igacms/registries/**"
       - "crates/iroka-kernel/igacms/conformance/**"
       - "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
       - "tools/genesis/**"
@@ -16,6 +18,7 @@ on:
     branches:
       - main
       - architecture/genesis-gene-contract-amendment-proposal
+      - implementation/genesis-a3-r03-nested-object-contracts
     paths:
       - "crates/iroka-kernel/igacms/genome-v1.0.0.json"
       - "crates/iroka-kernel/igacms/schemas/genes/**"

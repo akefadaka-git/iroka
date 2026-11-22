@@ -5,14 +5,16 @@ on:
     branches:
       - feat/igacms-a3-implementation
       - implementation/genesis-a3-r03-nested-object-contracts
+      - implementation/genesis-a3-r04-canonical-authorization-scopes
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
+      - "tools/genesis/**"
       - "docs/constitutional/IGACMS-A3-IMPLEMENTATION-RECORD.md"
       - ".github/workflows/rust-kernel.yml"
   pull_request:
-    branches: [main, architecture/igacms-a2-ci-base]
+    branches: [main, architecture/igacms-a2-ci-base, implementation/genesis-a3-r03-nested-object-contracts]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"

@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GENOME = ROOT / "crates/iroka-kernel/igacms/genome-v1.0.0.json"
 CONTRACTS = ROOT / "docs/architecture/GENESIS-GENE-IO-CONTRACT-AMENDMENT-A1-PROPOSAL-v1.0.0.json"
 FIXTURES = ROOT / "crates/iroka-kernel/igacms/conformance/gene-io-v1.0.0.json"
+AUTHORIZATION_SCOPES = ROOT / "crates/iroka-kernel/igacms/registries/authorization-scopes-v1.0.0.json"
 
 
 def load(path):
@@ -120,6 +121,49 @@ def contract_type(declaration):
         return declaration, None, None
 
     raise ValueError("Unsupported approved contract type: " + declaration)
+
+
+R04_SCOPE_FIELDS = {
+    ("g02.authority-source", "output"): "scope",
+    ("g02.owner-governance", "input"): "scope",
+    ("g02.owner-governance", "output"): "authorized_scope",
+    ("g09.effect-contract", "output"): "required_authorization",
+}
+
+
+def check_r04_scope_registry(gene_id, side, schema, registry):
+    """Bind R-04 scope arrays to the exact canonical registry and reject unknown forms."""
+    field = R04_SCOPE_FIELDS.get((gene_id, side))
+    if field is None:
+        return 0
+    identifiers = [entry["id"] for entry in registry.get("scopes", [])]
+    if not identifiers or len(identifiers) != len(set(identifiers)):
+        raise ValueError("R-04 registry must contain unique canonical identifiers")
+    if (registry.get("registry_id") != "iroka.authorization-scopes.v1" or registry.get("version") != "1.0.0"
+            or registry.get("status") != "OWNER_APPROVED_NORMATIVE_BASELINE"
+            or registry.get("identifier_format") != "<domain>:<resource>:<action>"):
+        raise ValueError("R-04 authorization scope registry identity/version/approval/format mismatch")
+    for identifier in identifiers:
+        parts = identifier.split(":")
+        if len(parts) != 3 or any(not part or not part.isascii() or part.lower() != part or not all(ch.islower() or ch.isdigit() or ch == "-" for ch in part) for part in parts):
+            raise ValueError("R-04 malformed or non-canonical registry identifier: " + identifier)
+    scope_schema = schema.get("properties", {}).get(field, {})
+    if scope_schema.get("type") != "array" or scope_schema.get("uniqueItems") is not True:
+        raise ValueError("R-04 scope arrays must reject duplicate identifiers: " + gene_id + "/" + side + "/" + field)
+    item_schema = scope_schema.get("items", {})
+    if item_schema.get("type") != "string" or item_schema.get("enum") != identifiers:
+        raise ValueError("R-04 schema vocabulary differs from canonical registry: " + gene_id + "/" + side + "/" + field)
+    validator = Draft202012Validator(item_schema)
+    for identifier in identifiers:
+        if not validator.is_valid(identifier):
+            raise ValueError("R-04 registered identifier rejected: " + identifier)
+    for invalid in ("execution:*:execute", "Execution:effect:execute", " execution:effect:execute", "execution:effect:unknown", "execution:effect", "executión:effect:execute"):
+        if validator.is_valid(invalid):
+            raise ValueError("R-04 invalid/unknown scope accepted: " + invalid)
+    array_validator = Draft202012Validator(scope_schema)
+    if array_validator.is_valid([identifiers[0], identifiers[0]]):
+        raise ValueError("R-04 duplicate authorization scope accepted: " + identifiers[0])
+    return len(identifiers) + 6
 
 
 def check_contract_schema(gene_id, side, spec, schema):
@@ -425,6 +469,7 @@ def main():
     proposal = load(CONTRACTS)
     genome = load(GENOME)
     fixtures = load(FIXTURES)
+    authorization_scopes = load(AUTHORIZATION_SCOPES)
 
     if proposal.get("status") != "OWNER_APPROVED_NORMATIVE_BASELINE":
         raise ValueError("Gene contract amendment is not Owner-approved")
@@ -438,7 +483,7 @@ def main():
     ):
         raise ValueError("Expected exactly 36 matching gene contracts, Genome genes and conformance cases")
 
-    resolved = positive = negative = mutation_negatives = nested_mutation_negatives = nested_semantic_negatives = 0
+    resolved = positive = negative = mutation_negatives = nested_mutation_negatives = nested_semantic_negatives = r04_scope_assertions = 0
     underspecified_arrays = []
     schema_ids = set()
     schema_paths = set()
@@ -476,6 +521,7 @@ def main():
                 raise ValueError("Root object must be closed: " + str(path))
 
             check_contract_schema(gene_id, side, spec, schema)
+            r04_scope_assertions += check_r04_scope_registry(gene_id, side, schema, authorization_scopes)
             for field in spec["properties"]:
                 if field["type"] == "array":
                     array_schema = dereference(schema, schema.get("properties", {}).get(field["name"], {}))
@@ -548,6 +594,8 @@ def main():
     print("PASS: " + str(nested_mutation_negatives) + " R-03 nested unknown-field and missing-required mutations rejected")
     print("PASS: " + str(nested_semantic_negatives) + " R-03 inconsistent cross-field mutations rejected")
     print("PASS: R-03 cross-field invariants for uncertainty, normalized schema, resource limits, scheduler policy, coordination state and metric comparability")
+    print("PASS: R-04 canonical authorization scope registry; " + str(r04_scope_assertions) + " registered/invalid identifier assertions across four schema fields")
+    print("PASS: R-04 canonical authorization scope registry; " + str(r04_scope_assertions) + " registered/invalid identifier assertions across four schema fields")
     print("UNRESOLVED: " + str(len(underspecified_arrays)) + " generic array fields lack approved item contracts")
     for item in underspecified_arrays:
         print("CONTRACT-GAP: " + item["gene_id"] + "/" + item["side"] + "/" + item["field"])

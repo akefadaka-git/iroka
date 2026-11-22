@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/registries/authorization-scopes/1.0.0",
+  "registry_id": "iroka.authorization-scopes.v1",
+  "version": "1.0.0",
+  "status": "OWNER_APPROVED_NORMATIVE_BASELINE",
+  "identifier_format": "<domain>:<resource>:<action>",
+  "normalization": {
+    "canonical_form": "lowercase ASCII; each segment uses lowercase letters, digits, and hyphens; exactly three non-empty segments separated by two colons",
+    "case_sensitive": true,
+    "whitespace": "rejected; no trimming or case folding",
+    "aliases": "not permitted",
+    "wildcards": "not permitted",
+    "implicit_inheritance": "not permitted"
+  },
+  "scopes": [
+    {
+      "id": "execution:effect:admit",
+      "domain": "execution",
+      "resource": "effect",
+      "action": "admit",
+      "description": "Submit an effect for G09 authorization-admission evaluation; does not authorize execution."
+    },
+    {
+      "id": "execution:effect:execute",
+      "domain": "execution",
+      "resource": "effect",
+      "action": "execute",
+      "description": "Execute an effect only after independent authorization and all runtime safety gates pass."
+    },
+    {
+      "id": "governance:approval:issue",
+      "domain": "governance",
+      "resource": "approval",
+      "action": "issue",
+      "description": "Issue a governance approval within the issuer's independently verified authority."
+    },
+    {
+      "id": "governance:approval:revoke",
+      "domain": "governance",
+      "resource": "approval",
+      "action": "revoke",
+      "description": "Revoke an approval within the issuer's independently verified authority."
+    },
+    {
+      "id": "memory:record:read",
+      "domain": "memory",
+      "resource": "record",
+      "action": "read",
+      "description": "Read a memory record after independent identity, tenant, classification, and policy checks."
+    },
+    {
+      "id": "memory:record:write",
+      "domain": "memory",
+      "resource": "record",
+      "action": "write",
+      "description": "Write a memory record after independent identity, tenant, classification, and policy checks."
+    },
+    {
+      "id": "knowledge:source:retrieve",
+      "domain": "knowledge",
+      "resource": "source",
+      "action": "retrieve",
+      "description": "Retrieve from an authorized knowledge source after source-level permission checks."
+    },
+    {
+      "id": "identity:credential:verify",
+      "domain": "identity",
+      "resource": "credential",
+      "action": "verify",
+      "description": "Request credential verification; does not itself establish identity or grant capabilities."
+    }
+  ],
+  "governance_constraints": [
+    "A registered scope identifier is a vocabulary reference, not an authorization grant.",
+    "G02 must establish the authority and scope of a signed approval from trusted evidence.",
+    "G09 must independently verify issuer authority, signature, policy version, validity interval, revocation, and replay protection before admitting an effect.",
+    "Capability declarations and principal identity do not grant authorization.",
+    "Unknown identifiers, malformed identifiers, aliases, wildcards, whitespace, and unsupported representations fail closed.",
+    "No permission inheritance or escalation is implied by domain, resource, or action relationships.",
+    "This registry defines identifiers only; it does not define runtime policy, credential trust roots, issuer enrollment, or execution semantics."
+  ]
+}

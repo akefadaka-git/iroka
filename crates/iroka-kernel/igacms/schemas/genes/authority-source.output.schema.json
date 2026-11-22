@@ -5,64 +5,29 @@
   "description": "output contract for g02.authority-source: authority principal, source class, mandate reference, validity interval",
   "type": "object",
   "properties": {
-    "authority_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "source_valid": {
-      "type": "boolean"
-    },
+    "authority_id": { "type": "string", "minLength": 1 },
+    "source_valid": { "type": "boolean" },
     "scope": {
       "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["execution:effect:admit","execution:effect:execute","governance:approval:issue","governance:approval:revoke","memory:record:read","memory:record:write","knowledge:source:retrieve","identity:credential:verify"] }
     },
-    "decision": {
-      "type": "string",
-      "enum": [
-        "valid",
-        "invalid",
-        "expired"
-      ]
-    },
-    "evidence": {
-      "$ref": "#/$defs/evidence"
-    }
+    "decision": { "type": "string", "enum": ["valid","invalid","expired"] },
+    "evidence": { "$ref": "#/$defs/evidence" }
   },
-  "required": [
-    "authority_id",
-    "source_valid",
-    "scope",
-    "decision",
-    "evidence"
-  ],
+  "required": ["authority_id","source_valid","scope","decision","evidence"],
   "additionalProperties": false,
   "$defs": {
-    "provenance": {
-      "type": "object",
-      "minProperties": 1
-    },
-    "version_bound_evidence": {
-      "type": "object",
-      "minProperties": 1
-    },
+    "provenance": { "type": "object", "minProperties": 1 },
+    "version_bound_evidence": { "type": "object", "minProperties": 1 },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "provenance": {
-          "$ref": "#/$defs/provenance"
-        },
-        "version_bound_evidence": {
-          "$ref": "#/$defs/version_bound_evidence"
-        }
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "version_bound_evidence": { "$ref": "#/$defs/version_bound_evidence" }
       },
-      "required": [
-        "provenance",
-        "version_bound_evidence"
-      ]
+      "required": ["provenance","version_bound_evidence"]
     }
   }
 }

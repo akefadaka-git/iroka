@@ -5,71 +5,31 @@
   "description": "Normative output contract for g09.effect-contract v1.0.0, derived from the Owner-approved amendment.",
   "type": "object",
   "$defs": {
-    "provenance": {
-      "type": "object",
-      "minProperties": 1
-    },
-    "version_bound_evidence": {
-      "type": "object",
-      "minProperties": 1
-    },
+    "provenance": { "type": "object", "minProperties": 1 },
+    "version_bound_evidence": { "type": "object", "minProperties": 1 },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "provenance": {
-          "$ref": "#/$defs/provenance"
-        },
-        "version_bound_evidence": {
-          "$ref": "#/$defs/version_bound_evidence"
-        }
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "version_bound_evidence": { "$ref": "#/$defs/version_bound_evidence" }
       },
-      "required": [
-        "provenance",
-        "version_bound_evidence"
-      ]
+      "required": ["provenance","version_bound_evidence"]
     }
   },
   "properties": {
-    "effect_id": {
-      "type": "string",
-      "description": "effect_id — approved output field for g09.effect-contract"
-    },
-    "contract_valid": {
-      "type": "boolean",
-      "description": "contract_valid — approved output field for g09.effect-contract"
-    },
+    "effect_id": { "type": "string", "description": "effect_id — approved output field for g09.effect-contract" },
+    "contract_valid": { "type": "boolean", "description": "contract_valid — approved output field for g09.effect-contract" },
     "required_authorization": {
       "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "items": { "type": "string", "enum": ["execution:effect:admit","execution:effect:execute","governance:approval:issue","governance:approval:revoke","memory:record:read","memory:record:write","knowledge:source:retrieve","identity:credential:verify"] },
       "uniqueItems": true,
-      "description": "required_authorization — approved output field for g09.effect-contract"
+      "description": "required_authorization — canonical identifiers from iroka.authorization-scopes.v1; references do not grant authorization"
     },
-    "effect_digest": {
-      "type": "string",
-      "description": "effect_digest — approved output field for g09.effect-contract"
-    },
-    "decision": {
-      "type": "string",
-      "enum": [
-        "admissible",
-        "inadmissible"
-      ],
-      "description": "decision — approved output field for g09.effect-contract"
-    },
-    "evidence": {
-      "$ref": "#/$defs/evidence"
-    }
+    "effect_digest": { "type": "string", "description": "effect_digest — approved output field for g09.effect-contract" },
+    "decision": { "type": "string", "enum": ["admissible","inadmissible"], "description": "decision — approved output field for g09.effect-contract" },
+    "evidence": { "$ref": "#/$defs/evidence" }
   },
-  "required": [
-    "effect_id",
-    "contract_valid",
-    "required_authorization",
-    "effect_digest",
-    "decision",
-    "evidence"
-  ],
+  "required": ["effect_id","contract_valid","required_authorization","effect_digest","decision","evidence"],
   "additionalProperties": false
 }
