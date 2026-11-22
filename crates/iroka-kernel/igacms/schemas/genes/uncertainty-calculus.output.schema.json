@@ -23,7 +23,53 @@
     },
     "uncertainty_bounds": {
       "type": "object",
-      "additionalProperties": true
+      "properties": {
+        "calibration_method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "probability_scale": {
+          "type": "string",
+          "enum": [
+            "unit_interval"
+          ]
+        },
+        "hypotheses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "hypothesis_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lower_bound": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "upper_bound": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "hypothesis_id",
+              "lower_bound",
+              "upper_bound"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "calibration_method",
+        "probability_scale",
+        "hypotheses"
+      ],
+      "additionalProperties": false
     },
     "calibration_status": {
       "type": "string",
