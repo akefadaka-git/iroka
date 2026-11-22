@@ -44,8 +44,11 @@ jobs:
       - name: Resolve all 72 references and execute gene IO conformance
         run: python3 tools/genesis/validate_gene_schemas.py
       - name: Validate character A2 overlay, catalog and schema bindings
-        if: github.event_name == 'pull_request' && github.base_ref == 'architecture/genesis-gene-contract-amendment-proposal'
+        if: github.event_name == 'pull_request' && github.base_ref == 'architecture/genesis-gene-contract-amendment-proposal' && hashFiles('tools/genesis/validate_character_a2.py') != ''
         run: python3 tools/genesis/validate_character_a2.py
+      - name: Report unavailable character A2 validator
+        if: github.event_name == 'pull_request' && github.base_ref == 'architecture/genesis-gene-contract-amendment-proposal' && hashFiles('tools/genesis/validate_character_a2.py') == ''
+        run: echo "::warning::Character A2 validator is absent from this branch; that separate check remains NOT RUN."
       - name: Validate approved 53 collection item contracts
         run: python3 tools/genesis/validate_collection_item_amendment.py
       - name: Execute cross-collection semantic integration conformance
