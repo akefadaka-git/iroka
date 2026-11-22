@@ -39,9 +39,6 @@
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
-    },
-    "version_bound_evidence": {
-      "$ref": "#/$defs/version_bound_evidence"
     }
   },
   "required": [
@@ -49,8 +46,7 @@
     "premise_set_digest",
     "normalized_premises",
     "unresolved_premises",
-    "evidence",
-    "version_bound_evidence"
+    "evidence"
   ],
   "additionalProperties": false,
   "$defs": {
