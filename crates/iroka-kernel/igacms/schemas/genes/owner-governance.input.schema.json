@@ -5,80 +5,32 @@
   "description": "input contract for g02.owner-governance: owner principal, decision request, scope, signed approval, expiry",
   "type": "object",
   "properties": {
-    "owner_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "decision_id": {
-      "type": "string",
-      "minLength": 1
-    },
+    "owner_id": { "type": "string", "minLength": 1 },
+    "decision_id": { "type": "string", "minLength": 1 },
     "scope": {
       "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      }
+      "items": { "type": "string", "enum": ["execution:effect:admit","execution:effect:execute","governance:approval:issue","governance:approval:revoke","memory:record:read","memory:record:write","knowledge:source:retrieve","identity:credential:verify"] }
     },
-    "approval_digest": {
-      "type": "string",
-      "minLength": 1
-    },
-    "signature": {
-      "type": "string",
-      "minLength": 1
-    },
-    "issued_at": {
-      "type": "string",
-      "minLength": 1
-    },
-    "expires_at": {
-      "type": "string",
-      "minLength": 1
-    },
-    "provenance": {
-      "$ref": "#/$defs/provenance"
-    },
-    "version_bound_evidence": {
-      "$ref": "#/$defs/version_bound_evidence"
-    }
+    "approval_digest": { "type": "string", "minLength": 1 },
+    "signature": { "type": "string", "minLength": 1 },
+    "issued_at": { "type": "string", "minLength": 1 },
+    "expires_at": { "type": "string", "minLength": 1 },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "version_bound_evidence": { "$ref": "#/$defs/version_bound_evidence" }
   },
-  "required": [
-    "owner_id",
-    "decision_id",
-    "scope",
-    "approval_digest",
-    "signature",
-    "issued_at",
-    "expires_at",
-    "provenance",
-    "version_bound_evidence"
-  ],
+  "required": ["owner_id","decision_id","scope","approval_digest","signature","issued_at","expires_at","provenance","version_bound_evidence"],
   "additionalProperties": false,
   "$defs": {
-    "provenance": {
-      "type": "object",
-      "minProperties": 1
-    },
-    "version_bound_evidence": {
-      "type": "object",
-      "minProperties": 1
-    },
+    "provenance": { "type": "object", "minProperties": 1 },
+    "version_bound_evidence": { "type": "object", "minProperties": 1 },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "provenance": {
-          "$ref": "#/$defs/provenance"
-        },
-        "version_bound_evidence": {
-          "$ref": "#/$defs/version_bound_evidence"
-        }
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "version_bound_evidence": { "$ref": "#/$defs/version_bound_evidence" }
       },
-      "required": [
-        "provenance",
-        "version_bound_evidence"
-      ]
+      "required": ["provenance","version_bound_evidence"]
     }
   }
 }
