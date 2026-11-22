@@ -93,9 +93,6 @@
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
-    },
-    "version_bound_evidence": {
-      "$ref": "#/$defs/version_bound_evidence"
     }
   },
   "required": [
@@ -103,8 +100,7 @@
     "classification",
     "handling_controls",
     "classification_rationale",
-    "evidence",
-    "version_bound_evidence"
+    "evidence"
   ],
   "additionalProperties": false
 }
