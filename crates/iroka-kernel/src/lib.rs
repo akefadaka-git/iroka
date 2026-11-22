@@ -35,10 +35,6 @@ pub use identity_crypto::{
     CredentialError, Ed25519CredentialVerifier, RevocationChecker, TrustConfigError, TrustStore,
     TrustedKey,
 };
-pub use memory_classification::{
-    evaluate_memory_classification, MemoryClassificationEvidence, MemoryClassificationInput,
-    MemoryClassificationOutput, MemoryClassificationPolicy, MemoryHandlingControl,
-};
 pub use igacms::{
     authorize_mutation, canonical_json, cross_chromosome_invariants, preserve_historical,
     sign_fingerprint, sign_genesis, sign_marker_assertion, validate_embedded_baseline,
@@ -47,6 +43,10 @@ pub use igacms::{
     verify_genesis_with_trust_roots, Attestation, Fingerprint, Genesis, HistoricalArtifact,
     IgacmsError, MarkerAssertion, MigrationEvidence, MutationClass, MutationEvidence,
     ValidatedGenome, VerifiedGenesis,
+};
+pub use memory_classification::{
+    evaluate_memory_classification, MemoryClassificationEvidence, MemoryClassificationInput,
+    MemoryClassificationOutput, MemoryClassificationPolicy, MemoryHandlingControl,
 };
 pub use owner_approval::{
     OwnerApprovalError, OwnerApprovalPayload, OwnerApprovalVerifier, OwnerSecurityAction,
