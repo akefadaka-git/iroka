@@ -145,7 +145,10 @@ def check_r04_scope_registry(gene_id, side, schema, registry):
         parts = identifier.split(":")
         if len(parts) != 3 or any(not part or not part.isascii() or part.lower() != part or not all(ch.islower() or ch.isdigit() or ch == "-" for ch in part) for part in parts):
             raise ValueError("R-04 malformed or non-canonical registry identifier: " + identifier)
-    item_schema = schema.get("properties", {}).get(field, {}).get("items", {})
+    scope_schema = schema.get("properties", {}).get(field, {})
+    if scope_schema.get("type") != "array" or scope_schema.get("uniqueItems") is not True:
+        raise ValueError("R-04 scope arrays must reject duplicate identifiers: " + gene_id + "/" + side + "/" + field)
+    item_schema = scope_schema.get("items", {})
     if item_schema.get("type") != "string" or item_schema.get("enum") != identifiers:
         raise ValueError("R-04 schema vocabulary differs from canonical registry: " + gene_id + "/" + side + "/" + field)
     validator = Draft202012Validator(item_schema)
@@ -155,7 +158,10 @@ def check_r04_scope_registry(gene_id, side, schema, registry):
     for invalid in ("execution:*:execute", "Execution:effect:execute", " execution:effect:execute", "execution:effect:unknown", "execution:effect", "executión:effect:execute"):
         if validator.is_valid(invalid):
             raise ValueError("R-04 invalid/unknown scope accepted: " + invalid)
-    return len(identifiers) + 5
+    array_validator = Draft202012Validator(scope_schema)
+    if array_validator.is_valid([identifiers[0], identifiers[0]]):
+        raise ValueError("R-04 duplicate authorization scope accepted: " + identifiers[0])
+    return len(identifiers) + 6
 
 
 def check_contract_schema(gene_id, side, spec, schema):
