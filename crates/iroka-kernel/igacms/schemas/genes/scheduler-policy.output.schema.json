@@ -76,7 +76,166 @@
     },
     "normalized_policy": {
       "type": "object",
-      "description": "normalized_policy — approved output field for g08.scheduler-policy"
+      "properties": {
+        "policy_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "priorities": {
+          "type": "object",
+          "properties": {
+            "ordering": {
+              "type": "string",
+              "enum": [
+                "ascending"
+              ]
+            },
+            "lower_number_is_higher": {
+              "const": true
+            },
+            "by_task_class": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "class_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "priority": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "class_id",
+                  "priority"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "ordering",
+            "lower_number_is_higher",
+            "by_task_class"
+          ],
+          "additionalProperties": false
+        },
+        "quotas": {
+          "type": "object",
+          "properties": {
+            "by_task_class": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "class_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "resource": {
+                    "type": "string",
+                    "enum": [
+                      "cpu",
+                      "memory",
+                      "storage",
+                      "execution_time",
+                      "concurrency",
+                      "token_consumption"
+                    ]
+                  },
+                  "limit": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "window_seconds": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "burst_limit": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "reset_policy": {
+                    "type": "string",
+                    "enum": [
+                      "fixed",
+                      "rolling"
+                    ]
+                  }
+                },
+                "required": [
+                  "class_id",
+                  "resource",
+                  "limit",
+                  "unit",
+                  "window_seconds",
+                  "burst_limit",
+                  "reset_policy"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "by_task_class"
+          ],
+          "additionalProperties": false
+        },
+        "deadlines": {
+          "type": "object",
+          "properties": {
+            "by_task_class": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "class_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "deadline_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "expiry_behavior": {
+                    "type": "string",
+                    "enum": [
+                      "reject",
+                      "cancel",
+                      "deprioritize"
+                    ]
+                  }
+                },
+                "required": [
+                  "class_id",
+                  "deadline_at",
+                  "expiry_behavior"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "by_task_class"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "policy_version",
+        "priorities",
+        "quotas",
+        "deadlines"
+      ],
+      "additionalProperties": false
     },
     "feasibility": {
       "type": "string",
