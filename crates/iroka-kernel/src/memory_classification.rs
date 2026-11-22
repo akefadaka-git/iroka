@@ -116,9 +116,9 @@ fn valid_purpose(value: &str) -> bool {
     !bytes.is_empty()
         && bytes.len() <= 64
         && bytes[0].is_ascii_uppercase()
-        && bytes.iter().all(|byte| {
-            byte.is_ascii_uppercase() || byte.is_ascii_digit() || *byte == b'_'
-        })
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || *byte == b'_')
 }
 
 fn valid_restrictive_action(value: &str) -> bool {
@@ -158,7 +158,8 @@ fn validate_policy(policy: &MemoryClassificationPolicy) -> Result<(), &'static s
     }
 
     for (data_class, classification) in &policy.classification_by_data_class {
-        if !valid_identifier(data_class) || !policy.classification_rank.contains_key(classification) {
+        if !valid_identifier(data_class) || !policy.classification_rank.contains_key(classification)
+        {
             return Err("data_class_mapping_invalid");
         }
     }
@@ -264,8 +265,7 @@ pub fn evaluate_memory_classification(
             selected = Some((classification, rank));
         }
     }
-    let (classification, _) =
-        selected.ok_or_else(|| "classification_not_resolved".to_owned())?;
+    let (classification, _) = selected.ok_or_else(|| "classification_not_resolved".to_owned())?;
 
     let controls = policy
         .controls_by_classification
@@ -332,13 +332,28 @@ mod tests {
                 ("team_only".into(), "internal".into()),
             ]),
             BTreeMap::from([
-                ("public".into(), vec![control("public-restrict-retention", "restrict_retention")]),
-                ("internal".into(), vec![control("internal-restrict-export", "restrict_export")]),
-                ("confidential".into(), vec![control("confidential-require-encryption", "require_encryption_at_rest")]),
+                (
+                    "public".into(),
+                    vec![control("public-restrict-retention", "restrict_retention")],
+                ),
+                (
+                    "internal".into(),
+                    vec![control("internal-restrict-export", "restrict_export")],
+                ),
+                (
+                    "confidential".into(),
+                    vec![control(
+                        "confidential-require-encryption",
+                        "require_encryption_at_rest",
+                    )],
+                ),
                 (
                     "restricted".into(),
                     vec![
-                        control("restricted-require-encryption", "require_encryption_at_rest"),
+                        control(
+                            "restricted-require-encryption",
+                            "require_encryption_at_rest",
+                        ),
                         control("restricted-deny-export", "deny_export"),
                     ],
                 ),
@@ -365,7 +380,10 @@ mod tests {
             owner_id: "owner-001".into(),
             data_class: "public".into(),
             provenance: BTreeMap::from([("source".into(), json!("synthetic"))]),
-            version_bound_evidence: BTreeMap::from([("genome_digest".into(), json!("b".repeat(64)))]),
+            version_bound_evidence: BTreeMap::from([(
+                "genome_digest".into(),
+                json!("b".repeat(64)),
+            )]),
         }
     }
 
@@ -391,19 +409,31 @@ mod tests {
         value.labels = vec!["legal_hold".into()];
         let result = evaluate_memory_classification(&value, &policy()).unwrap();
         assert_eq!(result.classification, "restricted");
-        assert!(result.handling_controls.iter().any(|item| item.action == "deny_export"));
-        assert!(result.handling_controls.iter().all(|item| valid_restrictive_action(&item.action)));
+        assert!(result
+            .handling_controls
+            .iter()
+            .any(|item| item.action == "deny_export"));
+        assert!(result
+            .handling_controls
+            .iter()
+            .all(|item| valid_restrictive_action(&item.action)));
     }
 
     #[test]
     fn rejects_unknown_normalized_duplicate_and_malformed_labels() {
         let mut value = input();
         value.labels = vec!["PII".into()];
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("labels_must_be_unique_exact_policy_identifiers".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("labels_must_be_unique_exact_policy_identifiers".into())
+        );
         value.labels = vec!["pii ".into()];
         assert_eq!(evaluate_memory_classification(&value, &policy()), Err("labels_must_be_unique_exact_policy_identifiers".into()));
         value.labels = vec!["unknown".into()];
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("label_not_approved".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("label_not_approved".into())
+        );
         value.labels = vec!["pii".into(), "pii".into()];
         assert_eq!(evaluate_memory_classification(&value, &policy()), Err("labels_must_be_unique_exact_policy_identifiers".into()));
     }
@@ -412,22 +442,36 @@ mod tests {
     fn rejects_unapproved_purpose_data_class_and_bad_digest() {
         let mut value = input();
         value.purpose = "TASK_CONTINUITY ".into();
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("purpose_not_approved".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("purpose_not_approved".into())
+        );
         value = input();
         value.data_class = "unknown".into();
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("data_class_not_approved".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("data_class_not_approved".into())
+        );
         value = input();
         value.content_digest = "not-a-digest".into();
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("content_digest_invalid".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("content_digest_invalid".into())
+        );
     }
 
     #[test]
     fn rejects_missing_evidence_and_reserved_policy_digest_key() {
         let mut value = input();
         value.provenance.clear();
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("provenance_or_version_evidence_missing_or_reserved".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("provenance_or_version_evidence_missing_or_reserved".into())
+        );
         value = input();
-        value.version_bound_evidence.insert(POLICY_DIGEST_KEY.into(), json!("caller-controlled"));
+        value
+            .version_bound_evidence
+            .insert(POLICY_DIGEST_KEY.into(), json!("caller-controlled"));
         assert_eq!(evaluate_memory_classification(&value, &policy()), Err("provenance_or_version_evidence_missing_or_reserved".into()));
     }
 
@@ -435,10 +479,20 @@ mod tests {
     fn rejects_ambiguous_policy_rank_and_non_restrictive_controls() {
         let mut value = policy();
         value.classification_rank.insert("restricted".into(), 1);
-        assert_eq!(validate_policy(&value), Err("classification_rank_malformed_or_ambiguous"));
+        assert_eq!(
+            validate_policy(&value),
+            Err("classification_rank_malformed_or_ambiguous")
+        );
         value = policy();
-        value.controls_by_classification.get_mut("internal").unwrap()[0].action = "grant_access".into();
-        assert_eq!(validate_policy(&value), Err("handling_control_malformed_non_restrictive_or_duplicate"));
+        value
+            .controls_by_classification
+            .get_mut("internal")
+            .unwrap()[0]
+            .action = "grant_access".into();
+        assert_eq!(
+            validate_policy(&value),
+            Err("handling_control_malformed_non_restrictive_or_duplicate")
+        );
     }
 
     #[test]
@@ -446,7 +500,12 @@ mod tests {
         let result = evaluate_memory_classification(&input(), &policy()).unwrap();
         let value = serde_json::to_value(result).unwrap();
         assert_eq!(
-            value.as_object().unwrap().keys().cloned().collect::<BTreeSet<_>>(),
+            value
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>(),
             BTreeSet::from([
                 "memory_id".into(),
                 "classification".into(),
@@ -458,7 +517,14 @@ mod tests {
         let evidence = value.get("evidence").unwrap();
         assert!(evidence.get("provenance").is_some());
         let bound = evidence.get("version_bound_evidence").unwrap();
-        assert_eq!(bound.get(POLICY_DIGEST_KEY).and_then(Value::as_str).unwrap().len(), 64);
+        assert_eq!(
+            bound
+                .get(POLICY_DIGEST_KEY)
+                .and_then(Value::as_str)
+                .unwrap()
+                .len(),
+            64
+        );
         assert!(value.get("version_bound_evidence").is_none());
     }
 
@@ -466,7 +532,10 @@ mod tests {
     fn enforces_policy_label_and_control_bounds() {
         let mut value = input();
         value.labels = vec!["team_only".into(); 17];
-        assert_eq!(evaluate_memory_classification(&value, &policy()), Err("label_count_outside_policy".into()));
+        assert_eq!(
+            evaluate_memory_classification(&value, &policy()),
+            Err("label_count_outside_policy".into())
+        );
         let mut p = policy();
         p.maximum_controls = 1;
         assert_eq!(validate_policy(&p), Err("handling_controls_outside_policy"));
