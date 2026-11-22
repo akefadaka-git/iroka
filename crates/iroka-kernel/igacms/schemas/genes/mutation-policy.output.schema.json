@@ -125,9 +125,6 @@
     },
     "evidence": {
       "$ref": "#/$defs/evidence"
-    },
-    "version_bound_evidence": {
-      "$ref": "#/$defs/version_bound_evidence"
     }
   },
   "required": [
@@ -136,8 +133,7 @@
     "required_gates",
     "policy_digest",
     "denial_reasons",
-    "evidence",
-    "version_bound_evidence"
+    "evidence"
   ],
   "additionalProperties": false
 }
