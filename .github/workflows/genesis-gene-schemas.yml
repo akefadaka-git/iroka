@@ -43,9 +43,6 @@ jobs:
         run: python3 -m pip install --disable-pip-version-check jsonschema==4.23.0
       - name: Resolve all 72 references and execute gene IO conformance
         run: python3 tools/genesis/validate_gene_schemas.py
-      - name: Validate character A2 overlay, catalog and schema bindings
-        if: github.event_name == 'pull_request' && github.base_ref == 'architecture/genesis-gene-contract-amendment-proposal'
-        run: python3 tools/genesis/validate_character_a2.py
       - name: Validate approved 53 collection item contracts
         run: python3 tools/genesis/validate_collection_item_amendment.py
       - name: Execute cross-collection semantic integration conformance
