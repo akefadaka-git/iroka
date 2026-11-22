@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g12.mutation-policy/output/1.0.0",
+  "title": "Mutation policy — output",
+  "description": "Normative output contract for g12.mutation-policy v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "required_gates_item": {
+      "type": "object",
+      "properties": {
+        "gate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requirement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blocking": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "gate_id",
+        "stage",
+        "requirement",
+        "blocking"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g12-mutation-policy-output-required_gates-item-v1-0-0"
+    },
+    "denial_reasons_item": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "invariant_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "invariant_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g12-mutation-policy-output-denial_reasons-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "mutation_id": {
+      "type": "string",
+      "description": "mutation_id — approved output field for g12.mutation-policy"
+    },
+    "permitted": {
+      "type": "boolean",
+      "description": "permitted — approved output field for g12.mutation-policy"
+    },
+    "required_gates": {
+      "type": "array",
+      "description": "required_gates — approved output field for g12.mutation-policy",
+      "items": {
+        "$ref": "#/$defs/required_gates_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "gate_id"
+        ],
+        "rule": "all mandatory gates must pass before permitted=true; this output cannot itself authorize execution"
+      }
+    },
+    "policy_digest": {
+      "type": "string",
+      "description": "policy_digest — approved output field for g12.mutation-policy"
+    },
+    "denial_reasons": {
+      "type": "array",
+      "description": "denial_reasons — approved output field for g12.mutation-policy",
+      "items": {
+        "$ref": "#/$defs/denial_reasons_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "code"
+        ],
+        "rule": "permitted=false requires at least one denial reason; invariant refs resolve when non-null"
+      }
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "mutation_id",
+    "permitted",
+    "required_gates",
+    "policy_digest",
+    "denial_reasons",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

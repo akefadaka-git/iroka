@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g10.evaluation-record/output/1.0.0",
+  "title": "Evaluation record — output",
+  "description": "Normative output contract for g10.evaluation-record v1.0.0.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "results_item": {
+      "type": "object",
+      "properties": {
+        "test_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "failed",
+            "skipped",
+            "error",
+            "inconclusive"
+          ]
+        },
+        "baseline_value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "candidate_value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "test_id",
+        "status",
+        "baseline_value",
+        "candidate_value",
+        "unit",
+        "evidence_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g10-evaluation-record-output-results-item-v1-0-0"
+    },
+    "regressions_item": {
+      "type": "object",
+      "properties": {
+        "regression_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "metric_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseline_value": {
+          "type": "number"
+        },
+        "candidate_value": {
+          "type": "number"
+        },
+        "delta": {
+          "type": "number"
+        },
+        "severity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "regression_id",
+        "metric_id",
+        "baseline_value",
+        "candidate_value",
+        "delta",
+        "severity",
+        "evidence_ref"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g10-evaluation-record-output-regressions-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "evaluation_id": {
+      "type": "string",
+      "description": "evaluation_id — approved output field for g10.evaluation-record"
+    },
+    "results": {
+      "type": "array",
+      "description": "results — approved output field for g10.evaluation-record",
+      "items": {
+        "$ref": "#/$defs/results_item"
+      },
+      "minItems": 1,
+      "x-genesis-collection-rules": {
+        "minItems": 1,
+        "uniqueBy": [
+          "test_id"
+        ],
+        "rule": "status must agree with aggregate decision; skipped/error cannot be represented as pass"
+      }
+    },
+    "regressions": {
+      "type": "array",
+      "description": "regressions — approved output field for g10.evaluation-record",
+      "items": {
+        "$ref": "#/$defs/regressions_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "regression_id"
+        ],
+        "rule": "delta must equal candidate_value minus baseline_value under declared metric semantics"
+      }
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive"
+      ],
+      "description": "decision — approved output field for g10.evaluation-record"
+    },
+    "evidence_digest": {
+      "type": "string",
+      "description": "evidence_digest — approved output field for g10.evaluation-record"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "evaluation_id",
+    "results",
+    "regressions",
+    "decision",
+    "evidence_digest",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}

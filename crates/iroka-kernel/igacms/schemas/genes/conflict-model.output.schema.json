@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroka.dev/schemas/genes/g04.conflict-model/output/1.0.0",
+  "title": "Conflict model — output",
+  "description": "Normative output contract for g04.conflict-model v1.0.0, derived from the Owner-approved amendment.",
+  "type": "object",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "version_bound_evidence": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "version_bound_evidence": {
+          "$ref": "#/$defs/version_bound_evidence"
+        }
+      },
+      "required": [
+        "provenance",
+        "version_bound_evidence"
+      ]
+    },
+    "conflicts_item": {
+      "type": "object",
+      "properties": {
+        "conflict_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "conflict_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolution_state": {
+          "type": "string",
+          "enum": [
+            "unresolved",
+            "resolved",
+            "insufficient_evidence"
+          ]
+        }
+      },
+      "required": [
+        "conflict_id",
+        "claim_ids",
+        "source_ids",
+        "conflict_type",
+        "description",
+        "resolution_state"
+      ],
+      "additionalProperties": false,
+      "$anchor": "g04-conflict-model-output-conflicts-item-v1-0-0"
+    }
+  },
+  "properties": {
+    "conflict_set_id": {
+      "type": "string",
+      "description": "conflict_set_id — approved output field for g04.conflict-model"
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "conflicts — approved output field for g04.conflict-model",
+      "items": {
+        "$ref": "#/$defs/conflicts_item"
+      },
+      "x-genesis-collection-rules": {
+        "uniqueBy": [
+          "conflict_id"
+        ],
+        "rule": "claim/source references resolve; do not resolve by silently discarding a claim"
+      }
+    },
+    "resolution_state": {
+      "type": "string",
+      "enum": [
+        "unresolved",
+        "resolved",
+        "insufficient_evidence"
+      ],
+      "description": "resolution_state — approved output field for g04.conflict-model"
+    },
+    "policy_applied": {
+      "type": "string",
+      "description": "policy_applied — approved output field for g04.conflict-model"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "version_bound_evidence": {
+      "$ref": "#/$defs/version_bound_evidence"
+    }
+  },
+  "required": [
+    "conflict_set_id",
+    "conflicts",
+    "resolution_state",
+    "policy_applied",
+    "evidence",
+    "version_bound_evidence"
+  ],
+  "additionalProperties": false
+}
