@@ -143,7 +143,7 @@ def check_r04_scope_registry(gene_id, side, schema, registry):
         raise ValueError("R-04 authorization scope registry identity/version mismatch")
     for identifier in identifiers:
         parts = identifier.split(":")
-        if len(parts) != 3 or any(not part or part.lower() != part or not all(ch.islower() or ch.isdigit() or ch == "-" for ch in part) for part in parts):
+        if len(parts) != 3 or any(not part or not part.isascii() or part.lower() != part or not all(ch.islower() or ch.isdigit() or ch == "-" for ch in part) for part in parts):
             raise ValueError("R-04 malformed or non-canonical registry identifier: " + identifier)
     item_schema = schema.get("properties", {}).get(field, {}).get("items", {})
     if item_schema.get("type") != "string" or item_schema.get("enum") != identifiers:
@@ -152,7 +152,7 @@ def check_r04_scope_registry(gene_id, side, schema, registry):
     for identifier in identifiers:
         if not validator.is_valid(identifier):
             raise ValueError("R-04 registered identifier rejected: " + identifier)
-    for invalid in ("execution:*:execute", "Execution:effect:execute", " execution:effect:execute", "execution:effect:unknown", "execution:effect"):
+    for invalid in ("execution:*:execute", "Execution:effect:execute", " execution:effect:execute", "execution:effect:unknown", "execution:effect", "executión:effect:execute"):
         if validator.is_valid(invalid):
             raise ValueError("R-04 invalid/unknown scope accepted: " + invalid)
     return len(identifiers) + 5
