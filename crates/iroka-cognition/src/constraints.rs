@@ -548,3 +548,5 @@ mod tests {
     }
 
 }
+
+// NCE-03 A3 formatting verification rerun marker.
