@@ -222,7 +222,6 @@ impl ConstraintSolver {
             (_, true, false) => SolveStatus::Satisfied,
             (true, true, true) => SolveStatus::Optimal,
             (false, true, true) => SolveStatus::FeasibleNotProvenOptimal,
-            (false, true, false) => SolveStatus::Satisfied,
             (false, false, _) => SolveStatus::UnknownBudget,
         };
         Ok(SolveResult {
