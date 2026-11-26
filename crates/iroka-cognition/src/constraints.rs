@@ -148,7 +148,7 @@ impl ConstraintSolver {
         if !self.propagate(constraints, state) { return; }
         let selected = state.domains.iter().enumerate()
             .filter(|(_, (lo, hi))| lo < hi)
-            .min_by_key(|(i, (lo, hi))| (u128::try_from(*hi as i128 - *lo as i128 + 1).unwrap_or(u128::MAX), *i))
+            .min_by_key(|(i, (lo, hi))| (u128::try_from(*hi as i128 - *lo as i128 + 1).unwrap_or(u128::MAX), vars[*i].id.as_str()))
             .map(|(i, _)| i);
         let Some(index) = selected else {
             let values: Vec<i64> = state.domains.iter().map(|(lo, _)| *lo).collect();
@@ -282,7 +282,7 @@ fn normalize_expr(expr: &LinearExpr, model: &ConstraintModel, bytes: &mut usize)
         if *bytes > MAX_MODEL_BYTES { return Err(ConstraintError::ModelTooLarge); }
         terms.push(Term { variable: index, coefficient: term.coefficient });
     }
-    terms.sort_by_key(|t| t.variable);
+    terms.sort_by(|left, right| model.variables[left.variable].id.cmp(&model.variables[right.variable].id));
     Ok(Expr { constant: expr.constant, terms })
 }
 
