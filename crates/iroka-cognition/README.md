@@ -159,3 +159,22 @@ Kernel integration was verified on `12bbc2682e0efea796b23a1c5c7b2a45c69b26ae`:
 - Native Cognition CI: PASS — https://github.com/akefadaka-git/iroka/actions/runs/45835698806
 - Rust kernel verification: PASS — https://github.com/akefadaka-git/iroka/actions/runs/45835698696
 - Workspace tests: 151 passed, 0 failed (72 cognition, 77 Kernel, 2 authorization-contract).
+
+
+## Kernel advisory integration: NCE-02
+
+The Kernel exposes NCE-02 through `iroka_kernel::AdvisoryGoalAdapter`. Higher-level
+services submit bounded Horn clauses and goal atoms and receive per-goal proof trees,
+substitutions and explicit search outcomes. A proof is advisory reasoning evidence only;
+it is never identity proof, policy approval, authorization or execution permission.
+
+The adapter enforces a 1 MiB aggregate UTF-8 payload ceiling, up to 256 goals, 10,000
+clauses, 50,000 aggregate body atoms, 20,000 search steps per goal, depth 256, and a
+three-second aggregate request search budget. The aggregate deadline is divided across
+goals because each underlying proof call starts its own deadline. See
+`docs/architecture/NCE-02-IN-PROCESS-ADVISORY-GOAL-ADAPTER.md` for the complete
+interface, partial-result semantics and verification record.
+
+This is an in-process library interface. Caller-side allocations have already occurred
+before invocation; raw transport parsing, concurrency admission, process memory isolation,
+cancellation and peak-RSS qualification remain separate integration requirements.
