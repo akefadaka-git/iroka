@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 pub mod backward;
+pub mod constraints;
 
 pub use backward::{
     Atom as GoalAtom, BackwardReasoner, HornClause, Proof, SearchConfig, SearchError, SearchReport,
