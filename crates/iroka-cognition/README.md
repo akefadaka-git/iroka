@@ -135,3 +135,19 @@ Exact-SHA verification for implementation commit `bcee3f5d5557361ec8349919171406
 ### Upstream ingress contract (R-03)
 
 The transport-neutral upstream requirements are specified in [NCE-01 Upstream Ingress Resource Contract](../../docs/architecture/NCE-01-INGRESS-RESOURCE-CONTRACT.md). This is a design contract only: no HTTP/IPC/file-ingress adapter exists in this crate, and raw-body limits, streaming parsing, end-to-end deadlines, admission control, process memory limits, and peak-RSS qualification remain NOT IMPLEMENTED. R-03 therefore remains PARTIAL until a concrete adapter is separately scoped, implemented, and verified.
+
+
+## Kernel service integration
+
+The Kernel exposes an in-process, advisory-only NCE-01 adapter from
+`iroka_kernel::AdvisoryCognitionAdapter`. Higher-level services submit bounded facts,
+rules and query literals and receive a reasoning report with explicit completeness
+status and query observations. The adapter does not authenticate identities, evaluate
+policy, create authorization decisions, grant capabilities, write audit records or
+execute protected actions. Its default request payload ceiling is 1 MiB and its query
+ceiling is 256. See
+`docs/architecture/NCE-01-IN-PROCESS-ADVISORY-ADAPTER.md` for the complete contract.
+
+This is an in-process library interface only. Raw transport parsing, remote ingress,
+concurrency admission, process-memory isolation and peak-RSS qualification remain
+unimplemented integration gates.
