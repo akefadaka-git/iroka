@@ -363,9 +363,9 @@ mod tests {
     #[test]
     fn reports_checked_i128_overflow_as_model_error() {
         let m = ConstraintModel {
-            variables: vec![v("x", i64::MAX - 1, i64::MAX), v("y", i64::MAX - 1, i64::MAX)],
+            variables: vec![v("x", i64::MAX - 1, i64::MAX), v("y", i64::MAX - 1, i64::MAX), v("z", i64::MAX - 1, i64::MAX)],
             constraints: vec![Constraint {
-                expression: e(0, &[("x", i64::MAX), ("y", i64::MAX)]),
+                expression: e(0, &[("x", i64::MAX), ("y", i64::MAX), ("z", i64::MAX)]),
                 relation: Relation::Equal,
             }],
             objective: None,
