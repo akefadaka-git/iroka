@@ -224,6 +224,7 @@ version = "0.1.0"
 name = "iroka-kernel"
 version = "0.1.0"
 dependencies = [
+ "iroka-cognition",
  "base64",
  "ed25519-dalek",
  "rusqlite",
