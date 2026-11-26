@@ -145,8 +145,8 @@ impl AdvisoryGoalAdapter {
             return Err(AdvisoryGoalError::TooManyBodyAtoms);
         }
 
-        let mut reasoner = BackwardReasoner::new(self.config.search)
-            .map_err(AdvisoryGoalError::Search)?;
+        let mut reasoner =
+            BackwardReasoner::new(self.config.search).map_err(AdvisoryGoalError::Search)?;
         for clause in request.clauses {
             reasoner
                 .add_clause(clause)
@@ -155,9 +155,7 @@ impl AdvisoryGoalAdapter {
 
         let mut results = Vec::with_capacity(request.goals.len());
         for goal in request.goals {
-            let report = reasoner
-                .prove(&goal)
-                .map_err(AdvisoryGoalError::Search)?;
+            let report = reasoner.prove(&goal).map_err(AdvisoryGoalError::Search)?;
             results.push(AdvisoryGoalResult { goal, report });
         }
         Ok(AdvisoryGoalResponse { results })
@@ -165,7 +163,8 @@ impl AdvisoryGoalAdapter {
 }
 
 fn atom_bytes(atom: &Atom) -> usize {
-    atom.predicate.len()
+    atom.predicate
+        .len()
         .saturating_add(atom.arguments.iter().map(term_bytes).sum::<usize>())
 }
 
@@ -207,17 +206,23 @@ mod tests {
     #[test]
     fn proves_goal_and_returns_proof_tree() {
         let adapter = AdvisoryGoalAdapter::new(AdvisoryGoalConfig::default()).unwrap();
-        let response = adapter.run(AdvisoryGoalRequest {
-            clauses: vec![
-                clause("human-socrates", atom("human", vec![symbol("socrates")]), vec![]),
-                clause(
-                    "mortal-human",
-                    atom("mortal", vec![variable("X")]),
-                    vec![atom("human", vec![variable("X")])],
-                ),
-            ],
-            goals: vec![atom("mortal", vec![symbol("socrates")])],
-        }).unwrap();
+        let response = adapter
+            .run(AdvisoryGoalRequest {
+                clauses: vec![
+                    clause(
+                        "human-socrates",
+                        atom("human", vec![symbol("socrates")]),
+                        vec![],
+                    ),
+                    clause(
+                        "mortal-human",
+                        atom("mortal", vec![variable("X")]),
+                        vec![atom("human", vec![variable("X")])],
+                    ),
+                ],
+                goals: vec![atom("mortal", vec![symbol("socrates")])],
+            })
+            .unwrap();
 
         assert!(response.is_complete());
         assert_eq!(response.results[0].report.stop, SearchStop::Proven);
@@ -230,14 +235,16 @@ mod tests {
     #[test]
     fn returns_variable_substitution_for_goal() {
         let adapter = AdvisoryGoalAdapter::new(AdvisoryGoalConfig::default()).unwrap();
-        let response = adapter.run(AdvisoryGoalRequest {
-            clauses: vec![clause(
-                "parent-fact",
-                atom("parent", vec![symbol("ana"), symbol("beka")]),
-                vec![],
-            )],
-            goals: vec![atom("parent", vec![variable("Who"), symbol("beka")])],
-        }).unwrap();
+        let response = adapter
+            .run(AdvisoryGoalRequest {
+                clauses: vec![clause(
+                    "parent-fact",
+                    atom("parent", vec![symbol("ana"), symbol("beka")]),
+                    vec![],
+                )],
+                goals: vec![atom("parent", vec![variable("Who"), symbol("beka")])],
+            })
+            .unwrap();
 
         let substitution = response.results[0].report.substitution.as_ref().unwrap();
         assert_eq!(substitution.resolve(&variable("Who")), symbol("ana"));
@@ -253,13 +260,15 @@ mod tests {
             ..AdvisoryGoalConfig::default()
         };
         let adapter = AdvisoryGoalAdapter::new(config).unwrap();
-        let response = adapter.run(AdvisoryGoalRequest {
-            clauses: vec![
-                clause("a-unrelated", atom("other", vec![]), vec![]),
-                clause("z-target", atom("target", vec![]), vec![]),
-            ],
-            goals: vec![atom("target", vec![])],
-        }).unwrap();
+        let response = adapter
+            .run(AdvisoryGoalRequest {
+                clauses: vec![
+                    clause("a-unrelated", atom("other", vec![]), vec![]),
+                    clause("z-target", atom("target", vec![]), vec![]),
+                ],
+                goals: vec![atom("target", vec![])],
+            })
+            .unwrap();
 
         assert!(response.is_partial());
         assert_eq!(response.results[0].report.stop, SearchStop::StepBudget);
