@@ -80,6 +80,6 @@
   partial results, input/query limits, and policy-denial isolation.
 - Cognition remains advisory: no identity, policy, authorization, approval, audit,
   execution or protected side-effect interface is exposed.
-- Exact-SHA CI and independent review remain separate acceptance gates. Remote ingress,
+- Exact-SHA CI on `12bbc2682e0efea796b23a1c5c7b2a45c69b26ae`: Native Cognition CI #45835698806 PASS; Rust kernel verification #45835698696 PASS; workspace tests 151/151 PASS; format, locked compile, no-default-features check and Clippy PASS. Independent review remains NOT PERFORMED. Remote ingress,
   raw transport parsing, concurrency admission and peak-RSS qualification remain NOT
   IMPLEMENTED.
