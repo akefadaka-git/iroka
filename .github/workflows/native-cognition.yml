@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/native-cognition-a3
+      - feat/nce-03-constraint-solver-a3
   pull_request:
     branches:
       - main
