@@ -347,4 +347,41 @@ mod tests {
         let m = ConstraintModel { variables: vec![v("x", 0, 1_000_000)], ..ConstraintModel::default() };
         assert_eq!(ConstraintSolver::default().solve(&m), Err(ConstraintError::DomainTooLarge));
     }
+    #[test]
+    fn reports_unknown_budget_without_incumbent() {
+        let config = ConstraintSolverConfig { max_search_nodes: 1, ..ConstraintSolverConfig::default() };
+        let m = ConstraintModel {
+            variables: vec![v("x", 0, 3)],
+            constraints: vec![Constraint { expression: e(-3, &[("x", 1)]), relation: Relation::Equal }],
+            objective: None,
+        };
+        let r = ConstraintSolver::new(config).unwrap().solve(&m).unwrap();
+        assert_eq!(r.status, SolveStatus::UnknownBudget);
+        assert!(!r.is_complete);
+    }
+
+    #[test]
+    fn reports_checked_i128_overflow_as_model_error() {
+        let m = ConstraintModel {
+            variables: vec![v("x", i64::MAX - 1, i64::MAX), v("y", i64::MAX - 1, i64::MAX)],
+            constraints: vec![Constraint {
+                expression: e(0, &[("x", i64::MAX), ("y", i64::MAX)]),
+                relation: Relation::Equal,
+            }],
+            objective: None,
+        };
+        assert_eq!(ConstraintSolver::default().solve(&m), Err(ConstraintError::ArithmeticOverflow));
+    }
+
+    #[test]
+    fn disequality_prunes_only_when_zero_is_outside_interval() {
+        let m = ConstraintModel {
+            variables: vec![v("x", 0, 2)],
+            constraints: vec![Constraint { expression: e(0, &[("x", 1)]), relation: Relation::NotEqual }],
+            objective: None,
+        };
+        let r = ConstraintSolver::default().solve(&m).unwrap();
+        assert_eq!(r.assignment, Some(vec![("x".into(), 1)]));
+    }
+
 }
