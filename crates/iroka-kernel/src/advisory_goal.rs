@@ -198,7 +198,11 @@ fn atom_bytes(atom: &Atom, limit: usize) -> Result<usize, AdvisoryGoalError> {
         return Err(AdvisoryGoalError::InputTooLarge);
     }
     for term in &atom.arguments {
-        total = add_payload(total, term_bytes(term, 0, limit.saturating_sub(total))?, limit)?;
+        total = add_payload(
+            total,
+            term_bytes(term, 0, limit.saturating_sub(total))?,
+            limit,
+        )?;
     }
     Ok(total)
 }
