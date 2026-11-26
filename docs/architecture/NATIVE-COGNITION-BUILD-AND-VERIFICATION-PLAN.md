@@ -83,3 +83,27 @@
 - Exact-SHA CI on `12bbc2682e0efea796b23a1c5c7b2a45c69b26ae`: Native Cognition CI #45835698806 PASS; Rust kernel verification #45835698696 PASS; workspace tests 151/151 PASS; format, locked compile, no-default-features check and Clippy PASS. Independent review remains NOT PERFORMED. Remote ingress,
   raw transport parsing, concurrency admission and peak-RSS qualification remain NOT
   IMPLEMENTED.
+
+
+### NCE-02 — Kernel advisory goal adapter integration
+
+- Exposed the existing first-order backward reasoner to Kernel-owned higher-level
+  services through `AdvisoryGoalAdapter`; the cognition crate remains independent
+  of the Kernel.
+- Added typed request/response/error APIs for Horn clauses, goals, proof trees,
+  substitutions and per-goal search outcomes.
+- Hard limits: 1 MiB aggregate UTF-8 payload, 256 goals, 10,000 clauses, 50,000
+  aggregate clause-body atoms, 20,000 search steps per goal, depth 256 and a
+  three-second aggregate request search budget.
+- Divides the request search budget across goals because each underlying proof call
+  creates a fresh deadline. Budget-stopped results remain explicitly partial.
+- Six Kernel adapter tests cover proof trees, substitutions, partial search outcomes,
+  payload limits, hard configuration ceilings and goal-count limits.
+- Exact code SHA `e75d2cac50b96943bf6f562070f0522591a8fafd`: Native Cognition CI
+  #271 PASS; Rust kernel verification #2407 PASS; 157 workspace tests passed
+  (72 cognition, 83 Kernel, 2 authorization-contract); formatting, compilation,
+  production-feature verification and Clippy PASS.
+- Full adapter contract: `NCE-02-IN-PROCESS-ADVISORY-GOAL-ADAPTER.md`.
+- Remote ingress, transport parsing, concurrency admission, process-memory isolation
+  and peak-RSS qualification remain NOT IMPLEMENTED. Independent review remains
+  reserved for the pre-deployment gate.
