@@ -159,18 +159,15 @@ struct State {
     error: Option<ConstraintError>,
 }
 
+#[derive(Default)]
 pub struct ConstraintSolver {
     config: ConstraintSolverConfig,
 }
-impl Default for ConstraintSolver {
-    fn default() -> Self {
-        Self {
-            config: ConstraintSolverConfig::default(),
-        }
-    }
-}
 impl ConstraintSolver {
     /// Constructs a solver; caller limits cannot exceed the frozen hard ceilings.
+    ///
+    /// # Errors
+    /// Returns `ZeroBudget` for zero limits or `ConfigLimitExceeded` above a hard ceiling.
     pub fn new(config: ConstraintSolverConfig) -> Result<Self, ConstraintError> {
         if config.max_search_nodes == 0
             || config.max_propagation_ops == 0
@@ -188,6 +185,9 @@ impl ConstraintSolver {
     }
 
     /// Solves a model. The semantic input byte cap does not bound allocations made by the caller.
+    ///
+    /// # Errors
+    /// Returns a typed validation or checked-arithmetic error for an invalid or unrepresentable model.
     pub fn solve(&self, model: &ConstraintModel) -> Result<SolveResult, ConstraintError> {
         let (variables, constraints, objective) = normalize(model)?;
         let started = Instant::now();
@@ -219,7 +219,7 @@ impl ConstraintSolver {
         }
         let status = match (complete, assignment.is_some(), objective.is_some()) {
             (true, false, _) => SolveStatus::Infeasible,
-            (true, true, false) => SolveStatus::Satisfied,
+            (_, true, false) => SolveStatus::Satisfied,
             (true, true, true) => SolveStatus::Optimal,
             (false, true, true) => SolveStatus::FeasibleNotProvenOptimal,
             (false, true, false) => SolveStatus::Satisfied,
@@ -263,7 +263,7 @@ impl ConstraintSolver {
             .filter(|(_, (lo, hi))| lo < hi)
             .min_by_key(|(i, (lo, hi))| {
                 (
-                    u128::try_from(*hi as i128 - *lo as i128 + 1).unwrap_or(u128::MAX),
+                    u128::try_from(i128::from(*hi) - i128::from(*lo) + 1).unwrap_or(u128::MAX),
                     vars[*i].id.as_str(),
                 )
             })
@@ -312,13 +312,11 @@ impl ConstraintSolver {
             if state.stop.is_some() || state.error.is_some() || value == hi {
                 break;
             }
-            value = match value.checked_add(1) {
-                Some(v) => v,
-                None => {
-                    state.stop = Some(SolveStopReason::Deadline);
-                    break;
-                }
+            let Some(next) = value.checked_add(1) else {
+                state.stop = Some(SolveStopReason::Deadline);
+                break;
             };
+            value = next;
         }
         state.domains = base_domains;
     }
@@ -401,16 +399,13 @@ impl ConstraintSolver {
     }
 }
 
-fn normalize(
-    model: &ConstraintModel,
-) -> Result<
-    (
-        Vec<IntVariable>,
-        Vec<NormalizedConstraint>,
-        Option<NormalizedObjective>,
-    ),
-    ConstraintError,
-> {
+type NormalizedModel = (
+    Vec<IntVariable>,
+    Vec<NormalizedConstraint>,
+    Option<NormalizedObjective>,
+);
+
+fn normalize(model: &ConstraintModel) -> Result<NormalizedModel, ConstraintError> {
     if model.variables.len() > MAX_VARIABLES {
         return Err(ConstraintError::VariableLimitExceeded);
     }
@@ -433,7 +428,7 @@ fn normalize(
         if v.lower > v.upper {
             return Err(ConstraintError::InvalidDomain);
         }
-        let size = u128::try_from(v.upper as i128 - v.lower as i128 + 1)
+        let size = u128::try_from(i128::from(v.upper) - i128::from(v.lower) + 1)
             .map_err(|_| ConstraintError::DomainTooLarge)?;
         if size > MAX_DOMAIN {
             return Err(ConstraintError::DomainTooLarge);
