@@ -4,6 +4,7 @@
 //! reviewed trust-boundary components.
 
 mod advisory_cognition;
+mod advisory_goal;
 mod assurance;
 mod audit_store;
 mod decision;
@@ -19,6 +20,10 @@ mod security_store;
 mod service;
 mod trust_lifecycle;
 
+pub use advisory_goal::{
+    AdvisoryGoalAdapter, AdvisoryGoalConfig, AdvisoryGoalError, AdvisoryGoalRequest,
+    AdvisoryGoalResponse, AdvisoryGoalResult,
+};
 pub use advisory_cognition::{
     AdvisoryCognitionAdapter, AdvisoryCognitionConfig, AdvisoryCognitionError,
     AdvisoryCognitionRequest, AdvisoryCognitionResult, AdvisoryFact, AdvisoryQueryResult,
