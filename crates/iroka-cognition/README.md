@@ -151,3 +151,11 @@ ceiling is 256. See
 This is an in-process library interface only. Raw transport parsing, remote ingress,
 concurrency admission, process-memory isolation and peak-RSS qualification remain
 unimplemented integration gates.
+
+
+### Advisory adapter exact-SHA verification
+
+Kernel integration was verified on `12bbc2682e0efea796b23a1c5c7b2a45c69b26ae`:
+- Native Cognition CI: PASS — https://github.com/akefadaka-git/iroka/actions/runs/45835698806
+- Rust kernel verification: PASS — https://github.com/akefadaka-git/iroka/actions/runs/45835698696
+- Workspace tests: 151 passed, 0 failed (72 cognition, 77 Kernel, 2 authorization-contract).
