@@ -117,9 +117,7 @@ impl AdvisoryCognitionAdapter {
     /// # Errors
     /// Returns InvalidAdapterConfig for zero or excessive adapter limits, or
     /// Engine when the NCE-01 engine configuration violates its hard ceilings.
-    pub fn new(
-        config: AdvisoryCognitionConfig,
-    ) -> Result<Self, AdvisoryCognitionError> {
+    pub fn new(config: AdvisoryCognitionConfig) -> Result<Self, AdvisoryCognitionError> {
         if config.max_input_bytes == 0
             || config.max_input_bytes > MAX_ADAPTER_INPUT_BYTES
             || config.max_queries == 0
@@ -159,9 +157,17 @@ impl AdvisoryCognitionAdapter {
 
         let mut input_bytes = 0usize;
         for fact in &request.facts {
-            add_input_bytes(&mut input_bytes, fact.literal.atom.len(), self.config.max_input_bytes)?;
+            add_input_bytes(
+                &mut input_bytes,
+                fact.literal.atom.len(),
+                self.config.max_input_bytes,
+            )?;
             if let Some(source_id) = &fact.source_id {
-                add_input_bytes(&mut input_bytes, source_id.len(), self.config.max_input_bytes)?;
+                add_input_bytes(
+                    &mut input_bytes,
+                    source_id.len(),
+                    self.config.max_input_bytes,
+                )?;
             }
         }
         for rule in &request.rules {
@@ -180,7 +186,11 @@ impl AdvisoryCognitionAdapter {
             }
         }
         for query in &request.queries {
-            add_input_bytes(&mut input_bytes, query.atom.len(), self.config.max_input_bytes)?;
+            add_input_bytes(
+                &mut input_bytes,
+                query.atom.len(),
+                self.config.max_input_bytes,
+            )?;
         }
 
         let mut reasoner = NativeReasoner::new(self.config.engine)?;
@@ -361,12 +371,8 @@ mod tests {
             .unwrap();
         assert!(advisory.is_complete());
 
-        let request = AuthorizationRequest::new(
-            "principal:1",
-            "records.export",
-            "records:1",
-            RiskLevel::Low,
-        );
+        let request =
+            AuthorizationRequest::new("principal:1", "records.export", "records:1", RiskLevel::Low);
         let policy = Policy::new(
             "policy-v1",
             vec!["workspace.read".into()],
