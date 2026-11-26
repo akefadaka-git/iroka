@@ -180,27 +180,53 @@ impl ConstraintSolver {
         state.domains[index] = (lo, hi);
     }
 
-    // Each constraint interval evaluation counts as one propagation operation.
-    // It prunes impossible nodes; it never narrows a domain unsafely.
+    // Repeated deterministic interval-bound consistency. One operation is
+    // charged for each global constraint feasibility check and each
+    // constraint/variable bound-tightening attempt.
     fn propagate(&self, constraints: &[NormalizedConstraint], state: &mut State) -> bool {
-        for c in constraints {
-            if self.deadline(state) { return false; }
-            if state.propagation >= self.config.max_propagation_ops {
-                state.stop = Some(SolveStopReason::PropagationBudget); return false;
+        loop {
+            let mut changed = false;
+            for c in constraints {
+                if self.deadline(state) { return false; }
+                if !self.charge_propagation(state) { return false; }
+                let (min, max) = match bounds(&c.expression, &state.domains) {
+                    Ok(v) => v, Err(_) => { state.stop = Some(SolveStopReason::Deadline); return false; }
+                };
+                let possible = match c.relation {
+                    Relation::Equal => min <= 0 && max >= 0,
+                    Relation::NotEqual => min > 0 || max < 0,
+                    Relation::LessOrEqual => min <= 0,
+                    Relation::GreaterOrEqual => max >= 0,
+                };
+                if !possible { return false; }
+
+                for term in &c.expression.terms {
+                    if self.deadline(state) || !self.charge_propagation(state) { return false; }
+                    let index = term.variable;
+                    let old = state.domains[index];
+                    let next = match tighten_variable(&c.expression, c.relation, index, &state.domains) {
+                        Ok(v) => v,
+                        Err(_) => { state.stop = Some(SolveStopReason::Deadline); return false; }
+                    };
+                    if next.0 > next.1 { return false; }
+                    if next != old {
+                        state.domains[index] = next;
+                        changed = true;
+                    }
+                }
             }
-            state.propagation += 1;
-            let (min, max) = match bounds(&c.expression, &state.domains) {
-                Ok(v) => v, Err(_) => { state.stop = Some(SolveStopReason::Deadline); return false; }
-            };
-            let possible = match c.relation {
-                Relation::Equal => min <= 0 && max >= 0,
-                Relation::NotEqual => min > 0 || max < 0,
-                Relation::LessOrEqual => min <= 0,
-                Relation::GreaterOrEqual => max >= 0,
-            };
-            if !possible { return false; }
+            if !changed { return true; }
         }
-        true
+    }
+
+    fn charge_propagation(&self, state: &mut State) -> bool {
+        if state.propagation >= self.config.max_propagation_ops {
+            state.stop = Some(SolveStopReason::PropagationBudget);
+            false
+        } else {
+            state.propagation += 1;
+            true
+        }
     }
     fn deadline(&self, state: &mut State) -> bool {
         if state.started.elapsed() >= self.config.max_duration {
@@ -258,6 +284,82 @@ fn normalize_expr(expr: &LinearExpr, model: &ConstraintModel, bytes: &mut usize)
     terms.sort_by_key(|t| t.variable);
     Ok(Expr { constant: expr.constant, terms })
 }
+
+fn floor_div(numerator: i128, positive_denominator: i128) -> i128 {
+    numerator.div_euclid(positive_denominator)
+}
+fn ceil_div(numerator: i128, positive_denominator: i128) -> Result<i128, ConstraintError> {
+    let quotient = numerator.div_euclid(positive_denominator);
+    if numerator.rem_euclid(positive_denominator) == 0 {
+        Ok(quotient)
+    } else {
+        quotient.checked_add(1).ok_or(ConstraintError::ArithmeticOverflow)
+    }
+}
+
+fn tighten_variable(
+    expression: &Expr,
+    relation: Relation,
+    target: usize,
+    domains: &[(i64, i64)],
+) -> Result<(i64, i64), ConstraintError> {
+    let Some(term) = expression.terms.iter().find(|term| term.variable == target) else {
+        return Ok(domains[target]);
+    };
+    let coefficient = i128::from(term.coefficient);
+    if coefficient == 0 || relation == Relation::NotEqual {
+        return Ok(domains[target]);
+    }
+
+    let mut other = Expr { constant: expression.constant, terms: Vec::new() };
+    other.terms.extend(expression.terms.iter().filter(|item| item.variable != target).cloned());
+    let (other_min, other_max) = bounds(&other, domains)?;
+    let mut lower = i128::from(domains[target].0);
+    let mut upper = i128::from(domains[target].1);
+
+    match relation {
+        Relation::Equal => {
+            let rhs_lower = other_max.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?;
+            let rhs_upper = other_min.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?;
+            if coefficient > 0 {
+                lower = lower.max(ceil_div(rhs_lower, coefficient)?);
+                upper = upper.min(floor_div(rhs_upper, coefficient));
+            } else {
+                let positive = coefficient.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?;
+                lower = lower.max(ceil_div(rhs_upper.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?, positive)?);
+                upper = upper.min(floor_div(rhs_lower.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?, positive));
+            }
+        }
+        Relation::LessOrEqual => {
+            if coefficient > 0 {
+                let rhs = other_min.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?;
+                upper = upper.min(floor_div(rhs, coefficient));
+            } else {
+                let positive = coefficient.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?;
+                lower = lower.max(ceil_div(other_min, positive)?);
+            }
+        }
+        Relation::GreaterOrEqual => {
+            if coefficient > 0 {
+                let rhs = other_max.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?;
+                lower = lower.max(ceil_div(rhs, coefficient)?);
+            } else {
+                let positive = coefficient.checked_neg().ok_or(ConstraintError::ArithmeticOverflow)?;
+                upper = upper.min(floor_div(other_max, positive));
+            }
+        }
+        Relation::NotEqual => {}
+    }
+
+    let lower = lower.max(i128::from(i64::MIN));
+    let upper = upper.min(i128::from(i64::MAX));
+    if lower > upper {
+        return Ok((1, 0));
+    }
+    Ok((i64::try_from(lower).map_err(|_| ConstraintError::ArithmeticOverflow)?,
+        i64::try_from(upper).map_err(|_| ConstraintError::ArithmeticOverflow)?))
+}
+
 fn bounds(expr: &Expr, domains: &[(i64, i64)]) -> Result<(i128, i128), ConstraintError> {
     let (mut min, mut max) = (i128::from(expr.constant), i128::from(expr.constant));
     for t in &expr.terms {
