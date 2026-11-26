@@ -1,0 +1,12 @@
+[package]
+name = "iroka-cognition"
+version = "0.1.0"
+description = "Native, deterministic and time-bounded reasoning substrate for IROKA"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

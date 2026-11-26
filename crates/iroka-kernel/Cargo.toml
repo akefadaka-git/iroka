@@ -10,6 +10,7 @@ rust-version.workspace = true
 dev-no-revocations = []
 
 [dependencies]
+iroka-cognition = { path = "../iroka-cognition" }
 base64 = "=0.22.1"
 ed25519-dalek = { version = "=2.1.1", default-features = false, features = ["std"] }
 serde = { version = "1", features = ["derive"] }
