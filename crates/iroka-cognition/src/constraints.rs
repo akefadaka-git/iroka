@@ -490,4 +490,60 @@ mod tests {
         assert_eq!(r.assignment, Some(vec![("x".into(), 1)]));
     }
 
+    #[test]
+    fn equality_propagation_tightens_both_variable_bounds() {
+        let m = ConstraintModel {
+            variables: vec![v("x", 0, 100), v("y", 0, 100)],
+            constraints: vec![
+                Constraint { expression: e(-10, &[("x", 1), ("y", 1)]), relation: Relation::Equal },
+                Constraint { expression: e(-3, &[("x", 1)]), relation: Relation::GreaterOrEqual },
+                Constraint { expression: e(-7, &[("x", 1)]), relation: Relation::LessOrEqual },
+            ],
+            objective: None,
+        };
+        let r = ConstraintSolver::default().solve(&m).unwrap();
+        assert_eq!(r.assignment, Some(vec![("x".into(), 3), ("y".into(), 7)]));
+    }
+
+    #[test]
+    fn negative_coefficients_tighten_in_correct_direction() {
+        let m = ConstraintModel {
+            variables: vec![v("x", -100, 100), v("y", 0, 0)],
+            constraints: vec![
+                Constraint { expression: e(10, &[("x", -2), ("y", 1)]), relation: Relation::Equal },
+            ],
+            objective: None,
+        };
+        let r = ConstraintSolver::default().solve(&m).unwrap();
+        assert_eq!(r.assignment, Some(vec![("x".into(), 5), ("y".into(), 0)]));
+    }
+
+    #[test]
+    fn propagation_budget_is_reported_as_incomplete() {
+        let config = ConstraintSolverConfig { max_propagation_ops: 1, ..ConstraintSolverConfig::default() };
+        let m = ConstraintModel {
+            variables: vec![v("x", 0, 4)],
+            constraints: vec![Constraint { expression: e(-2, &[("x", 1)]), relation: Relation::Equal }],
+            objective: None,
+        };
+        let r = ConstraintSolver::new(config).unwrap().solve(&m).unwrap();
+        assert_eq!(r.status, SolveStatus::UnknownBudget);
+        assert_eq!(r.stop_reason, SolveStopReason::PropagationBudget);
+        assert!(!r.is_complete);
+    }
+
+    #[test]
+    fn impossible_equality_is_pruned_by_bound_propagation() {
+        let m = ConstraintModel {
+            variables: vec![v("x", 0, 2), v("y", 0, 2)],
+            constraints: vec![
+                Constraint { expression: e(-10, &[("x", 1), ("y", 1)]), relation: Relation::Equal },
+            ],
+            objective: None,
+        };
+        let r = ConstraintSolver::default().solve(&m).unwrap();
+        assert_eq!(r.status, SolveStatus::Infeasible);
+        assert_eq!(r.search_nodes, 1);
+    }
+
 }
