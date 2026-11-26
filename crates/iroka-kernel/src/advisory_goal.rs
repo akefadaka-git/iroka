@@ -128,25 +128,41 @@ impl AdvisoryGoalAdapter {
         let mut input_bytes = 0usize;
         let mut body_atoms = 0usize;
         for clause in &request.clauses {
-            input_bytes = input_bytes.saturating_add(clause.id.len());
-            input_bytes = input_bytes.saturating_add(atom_bytes(&clause.head));
+            input_bytes = add_payload(input_bytes, clause.id.len(), self.config.max_input_bytes)?;
+            input_bytes = add_payload(
+                input_bytes,
+                atom_bytes(&clause.head, self.config.max_input_bytes)?,
+                self.config.max_input_bytes,
+            )?;
             body_atoms = body_atoms.saturating_add(clause.body.len());
+            if body_atoms > MAX_TOTAL_BODY_ATOMS {
+                return Err(AdvisoryGoalError::TooManyBodyAtoms);
+            }
             for atom in &clause.body {
-                input_bytes = input_bytes.saturating_add(atom_bytes(atom));
+                input_bytes = add_payload(
+                    input_bytes,
+                    atom_bytes(atom, self.config.max_input_bytes)?,
+                    self.config.max_input_bytes,
+                )?;
             }
         }
         for goal in &request.goals {
-            input_bytes = input_bytes.saturating_add(atom_bytes(goal));
-        }
-        if input_bytes > self.config.max_input_bytes {
-            return Err(AdvisoryGoalError::InputTooLarge);
-        }
-        if body_atoms > MAX_TOTAL_BODY_ATOMS {
-            return Err(AdvisoryGoalError::TooManyBodyAtoms);
+            input_bytes = add_payload(
+                input_bytes,
+                atom_bytes(goal, self.config.max_input_bytes)?,
+                self.config.max_input_bytes,
+            )?;
         }
 
-        let mut reasoner =
-            BackwardReasoner::new(self.config.search).map_err(AdvisoryGoalError::Search)?;
+        // BackwardReasoner starts a fresh deadline for each prove() call. Divide
+        // the request budget across goals so a multi-goal request stays bounded.
+        let mut search = self.config.search;
+        if !request.goals.is_empty() {
+            let per_goal_micros =
+                (search.max_duration.as_micros() / request.goals.len() as u128).max(1);
+            search.max_duration = Duration::from_micros(per_goal_micros as u64);
+        }
+        let mut reasoner = BackwardReasoner::new(search).map_err(AdvisoryGoalError::Search)?;
         for clause in request.clauses {
             reasoner
                 .add_clause(clause)
@@ -162,19 +178,56 @@ impl AdvisoryGoalAdapter {
     }
 }
 
-fn atom_bytes(atom: &Atom) -> usize {
-    atom.predicate
-        .len()
-        .saturating_add(atom.arguments.iter().map(term_bytes).sum::<usize>())
+const MAX_TERM_DEPTH: usize = 64;
+
+fn add_payload(
+    current: usize,
+    additional: usize,
+    limit: usize,
+) -> Result<usize, AdvisoryGoalError> {
+    let total = current.saturating_add(additional);
+    if total > limit {
+        return Err(AdvisoryGoalError::InputTooLarge);
+    }
+    Ok(total)
 }
 
-fn term_bytes(term: &iroka_cognition::Term) -> usize {
+fn atom_bytes(atom: &Atom, limit: usize) -> Result<usize, AdvisoryGoalError> {
+    let mut total = atom.predicate.len();
+    if total > limit {
+        return Err(AdvisoryGoalError::InputTooLarge);
+    }
+    for term in &atom.arguments {
+        total = add_payload(total, term_bytes(term, 0, limit.saturating_sub(total))?, limit)?;
+    }
+    Ok(total)
+}
+
+fn term_bytes(
+    term: &iroka_cognition::Term,
+    depth: usize,
+    limit: usize,
+) -> Result<usize, AdvisoryGoalError> {
     use iroka_cognition::Term;
+    if depth > MAX_TERM_DEPTH {
+        return Err(AdvisoryGoalError::Search(SearchError::InvalidTerm));
+    }
     match term {
-        Term::Symbol(value) | Term::Variable(value) => value.len(),
-        Term::Compound(name, args) => name
-            .len()
-            .saturating_add(args.iter().map(term_bytes).sum::<usize>()),
+        Term::Symbol(value) | Term::Variable(value) => add_payload(0, value.len(), limit),
+        Term::Compound(name, args) => {
+            let mut total = name.len();
+            if total > limit {
+                return Err(AdvisoryGoalError::InputTooLarge);
+            }
+            for arg in args {
+                total = add_payload(
+                    total,
+                    term_bytes(arg, depth + 1, limit.saturating_sub(total))?,
+                    limit,
+                )?;
+            }
+            Ok(total)
+        }
     }
 }
 
