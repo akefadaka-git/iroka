@@ -231,8 +231,11 @@ fn normalize(model: &ConstraintModel) -> Result<(Vec<IntVariable>, Vec<Normalize
         cs.push(NormalizedConstraint { expression: normalize_expr(&c.expression, model, &mut bytes)?, relation: c.relation });
         bytes = bytes.checked_add(1).ok_or(ConstraintError::ModelTooLarge)?;
     }
+    let full_domains: Vec<(i64, i64)> = model.variables.iter().map(|v| (v.lower, v.upper)).collect();
+    for constraint in &cs { let _ = bounds(&constraint.expression, &full_domains)?; }
     let objective = model.objective.as_ref().map(|o| normalize_expr(&o.expression, model, &mut bytes)
         .map(|expression| NormalizedObjective { expression, direction: o.direction })).transpose()?;
+    if let Some(item) = &objective { let _ = bounds(&item.expression, &full_domains)?; }
     if bytes > MAX_MODEL_BYTES { return Err(ConstraintError::ModelTooLarge); }
     Ok((model.variables.clone(), cs, objective))
 }
@@ -240,6 +243,7 @@ fn normalize_expr(expr: &LinearExpr, model: &ConstraintModel, bytes: &mut usize)
     if expr.terms.len() > MAX_TERMS { return Err(ConstraintError::TooManyTerms); }
     *bytes = bytes.checked_add(8 + expr.terms.len().checked_mul(16).ok_or(ConstraintError::ModelTooLarge)?)
         .ok_or(ConstraintError::ModelTooLarge)?;
+    if *bytes > MAX_MODEL_BYTES { return Err(ConstraintError::ModelTooLarge); }
     let mut seen = BTreeSet::new();
     let mut terms = Vec::with_capacity(expr.terms.len());
     for term in &expr.terms {
