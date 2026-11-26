@@ -1,7 +1,8 @@
 //! In-process, advisory-only adapter for NCE-02 goal-directed reasoning.
 
 use iroka_cognition::{
-    Atom, BackwardReasoner, HornClause, SearchConfig, SearchError, SearchReport, SearchStop,
+    BackwardReasoner, GoalAtom as Atom, HornClause, SearchConfig, SearchError, SearchReport,
+    SearchStop,
 };
 use std::time::Duration;
 
