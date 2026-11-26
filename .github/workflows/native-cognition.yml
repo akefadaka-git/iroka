@@ -22,13 +22,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: Format source for CI inspection
-        run: cargo fmt --all
-      - name: Emit rustfmt output for repository update
-        run: |
-          echo BEGIN_FORMATTED_CONSTRAINTS
-          cat crates/iroka-cognition/src/constraints.rs
-          echo END_FORMATTED_CONSTRAINTS
+      - name: Format
+        run: cargo fmt --all -- --check
       - name: Test workspace
         run: cargo test --workspace --all-targets
       - name: Clippy
