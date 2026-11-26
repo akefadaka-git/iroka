@@ -90,7 +90,7 @@ struct State {
 
 pub struct ConstraintSolver { config: ConstraintSolverConfig }
 impl Default for ConstraintSolver {
-    fn default() -> Self { Self::new(ConstraintSolverConfig::default()).expect("default limits are valid") }
+    fn default() -> Self { Self { config: ConstraintSolverConfig::default() } }
 }
 impl ConstraintSolver {
     /// Constructs a solver; caller limits cannot exceed the frozen hard ceilings.
@@ -125,8 +125,8 @@ impl ConstraintSolver {
             (true, false, _) => SolveStatus::Infeasible,
             (true, true, false) => SolveStatus::Satisfied,
             (true, true, true) => SolveStatus::Optimal,
-            (false, true, Some(_)) => SolveStatus::FeasibleNotProvenOptimal,
-            (false, true, None) => SolveStatus::Satisfied,
+            (false, true, true) => SolveStatus::FeasibleNotProvenOptimal,
+            (false, true, false) => SolveStatus::Satisfied,
             (false, false, _) => SolveStatus::UnknownBudget,
         };
         Ok(SolveResult {
@@ -147,7 +147,7 @@ impl ConstraintSolver {
         if !self.propagate(constraints, state) { return; }
         let selected = state.domains.iter().enumerate()
             .filter(|(_, (lo, hi))| lo < hi)
-            .min_by_key(|(i, (lo, hi))| ((*hi as i128 - *lo as i128 + 1) as u128, *i))
+            .min_by_key(|(i, (lo, hi))| (u128::try_from(*hi as i128 - *lo as i128 + 1).unwrap_or(u128::MAX), *i))
             .map(|(i, _)| i);
         let Some(index) = selected else {
             let values: Vec<i64> = state.domains.iter().map(|(lo, _)| *lo).collect();
