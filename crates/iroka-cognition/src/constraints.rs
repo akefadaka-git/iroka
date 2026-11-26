@@ -85,7 +85,7 @@ struct NormalizedObjective { expression: Expr, direction: ObjectiveDirection }
 struct State {
     domains: Vec<(i64, i64)>, nodes: u64, propagation: u64,
     started: Instant, stop: Option<SolveStopReason>,
-    incumbent: Option<Vec<i64>>, incumbent_value: Option<i128>,
+    incumbent: Option<Vec<i64>>, incumbent_value: Option<i128>, error: Option<ConstraintError>,
 }
 
 pub struct ConstraintSolver { config: ConstraintSolverConfig }
@@ -111,9 +111,10 @@ impl ConstraintSolver {
         let mut state = State {
             domains: variables.iter().map(|v| (v.lower, v.upper)).collect(),
             nodes: 0, propagation: 0, started, stop: None,
-            incumbent: None, incumbent_value: None,
+            incumbent: None, incumbent_value: None, error: None,
         };
         self.search(&variables, &constraints, objective.as_ref(), &mut state);
+        if let Some(error) = state.error.take() { return Err(error); }
         let complete = state.stop.is_none();
         let stop_reason = state.stop.unwrap_or(SolveStopReason::Complete);
         let assignment = state.incumbent.as_ref().map(|values| variables.iter().zip(values)
@@ -139,7 +140,7 @@ impl ConstraintSolver {
 
     fn search(&self, vars: &[IntVariable], constraints: &[NormalizedConstraint],
         objective: Option<&NormalizedObjective>, state: &mut State) {
-        if self.deadline(state) { return; }
+        if state.error.is_some() || self.deadline(state) { return; }
         if state.nodes >= self.config.max_search_nodes {
             state.stop = Some(SolveStopReason::SearchNodeBudget); return;
         }
@@ -151,9 +152,9 @@ impl ConstraintSolver {
             .map(|(i, _)| i);
         let Some(index) = selected else {
             let values: Vec<i64> = state.domains.iter().map(|(lo, _)| *lo).collect();
-            if verify(vars, constraints, objective, &values).is_err() { return; }
+            if let Err(error) = verify(vars, constraints, objective, &values) { state.error = Some(error); return; }
             let candidate = objective.map(|o| evaluate(&o.expression, &values)).transpose();
-            let candidate = match candidate { Ok(v) => v, Err(_) => { state.stop = Some(SolveStopReason::Deadline); return; } };
+            let candidate = match candidate { Ok(v) => v, Err(error) => { state.error = Some(error); return; } };
             let replace = match (objective, state.incumbent_value, candidate) {
                 (None, _, _) => state.incumbent.is_none(),
                 (Some(o), Some(old), Some(new)) => match o.direction {
@@ -172,7 +173,7 @@ impl ConstraintSolver {
             if self.deadline(state) { break; }
             state.domains[index] = (value, value);
             self.search(vars, constraints, objective, state);
-            if state.stop.is_some() || value == hi { break; }
+            if state.stop.is_some() || state.error.is_some() || value == hi { break; }
             value = match value.checked_add(1) {
                 Some(v) => v, None => { state.stop = Some(SolveStopReason::Deadline); break; }
             };
@@ -190,7 +191,7 @@ impl ConstraintSolver {
                 if self.deadline(state) { return false; }
                 if !self.charge_propagation(state) { return false; }
                 let (min, max) = match bounds(&c.expression, &state.domains) {
-                    Ok(v) => v, Err(_) => { state.stop = Some(SolveStopReason::Deadline); return false; }
+                    Ok(v) => v, Err(error) => { state.error = Some(error); return false; }
                 };
                 let possible = match c.relation {
                     Relation::Equal => min <= 0 && max >= 0,
@@ -206,7 +207,7 @@ impl ConstraintSolver {
                     let old = state.domains[index];
                     let next = match tighten_variable(&c.expression, c.relation, index, &state.domains) {
                         Ok(v) => v,
-                        Err(_) => { state.stop = Some(SolveStopReason::Deadline); return false; }
+                        Err(error) => { state.error = Some(error); return false; }
                     };
                     if next.0 > next.1 { return false; }
                     if next != old {
