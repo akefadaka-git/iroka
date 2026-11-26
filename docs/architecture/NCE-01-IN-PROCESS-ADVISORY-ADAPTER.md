@@ -1,6 +1,6 @@
 # NCE-01 In-Process Advisory Cognition Adapter
 
-**Status:** Implemented on the native-cognition A3 feature branch; exact-SHA CI pending  
+**Status:** IMPLEMENTED / VERIFIED on exact code SHA `12bbc2682e0efea796b23a1c5c7b2a45c69b26ae`  
 **Owner:** IROKA ZERO  
 **Implementation:** `crates/iroka-kernel/src/advisory_cognition.rs`  
 **Engine:** `iroka-cognition` / NCE-01
@@ -93,3 +93,19 @@ exposing cognition to untrusted remote inputs or enabling production service tra
 
 Independent security review and exact-SHA CI are separate gates. This implementation
 does not authorize merge, deployment, or production activation.
+
+
+## Exact-SHA verification record
+
+Code SHA: `12bbc2682e0efea796b23a1c5c7b2a45c69b26ae`
+
+- Native Cognition CI: PASS — https://github.com/akefadaka-git/iroka/actions/runs/45835698806
+- Rust kernel verification: PASS — https://github.com/akefadaka-git/iroka/actions/runs/45835698696
+- Adapter integration tests: 6 passed, 0 failed.
+- Complete workspace test binaries: 72 cognition tests, 77 Kernel tests, and 2 authorization-contract tests; 151 passed, 0 failed.
+- `cargo check --workspace --all-targets --locked`: PASS.
+- `cargo check --workspace --all-targets --no-default-features`: PASS.
+- `cargo fmt --all -- --check`: PASS.
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic`: PASS.
+
+These checks verify the code on the cited SHA. Independent security review and remote-ingress qualification remain open.
