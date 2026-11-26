@@ -194,7 +194,7 @@ impl ConstraintSolver {
             };
             let possible = match c.relation {
                 Relation::Equal => min <= 0 && max >= 0,
-                Relation::NotEqual => min != 0 || max != 0,
+                Relation::NotEqual => min > 0 || max < 0,
                 Relation::LessOrEqual => min <= 0,
                 Relation::GreaterOrEqual => max >= 0,
             };
