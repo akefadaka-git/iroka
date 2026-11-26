@@ -66,3 +66,20 @@
   Owner approval to merge or activate production.
 
 - NCE-02: first-order backward chaining, unification, proof trees and bounded search.
+
+
+### NCE-01 — Kernel advisory adapter integration
+
+- Added a one-call, in-process adapter in `iroka-kernel` that consumes the
+  `iroka-cognition` crate through a one-way workspace dependency.
+- Adapter accepts bounded asserted facts, rules and query literals; returns the
+  NCE-01 report and query observations with explicit complete/partial status.
+- Default adapter caps: 1 MiB aggregate UTF-8 payload and 256 queries, in addition to
+  the NCE-01 engine's hard fact/rule/premise/step/deadline ceilings.
+- Six integration tests cover multi-step inference, provenance metadata, contradictions,
+  partial results, input/query limits, and policy-denial isolation.
+- Cognition remains advisory: no identity, policy, authorization, approval, audit,
+  execution or protected side-effect interface is exposed.
+- Exact-SHA CI and independent review remain separate acceptance gates. Remote ingress,
+  raw transport parsing, concurrency admission and peak-RSS qualification remain NOT
+  IMPLEMENTED.
