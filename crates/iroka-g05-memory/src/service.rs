@@ -293,7 +293,6 @@ where
             return Err(G05Error::AuthorizationDenied);
         }
         let context = self.authorize(compact_credential, request.clone())?;
-        let now = self.ingress.current_time()?;
         let issuer = context.principal().subject().to_owned();
         let credential_id = context.principal().credential_id().to_owned();
         self.ingress.execute_external_with_context(
@@ -309,7 +308,7 @@ where
                     request.purpose,
                     &issuer,
                     &credential_id,
-                    now,
+                    self.ingress.current_time()?,
                     expires_at,
                     &request.correlation_ref,
                 )
@@ -329,7 +328,6 @@ where
             return Err(G05Error::AuthorizationDenied);
         }
         let context = self.authorize(compact_credential, request.clone())?;
-        let now = self.ingress.current_time()?;
         self.ingress.execute_external_with_context(
             &context,
             tenant,
@@ -340,7 +338,7 @@ where
                     consent_ref,
                     &request.tenant_ref,
                     &request.subject_ref,
-                    now,
+                    self.ingress.current_time()?,
                 )
             },
         )
