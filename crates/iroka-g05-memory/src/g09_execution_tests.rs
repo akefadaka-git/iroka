@@ -192,7 +192,7 @@ fn fixture(state: AuthorityState, guard_acquired: Option<Sender<()>>) -> Fixture
     let header = URL_SAFE_NO_PAD
         .encode(br#"{"alg":"EdDSA","typ":"IROKA-CREDENTIAL","kid":"credential-key"}"#);
     let claims = URL_SAFE_NO_PAD.encode(
-        br#"{"iss":"issuer:test","sub":"principal:alice","aud":"iroka","exp":5000,"nbf":1100,"iat":1100,"jti":"credential:alice"}"#
+        br#"{"iss":"issuer:test","sub":"principal:alice","aud":"iroka","exp":4700,"nbf":1100,"iat":1100,"jti":"credential:alice"}"#
     );
     let input = format!("{header}.{claims}");
     let token = format!(
