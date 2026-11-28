@@ -393,7 +393,11 @@ fn g09_execution_audit_event(
         )
         .as_bytes(),
     );
-    let phase = if outcome == "authorized" { "intent" } else { "outcome" };
+    let phase = if outcome == "authorized" {
+        "intent"
+    } else {
+        "outcome"
+    };
     AuditEvent {
         event_id: format!("g09:execution:{idempotency_key}:{phase}"),
         event_type: format!(

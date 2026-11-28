@@ -5,8 +5,9 @@ use ed25519_dalek::{Signer, SigningKey};
 use iroka_kernel::{
     Ed25519CredentialVerifier, G05ActivationDecision, OwnerApprovalVerifier, OwnerSecurityAction,
     OwnerSecurityCommandPayload, RevocationChecker, RevocationError, SignedOwnerSecurityCommand,
-    SignedTrustBundle, SqliteSecurityStore, TenantMembershipResolver, TrustBundlePayload,
-    TenantContext, TrustRoot, TrustedKey, TrustedOwnerKey, VerifiedPrincipal, VerifiedReviewerProof,
+    SignedTrustBundle, SqliteSecurityStore, TenantContext, TenantMembershipResolver,
+    TrustBundlePayload, TrustRoot, TrustedKey, TrustedOwnerKey, VerifiedPrincipal,
+    VerifiedReviewerProof,
 };
 use std::sync::mpsc::{self, Sender};
 use std::sync::{
@@ -125,7 +126,10 @@ impl G11MemoryAuditAuthority for TestG11 {
         }
         let mut events = self.events.lock().map_err(|_| G05Error::AuditUnavailable)?;
         let digest = audit_event_sha256(event);
-        if let Some(existing) = events.iter().find(|existing| existing.event_id == event.event_id) {
+        if let Some(existing) = events
+            .iter()
+            .find(|existing| existing.event_id == event.event_id)
+        {
             if audit_event_sha256(existing) != digest {
                 return Err(G05Error::AuditUnavailable);
             }
@@ -425,16 +429,12 @@ fn correlation_replay_across_fresh_ingress_contexts_is_rejected_by_g11() {
 
     let second = authorize(&f);
     let ran = AtomicBool::new(false);
-    let replay = f.service.execute_external_with_context(
-        &second,
-        &f.tenant,
-        &f.token,
-        &g11,
-        || {
-            ran.store(true, Ordering::SeqCst);
-            Ok(())
-        },
-    );
+    let replay =
+        f.service
+            .execute_external_with_context(&second, &f.tenant, &f.token, &g11, || {
+                ran.store(true, Ordering::SeqCst);
+                Ok(())
+            });
     assert_eq!(replay, Err(G05Error::AuditUnavailable));
     assert!(!ran.load(Ordering::SeqCst));
     assert_eq!(g11.events.lock().unwrap().len(), 2);
