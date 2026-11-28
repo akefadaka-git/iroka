@@ -1,0 +1,541 @@
+//! PostgreSQL-backed G09 policy and tenant-scope resolver.
+//!
+//! Every lookup uses the primary connection configured with verify-full TLS.
+//! Snapshot authenticity is delegated to an injected verifier backed by the
+//! canonical G02 pinned trust-root/revocation authority; database rows alone
+//! are never treated as authorization evidence.
+use std::sync::{Arc, Mutex};
+
+use iroka_kernel::{evaluate, DecisionCode, Policy, TenantContext, VerifiedPrincipal};
+use native_tls::TlsConnector;
+use postgres::{Client, Row};
+use postgres_native_tls::MakeTlsConnector;
+use sha2::{Digest, Sha256};
+
+use crate::{
+    ingress::{capability_for, risk_for},
+    AuthorizationRequest, G05Error, G09PolicyResolver,
+};
+
+/// Must verify the exact canonical payload, digest, domain-separated signature,
+/// Owner subject/key validity and current key revocation against canonical G02
+/// trust roots, then decode only the verified payload into a kernel Policy.
+pub trait G02PolicySnapshotVerifier: Send + Sync {
+    fn verify_snapshot(&self, snapshot: &G02PolicySnapshot, now: u64) -> Result<Policy, G05Error>;
+}
+
+#[derive(Debug, Clone)]
+pub struct G02PolicySnapshot {
+    pub policy_id: String,
+    pub epoch: u64,
+    pub policy_version: String,
+    pub owner_subject: String,
+    pub signer_issuer: String,
+    pub signer_key_id: String,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub canonical_payload: Vec<u8>,
+    pub payload_sha256: String,
+    pub signature: Vec<u8>,
+}
+
+#[derive(Clone)]
+pub struct PostgresG09PolicyResolver<V> {
+    client: Arc<Mutex<Client>>,
+    policy_id: String,
+    verifier: Arc<V>,
+}
+
+impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
+    /// Remote connections require PostgreSQL verify-full TLS (chain + hostname).
+    pub fn connect(
+        connection_string: &str,
+        policy_id: impl Into<String>,
+        verifier: Arc<V>,
+    ) -> Result<Self, G05Error> {
+        let policy_id = policy_id.into();
+        if !connection_string.contains("sslmode=verify-full")
+            || policy_id.trim().is_empty()
+            || policy_id.len() > 128
+        {
+            return Err(G05Error::RepositoryUnavailable);
+        }
+        let tls = TlsConnector::builder()
+            .build()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        Ok(Self {
+            client: Arc::new(Mutex::new(client)),
+            policy_id,
+            verifier,
+        })
+    }
+
+    /// Test-only connection for the PostgreSQL service container. Production
+    /// callers must use the verify-full TLS constructor above.
+    #[cfg(test)]
+    pub(crate) fn connect_for_test(
+        connection_string: &str,
+        policy_id: impl Into<String>,
+        verifier: Arc<V>,
+    ) -> Result<Self, G05Error> {
+        let policy_id = policy_id.into();
+        if policy_id.trim().is_empty() || policy_id.len() > 128 {
+            return Err(G05Error::RepositoryUnavailable);
+        }
+        let client = Client::connect(connection_string, postgres::NoTls)
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        Ok(Self {
+            client: Arc::new(Mutex::new(client)),
+            policy_id,
+            verifier,
+        })
+    }
+
+    /// Fail readiness unless all required G02 authority tables exist.
+    pub fn verify_schema(&self) -> Result<(), G05Error> {
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let row = client
+            .query_one(
+                "SELECT to_regclass('public.g02_policy_snapshots') IS NOT NULL
+                AND to_regclass('public.g02_policy_heads') IS NOT NULL
+                AND to_regclass('public.g02_policy_revocations') IS NOT NULL
+                AND to_regclass('public.g02_emergency_stop') IS NOT NULL
+                AND to_regclass('public.g02_tenant_memberships') IS NOT NULL
+                AND to_regclass('public.g02_owner_key_registry_versions') IS NOT NULL
+                AND to_regclass('public.g02_owner_keys') IS NOT NULL
+                AND to_regclass('public.g02_owner_key_revocations') IS NOT NULL",
+                &[],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        if row.get::<_, bool>(0) {
+            Ok(())
+        } else {
+            Err(G05Error::AuthorityUnavailable)
+        }
+    }
+
+    fn snapshot_from_row(row: &Row) -> Result<G02PolicySnapshot, G05Error> {
+        let epoch: i64 = row.get("epoch");
+        let issued_at: i64 = row.get("issued_at");
+        let expires_at: i64 = row.get("expires_at");
+        let digest: String = row.get("payload_sha256");
+        let canonical_payload: Vec<u8> = row.get("canonical_payload");
+        let signature: Vec<u8> = row.get("signature");
+        if !valid_snapshot_shape(
+            epoch,
+            issued_at,
+            expires_at,
+            &digest,
+            &canonical_payload,
+            &signature,
+        ) {
+            return Err(G05Error::AuthorityUnavailable);
+        }
+        let computed = Sha256::digest(&canonical_payload);
+        let computed_hex = computed
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
+        if computed_hex != digest.trim().to_ascii_lowercase() {
+            return Err(G05Error::AuthorityUnavailable);
+        }
+        Ok(G02PolicySnapshot {
+            policy_id: row.get("policy_id"),
+            epoch: u64::try_from(epoch).map_err(|_| G05Error::AuthorityUnavailable)?,
+            policy_version: row.get("policy_version"),
+            owner_subject: row.get("owner_subject"),
+            signer_issuer: row.get("signer_issuer"),
+            signer_key_id: row.get("signer_key_id"),
+            issued_at: u64::try_from(issued_at).map_err(|_| G05Error::AuthorityUnavailable)?,
+            expires_at: u64::try_from(expires_at).map_err(|_| G05Error::AuthorityUnavailable)?,
+            canonical_payload,
+            payload_sha256: digest.trim().to_owned(),
+            signature,
+        })
+    }
+}
+
+fn valid_snapshot_shape(
+    epoch: i64,
+    issued_at: i64,
+    expires_at: i64,
+    digest: &str,
+    payload: &[u8],
+    signature: &[u8],
+) -> bool {
+    epoch > 0
+        && issued_at >= 0
+        && expires_at > issued_at
+        && digest.trim().len() == 64
+        && digest.trim().bytes().all(|b| b.is_ascii_hexdigit())
+        && !payload.is_empty()
+        && signature.len() == 64
+}
+
+impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolver<V> {
+    fn current_policy(&self, now: u64) -> Result<(Policy, bool), G05Error> {
+        let now_i = i64::try_from(now).map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        // Both policy and emergency-stop reads share one MVCC snapshot.
+        let row = tx
+            .query_opt(
+                "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
+                    s.signer_issuer,s.signer_key_id,s.issued_at,s.expires_at,
+                    s.canonical_payload,s.payload_sha256,s.signature
+             FROM g02_policy_heads h
+             JOIN g02_policy_snapshots s
+               ON s.policy_id=h.policy_id AND s.epoch=h.current_epoch
+              AND s.payload_sha256=h.current_payload_sha256
+             JOIN g02_owner_key_registry_versions rv
+               ON rv.version=(SELECT max(version) FROM g02_owner_key_registry_versions)
+              AND rv.expires_at > $2
+             JOIN g02_owner_keys ok
+               ON ok.registry_version=rv.version
+              AND ok.owner_subject=s.owner_subject
+              AND ok.issuer=s.signer_issuer
+              AND ok.key_id=s.signer_key_id
+              AND ok.not_before <= $2 AND ok.not_after > $2
+             WHERE h.policy_id=$1 AND s.issued_at <= $2 AND s.expires_at > $2
+               AND NOT EXISTS (
+                 SELECT 1 FROM g02_policy_revocations r
+                 WHERE r.policy_id=s.policy_id AND r.epoch=s.epoch
+               )
+               AND NOT EXISTS (
+                 SELECT 1 FROM g02_owner_key_revocations kr
+                 WHERE kr.issuer=s.signer_issuer AND kr.key_id=s.signer_key_id
+               )",
+                &[&self.policy_id, &now_i],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorizationDenied)?;
+        let snapshot = Self::snapshot_from_row(&row)?;
+        let policy = self.verifier.verify_snapshot(&snapshot, now)?;
+        let emergency = tx
+            .query_opt(
+                "SELECT active,version,changed_at FROM g02_emergency_stop WHERE singleton=TRUE",
+                &[],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorityUnavailable)?;
+        let active: bool = emergency.get(0);
+        let version: i64 = emergency.get(1);
+        let changed_at: i64 = emergency.get(2);
+        if version <= 0 || changed_at < 0 || changed_at > now_i {
+            return Err(G05Error::AuthorityUnavailable);
+        }
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
+        Ok((policy, active))
+    }
+
+    fn authorize_resource_scope(
+        &self,
+        principal: &VerifiedPrincipal,
+        request: &AuthorizationRequest,
+        _now: u64,
+    ) -> Result<(), G05Error> {
+        if request.principal_ref != principal.subject() || request.tenant_ref.trim().is_empty() {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let row = client
+            .query_opt(
+                "SELECT active,version FROM g02_tenant_memberships
+             WHERE subject_ref=$1 AND tenant_ref=$2",
+                &[&request.principal_ref, &request.tenant_ref],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::TenantScopeMismatch)?;
+        let active: bool = row.get(0);
+        let version: i64 = row.get(1);
+        if !active || version <= 0 {
+            return Err(G05Error::TenantScopeMismatch);
+        }
+        Ok(())
+    }
+
+    /// Hold SHARE locks over all authoritative G02 state through the protected
+    /// effect and G11 receipts. G02 writers use ROW EXCLUSIVE locks, so membership,
+    /// policy, Owner-key revocation/rotation and emergency-stop transitions serialize.
+    fn with_execution_authority<T>(
+        &self,
+        principal: &VerifiedPrincipal,
+        tenant: &TenantContext,
+        request: &AuthorizationRequest,
+        now: u64,
+        effect: impl FnOnce(&G02PolicySnapshot) -> Result<T, G05Error>,
+    ) -> Result<T, G05Error> {
+        if request.principal_ref != principal.subject()
+            || tenant.subject() != principal.subject()
+            || tenant.tenant_id() != request.tenant_ref
+            || tenant.membership_version() == 0
+            || tenant.resolved_at() > now
+            || now.saturating_sub(tenant.resolved_at()) > 600
+        {
+            return Err(G05Error::TenantScopeMismatch);
+        }
+        let now_i = i64::try_from(now).map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+
+        // G02 command processing locks its signing key row before writing authority
+        // tables. Lock the active policy's signer first to preserve that lock order.
+        let preflight = tx
+            .query_opt(
+                "SELECT s.epoch,s.policy_version,s.owner_subject,s.signer_issuer,
+                        s.signer_key_id,s.payload_sha256,rv.version
+                 FROM g02_policy_heads h
+                 JOIN g02_policy_snapshots s
+                   ON s.policy_id=h.policy_id AND s.epoch=h.current_epoch
+                  AND s.payload_sha256=h.current_payload_sha256
+                 JOIN g02_owner_key_registry_versions rv
+                   ON rv.version=(SELECT max(version) FROM g02_owner_key_registry_versions)
+                  AND rv.expires_at > $2
+                 JOIN g02_owner_keys k
+                   ON k.registry_version=rv.version
+                  AND k.owner_subject=s.owner_subject
+                  AND k.issuer=s.signer_issuer
+                  AND k.key_id=s.signer_key_id
+                 WHERE h.policy_id=$1 AND s.issued_at <= $2 AND s.expires_at > $2",
+                &[&self.policy_id, &now_i],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorizationDenied)?;
+        let pre_epoch: i64 = preflight.get(0);
+        let pre_policy_version: String = preflight.get(1);
+        let pre_owner_subject: String = preflight.get(2);
+        let pre_signer_issuer: String = preflight.get(3);
+        let pre_signer_key_id: String = preflight.get(4);
+        let pre_payload_sha256: String = preflight.get(5);
+        let pre_registry_version: i64 = preflight.get(6);
+        tx.query_opt(
+            "SELECT 1 FROM g02_owner_keys
+             WHERE registry_version=$1 AND owner_subject=$2 AND issuer=$3 AND key_id=$4
+             FOR SHARE",
+            &[
+                &pre_registry_version,
+                &pre_owner_subject,
+                &pre_signer_issuer,
+                &pre_signer_key_id,
+            ],
+        )
+        .map_err(|_| G05Error::AuthorityUnavailable)?
+        .ok_or(G05Error::AuthorizationDenied)?;
+
+        // G02 emergency-stop commands lock this singleton row before updating it.
+        // Acquire the same row lock before table SHARE locks to avoid a
+        // row-lock/table-lock cycle with a concurrent emergency-stop transition.
+        tx.query_opt(
+            "SELECT version FROM g02_emergency_stop WHERE singleton=TRUE FOR SHARE",
+            &[],
+        )
+        .map_err(|_| G05Error::AuthorityUnavailable)?
+        .ok_or(G05Error::AuthorityUnavailable)?;
+
+        // If any G02 command was already mutating state, this waits for it to
+        // commit. Re-read below and deny if the policy/registry changed meanwhile.
+        tx.batch_execute(
+            "LOCK TABLE g02_tenant_memberships, g02_policy_heads, g02_policy_snapshots, \
+             g02_policy_revocations, g02_emergency_stop, g02_owner_key_registry_versions, \
+             g02_owner_keys, g02_owner_key_revocations IN SHARE MODE",
+        )
+        .map_err(|_| G05Error::AuthorityUnavailable)?;
+
+        let membership = tx
+            .query_opt(
+                "SELECT active,version,updated_at FROM g02_tenant_memberships \
+                 WHERE subject_ref=$1 AND tenant_ref=$2 FOR SHARE",
+                &[&principal.subject(), &tenant.tenant_id()],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::TenantScopeMismatch)?;
+        let active: bool = membership.get(0);
+        let version: i64 = membership.get(1);
+        let updated_at: i64 = membership.get(2);
+        if !active
+            || version <= 0
+            || version as u64 != tenant.membership_version()
+            || updated_at < 0
+            || updated_at > now_i
+            || now.saturating_sub(updated_at as u64) > 600
+        {
+            return Err(G05Error::TenantScopeMismatch);
+        }
+
+        let row = tx
+            .query_opt(
+                "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
+                        s.signer_issuer,s.signer_key_id,s.issued_at,s.expires_at,
+                        s.canonical_payload,s.payload_sha256,s.signature
+                 FROM g02_policy_heads h
+                 JOIN g02_policy_snapshots s
+                   ON s.policy_id=h.policy_id AND s.epoch=h.current_epoch
+                  AND s.payload_sha256=h.current_payload_sha256
+                 WHERE h.policy_id=$1 AND s.issued_at <= $2 AND s.expires_at > $2
+                   AND NOT EXISTS (SELECT 1 FROM g02_policy_revocations r
+                     WHERE r.policy_id=s.policy_id AND r.epoch=s.epoch)
+                   AND NOT EXISTS (SELECT 1 FROM g02_owner_key_revocations kr
+                     WHERE kr.issuer=s.signer_issuer AND kr.key_id=s.signer_key_id)
+                 FOR SHARE OF h,s",
+                &[&self.policy_id, &now_i],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorizationDenied)?;
+        let snapshot = Self::snapshot_from_row(&row)?;
+        if snapshot.epoch as i64 != pre_epoch
+            || snapshot.policy_version != pre_policy_version
+            || snapshot.owner_subject != pre_owner_subject
+            || snapshot.signer_issuer != pre_signer_issuer
+            || snapshot.signer_key_id != pre_signer_key_id
+            || snapshot.payload_sha256 != pre_payload_sha256
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
+
+        let owner_key = tx
+            .query_opt(
+                "SELECT k.not_before,k.not_after,v.expires_at,k.registry_version
+                 FROM g02_owner_keys k
+                 JOIN g02_owner_key_registry_versions v ON v.version=k.registry_version
+                 WHERE k.registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions)
+                   AND k.owner_subject=$1 AND k.issuer=$2 AND k.key_id=$3
+                 FOR SHARE OF k,v",
+                &[
+                    &snapshot.owner_subject,
+                    &snapshot.signer_issuer,
+                    &snapshot.signer_key_id,
+                ],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorizationDenied)?;
+        let key_not_before: i64 = owner_key.get(0);
+        let key_not_after: i64 = owner_key.get(1);
+        let registry_expires: i64 = owner_key.get(2);
+        let registry_version: i64 = owner_key.get(3);
+        if registry_version != pre_registry_version
+            || key_not_before < 0
+            || key_not_after <= now_i
+            || key_not_before > now_i
+            || registry_expires <= now_i
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        let revoked: bool = tx
+            .query_one(
+                "SELECT EXISTS(SELECT 1 FROM g02_owner_key_revocations
+                 WHERE issuer=$1 AND key_id=$2)",
+                &[&snapshot.signer_issuer, &snapshot.signer_key_id],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .get(0);
+        if revoked {
+            return Err(G05Error::AuthorizationDenied);
+        }
+
+        // G02 owns canonical payload, trust-root and signature verification.
+        let policy = self.verifier.verify_snapshot(&snapshot, now)?;
+        let emergency = tx
+            .query_opt(
+                "SELECT active,version,changed_at FROM g02_emergency_stop
+                 WHERE singleton=TRUE FOR SHARE",
+                &[],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorityUnavailable)?;
+        let emergency_active: bool = emergency.get(0);
+        let emergency_version: i64 = emergency.get(1);
+        let emergency_changed_at: i64 = emergency.get(2);
+        if emergency_version <= 0 || emergency_changed_at < 0 || emergency_changed_at > now_i {
+            return Err(G05Error::AuthorityUnavailable);
+        }
+        let resource = format!(
+            "g05:tenant:{}:memory:{}",
+            tenant.tenant_id(),
+            request.memory_id.as_deref().unwrap_or("*")
+        );
+        let kernel_request = iroka_kernel::AuthorizationRequest::new(
+            principal.subject(),
+            capability_for(request.operation),
+            resource,
+            risk_for(request.operation),
+        );
+        if evaluate(&kernel_request, &policy, emergency_active).code() != DecisionCode::Allow {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        let result = effect(&snapshot);
+        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::valid_snapshot_shape;
+
+    #[test]
+    fn malformed_snapshot_rows_fail_closed() {
+        let payload = b"{\"policy\":\"signed\"}";
+        let signature = [9u8; 64];
+        assert!(valid_snapshot_shape(
+            1,
+            10,
+            20,
+            &"a".repeat(64),
+            payload,
+            &signature
+        ));
+        assert!(!valid_snapshot_shape(
+            0,
+            10,
+            20,
+            &"a".repeat(64),
+            payload,
+            &signature
+        ));
+        assert!(!valid_snapshot_shape(
+            1,
+            20,
+            20,
+            &"a".repeat(64),
+            payload,
+            &signature
+        ));
+        assert!(!valid_snapshot_shape(1, 10, 20, "bad", payload, &signature));
+        assert!(!valid_snapshot_shape(
+            1,
+            10,
+            20,
+            &"a".repeat(64),
+            &[],
+            &signature
+        ));
+        assert!(!valid_snapshot_shape(
+            1,
+            10,
+            20,
+            &"a".repeat(64),
+            payload,
+            &[1u8; 63]
+        ));
+    }
+}
