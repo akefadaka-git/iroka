@@ -1110,3 +1110,6 @@ mod tests {
         assert!(answer.content.starts_with("Synthetic response"));
     }
 }
+
+/// Bounded neurogenetic contracts for the INGA architecture.
+pub mod neurogenetic;
