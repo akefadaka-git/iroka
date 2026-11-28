@@ -217,6 +217,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "iroka-brain"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "iroka-kernel"
 version = "0.1.0"
 dependencies = [
