@@ -32,6 +32,9 @@ impl MemoryRepository for RepositoryBackend {
     fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error> {
         match self { Self::Sqlite(r) => r.get_content(memory_id), Self::Postgres(r) => r.get_content(memory_id) }
     }
+    fn get_metadata_and_content(&self, memory_id: &str) -> Result<Option<(MemoryMetadata, MemoryRecord)>, G05Error> {
+        match self { Self::Sqlite(r) => r.get_metadata_and_content(memory_id), Self::Postgres(r) => r.get_metadata_and_content(memory_id) }
+    }
     fn replace_with_audit(&mut self, record: MemoryRecord, expected_version: u64, event: AuditEvent) -> Result<(), G05Error> {
         match self { Self::Sqlite(r) => r.replace_with_audit(record, expected_version, event), Self::Postgres(r) => r.replace_with_audit(record, expected_version, event) }
     }
@@ -175,7 +178,7 @@ where
             let repository = self.repository
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?;
-            let Some(metadata) = repository.get_metadata(&memory_id)? else {
+            let Some((metadata, record)) = repository.get_metadata_and_content(&memory_id)? else {
                 return Ok(None);
             };
             validate_metadata_binding(&request, &metadata)?;
@@ -188,9 +191,6 @@ where
             ) {
                 return Err(G05Error::RecordNotActive);
             }
-            let record = repository
-                .get_content(&memory_id)?
-                .ok_or(G05Error::RecordNotFound)?;
             validate_record_metadata_pair(&request, &metadata, &record)?;
             Ok(Some(record))
         })
