@@ -15,6 +15,12 @@ use crate::{
     SqliteG05AuthorityRegistry, TrustedClock, G09ExecutionRevalidator,
 };
 
+/// Adapter for a real sharing destination. It is invoked only inside the
+/// authenticated G05 execution transaction after recipient and record binding.
+pub trait G05ShareExecutor: Send + Sync {
+    fn share(&self, record: &MemoryRecord, recipients: &[String]) -> Result<(), G05Error>;
+}
+
 /// The only application-facing entry point for protected G05 persistence and
 /// consent operations. Repository adapters are deliberately held privately.
 enum RepositoryBackend {
@@ -207,7 +213,10 @@ where
         expected_version: u64,
         event: AuditEvent,
     ) -> Result<(), G05Error> {
-        if !matches!(request.operation, Operation::Correct | Operation::Restrict)
+        if !matches!(
+            request.operation,
+            Operation::Correct | Operation::Restrict | Operation::RequestDeletion | Operation::VerifyDeletion
+        )
             || expected_version == 0
             || record.candidate.record_version != expected_version.saturating_add(1)
         {
@@ -227,7 +236,62 @@ where
             if current.record_version != expected_version {
                 return Err(G05Error::VersionConflict);
             }
+            let target_allowed = match request.operation {
+                Operation::Correct => matches!(
+                    (current.lifecycle_state, record.lifecycle_state),
+                    (crate::LifecycleState::Active, crate::LifecycleState::CorrectionPending)
+                        | (crate::LifecycleState::CorrectionPending, crate::LifecycleState::Active)
+                        | (crate::LifecycleState::CorrectionPending, crate::LifecycleState::Rejected)
+                ),
+                Operation::Restrict => record.lifecycle_state == crate::LifecycleState::Restricted,
+                Operation::RequestDeletion => record.lifecycle_state == crate::LifecycleState::DeletionPending,
+                Operation::VerifyDeletion => {
+                    current.lifecycle_state == crate::LifecycleState::DeletionPending
+                        && record.lifecycle_state == crate::LifecycleState::Deleted
+                }
+                _ => false,
+            };
+            if !target_allowed || !crate::transition_allowed(current.lifecycle_state, record.lifecycle_state) {
+                return Err(G05Error::InvalidLifecycleTransition);
+            }
             repository.replace_with_audit(record, expected_version, event)
+        })
+    }
+
+    /// Share an active record with explicit recipients. The destination adapter
+    /// runs before the G09 guard is released and is bracketed by G11 receipts.
+    pub fn share_record<S: G05ShareExecutor>(
+        &self,
+        compact_credential: &str,
+        tenant: &TenantContext,
+        request: AuthorizationRequest,
+        executor: &S,
+    ) -> Result<(), G05Error> {
+        if request.operation != Operation::Share
+            || request.recipient_refs.is_empty()
+            || request.recipient_refs.len() > 32
+            || request.recipient_refs.iter().any(|r| r.trim().is_empty() || r.len() > 512)
+        {
+            return Err(G05Error::SharingNotAuthorized);
+        }
+        let mut unique = std::collections::BTreeSet::new();
+        if request.recipient_refs.iter().any(|r| !unique.insert(r)) {
+            return Err(G05Error::SharingNotAuthorized);
+        }
+        let memory_id = required_memory_id(&request)?;
+        self.execute(compact_credential, tenant, request.clone(), || {
+            let repository = self.repository
+                .lock()
+                .map_err(|_| G05Error::RepositoryUnavailable)?;
+            let Some((metadata, record)) = repository.get_metadata_and_content(&memory_id)? else {
+                return Err(G05Error::RecordNotFound);
+            };
+            validate_metadata_binding(&request, &metadata)?;
+            if metadata.lifecycle_state != crate::LifecycleState::Active {
+                return Err(G05Error::RecordNotActive);
+            }
+            validate_record_metadata_pair(&request, &metadata, &record)?;
+            executor.share(&record, &request.recipient_refs)
         })
     }
 
