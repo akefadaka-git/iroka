@@ -240,6 +240,12 @@ where
             return Err(G05Error::AuthorizationDenied);
         }
         validate_record_binding(&request, &record)?;
+        if record.candidate.content.len() > crate::MAX_CONTENT_BYTES {
+            return Err(G05Error::ContentTooLarge);
+        }
+        if crate::sha256_hex(record.candidate.content.as_bytes()) != record.candidate.content_sha256 {
+            return Err(G05Error::DigestMismatch);
+        }
         if request.operation == Operation::VerifyDeletion
             && (!record.candidate.content.is_empty()
                 || record.candidate.content_sha256 != crate::sha256_hex(b""))
