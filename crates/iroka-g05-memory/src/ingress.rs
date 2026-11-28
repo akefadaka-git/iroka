@@ -221,6 +221,11 @@ where
         })
     }
 
+    /// Read the trusted service clock. Callers cannot supply or override time.
+    pub fn current_time(&self) -> Result<u64, G05Error> {
+        self.clock.now_unix_seconds()
+    }
+
     /// Authenticate and authorize the request from server-verified evidence.
     /// The request carries scope and operation only; its principal_ref must
     /// exactly match the G01-authenticated subject.
