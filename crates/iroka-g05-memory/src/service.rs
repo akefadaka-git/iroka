@@ -73,16 +73,18 @@ where
             if record.candidate.memory_class == crate::MemoryClass::Episodic {
                 let consent_ref = record.candidate.episodic_opt_in_ref.as_deref()
                     .ok_or(G05Error::EpisodicOptInRequired)?;
+                let record_to_write = record.clone();
+                let event_to_write = event.clone();
                 self.consent_registry.with_active_opt_in(
                     consent_ref,
                     &record.candidate.tenant_ref,
                     &record.candidate.subject_ref,
                     record.candidate.purpose,
                     self.ingress.current_time()?,
-                    || self.repository
+                    move || self.repository
                         .lock()
                         .map_err(|_| G05Error::RepositoryUnavailable)?
-                        .insert_with_audit(record, event),
+                        .insert_with_audit(record_to_write, event_to_write),
                 )
             } else {
                 self.repository
@@ -201,13 +203,16 @@ where
             || pending.candidate.memory_class != crate::MemoryClass::Durable
             || pending.lifecycle_state != crate::LifecycleState::PendingAudit
             || pending.candidate.record_version != expected_version
-            || pending.approval_ref.as_deref().is_none_or(str::is_empty)
-            || pending.approved_by_ref.as_deref().is_none_or(str::is_empty)
+            || pending.approval_ref.as_deref().map_or(true, str::is_empty)
+            || pending.approved_by_ref.as_deref().map_or(true, str::is_empty)
             || pending.approved_at.is_none()
         {
             return Err(G05Error::ApprovalBindingMismatch);
         }
         validate_record_binding(&request, &pending)?;
+        if pending.approved_by_ref.as_deref() != Some(request.principal_ref.as_str()) {
+            return Err(G05Error::ReviewerNotAuthorized);
+        }
         let memory_id = required_memory_id(&request)?;
         self.execute(compact_credential, tenant, request.clone(), || {
             let mut repository = self.repository
