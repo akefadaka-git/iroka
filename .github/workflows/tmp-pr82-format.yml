@@ -56,7 +56,11 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$ORIGINAL_SHA"
+          echo HEAD_BEFORE=$(git rev-parse HEAD)
           cargo fmt --all
+          echo FORMAT_STATUS_BEGIN
+          git status --short
+          echo FORMAT_STATUS_END
           expected="$(printf '%s\n' \
             crates/iroka-g05-memory/src/g09_execution_tests.rs \
             crates/iroka-g05-memory/src/lib.rs \
@@ -65,6 +69,11 @@ jobs:
             crates/iroka-g05-memory/src/service.rs \
             crates/iroka-g05-memory/src/sqlite_repository.rs | sort)"
           actual="$(git diff --name-only | sort)"
+          echo EXPECTED_FILES_BEGIN
+          printf "%s\\n" "$expected"
+          echo ACTUAL_FILES_BEGIN
+          printf "%s\\n" "$actual"
+          echo ACTUAL_FILES_END
           if [ "$actual" != "$expected" ]; then
             echo "Unexpected formatting diff set:"
             printf '%s\n' "$actual"
@@ -85,7 +94,11 @@ jobs:
             printf '%s\n' "$staged"
             exit 1
           fi
+          echo STAGED_FILES_BEGIN
+          git diff --cached --name-only
+          echo STAGED_FILES_END
           git commit -m "style(g05): apply rustfmt to execution service"
+          echo FORMAT_COMMIT=$(git rev-parse HEAD)
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
 
       - name: Remove temporary workflow and record final validation SHA
