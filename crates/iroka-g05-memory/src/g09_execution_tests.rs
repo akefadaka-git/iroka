@@ -772,3 +772,29 @@ fn mandatory_service_rejects_unauthorized_scope_before_repository_mutation() {
     assert!(MemoryRepository::get_metadata(&inspect, "memory:service-test").unwrap().is_none());
 }
 
+
+#[test]
+fn mandatory_service_does_not_mutate_when_g11_intent_is_unavailable() {
+    let f = fixture(initial_state(), None);
+    let repository = SqliteMemoryRepository::open_in_memory().unwrap();
+    let inspect = repository.clone();
+    let g11 = TestG11::default();
+    g11.fail_next.store(true, Ordering::SeqCst);
+    let service = G05ExecutionService::new_sqlite(
+        f.service,
+        repository,
+        g11,
+        SqliteG05AuthorityRegistry::open_in_memory().unwrap(),
+    );
+    let (record, event) = service_record_and_event("correlation:service-audit-fail");
+    let mut request = f.request.clone();
+    request.operation = Operation::CreateWorking;
+    request.memory_id = Some("memory:service-test".into());
+    request.correlation_ref = "correlation:service-audit-fail".into();
+    assert_eq!(
+        service.insert_record(&f.token, &f.tenant, request, record, event),
+        Err(G05Error::AuditUnavailable)
+    );
+    assert!(MemoryRepository::get_metadata(&inspect, "memory:service-test").unwrap().is_none());
+}
+
