@@ -186,7 +186,8 @@ pub struct TaskReceipt {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TaskClaimRequest {
+/// Internal request; the timestamp is supplied only by the trusted kernel path.
+pub(crate) struct TaskClaimRequest {
     pub tenant_selector: String,
     pub worker_id: String,
     /// Must be generated from a cryptographically secure RNG by the worker.
@@ -243,7 +244,8 @@ pub struct TaskLeaseReceipt {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TaskLeaseRenewalRequest {
+/// Internal request; the timestamp is supplied only by the trusted kernel path.
+pub(crate) struct TaskLeaseRenewalRequest {
     pub tenant_selector: String,
     pub task_id: String,
     pub worker_id: String,
@@ -254,7 +256,8 @@ pub struct TaskLeaseRenewalRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TaskLeaseCompletionRequest {
+/// Internal request; the timestamp is supplied only by the trusted kernel path.
+pub(crate) struct TaskLeaseCompletionRequest {
     pub tenant_selector: String,
     pub task_id: String,
     pub worker_id: String,
