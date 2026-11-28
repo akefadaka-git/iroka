@@ -145,6 +145,39 @@ impl SqliteG05AuthorityRegistry {
         Ok(())
     }
 
+    /// Verify opt-in and run the protected capture while holding the consent
+    /// registry lock, so a concurrent withdrawal cannot race the capture.
+    pub(crate) fn with_active_opt_in<T>(
+        &self,
+        reference: &str,
+        tenant: &str,
+        subject: &str,
+        purpose: Purpose,
+        now: u64,
+        effect: impl FnOnce() -> Result<T, G05Error>,
+    ) -> Result<T, G05Error> {
+        let connection = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let row: Option<(String, String, String, i64, i64, Option<i64>)> = connection
+            .query_row(
+                "SELECT tenant_ref,subject_ref,purpose,granted_at,expires_at,revoked_at
+                 FROM g05_episodic_consents WHERE consent_ref=?1",
+                [reference],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
+            )
+            .optional()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let (stored_tenant, stored_subject, stored_purpose, granted, expires, revoked) =
+            row.ok_or(G05Error::EpisodicOptInRequired)?;
+        if stored_tenant != tenant || stored_subject != subject || stored_purpose != purpose_key(purpose) {
+            return Err(G05Error::ConsentScopeMismatch);
+        }
+        if revoked.is_some() || now < from_i64(granted)? || now >= from_i64(expires)? {
+            return Err(G05Error::EpisodicOptInRequired);
+        }
+        // Keep the lock through the repository write; withdrawal serializes after it.
+        effect()
+    }
+
     pub(crate) fn revoke_episodic_consent(
         &self,
         consent_ref: &str,
