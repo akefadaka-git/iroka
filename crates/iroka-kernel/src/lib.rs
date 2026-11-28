@@ -6,6 +6,10 @@
 mod assurance;
 mod audit_store;
 mod decision;
+mod g08;
+mod g08_retry;
+mod g08_trust;
+mod g08_trust_adapters;
 #[cfg(test)]
 mod governance;
 mod identity;
@@ -21,6 +25,14 @@ mod trust_lifecycle;
 pub use assurance::{record_decision, AuditError, AuditEvent, AuditSink};
 pub use audit_store::{AuditStoreError, SqliteAuditSink};
 pub use decision::{Decision, DecisionCode, DecisionReason};
+pub use g08::{
+    AuthenticatedTaskClaimRequest, AuthenticatedTaskLeaseCompletionRequest,
+    AuthenticatedTaskLeaseRenewalRequest, CreateWorkflow, G08Error, SqliteWorkflowStore,
+    TaskLeaseReceipt, TaskReceipt, TaskRetryRequest, TaskSpec, TaskState, TaskTransitionRequest,
+    TenantAuthority, TenantScope, WorkflowCancellationReceipt, WorkflowCancellationRequest,
+    WorkflowReceipt, WorkflowState,
+};
+pub use g08_retry::{RetryFailureClass, RetryPolicy, RetryPolicyError, RetrySchedule};
 #[cfg(test)]
 pub(crate) use governance::{
     validate_approval_scope, ApprovalError, ApprovalEvidence, ApprovalVerifier,
@@ -106,6 +118,19 @@ pub fn evaluate(
         policy.version(),
     )
 }
+
+pub use g08_trust_adapters::{
+    SignedTimeAttestation, SignedWorkerRegistryBundle, SqliteQuorumTrustedClock,
+    SqliteWorkerRegistry, SqliteWorkerReplayGuard, TimeAttestationPayload, TimeAuthorityKey,
+    WorkerRegistryEntry, WorkerRegistryPayload,
+};
+
+pub use g08_trust::{
+    AuthenticatedWorker, Ed25519WorkerAuthenticator, SignedWorkerProof, TrustedClock,
+    TrustedTimeError, WorkerAuthError, WorkerKey, WorkerOperationScope, WorkerProofPayload,
+    WorkerReplayError, WorkerReplayGuard, WorkerRevocationChecker, WorkerRevocationError,
+    WorkerTrustStore, G08_WORKER_AUDIENCE, MAX_WORKER_PROOF_TTL_SECS,
+};
 
 #[cfg(test)]
 mod tests {
