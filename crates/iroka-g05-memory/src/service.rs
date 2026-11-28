@@ -76,7 +76,10 @@ where
         Self::new(ingress, RepositoryBackend::Sqlite(repository), g11, validation_policy, consent_registry)
     }
 
-    /// Construct the service over the shared PostgreSQL repository adapter.
+    /// Construct the service over the shared PostgreSQL memory repository.
+    /// Note: episodic-consent persistence is still the SQLite registry supplied
+    /// below; production multi-node deployments need a shared PostgreSQL consent
+    /// adapter before enabling consent mutations on this constructor.
     pub fn new_postgres(
         ingress: G05IngressService<V, G, C, E>,
         repository: PostgresMemoryRepository,
