@@ -709,7 +709,7 @@ pub fn finalize_durable_activation(
 /// PendingAudit -> Active compare-and-swap. The default repository method
 /// denies, so no implementation can activate without explicitly supplying
 /// the final version check.
-pub fn commit_durable_activation<R: MemoryRepository>(
+pub(crate) fn commit_durable_activation<R: MemoryRepository>(
     repository: &mut R,
     pending: &MemoryRecord,
     acknowledgment: &G11Acknowledgment,
@@ -878,7 +878,7 @@ pub trait GovernancePort {
 /// MUST provide tenant-aware constraints, optimistic version checks, atomic
 /// state changes, idempotency, and deletion/resurrection controls. Content
 /// reads MUST only be invoked after GovernancePort::authorize succeeds.
-pub trait MemoryRepository: Send + Sync {
+pub(crate) trait MemoryRepository: Send + Sync {
     /// Atomically persist the record and enqueue its content-free G11 event.
     fn insert_with_audit(
         &mut self,
