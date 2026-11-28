@@ -10,8 +10,8 @@ use iroka_kernel::{RevocationChecker, TenantContext};
 use crate::{
     AuthenticatedG05Request, AuditEvent, AuthorizationRequest, G02AuthorizationAuthority,
     G05Error, G11MemoryAuditAuthority, G05IngressService,
-    MemoryMetadata, MemoryRecord, MemoryRepository, Operation,
-    EpisodicConsentAuthority, SqliteG05AuthorityRegistry, TrustedClock, G09ExecutionRevalidator,
+    MemoryMetadata, MemoryRecord, MemoryRepository, Operation, G11Acknowledgment,
+    SqliteG05AuthorityRegistry, TrustedClock, G09ExecutionRevalidator,
 };
 
 /// The only application-facing entry point for protected G05 persistence and
@@ -57,6 +57,9 @@ where
         event: AuditEvent,
     ) -> Result<(), G05Error> {
         validate_record_binding(&request, &record)?;
+        if record.candidate.actor_ref != request.principal_ref {
+            return Err(G05Error::AuthorizationDenied);
+        }
         let expected_operation = match record.candidate.memory_class {
             crate::MemoryClass::Working => Operation::CreateWorking,
             crate::MemoryClass::Episodic => Operation::CreateEpisodic,
@@ -70,18 +73,23 @@ where
             if record.candidate.memory_class == crate::MemoryClass::Episodic {
                 let consent_ref = record.candidate.episodic_opt_in_ref.as_deref()
                     .ok_or(G05Error::EpisodicOptInRequired)?;
-                self.consent_registry.verify_active_opt_in(
+                self.consent_registry.with_active_opt_in(
                     consent_ref,
                     &record.candidate.tenant_ref,
                     &record.candidate.subject_ref,
                     record.candidate.purpose,
                     self.ingress.current_time()?,
-                )?;
+                    || self.repository
+                        .lock()
+                        .map_err(|_| G05Error::RepositoryUnavailable)?
+                        .insert_with_audit(record, event),
+                )
+            } else {
+                self.repository
+                    .lock()
+                    .map_err(|_| G05Error::RepositoryUnavailable)?
+                    .insert_with_audit(record, event)
             }
-            self.repository
-                .lock()
-                .map_err(|_| G05Error::RepositoryUnavailable)?
-                .insert_with_audit(record, event)
         })
     }
 
@@ -122,9 +130,9 @@ where
             let repository = self.repository
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?;
-            let metadata = repository
-                .get_metadata(&memory_id)?
-                .ok_or(G05Error::RecordNotFound)?;
+            let Some(metadata) = repository.get_metadata(&memory_id)? else {
+                return Ok(None);
+            };
             validate_metadata_binding(&request, &metadata)?;
             if matches!(
                 metadata.lifecycle_state,
@@ -175,6 +183,51 @@ where
                 return Err(G05Error::VersionConflict);
             }
             repository.replace_with_audit(record, expected_version, event)
+        })
+    }
+
+    /// Finalize an already approved durable record after G11 accepts the
+    /// matching activation receipt. The record is re-read under the authority
+    /// guard and activated with an atomic repository version compare-and-swap.
+    pub fn activate_durable(
+        &self,
+        compact_credential: &str,
+        tenant: &TenantContext,
+        request: AuthorizationRequest,
+        pending: MemoryRecord,
+        expected_version: u64,
+    ) -> Result<(), G05Error> {
+        if request.operation != Operation::ActivateDurable
+            || pending.candidate.memory_class != crate::MemoryClass::Durable
+            || pending.lifecycle_state != crate::LifecycleState::PendingAudit
+            || pending.candidate.record_version != expected_version
+            || pending.approval_ref.as_deref().is_none_or(str::is_empty)
+            || pending.approved_by_ref.as_deref().is_none_or(str::is_empty)
+            || pending.approved_at.is_none()
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
+        validate_record_binding(&request, &pending)?;
+        let memory_id = required_memory_id(&request)?;
+        self.execute(compact_credential, tenant, request.clone(), || {
+            let mut repository = self.repository
+                .lock()
+                .map_err(|_| G05Error::RepositoryUnavailable)?;
+            let stored = repository.get_content(&memory_id)?
+                .ok_or(G05Error::RecordNotFound)?;
+            if stored != pending {
+                return Err(G05Error::VersionConflict);
+            }
+            let activation_event = crate::durable_activation_audit_event(&pending)?;
+            let acknowledgment = self.g11.append_memory_event(&activation_event)?;
+            let now = self.ingress.current_time()?;
+            crate::commit_durable_activation(
+                &mut *repository,
+                &pending,
+                &acknowledgment,
+                expected_version,
+                now,
+            )
         })
     }
 
@@ -286,7 +339,6 @@ fn validate_record_binding(
 ) -> Result<(), G05Error> {
     let candidate = &record.candidate;
     if request.memory_id.as_deref() != Some(candidate.memory_id.as_str())
-        || request.principal_ref != candidate.actor_ref
         || request.tenant_ref != candidate.tenant_ref
         || request.subject_ref != candidate.subject_ref
         || request.purpose != candidate.purpose
@@ -319,8 +371,14 @@ fn validate_record_metadata_pair(
     metadata: &MemoryMetadata,
     record: &MemoryRecord,
 ) -> Result<(), G05Error> {
-    validate_record_binding(request, record)?;
-    if record.candidate.record_version != metadata.record_version
+    validate_metadata_binding(request, metadata)?;
+    let candidate = &record.candidate;
+    if candidate.memory_id != metadata.memory_id
+        || candidate.tenant_ref != metadata.tenant_ref
+        || candidate.subject_ref != metadata.subject_ref
+        || candidate.purpose != metadata.purpose
+        || candidate.classification != metadata.classification
+        || candidate.record_version != metadata.record_version
         || record.candidate.content_sha256 != metadata.content_sha256
         || record.lifecycle_state != metadata.lifecycle_state
         || record.candidate.memory_class != metadata.memory_class
