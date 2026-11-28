@@ -302,13 +302,24 @@ pub struct CancellationToken {
 }
 
 impl CancellationToken {
-    pub fn new() -> Self { Self::default() }
-    pub fn cancel(&self) { self.cancelled.store(true, Ordering::SeqCst); }
-    pub fn is_cancelled(&self) -> bool { self.cancelled.load(Ordering::SeqCst) }
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::SeqCst)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExecutionStop { Cancelled, TimedOut }
+pub enum ExecutionStop {
+    Cancelled,
+    TimedOut,
+}
 
 /// Trusted monotonic limits supplied by the composition root. The task's
 /// deadline string is descriptive input; only this deadline is enforced.
@@ -320,13 +331,25 @@ pub struct ExecutionControl {
 
 impl ExecutionControl {
     pub fn new(cancellation: CancellationToken, deadline: Option<Instant>) -> Self {
-        Self { cancellation, deadline }
+        Self {
+            cancellation,
+            deadline,
+        }
     }
-    pub fn cancellation_token(&self) -> CancellationToken { self.cancellation.clone() }
+    pub fn cancellation_token(&self) -> CancellationToken {
+        self.cancellation.clone()
+    }
     pub fn stop_reason(&self) -> Option<ExecutionStop> {
-        if self.cancellation.is_cancelled() { Some(ExecutionStop::Cancelled) }
-        else if self.deadline.is_some_and(|deadline| Instant::now() >= deadline) { Some(ExecutionStop::TimedOut) }
-        else { None }
+        if self.cancellation.is_cancelled() {
+            Some(ExecutionStop::Cancelled)
+        } else if self
+            .deadline
+            .is_some_and(|deadline| Instant::now() >= deadline)
+        {
+            Some(ExecutionStop::TimedOut)
+        } else {
+            None
+        }
     }
     /// Adapters must call this between bounded work units.
     pub fn check(&self) -> Result<(), AdapterError> {
@@ -420,7 +443,11 @@ pub struct ModelOutput {
 pub trait ModelAdapter {
     fn adapter_id(&self) -> &'static str;
     /// Implementations must cooperatively check the control between bounded work units.
-    fn generate(&self, task: &TaskEnvelope, control: &ExecutionControl) -> Result<ModelOutput, AdapterError>;
+    fn generate(
+        &self,
+        task: &TaskEnvelope,
+        control: &ExecutionControl,
+    ) -> Result<ModelOutput, AdapterError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -448,7 +475,11 @@ impl ModelAdapter for DeterministicFakeAdapter {
         FAKE_ADAPTER_ID
     }
 
-    fn generate(&self, task: &TaskEnvelope, control: &ExecutionControl) -> Result<ModelOutput, AdapterError> {
+    fn generate(
+        &self,
+        task: &TaskEnvelope,
+        control: &ExecutionControl,
+    ) -> Result<ModelOutput, AdapterError> {
         control.check()?;
         let content = format!(
             "Synthetic response for task {}: {}",
@@ -479,8 +510,14 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
     }
 
     /// Execute with trusted monotonic deadline and cooperative cancellation.
-    pub fn run_with_control(&self, task: &TaskEnvelope, control: &ExecutionControl) -> ResultEnvelope {
-        if let Some(stop) = control.stop_reason() { return self.stopped(task, stop); }
+    pub fn run_with_control(
+        &self,
+        task: &TaskEnvelope,
+        control: &ExecutionControl,
+    ) -> ResultEnvelope {
+        if let Some(stop) = control.stop_reason() {
+            return self.stopped(task, stop);
+        }
         if let Err(error) = task.validate() {
             return self.terminal(
                 task,
@@ -491,7 +528,9 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
         }
 
         let plan = build_plan(task);
-        if let Some(stop) = control.stop_reason() { return self.stopped(task, stop); }
+        if let Some(stop) = control.stop_reason() {
+            return self.stopped(task, stop);
+        }
         if !validate_plan(&plan) {
             return self.terminal(
                 task,
@@ -610,10 +649,18 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
 
     fn stopped(&self, task: &TaskEnvelope, stop: ExecutionStop) -> ResultEnvelope {
         match stop {
-            ExecutionStop::Cancelled => self.terminal(task, ResultStatus::Cancelled, TerminationReason::Cancellation,
-                "Execution was cancelled before a complete result was produced".to_owned()),
-            ExecutionStop::TimedOut => self.terminal(task, ResultStatus::TimedOut, TerminationReason::Timeout,
-                "Execution deadline elapsed before a complete result was produced".to_owned()),
+            ExecutionStop::Cancelled => self.terminal(
+                task,
+                ResultStatus::Cancelled,
+                TerminationReason::Cancellation,
+                "Execution was cancelled before a complete result was produced".to_owned(),
+            ),
+            ExecutionStop::TimedOut => self.terminal(
+                task,
+                ResultStatus::TimedOut,
+                TerminationReason::Timeout,
+                "Execution deadline elapsed before a complete result was produced".to_owned(),
+            ),
         }
     }
 
@@ -894,7 +941,11 @@ mod tests {
             fn adapter_id(&self) -> &'static str {
                 "oversized-test"
             }
-            fn generate(&self, _task: &TaskEnvelope, _control: &ExecutionControl) -> Result<ModelOutput, AdapterError> {
+            fn generate(
+                &self,
+                _task: &TaskEnvelope,
+                _control: &ExecutionControl,
+            ) -> Result<ModelOutput, AdapterError> {
                 Ok(ModelOutput {
                     content: "one two three four".to_owned(),
                     model_id: "fixture".to_owned(),
@@ -928,7 +979,9 @@ mod tests {
     #[test]
     fn critic_never_claims_independent_assurance() {
         let request = task();
-        let output = DeterministicFakeAdapter.generate(&request, &ExecutionControl::default()).unwrap();
+        let output = DeterministicFakeAdapter
+            .generate(&request, &ExecutionControl::default())
+            .unwrap();
         let result = critique(&request, &output);
         assert!(!result.is_independent_assurance);
         assert_eq!(
@@ -941,10 +994,19 @@ mod tests {
     fn pre_cancelled_execution_returns_cancelled_without_invoking_adapter() {
         struct MustNotRun;
         impl ModelAdapter for MustNotRun {
-            fn adapter_id(&self) -> &'static str { "must-not-run" }
-            fn generate(&self, _task: &TaskEnvelope, _control: &ExecutionControl) -> Result<ModelOutput, AdapterError> { panic!("adapter must not run after cancellation") }
+            fn adapter_id(&self) -> &'static str {
+                "must-not-run"
+            }
+            fn generate(
+                &self,
+                _task: &TaskEnvelope,
+                _control: &ExecutionControl,
+            ) -> Result<ModelOutput, AdapterError> {
+                panic!("adapter must not run after cancellation")
+            }
         }
-        let token = CancellationToken::new(); token.cancel();
+        let token = CancellationToken::new();
+        token.cancel();
         let control = ExecutionControl::new(token, None);
         let result = CognitiveRuntime::new(MustNotRun).run_with_control(&task(), &control);
         assert_eq!(result.status, ResultStatus::Cancelled);
@@ -957,10 +1019,21 @@ mod tests {
         use std::time::Duration;
         struct MustNotRun;
         impl ModelAdapter for MustNotRun {
-            fn adapter_id(&self) -> &'static str { "must-not-run" }
-            fn generate(&self, _task: &TaskEnvelope, _control: &ExecutionControl) -> Result<ModelOutput, AdapterError> { panic!("adapter must not run after timeout") }
+            fn adapter_id(&self) -> &'static str {
+                "must-not-run"
+            }
+            fn generate(
+                &self,
+                _task: &TaskEnvelope,
+                _control: &ExecutionControl,
+            ) -> Result<ModelOutput, AdapterError> {
+                panic!("adapter must not run after timeout")
+            }
         }
-        let control = ExecutionControl::new(CancellationToken::new(), Some(Instant::now() - Duration::from_millis(1)));
+        let control = ExecutionControl::new(
+            CancellationToken::new(),
+            Some(Instant::now() - Duration::from_millis(1)),
+        );
         let result = CognitiveRuntime::new(MustNotRun).run_with_control(&task(), &control);
         assert_eq!(result.status, ResultStatus::TimedOut);
         assert_eq!(result.termination, TerminationReason::Timeout);
@@ -971,8 +1044,16 @@ mod tests {
     fn adapter_cancellation_is_preserved_as_a_typed_terminal_result() {
         struct CancellingAdapter;
         impl ModelAdapter for CancellingAdapter {
-            fn adapter_id(&self) -> &'static str { "cancelling-test" }
-            fn generate(&self, _task: &TaskEnvelope, _control: &ExecutionControl) -> Result<ModelOutput, AdapterError> { Err(AdapterError::Cancelled) }
+            fn adapter_id(&self) -> &'static str {
+                "cancelling-test"
+            }
+            fn generate(
+                &self,
+                _task: &TaskEnvelope,
+                _control: &ExecutionControl,
+            ) -> Result<ModelOutput, AdapterError> {
+                Err(AdapterError::Cancelled)
+            }
         }
         let result = CognitiveRuntime::new(CancellingAdapter).run(&task());
         assert_eq!(result.status, ResultStatus::Cancelled);
@@ -984,8 +1065,16 @@ mod tests {
     fn adapter_timeout_is_preserved_as_a_typed_terminal_result() {
         struct TimingOutAdapter;
         impl ModelAdapter for TimingOutAdapter {
-            fn adapter_id(&self) -> &'static str { "timeout-test" }
-            fn generate(&self, _task: &TaskEnvelope, _control: &ExecutionControl) -> Result<ModelOutput, AdapterError> { Err(AdapterError::TimedOut) }
+            fn adapter_id(&self) -> &'static str {
+                "timeout-test"
+            }
+            fn generate(
+                &self,
+                _task: &TaskEnvelope,
+                _control: &ExecutionControl,
+            ) -> Result<ModelOutput, AdapterError> {
+                Err(AdapterError::TimedOut)
+            }
         }
         let result = CognitiveRuntime::new(TimingOutAdapter).run(&task());
         assert_eq!(result.status, ResultStatus::TimedOut);
