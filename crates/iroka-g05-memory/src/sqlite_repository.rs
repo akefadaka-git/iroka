@@ -303,6 +303,38 @@ impl MemoryRepository for SqliteMemoryRepository {
             .transpose()
     }
 
+    fn get_metadata_and_content(
+        &self,
+        memory_id: &str,
+    ) -> Result<Option<(MemoryMetadata, MemoryRecord)>, G05Error> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let tx = connection
+            .unchecked_transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let row: Option<(String, String)> = tx
+            .query_row(
+                "SELECT metadata_json,record_json FROM g05_memory_records WHERE memory_id=?1",
+                params![memory_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let result = row
+            .map(|(metadata_json, record_json)| {
+                let metadata = serde_json::from_str(&metadata_json)
+                    .map_err(|_| G05Error::RepositoryUnavailable)?;
+                let record = serde_json::from_str(&record_json)
+                    .map_err(|_| G05Error::RepositoryUnavailable)?;
+                Ok((metadata, record))
+            })
+            .transpose()?;
+        tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
+        Ok(result)
+    }
+
     fn replace_with_audit(
         &mut self,
         record: MemoryRecord,

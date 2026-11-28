@@ -1,17 +1,11 @@
-//! IROKA G05 governed memory domain primitives.
+//! IROKA G05 governed memory domain and mandatory execution service.
 //!
-//! This crate defines the memory-owned data model, policy validation and
-//! integration ports. It deliberately does not authenticate principals,
-//! resolve tenants, authorize access, verify human approvals, persist content,
-//! or implement audit storage. Those duties remain with G01, IROKA tenant
-//! authority, G02, the approved human-review authority, a G05 repository
-//! adapter, and G11 respectively.
-//!
-//! Implementations MUST invoke the ports in the documented order. In
-//! particular, authorization precedes content access; durable activation
-//! requires a record-bound approval; episodic capture requires opt-in; and
-//! audit completion must be coordinated transactionally through a G11-backed
-//! outbox before a lifecycle mutation is reported complete.
+//! All application-facing protected persistence, content reads, sharing and
+//! episodic-consent mutations MUST use G05ExecutionService. The service composes
+//! G01-authenticated ingress, current G02/G09 authority, repository adapters and
+//! G11 intent/outcome receipts. Raw MemoryRepository methods are crate-private;
+//! SQLite and PostgreSQL adapters are exposed only as service backends. Durable
+//! activation remains bound to a verified reviewer approval and G11 receipt.
 
 use iroka_kernel::{SignedReviewerProof, VerifiedPrincipal};
 use serde::{Deserialize, Serialize};
@@ -40,6 +34,15 @@ pub use authority::{
 mod g02_postgres;
 pub use g02_postgres::{G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG09PolicyResolver};
 
+mod g02_command;
+pub use g02_command::{
+    G02AuthorityError, OwnerCommandAction, OwnerCommandPayload, OwnerKeyBinding,
+    OwnerKeyRegistryPayload, PostgresG02Authority, PostgresG02PolicySnapshotVerifier,
+    SignedOwnerCommand, SignedOwnerKeyRegistry,
+};
+
+#[cfg(test)]
+mod g01_authenticated_principal_tests;
 #[cfg(test)]
 mod g09_execution_tests;
 mod ingress;
@@ -47,6 +50,9 @@ pub use ingress::{
     AuthenticatedG05Request, G05IngressService, G09ExecutionRevalidator, G09PolicyResolver,
     KernelG09ExecutionRevalidator, TrustedClock,
 };
+
+mod service;
+pub use service::{G05ExecutionService, G05ShareExecutor};
 
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
 pub const CONTRACT_VERSION: &str = "1.0.0";
@@ -702,7 +708,7 @@ pub fn finalize_durable_activation(
 /// PendingAudit -> Active compare-and-swap. The default repository method
 /// denies, so no implementation can activate without explicitly supplying
 /// the final version check.
-pub fn commit_durable_activation<R: MemoryRepository>(
+pub(crate) fn commit_durable_activation<R: MemoryRepository>(
     repository: &mut R,
     pending: &MemoryRecord,
     acknowledgment: &G11Acknowledgment,
@@ -870,8 +876,9 @@ pub trait GovernancePort {
 /// Repository contract for a G05-owned persistence adapter. Implementations
 /// MUST provide tenant-aware constraints, optimistic version checks, atomic
 /// state changes, idempotency, and deletion/resurrection controls. Content
-/// reads MUST only be invoked after GovernancePort::authorize succeeds.
-pub trait MemoryRepository: Send + Sync {
+/// reads MUST only be invoked by G05ExecutionService after fresh G01/G02/G09
+/// authorization and a metadata-first scope check.
+pub(crate) trait MemoryRepository: Send + Sync {
     /// Atomically persist the record and enqueue its content-free G11 event.
     fn insert_with_audit(
         &mut self,
@@ -885,6 +892,20 @@ pub trait MemoryRepository: Send + Sync {
     /// Call only after G01/tenant/G02 authorization has succeeded against
     /// metadata and classification.
     fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error>;
+
+    /// Read metadata first and content from one consistent repository snapshot.
+    fn get_metadata_and_content(
+        &self,
+        memory_id: &str,
+    ) -> Result<Option<(MemoryMetadata, MemoryRecord)>, G05Error> {
+        let Some(metadata) = self.get_metadata(memory_id)? else {
+            return Ok(None);
+        };
+        let record = self
+            .get_content(memory_id)?
+            .ok_or(G05Error::RecordNotFound)?;
+        Ok(Some((metadata, record)))
+    }
 
     /// Atomically compare the expected version, replace the record, and
     /// enqueue its G11 event. A conflict MUST NOT partially commit. This

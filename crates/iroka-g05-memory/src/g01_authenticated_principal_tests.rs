@@ -499,63 +499,60 @@ fn g01_signed_reviewer_proof_is_bound_to_authenticated_principal_and_consumed_on
 struct ExactG05RequestAuthorizer {
     reviewer: String,
 }
-impl iroka_g05_memory::G02RequestAuthorizer for ExactG05RequestAuthorizer {
-    fn authorize(
-        &self,
-        request: &iroka_g05_memory::AuthorizationRequest,
-    ) -> Result<(), iroka_g05_memory::G05Error> {
-        if request.operation == iroka_g05_memory::Operation::ActivateDurable
+impl crate::G02RequestAuthorizer for ExactG05RequestAuthorizer {
+    fn authorize(&self, request: &crate::AuthorizationRequest) -> Result<(), crate::G05Error> {
+        if request.operation == crate::Operation::ActivateDurable
             && request.principal_ref == self.reviewer
             && request.tenant_ref == "tenant:alpha"
             && request.memory_id.as_deref() == Some("memory:integrated")
         {
             Ok(())
         } else {
-            Err(iroka_g05_memory::G05Error::AuthorizationDenied)
+            Err(crate::G05Error::AuthorizationDenied)
         }
     }
 }
 
 struct KernelTenantResolver(TenantMembershipResolver);
-impl iroka_g05_memory::TenantContextResolver for KernelTenantResolver {
+impl crate::TenantContextResolver for KernelTenantResolver {
     fn resolve_current_tenant(
         &self,
         principal: &iroka_kernel::VerifiedPrincipal,
         tenant_id: &str,
-    ) -> Result<iroka_kernel::TenantContext, iroka_g05_memory::G05Error> {
+    ) -> Result<iroka_kernel::TenantContext, crate::G05Error> {
         self.0
             .resolve(principal, tenant_id, 1_200, 600)
-            .map_err(|_| iroka_g05_memory::G05Error::ReviewerNotAuthorized)
+            .map_err(|_| crate::G05Error::ReviewerNotAuthorized)
     }
 }
 
 struct NoConsent;
-impl iroka_g05_memory::EpisodicConsentAuthority for NoConsent {
+impl crate::EpisodicConsentAuthority for NoConsent {
     fn verify_active_opt_in(
         &self,
         _: &str,
         _: &str,
         _: &str,
-        _: iroka_g05_memory::Purpose,
+        _: crate::Purpose,
         _: u64,
-    ) -> Result<(), iroka_g05_memory::G05Error> {
-        Err(iroka_g05_memory::G05Error::AuthorizationDenied)
+    ) -> Result<(), crate::G05Error> {
+        Err(crate::G05Error::AuthorizationDenied)
     }
 }
 
 struct UnavailableG11;
-impl iroka_g05_memory::G11MemoryAuditAuthority for UnavailableG11 {
+impl crate::G11MemoryAuditAuthority for UnavailableG11 {
     fn append_memory_event(
         &self,
-        _: &iroka_g05_memory::AuditEvent,
-    ) -> Result<iroka_g05_memory::G11Acknowledgment, iroka_g05_memory::G05Error> {
-        Err(iroka_g05_memory::G05Error::AuditUnavailable)
+        _: &crate::AuditEvent,
+    ) -> Result<crate::G11Acknowledgment, crate::G05Error> {
+        Err(crate::G05Error::AuditUnavailable)
     }
 }
 
 #[test]
 fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas() {
-    use iroka_g05_memory::{
+    use crate::{
         commit_durable_activation, dispatch_g11_outbox, durable_activation_audit_event,
         prepare_durable_activation, AuditEvent, Classification, DurableApprovalReceipt,
         KernelG01ReviewerProofAdapter, KernelG02ActivationAdapter, KernelSqliteG11MemoryAdapter,
@@ -673,10 +670,10 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
     let g11_dispatch = KernelSqliteG11MemoryAdapter::new(g11_sink.clone());
 
     let content = "synthetic durable memory for integration verification";
-    let digest = iroka_g05_memory::sha256_hex(content.as_bytes());
+    let digest = crate::sha256_hex(content.as_bytes());
     let candidate = MemoryCandidate {
-        schema_id: iroka_g05_memory::RECORD_SCHEMA_ID.into(),
-        contract_version: iroka_g05_memory::CONTRACT_VERSION.into(),
+        schema_id: crate::RECORD_SCHEMA_ID.into(),
+        contract_version: crate::CONTRACT_VERSION.into(),
         memory_id: "memory:integrated".into(),
         tenant_ref: "tenant:alpha".into(),
         subject_ref: delegator.subject().into(),
@@ -754,7 +751,7 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
         proof_ref: "proof:integrated".into(),
         signed_proof,
     };
-    let request = iroka_g05_memory::AuthorizationRequest {
+    let request = crate::AuthorizationRequest {
         operation: Operation::ActivateDurable,
         principal_ref: reviewer.subject().into(),
         tenant_ref: "tenant:alpha".into(),
@@ -802,7 +799,7 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
 
     assert_eq!(
         dispatch_g11_outbox(&repository, &UnavailableG11, 10),
-        Err(iroka_g05_memory::G05Error::AuditUnavailable)
+        Err(crate::G05Error::AuditUnavailable)
     );
     assert_eq!(
         repository
@@ -822,7 +819,7 @@ fn g01_g02_g05_g11_durable_activation_requires_receipt_then_final_repository_cas
 
     assert_eq!(
         commit_durable_activation(&mut repository, &pending, &pending_ack, 1, 1_210),
-        Err(iroka_g05_memory::G05Error::VersionConflict)
+        Err(crate::G05Error::VersionConflict)
     );
     assert_eq!(
         repository
