@@ -554,7 +554,9 @@ impl<A: ModelAdapter> CognitiveRuntime<A> {
             }
         };
 
-        if let Some(stop) = control.stop_reason() { return self.stopped(task, stop); }
+        if let Some(stop) = control.stop_reason() {
+            return self.stopped(task, stop);
+        }
         if generated.content.trim().is_empty()
             || generated.model_id.trim().is_empty()
             || generated.model_version.trim().is_empty()
@@ -1084,7 +1086,8 @@ mod tests {
 
     #[test]
     fn adapter_can_check_cooperative_cancellation() {
-        let token = CancellationToken::new(); token.cancel();
+        let token = CancellationToken::new();
+        token.cancel();
         let control = ExecutionControl::new(token, None);
         assert_eq!(control.check(), Err(AdapterError::Cancelled));
     }
