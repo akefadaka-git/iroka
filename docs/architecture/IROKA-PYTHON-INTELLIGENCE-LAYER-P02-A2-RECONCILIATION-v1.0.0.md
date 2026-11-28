@@ -309,3 +309,59 @@ No candidate in this chain grants Python permission to authenticate, authorize, 
 - Rebase/reconcile INGA's declared BRAIN dependency and run format, compile, complete tests and Clippy on the resulting exact SHA.
 - Refresh BRAIN PR #27's evidence record to current head `5c551a7ab023b05adf98022903cdc0ea8640ae02`.
 - Keep Python implementation blocked until P02 exit criteria are met and a separate A3 scope is explicitly authorized.
+
+
+---
+
+## 13. Follow-up execution and dependency alignment — 2026-11-28
+
+### 13.1 G08 exact failure output and diagnosis
+
+The actual job log for run #44898118078, job 136828023829, identifies one failing test:
+
+`g08_trust_adapters::tests::replay_guard_subprocess_race_restart_and_revocation`
+
+The complete library test result was 110 passed, 1 failed. The failure output is:
+
+- First failure: `crates/iroka-kernel/src/g08_trust_adapters.rs:874:69`, where `Command::spawn().unwrap()` panicked on `Err(Unavailable)`.
+- Parent failure: line 918, `assert!(child.wait_with_output().unwrap().status.success())`.
+- A child invocation of the same test printed a passing result in the same log.
+
+This is direct evidence of failure in subprocess startup/child completion during the race test. It is not a failing trusted-clock assertion, replay sequence assertion, or lease-time assertion. The precise OS resource condition behind `Unavailable` is not identified by the log and must not be guessed.
+
+### 13.2 G08 caller-time API reconciliation
+
+Source inspection of exact head `583640619174cac76067ec68d9bba82d99c3b037` established:
+
+- `TaskClaimRequest`, `TaskLeaseRenewalRequest`, and `TaskLeaseCompletionRequest` contained public `now` fields but were consumed only by `pub(crate)` implementation methods.
+- `crates/iroka-kernel/src/lib.rs` exports the authenticated request types, not those legacy internal request types.
+- `claim_next_task_authenticated`, `renew_task_lease_authenticated`, and `complete_task_lease_authenticated` verify the signed worker proof and derive the internal timestamp from the authenticated trusted-clock result.
+- `create_workflow`, `create_task_graph`, `transition_task`, retry scheduling and cancellation obtain time through `TrustedClock`.
+
+For a clearer enforced boundary, commit `ab067f988c0b69944aa1eac5b289ec10e69bef63` changed the three legacy request structs to `pub(crate)` and documented their trusted-kernel-only timestamp. This narrows the Rust public API without changing trusted-time calculations.
+
+Exact-head verification for `ab067f988c0b69944aa1eac5b289ec10e69bef63` is running as runs #46168287956 and #46168294772. Formatting passed in the observed job snapshots; compilation, production-feature checks, full tests and Clippy were still in progress at the time this addendum was written. The prior failing run remains unresolved until these exact-head runs complete successfully.
+
+### 13.3 G05 exact-current-head verification
+
+- PR #34 remains OPEN / DRAFT / UNMERGED.
+- Current head remains `b27816c1c3b172c0a7503d6602cddeaa6008c6cb`, based on G04 PR #32 head `4e0c954516b4a471e2f36760b665add0a98efe9f`.
+- The PR description's previous PASS evidence cited older SHA `2b5cbbd2e74308286547890d993820a5beeca329`. GitHub check-runs for current head `b27816c1c3b172c0a7503d6602cddeaa6008c6cb` returned zero entries.
+- The PR body was corrected to mark exact-current-head formatting, compilation, complete tests and Clippy as NOT VERIFIED. Static source inspection confirms the G05 module's stated separation of memory policy from G01 identity/reviewer verification, G02 authorization and G11 audit delivery; this is not a substitute for executable exact-head verification.
+- The inspected Rust workflow does not target this PR's feature-branch base for pull-request events, and its push branch allow-list excludes the G05 branch. No safe workflow-dispatch action is exposed through the connected GitHub actions. Therefore no current-head test result is claimed.
+
+### 13.4 INGA advanced to current BRAIN baseline
+
+- BRAIN current head: `5c551a7ab023b05adf98022903cdc0ea8640ae02`.
+- INGA previous head: `e2ad1dc6a7916028dbcdfbd2d2ec948e0a554f4d`, whose base was the older BRAIN head `9d68b580e06bb8335a626524d64b345c3a5a38aa`.
+- A two-parent merge commit was created: `1c7123b414d5ca9ae14ad361bb3e3945d49ff44d`, preserving the INGA history and adding the current BRAIN head as its second parent. The BRAIN crate root was reconciled to include the INGA neurogenetic module export while preserving the current BRAIN execution-control implementation.
+- The existing branch `feat/inga-neurogenetic-a3-foundation` was advanced using a non-force, expected-SHA update from the prior head. No new branch was created.
+- PR #44 now reports head `1c7123b414d5ca9ae14ad361bb3e3945d49ff44d` and base `feat/brain-a3-b01-cognitive-core` at `5c551a7ab023b05adf98022903cdc0ea8640ae02`.
+- Compare result: 18 commits ahead, 0 behind, merge base exactly current BRAIN head; INGA changes remain the three intended files (`crates/iroka-brain/src/lib.rs`, `crates/iroka-brain/src/neurogenetic.rs`, and its baseline document).
+- INGA still has 30 authored tests not run and no exact-head workflow run. The current Rust workflow's pull-request target filters do not include INGA's feature-branch base, and its push filters do not include the INGA branch. No test or Clippy PASS is claimed.
+
+### 13.5 Current disposition
+
+G08 caller-time request visibility is now narrowed, but exact-head CI is pending. G08's earlier test failure is identified as subprocess launch/child exit failure; root OS cause remains undetermined. G05 exact-current-head execution remains unavailable and unverified. INGA is now based on the current BRAIN commit lineage but remains unverified.
+
+**P02 remains PARTIAL / NOT CLOSED. Python production implementation remains blocked.** No Python code, Python runtime dependency, model provider, or model artifact has been introduced. No PR has been merged and canonical `main` remains `6b7004c897907f5ca40de58fee7222732fd7cde0`.
