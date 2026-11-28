@@ -15,6 +15,8 @@ use std::sync::{
     Arc, Mutex,
 };
 use std::thread;
+use postgres::{Client, NoTls};
+use sha2::{Digest, Sha256};
 
 #[derive(Clone, Copy)]
 struct NoRevocations;
@@ -442,6 +444,200 @@ fn correlation_replay_across_fresh_ingress_contexts_is_rejected_by_g11() {
     assert_eq!(replay, Err(G05Error::AuditUnavailable));
     assert!(!ran.load(Ordering::SeqCst));
     assert_eq!(g11.events.lock().unwrap().len(), 2);
+}
+
+#[test]
+fn postgres_g09_guard_serializes_policy_and_owner_key_revocations_after_effect() {
+    let Ok(database_url) = std::env::var("IROKA_TEST_DATABASE_URL") else {
+        return;
+    };
+    let f = fixture(initial_state(), None);
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let database_name = format!(
+        "iroka_g09_{}_{}",
+        std::process::id(),
+        nonce % 1_000_000_000
+    );
+    let base_url = database_url.split('?').next().unwrap();
+    let authority = base_url.rsplit_once('/').unwrap().0;
+    let admin_url = format!("{authority}/postgres?sslmode=disable");
+    let test_url = format!("{authority}/{database_name}?sslmode=disable");
+    let mut admin = Client::connect(&admin_url, NoTls).unwrap();
+    admin
+        .batch_execute(&format!("CREATE DATABASE {database_name}"))
+        .unwrap();
+
+    let policy_id = format!("policy:g09:{nonce}");
+    let command_id = format!("g09-test-command-{nonce}");
+    let owner_subject = format!("owner:g09:{nonce}");
+    let signer_issuer = format!("issuer:g09:{nonce}");
+    let signer_key_id = format!("key:g09:{nonce}");
+    let tenant_id = f.tenant.tenant_id().to_owned();
+    let subject = f.principal.subject().to_owned();
+    let canonical_payload = b"test-policy-payload".to_vec();
+    let payload_sha256 = Sha256::digest(&canonical_payload)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+
+    {
+        let mut setup = Client::connect(&test_url, NoTls).unwrap();
+        setup
+            .batch_execute(include_str!("../migrations/postgres/0001_shared_g05_g11.sql"))
+            .unwrap();
+        setup
+            .batch_execute(include_str!("../migrations/postgres/0002_g02_authority.sql"))
+            .unwrap();
+        setup
+            .batch_execute(include_str!("../migrations/postgres/0003_g02_owner_key_registry.sql"))
+            .unwrap();
+        setup
+            .execute(
+                "INSERT INTO g02_owner_commands(command_id,owner_subject,signer_issuer,signer_key_id,issued_at,expires_at,payload_canonical,payload_sha256,signature,command_kind)
+                 VALUES($1,$2,$3,$4,1000,5000,$5,$6,$7,'test.fixture')",
+                &[&command_id, &owner_subject, &signer_issuer, &signer_key_id,
+                  &b"test-command".as_slice(), &"a".repeat(64), &vec![1u8; 64]],
+            )
+            .unwrap();
+        setup
+            .execute(
+                "INSERT INTO g02_owner_key_registry_versions(version,root_key_id,issued_at,expires_at,payload_sha256)
+                 VALUES(1,'root:test',900,8000,$1)",
+                &[&"b".repeat(64)],
+            )
+            .unwrap();
+        setup
+            .execute(
+                "INSERT INTO g02_owner_keys(registry_version,owner_subject,issuer,key_id,public_key,not_before,not_after)
+                 VALUES(1,$1,$2,$3,$4,900,7000)",
+                &[&owner_subject, &signer_issuer, &signer_key_id, &&vec![7u8; 32][..]],
+            )
+            .unwrap();
+        setup
+            .execute(
+                "INSERT INTO g02_policy_snapshots(policy_id,epoch,policy_version,owner_subject,signer_issuer,signer_key_id,issued_at,expires_at,canonical_payload,payload_sha256,signature)
+                 VALUES($1,1,'policy-v1',$2,$3,$4,1000,7000,$5,$6,$7)",
+                &[&policy_id, &owner_subject, &signer_issuer, &signer_key_id,
+                  &canonical_payload, &payload_sha256, &vec![9u8; 64]],
+            )
+            .unwrap();
+        setup
+            .execute(
+                "INSERT INTO g02_policy_heads(policy_id,current_epoch,current_payload_sha256)
+                 VALUES($1,1,$2)",
+                &[&policy_id, &payload_sha256],
+            )
+            .unwrap();
+        setup
+            .execute(
+                "INSERT INTO g02_tenant_memberships(subject_ref,tenant_ref,active,version,updated_at,command_id)
+                 VALUES($1,$2,TRUE,1,1200,$3)",
+                &[&subject, &tenant_id, &command_id],
+            )
+            .unwrap();
+        setup
+            .execute(
+                "INSERT INTO g02_emergency_stop(singleton,active,version,reason_code,changed_by_command_id,changed_at)
+                 VALUES(TRUE,FALSE,1,'test.fixture',$1,1200)",
+                &[&command_id],
+            )
+            .unwrap();
+    }
+
+    struct AllowVerifiedPolicy;
+    impl G02PolicySnapshotVerifier for AllowVerifiedPolicy {
+        fn verify_snapshot(
+            &self,
+            snapshot: &G02PolicySnapshot,
+            _: u64,
+        ) -> Result<Policy, G05Error> {
+            Ok(Policy::new(
+                snapshot.policy_version.clone(),
+                vec![crate::ingress::capability_for(Operation::Retrieve)],
+                Vec::new(),
+                RiskLevel::Critical,
+            ))
+        }
+    }
+
+    let resolver = PostgresG09PolicyResolver::connect_for_test(
+        &test_url,
+        policy_id.clone(),
+        Arc::new(AllowVerifiedPolicy),
+    )
+    .unwrap();
+    resolver.verify_schema().unwrap();
+
+    let (guard_tx, guard_rx) = mpsc::channel();
+    let (attempt_tx, attempt_rx) = mpsc::channel();
+    let revoker_url = test_url.clone();
+    let revoker_policy_id = policy_id.clone();
+    let revoker_command_id = command_id.clone();
+    let revoker_issuer = signer_issuer.clone();
+    let revoker_key_id = signer_key_id.clone();
+    let revoker = thread::spawn(move || {
+        guard_rx.recv().unwrap();
+        attempt_tx.send(()).unwrap();
+        let mut client = Client::connect(&revoker_url, NoTls).unwrap();
+        client
+            .execute(
+                "INSERT INTO g02_policy_revocations(policy_id,epoch,reason_code,revoked_by_command_id,revoked_at)
+                 VALUES($1,1,'race.test',$2,1201)",
+                &[&revoker_policy_id, &revoker_command_id],
+            )
+            .unwrap();
+        client
+            .execute(
+                "INSERT INTO g02_owner_key_revocations(issuer,key_id,revoked_at,reason_code,revoked_by_command_id)
+                 VALUES($1,$2,1201,'race.test',$3)",
+                &[&revoker_issuer, &revoker_key_id, &revoker_command_id],
+            )
+            .unwrap();
+    });
+
+    let effect_ran = AtomicBool::new(false);
+    let result = resolver.with_execution_authority(
+        &f.principal,
+        &f.tenant,
+        &f.request,
+        1_200,
+        |snapshot| {
+            assert_eq!(snapshot.policy_version, "policy-v1");
+            guard_tx.send(()).unwrap();
+            attempt_rx.recv().unwrap();
+            effect_ran.store(true, Ordering::SeqCst);
+            Ok(())
+        },
+    );
+    assert!(result.is_ok());
+    revoker.join().unwrap();
+    assert!(effect_ran.load(Ordering::SeqCst));
+
+    let mut verify = Client::connect(&test_url, NoTls).unwrap();
+    let policy_revoked: bool = verify
+        .query_one(
+            "SELECT EXISTS(SELECT 1 FROM g02_policy_revocations WHERE policy_id=$1 AND epoch=1)",
+            &[&policy_id],
+        )
+        .unwrap()
+        .get(0);
+    let key_revoked: bool = verify
+        .query_one(
+            "SELECT EXISTS(SELECT 1 FROM g02_owner_key_revocations WHERE issuer=$1 AND key_id=$2)",
+            &[&signer_issuer, &signer_key_id],
+        )
+        .unwrap()
+        .get(0);
+    assert!(policy_revoked);
+    assert!(key_revoked);
+    drop(verify);
+    drop(resolver);
+    admin
+        .batch_execute(&format!("DROP DATABASE {database_name}"))
+        .unwrap();
 }
 
 #[test]
