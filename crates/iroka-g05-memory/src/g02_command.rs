@@ -476,13 +476,33 @@ impl PostgresG02Authority {
     }
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum CanonicalRiskLevel {
+    Low,
+    Moderate,
+    High,
+    Critical,
+}
+
+impl From<CanonicalRiskLevel> for RiskLevel {
+    fn from(value: CanonicalRiskLevel) -> Self {
+        match value {
+            CanonicalRiskLevel::Low => Self::Low,
+            CanonicalRiskLevel::Moderate => Self::Moderate,
+            CanonicalRiskLevel::High => Self::High,
+            CanonicalRiskLevel::Critical => Self::Critical,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct CanonicalPolicyPayload {
     version: String,
     allowed_capabilities: Vec<String>,
     approval_required: Vec<String>,
-    maximum_risk: RiskLevel,
+    maximum_risk: CanonicalRiskLevel,
 }
 
 /// Canonical G02 policy verifier. It reads the current root-verified Owner-key
@@ -606,7 +626,7 @@ impl G02PolicySnapshotVerifier for PostgresG02PolicySnapshotVerifier {
             payload.version,
             payload.allowed_capabilities,
             payload.approval_required,
-            payload.maximum_risk,
+            payload.maximum_risk.into(),
         ))
     }
 }
