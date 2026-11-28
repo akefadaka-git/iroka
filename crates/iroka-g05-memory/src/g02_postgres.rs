@@ -455,7 +455,6 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
         result
     }
- 
 }
 
 #[cfg(test)]
