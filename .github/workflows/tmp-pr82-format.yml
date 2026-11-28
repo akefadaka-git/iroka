@@ -1,0 +1,129 @@
+name: Temporary PR82 formatting and exact-head validation
+
+on:
+  push:
+    branches:
+      - feat/g02-owner-signed-commands-checkpoint-http-a3
+    paths:
+      - ".github/workflows/tmp-pr82-format.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr82-temporary-format
+  cancel-in-progress: false
+
+jobs:
+  format-and-validate:
+    name: Format, remove temporary workflow, validate final SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: iroka_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d iroka_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      IROKA_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/iroka_test?sslmode=disable
+      TARGET_BRANCH: feat/g02-owner-signed-commands-checkpoint-http-a3
+      ORIGINAL_SHA: 4d65de062453f66381a29c2c2db6417c177cf731
+    steps:
+      - name: Checkout confirmed PR head
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Install stable Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+          rustc --version
+          cargo --version
+
+      - name: Apply formatting and commit only the six Rust formatting changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ORIGINAL_SHA"
+          cargo fmt --all
+          expected="$(printf '%s\n' \
+            crates/iroka-g05-memory/src/g09_execution_tests.rs \
+            crates/iroka-g05-memory/src/lib.rs \
+            crates/iroka-g05-memory/src/postgres_repository.rs \
+            crates/iroka-g05-memory/src/registry.rs \
+            crates/iroka-g05-memory/src/service.rs \
+            crates/iroka-g05-memory/src/sqlite_repository.rs | sort)"
+          actual="$(git diff --name-only | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo "Unexpected formatting diff set:"
+            printf '%s\n' "$actual"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            crates/iroka-g05-memory/src/g09_execution_tests.rs \
+            crates/iroka-g05-memory/src/lib.rs \
+            crates/iroka-g05-memory/src/postgres_repository.rs \
+            crates/iroka-g05-memory/src/registry.rs \
+            crates/iroka-g05-memory/src/service.rs \
+            crates/iroka-g05-memory/src/sqlite_repository.rs
+          staged="$(git diff --cached --name-only | sort)"
+          if [ "$staged" != "$expected" ]; then
+            echo "Staged files differ from the six expected Rust files."
+            printf '%s\n' "$staged"
+            exit 1
+          fi
+          git commit -m "style(g05): apply rustfmt to execution service"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+
+      - name: Remove temporary workflow and record final validation SHA
+        id: cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/tmp-pr82-format.yml
+          git commit -m "ci: remove temporary PR82 formatter workflow"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          final_sha="$(git rev-parse HEAD)"
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+          test -z "$(git status --porcelain)"
+          echo "FINAL_VALIDATION_SHA=$final_sha"
+          git diff --name-only "$ORIGINAL_SHA" "$final_sha" | sort
+          expected="$(printf '%s\n' \
+            crates/iroka-g05-memory/src/g09_execution_tests.rs \
+            crates/iroka-g05-memory/src/lib.rs \
+            crates/iroka-g05-memory/src/postgres_repository.rs \
+            crates/iroka-g05-memory/src/registry.rs \
+            crates/iroka-g05-memory/src/service.rs \
+            crates/iroka-g05-memory/src/sqlite_repository.rs | sort)"
+          actual="$(git diff --name-only "$ORIGINAL_SHA" "$final_sha" | sort)"
+          test "$actual" = "$expected"
+
+      - name: Verify final SHA formatting
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ steps.cleanup.outputs.final_sha }}"
+          cargo fmt --all -- --check
+
+      - name: Compile all targets
+        run: cargo check --workspace --all-targets --locked
+
+      - name: Verify production feature set excludes development bypasses
+        run: cargo check --workspace --all-targets --no-default-features
+
+      - name: Run complete unit and contract test suite
+        run: cargo test --workspace --all-targets --locked
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings -A clippy::pedantic
