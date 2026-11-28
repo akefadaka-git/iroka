@@ -741,20 +741,28 @@ fn mandatory_service_routes_sqlite_insert_metadata_and_content_reads() {
     create.operation = Operation::CreateWorking;
     create.memory_id = Some("memory:service-test".into());
     create.correlation_ref = "correlation:service-insert".into();
-    service.insert_record(&f.token, &f.tenant, create, record, event).unwrap();
+    service
+        .insert_record(&f.token, &f.tenant, create, record, event)
+        .unwrap();
 
     let mut metadata_request = f.request.clone();
     metadata_request.operation = Operation::InspectMetadata;
     metadata_request.memory_id = Some("memory:service-test".into());
     metadata_request.correlation_ref = "correlation:service-metadata".into();
-    let metadata = service.read_metadata(&f.token, &f.tenant, metadata_request).unwrap().unwrap();
+    let metadata = service
+        .read_metadata(&f.token, &f.tenant, metadata_request)
+        .unwrap()
+        .unwrap();
     assert_eq!(metadata.memory_id, "memory:service-test");
     assert_eq!(metadata.record_version, 1);
 
     let mut read_request = f.request.clone();
     read_request.memory_id = Some("memory:service-test".into());
     read_request.correlation_ref = "correlation:service-read".into();
-    let record = service.read_content(&f.token, &f.tenant, read_request).unwrap().unwrap();
+    let record = service
+        .read_content(&f.token, &f.tenant, read_request)
+        .unwrap()
+        .unwrap();
     assert_eq!(record.candidate.content, "guarded G05 test content");
 }
 
@@ -779,9 +787,12 @@ fn mandatory_service_rejects_unauthorized_scope_before_repository_mutation() {
         service.insert_record(&f.token, &f.tenant, request, record, event),
         Err(G05Error::ApprovalBindingMismatch)
     );
-    assert!(MemoryRepository::get_metadata(&inspect, "memory:service-test").unwrap().is_none());
+    assert!(
+        MemoryRepository::get_metadata(&inspect, "memory:service-test")
+            .unwrap()
+            .is_none()
+    );
 }
-
 
 #[test]
 fn mandatory_service_does_not_mutate_when_g11_intent_is_unavailable() {
@@ -806,6 +817,9 @@ fn mandatory_service_does_not_mutate_when_g11_intent_is_unavailable() {
         service.insert_record(&f.token, &f.tenant, request, record, event),
         Err(G05Error::AuditUnavailable)
     );
-    assert!(MemoryRepository::get_metadata(&inspect, "memory:service-test").unwrap().is_none());
+    assert!(
+        MemoryRepository::get_metadata(&inspect, "memory:service-test")
+            .unwrap()
+            .is_none()
+    );
 }
-

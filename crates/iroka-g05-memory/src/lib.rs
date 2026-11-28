@@ -899,7 +899,9 @@ pub(crate) trait MemoryRepository: Send + Sync {
         let Some(metadata) = self.get_metadata(memory_id)? else {
             return Ok(None);
         };
-        let record = self.get_content(memory_id)?.ok_or(G05Error::RecordNotFound)?;
+        let record = self
+            .get_content(memory_id)?
+            .ok_or(G05Error::RecordNotFound)?;
         Ok(Some((metadata, record)))
     }
 

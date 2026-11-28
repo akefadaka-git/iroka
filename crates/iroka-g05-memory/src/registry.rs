@@ -156,19 +156,34 @@ impl SqliteG05AuthorityRegistry {
         now: u64,
         effect: impl FnOnce() -> Result<T, G05Error>,
     ) -> Result<T, G05Error> {
-        let connection = self.connection.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         let row: Option<(String, String, String, i64, i64, Option<i64>)> = connection
             .query_row(
                 "SELECT tenant_ref,subject_ref,purpose,granted_at,expires_at,revoked_at
                  FROM g05_episodic_consents WHERE consent_ref=?1",
                 [reference],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
+                |r| {
+                    Ok((
+                        r.get(0)?,
+                        r.get(1)?,
+                        r.get(2)?,
+                        r.get(3)?,
+                        r.get(4)?,
+                        r.get(5)?,
+                    ))
+                },
             )
             .optional()
             .map_err(|_| G05Error::AuthorityUnavailable)?;
         let (stored_tenant, stored_subject, stored_purpose, granted, expires, revoked) =
             row.ok_or(G05Error::EpisodicOptInRequired)?;
-        if stored_tenant != tenant || stored_subject != subject || stored_purpose != purpose_key(purpose) {
+        if stored_tenant != tenant
+            || stored_subject != subject
+            || stored_purpose != purpose_key(purpose)
+        {
             return Err(G05Error::ConsentScopeMismatch);
         }
         if revoked.is_some() || now < from_i64(granted)? || now >= from_i64(expires)? {

@@ -8,11 +8,10 @@ use std::sync::Mutex;
 use iroka_kernel::{RevocationChecker, TenantContext};
 
 use crate::{
-    AuthenticatedG05Request, AuditEvent, AuthorizationRequest, G02AuthorizationAuthority,
-    G05Error, G11MemoryAuditAuthority, G05IngressService,
-    MemoryMetadata, MemoryRecord, MemoryRepository, Operation, SqliteMemoryRepository,
-    PostgresMemoryRepository, SqliteG05AuthorityRegistry, TrustedClock,
-    G09ExecutionRevalidator, ValidationPolicy,
+    AuditEvent, AuthenticatedG05Request, AuthorizationRequest, G02AuthorizationAuthority, G05Error,
+    G05IngressService, G09ExecutionRevalidator, G11MemoryAuditAuthority, MemoryMetadata,
+    MemoryRecord, MemoryRepository, Operation, PostgresMemoryRepository,
+    SqliteG05AuthorityRegistry, SqliteMemoryRepository, TrustedClock, ValidationPolicy,
 };
 
 /// Adapter for a real sharing destination. It is invoked only inside the
@@ -29,23 +28,58 @@ enum RepositoryBackend {
 }
 
 impl MemoryRepository for RepositoryBackend {
-    fn insert_with_audit(&mut self, record: MemoryRecord, event: AuditEvent) -> Result<(), G05Error> {
-        match self { Self::Sqlite(r) => r.insert_with_audit(record, event), Self::Postgres(r) => r.insert_with_audit(record, event) }
+    fn insert_with_audit(
+        &mut self,
+        record: MemoryRecord,
+        event: AuditEvent,
+    ) -> Result<(), G05Error> {
+        match self {
+            Self::Sqlite(r) => r.insert_with_audit(record, event),
+            Self::Postgres(r) => r.insert_with_audit(record, event),
+        }
     }
     fn get_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error> {
-        match self { Self::Sqlite(r) => r.get_metadata(memory_id), Self::Postgres(r) => r.get_metadata(memory_id) }
+        match self {
+            Self::Sqlite(r) => r.get_metadata(memory_id),
+            Self::Postgres(r) => r.get_metadata(memory_id),
+        }
     }
     fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error> {
-        match self { Self::Sqlite(r) => r.get_content(memory_id), Self::Postgres(r) => r.get_content(memory_id) }
+        match self {
+            Self::Sqlite(r) => r.get_content(memory_id),
+            Self::Postgres(r) => r.get_content(memory_id),
+        }
     }
-    fn get_metadata_and_content(&self, memory_id: &str) -> Result<Option<(MemoryMetadata, MemoryRecord)>, G05Error> {
-        match self { Self::Sqlite(r) => r.get_metadata_and_content(memory_id), Self::Postgres(r) => r.get_metadata_and_content(memory_id) }
+    fn get_metadata_and_content(
+        &self,
+        memory_id: &str,
+    ) -> Result<Option<(MemoryMetadata, MemoryRecord)>, G05Error> {
+        match self {
+            Self::Sqlite(r) => r.get_metadata_and_content(memory_id),
+            Self::Postgres(r) => r.get_metadata_and_content(memory_id),
+        }
     }
-    fn replace_with_audit(&mut self, record: MemoryRecord, expected_version: u64, event: AuditEvent) -> Result<(), G05Error> {
-        match self { Self::Sqlite(r) => r.replace_with_audit(record, expected_version, event), Self::Postgres(r) => r.replace_with_audit(record, expected_version, event) }
+    fn replace_with_audit(
+        &mut self,
+        record: MemoryRecord,
+        expected_version: u64,
+        event: AuditEvent,
+    ) -> Result<(), G05Error> {
+        match self {
+            Self::Sqlite(r) => r.replace_with_audit(record, expected_version, event),
+            Self::Postgres(r) => r.replace_with_audit(record, expected_version, event),
+        }
     }
-    fn finalize_pending_activation(&mut self, record: MemoryRecord, expected_version: u64, event: AuditEvent) -> Result<(), G05Error> {
-        match self { Self::Sqlite(r) => r.finalize_pending_activation(record, expected_version, event), Self::Postgres(r) => r.finalize_pending_activation(record, expected_version, event) }
+    fn finalize_pending_activation(
+        &mut self,
+        record: MemoryRecord,
+        expected_version: u64,
+        event: AuditEvent,
+    ) -> Result<(), G05Error> {
+        match self {
+            Self::Sqlite(r) => r.finalize_pending_activation(record, expected_version, event),
+            Self::Postgres(r) => r.finalize_pending_activation(record, expected_version, event),
+        }
     }
 }
 
@@ -73,7 +107,13 @@ where
         validation_policy: ValidationPolicy,
         consent_registry: SqliteG05AuthorityRegistry,
     ) -> Self {
-        Self::new(ingress, RepositoryBackend::Sqlite(repository), g11, validation_policy, consent_registry)
+        Self::new(
+            ingress,
+            RepositoryBackend::Sqlite(repository),
+            g11,
+            validation_policy,
+            consent_registry,
+        )
     }
 
     /// Construct the service over the shared PostgreSQL memory repository.
@@ -87,7 +127,13 @@ where
         validation_policy: ValidationPolicy,
         consent_registry: SqliteG05AuthorityRegistry,
     ) -> Self {
-        Self::new(ingress, RepositoryBackend::Postgres(repository), g11, validation_policy, consent_registry)
+        Self::new(
+            ingress,
+            RepositoryBackend::Postgres(repository),
+            g11,
+            validation_policy,
+            consent_registry,
+        )
     }
 
     fn new(
@@ -129,10 +175,14 @@ where
             return Err(G05Error::AuthorizationDenied);
         }
         let expected_lifecycle = match record.candidate.memory_class {
-            crate::MemoryClass::Working | crate::MemoryClass::Episodic => crate::LifecycleState::Active,
+            crate::MemoryClass::Working | crate::MemoryClass::Episodic => {
+                crate::LifecycleState::Active
+            }
             crate::MemoryClass::Durable => crate::LifecycleState::PendingReview,
         };
-        if record.lifecycle_state != expected_lifecycle || !crate::valid_ref(&request.correlation_ref) {
+        if record.lifecycle_state != expected_lifecycle
+            || !crate::valid_ref(&request.correlation_ref)
+        {
             return Err(G05Error::InvalidLifecycleTransition);
         }
         validate_event_binding(&request, &record, &event)?;
@@ -143,7 +193,10 @@ where
                 &self.validation_policy,
             )?;
             if record.candidate.memory_class == crate::MemoryClass::Episodic {
-                let consent_ref = record.candidate.episodic_opt_in_ref.as_deref()
+                let consent_ref = record
+                    .candidate
+                    .episodic_opt_in_ref
+                    .as_deref()
                     .ok_or(G05Error::EpisodicOptInRequired)?;
                 let record_to_write = record.clone();
                 let event_to_write = event.clone();
@@ -153,10 +206,12 @@ where
                     &record.candidate.subject_ref,
                     record.candidate.purpose,
                     self.ingress.current_time()?,
-                    move || self.repository
-                        .lock()
-                        .map_err(|_| G05Error::RepositoryUnavailable)?
-                        .insert_with_audit(record_to_write, event_to_write),
+                    move || {
+                        self.repository
+                            .lock()
+                            .map_err(|_| G05Error::RepositoryUnavailable)?
+                            .insert_with_audit(record_to_write, event_to_write)
+                    },
                 )
             } else {
                 self.repository
@@ -179,11 +234,14 @@ where
         }
         let memory_id = required_memory_id(&request)?;
         self.execute(compact_credential, tenant, request.clone(), || {
-            let repository = self.repository
+            let repository = self
+                .repository
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?;
             let metadata = repository.get_metadata(&memory_id)?;
-            metadata.map(|m| validate_metadata_binding(&request, &m)).transpose()?;
+            metadata
+                .map(|m| validate_metadata_binding(&request, &m))
+                .transpose()?;
             Ok(metadata)
         })
     }
@@ -201,7 +259,8 @@ where
         }
         let memory_id = required_memory_id(&request)?;
         self.execute(compact_credential, tenant, request.clone(), || {
-            let repository = self.repository
+            let repository = self
+                .repository
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?;
             let Some((metadata, record)) = repository.get_metadata_and_content(&memory_id)? else {
@@ -235,9 +294,11 @@ where
     ) -> Result<(), G05Error> {
         if !matches!(
             request.operation,
-            Operation::Correct | Operation::Restrict | Operation::RequestDeletion | Operation::VerifyDeletion
-        )
-            || expected_version == 0
+            Operation::Correct
+                | Operation::Restrict
+                | Operation::RequestDeletion
+                | Operation::VerifyDeletion
+        ) || expected_version == 0
             || record.candidate.record_version != expected_version.saturating_add(1)
         {
             return Err(G05Error::AuthorizationDenied);
@@ -246,7 +307,8 @@ where
         if record.candidate.content.len() > crate::MAX_CONTENT_BYTES {
             return Err(G05Error::ContentTooLarge);
         }
-        if crate::sha256_hex(record.candidate.content.as_bytes()) != record.candidate.content_sha256 {
+        if crate::sha256_hex(record.candidate.content.as_bytes()) != record.candidate.content_sha256
+        {
             return Err(G05Error::DigestMismatch);
         }
         if request.operation == Operation::VerifyDeletion
@@ -258,7 +320,8 @@ where
         validate_event_binding(&request, &record, &event)?;
         let memory_id = required_memory_id(&request)?;
         self.execute(compact_credential, tenant, request.clone(), || {
-            let mut repository = self.repository
+            let mut repository = self
+                .repository
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?;
             let current = repository
@@ -271,19 +334,30 @@ where
             let target_allowed = match request.operation {
                 Operation::Correct => matches!(
                     (current.lifecycle_state, record.lifecycle_state),
-                    (crate::LifecycleState::Active, crate::LifecycleState::CorrectionPending)
-                        | (crate::LifecycleState::CorrectionPending, crate::LifecycleState::Active)
-                        | (crate::LifecycleState::CorrectionPending, crate::LifecycleState::Rejected)
+                    (
+                        crate::LifecycleState::Active,
+                        crate::LifecycleState::CorrectionPending
+                    ) | (
+                        crate::LifecycleState::CorrectionPending,
+                        crate::LifecycleState::Active
+                    ) | (
+                        crate::LifecycleState::CorrectionPending,
+                        crate::LifecycleState::Rejected
+                    )
                 ),
                 Operation::Restrict => record.lifecycle_state == crate::LifecycleState::Restricted,
-                Operation::RequestDeletion => record.lifecycle_state == crate::LifecycleState::DeletionPending,
+                Operation::RequestDeletion => {
+                    record.lifecycle_state == crate::LifecycleState::DeletionPending
+                }
                 Operation::VerifyDeletion => {
                     current.lifecycle_state == crate::LifecycleState::DeletionPending
                         && record.lifecycle_state == crate::LifecycleState::Deleted
                 }
                 _ => false,
             };
-            if !target_allowed || !crate::transition_allowed(current.lifecycle_state, record.lifecycle_state) {
+            if !target_allowed
+                || !crate::transition_allowed(current.lifecycle_state, record.lifecycle_state)
+            {
                 return Err(G05Error::InvalidLifecycleTransition);
             }
             repository.replace_with_audit(record, expected_version, event)
@@ -302,7 +376,10 @@ where
         if request.operation != Operation::Share
             || request.recipient_refs.is_empty()
             || request.recipient_refs.len() > 32
-            || request.recipient_refs.iter().any(|r| r.trim().is_empty() || r.len() > 512)
+            || request
+                .recipient_refs
+                .iter()
+                .any(|r| r.trim().is_empty() || r.len() > 512)
         {
             return Err(G05Error::SharingNotAuthorized);
         }
@@ -312,7 +389,8 @@ where
         }
         let memory_id = required_memory_id(&request)?;
         self.execute(compact_credential, tenant, request.clone(), || {
-            let repository = self.repository
+            let repository = self
+                .repository
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?;
             let Some((metadata, record)) = repository.get_metadata_and_content(&memory_id)? else {
@@ -343,7 +421,10 @@ where
             || pending.lifecycle_state != crate::LifecycleState::PendingAudit
             || pending.candidate.record_version != expected_version
             || pending.approval_ref.as_deref().map_or(true, str::is_empty)
-            || pending.approved_by_ref.as_deref().map_or(true, str::is_empty)
+            || pending
+                .approved_by_ref
+                .as_deref()
+                .map_or(true, str::is_empty)
             || pending.approved_at.is_none()
         {
             return Err(G05Error::ApprovalBindingMismatch);
@@ -351,10 +432,12 @@ where
         validate_record_binding(&request, &pending)?;
         let memory_id = required_memory_id(&request)?;
         self.execute(compact_credential, tenant, request.clone(), || {
-            let mut repository = self.repository
+            let mut repository = self
+                .repository
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?;
-            let stored = repository.get_content(&memory_id)?
+            let stored = repository
+                .get_content(&memory_id)?
                 .ok_or(G05Error::RecordNotFound)?;
             if stored != pending {
                 return Err(G05Error::VersionConflict);
@@ -547,4 +630,3 @@ fn validate_event_binding(
     }
     Ok(())
 }
-

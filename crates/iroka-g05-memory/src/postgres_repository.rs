@@ -222,21 +222,32 @@ impl MemoryRepository for PostgresMemoryRepository {
         &self,
         memory_id: &str,
     ) -> Result<Option<(MemoryMetadata, MemoryRecord)>, G05Error> {
-        let mut client = self.client.lock().map_err(|_| G05Error::RepositoryUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
         tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
             .map_err(|_| G05Error::RepositoryUnavailable)?;
-        let row = tx.query_opt(
-            "SELECT metadata_json,record_json FROM g05_memory_records WHERE memory_id=$1",
-            &[&memory_id],
-        ).map_err(|_| G05Error::RepositoryUnavailable)?;
-        let result = row.map(|row| {
-            let metadata_value: Value = row.get(0);
-            let record_value: Value = row.get(1);
-            let metadata = serde_json::from_value(metadata_value).map_err(|_| G05Error::RepositoryUnavailable)?;
-            let record = serde_json::from_value(record_value).map_err(|_| G05Error::RepositoryUnavailable)?;
-            Ok((metadata, record))
-        }).transpose()?;
+        let row = tx
+            .query_opt(
+                "SELECT metadata_json,record_json FROM g05_memory_records WHERE memory_id=$1",
+                &[&memory_id],
+            )
+            .map_err(|_| G05Error::RepositoryUnavailable)?;
+        let result = row
+            .map(|row| {
+                let metadata_value: Value = row.get(0);
+                let record_value: Value = row.get(1);
+                let metadata = serde_json::from_value(metadata_value)
+                    .map_err(|_| G05Error::RepositoryUnavailable)?;
+                let record = serde_json::from_value(record_value)
+                    .map_err(|_| G05Error::RepositoryUnavailable)?;
+                Ok((metadata, record))
+            })
+            .transpose()?;
         tx.commit().map_err(|_| G05Error::RepositoryUnavailable)?;
         Ok(result)
     }
