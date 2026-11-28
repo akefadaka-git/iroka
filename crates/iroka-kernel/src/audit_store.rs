@@ -149,6 +149,82 @@ impl SqliteAuditSink {
         tx.commit().map_err(|_| AuditStoreError::Unavailable)
     }
 
+    /// Append a deterministic G02 lifecycle event, treating an identical prior
+    /// event as successful recovery while rejecting event-ID collisions.
+    pub fn append_event_idempotent(&self, event: &AuditEvent) -> Result<(), AuditStoreError> {
+        self.verify_integrity()?;
+        {
+            let connection = self
+                .connection
+                .lock()
+                .map_err(|_| AuditStoreError::Unavailable)?;
+            let existing: Option<(String,String,String,String,String,String,i64)> = connection.query_row(
+                "SELECT correlation_id,subject,capability,resource,policy_version,decision,occurred_at FROM audit_events WHERE event_id=?1",
+                [event.event_id()],
+                |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?)),
+            ).optional().map_err(|_| AuditStoreError::Unavailable)?;
+            if let Some((trace, subject, capability, resource, policy, decision, at)) = existing {
+                let expected_at =
+                    i64::try_from(event.occurred_at()).map_err(|_| AuditStoreError::Rejected)?;
+                if trace == event.correlation_id()
+                    && subject == event.subject()
+                    && capability == event.capability()
+                    && resource == event.resource()
+                    && policy == event.policy_version()
+                    && decision == decision_name(event.decision())
+                    && at == expected_at
+                {
+                    return Ok(());
+                }
+                return Err(AuditStoreError::Rejected);
+            }
+        }
+        match self.append_event(event) {
+            Ok(()) => Ok(()),
+            Err(AuditStoreError::Rejected) => {
+                let connection = self
+                    .connection
+                    .lock()
+                    .map_err(|_| AuditStoreError::Unavailable)?;
+                let existing: Option<(String,String,String,String,String,String,i64)> = connection.query_row(
+                    "SELECT correlation_id,subject,capability,resource,policy_version,decision,occurred_at FROM audit_events WHERE event_id=?1",
+                    [event.event_id()],
+                    |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?)),
+                ).optional().map_err(|_| AuditStoreError::Unavailable)?;
+                let expected_at =
+                    i64::try_from(event.occurred_at()).map_err(|_| AuditStoreError::Rejected)?;
+                match existing {
+                    Some((trace, subject, capability, resource, policy, decision, at))
+                        if trace == event.correlation_id()
+                            && subject == event.subject()
+                            && capability == event.capability()
+                            && resource == event.resource()
+                            && policy == event.policy_version()
+                            && decision == decision_name(event.decision())
+                            && at == expected_at =>
+                    {
+                        Ok(())
+                    }
+                    _ => Err(AuditStoreError::Rejected),
+                }
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn force_append_failure(&self, enabled: bool) -> Result<(), AuditStoreError> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| AuditStoreError::Unavailable)?;
+        if enabled {
+            connection.execute_batch("CREATE TRIGGER IF NOT EXISTS test_reject_audit BEFORE INSERT ON audit_events BEGIN SELECT RAISE(ABORT,'forced audit failure'); END;")
+        } else {
+            connection.execute_batch("DROP TRIGGER IF EXISTS test_reject_audit;")
+        }.map_err(|_| AuditStoreError::Unavailable)
+    }
+
     pub fn verify_integrity(&self) -> Result<(), AuditStoreError> {
         let c = self
             .connection

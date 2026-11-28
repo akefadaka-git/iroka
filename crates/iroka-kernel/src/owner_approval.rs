@@ -103,6 +103,7 @@ impl From<SecurityStoreError> for OwnerApprovalError {
     fn from(error: SecurityStoreError) -> Self {
         match error {
             SecurityStoreError::InvalidVersion => Self::Malformed,
+            SecurityStoreError::Revoked => Self::Revoked,
             _ => Self::StoreUnavailable,
         }
     }
@@ -131,6 +132,17 @@ pub enum OwnerSecurityAction {
     },
     RevokeApproval {
         approval_id: String,
+        reason: String,
+    },
+    SetTenantMembership {
+        subject: String,
+        tenant_id: String,
+        active: bool,
+        version: u64,
+        reason: String,
+    },
+    RevokePolicy {
+        policy_epoch: u64,
         reason: String,
     },
 }
@@ -210,6 +222,72 @@ impl OwnerApprovalVerifier {
         Ok(Self {
             keys: records,
             store,
+        })
+    }
+
+    pub(crate) fn security_store(&self) -> &SqliteSecurityStore {
+        &self.store
+    }
+
+    /// Construct the tenant resolver over this verifier's own Kernel security
+    /// store. This prevents the composition root from pairing Owner authority
+    /// with a caller-selected membership database.
+    pub fn tenant_membership_resolver(&self) -> crate::TenantMembershipResolver {
+        crate::TenantMembershipResolver::new(Arc::clone(&self.store))
+    }
+
+    /// Verify an immutable G02 policy snapshot using the same provisioned Owner
+    /// keys and revocation authority as signed approvals and security commands.
+    pub fn verify_policy_snapshot(
+        &self,
+        signed: &crate::SignedPolicySnapshot,
+        now: u64,
+    ) -> Result<crate::VerifiedPolicySnapshot, OwnerApprovalError> {
+        let payload = &signed.payload;
+        payload.validate(now).map_err(|error| match error {
+            crate::PolicyLifecycleError::Expired => OwnerApprovalError::Expired,
+            crate::PolicyLifecycleError::NotYetValid => OwnerApprovalError::NotYetValid,
+            _ => OwnerApprovalError::Malformed,
+        })?;
+        let owner_key = self
+            .keys
+            .get(&payload.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if payload.owner_subject != owner_key.owner_subject {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || payload.issued_at < owner_key.not_before
+            || payload.issued_at >= owner_key.not_after
+            || payload.expires_at > owner_key.not_after
+        {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
+        if self
+            .store
+            .key_revoked(OWNER_ISSUER, &payload.key_id)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?
+        {
+            return Err(OwnerApprovalError::Revoked);
+        }
+        let signing_bytes = payload
+            .signing_bytes()
+            .map_err(|_| OwnerApprovalError::Malformed)?;
+        let signature =
+            Signature::from_slice(&signed.signature).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(&signing_bytes, &signature)
+            .map_err(|_| OwnerApprovalError::InvalidSignature)?;
+        let (canonical_payload, digest) =
+            crate::policy_lifecycle::canonical_payload_and_digest(payload)
+                .map_err(|_| OwnerApprovalError::Malformed)?;
+        Ok(crate::VerifiedPolicySnapshot {
+            payload: payload.clone(),
+            signature: signed.signature.clone(),
+            canonical_payload,
+            digest,
         })
     }
 
@@ -305,6 +383,91 @@ impl OwnerApprovalVerifier {
         if !consumed {
             return Err(OwnerApprovalError::Replay);
         }
+        Ok(())
+    }
+
+    /// Revoke the active policy through an Owner-signed command and the G11
+    /// pending → audit receipt → revoked protocol. Repeated identical commands recover safely.
+    pub fn revoke_policy_snapshot(
+        &self,
+        command: &SignedOwnerSecurityCommand,
+        audit: &crate::SqliteAuditSink,
+        now: u64,
+    ) -> Result<(), OwnerApprovalError> {
+        let p = &command.payload;
+        if p.command_id.trim().is_empty()
+            || p.owner_subject.trim().is_empty()
+            || p.key_id.trim().is_empty()
+            || p.issued_at >= p.expires_at
+            || p.expires_at <= now
+            || p.issued_at > now.saturating_add(CLOCK_SKEW_SECS)
+            || p.expires_at - p.issued_at > MAX_APPROVAL_TTL_SECS
+        {
+            return Err(OwnerApprovalError::Malformed);
+        }
+        let (policy_epoch, reason) = match &p.action {
+            OwnerSecurityAction::RevokePolicy {
+                policy_epoch,
+                reason,
+            } if *policy_epoch > 0 && !reason.trim().is_empty() && reason.len() <= 1024 => {
+                (*policy_epoch, reason.clone())
+            }
+            _ => return Err(OwnerApprovalError::Malformed),
+        };
+        let owner_key = self
+            .keys
+            .get(&p.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if p.owner_subject != owner_key.owner_subject {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || p.issued_at < owner_key.not_before
+            || p.issued_at >= owner_key.not_after
+        {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
+        let signing_bytes = p.signing_bytes()?;
+        let signature =
+            Signature::from_slice(&command.signature).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(&signing_bytes, &signature)
+            .map_err(|_| OwnerApprovalError::InvalidSignature)?;
+        let digest: [u8; 32] = Sha256::digest(&signing_bytes).into();
+        self.store.stage_policy_revocation(
+            policy_epoch,
+            &p.command_id,
+            &digest,
+            &p.owner_subject,
+            &p.key_id,
+            &reason,
+            p.issued_at,
+        )?;
+        let digest_hex = digest
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
+        let event_id = format!("g02-policy-revoke:{policy_epoch}:{digest_hex}");
+        let event = crate::AuditEvent::new(
+            event_id.clone(),
+            event_id,
+            &p.owner_subject,
+            "g02.policy.revoke",
+            format!(
+                "policy-epoch:{policy_epoch}:command-digest:{digest_hex}:key:{}:previous:{policy_epoch}",
+                p.key_id
+            ),
+            format!("policy-epoch-{policy_epoch}"),
+            crate::DecisionCode::Allow,
+            p.issued_at,
+        );
+        audit
+            .append_event_idempotent(&event)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?;
+        self.store
+            .complete_policy_revocation(policy_epoch, &p.command_id, &digest)?;
         Ok(())
     }
 
@@ -406,10 +569,41 @@ impl OwnerApprovalVerifier {
                     reason: reason.clone(),
                 }
             }
+            OwnerSecurityAction::SetTenantMembership {
+                subject,
+                tenant_id,
+                active,
+                version,
+                reason,
+            } => {
+                if subject.trim().is_empty()
+                    || tenant_id.trim().is_empty()
+                    || reason.trim().is_empty()
+                    || *version == 0
+                    || subject.len() > 256
+                    || tenant_id.len() > 256
+                    || reason.len() > 1024
+                {
+                    return Err(OwnerApprovalError::Malformed);
+                }
+                RevocationTarget::TenantMembership {
+                    subject: subject.clone(),
+                    tenant_id: tenant_id.clone(),
+                    active: *active,
+                    version: *version,
+                    reason: reason.clone(),
+                }
+            }
+            OwnerSecurityAction::RevokePolicy { .. } => {
+                // Policy revocation must use revoke_policy_snapshot so G11 confirms
+                // the event before the active policy is changed.
+                return Err(OwnerApprovalError::Malformed);
+            }
         };
         let applied = self.store.apply_signed_revocation(
             &p.command_id,
             &p.owner_subject,
+            OWNER_ISSUER,
             &p.key_id,
             digest.as_slice(),
             now,

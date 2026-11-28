@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use sha2::{Digest, Sha256};
 
 use crate::identity_crypto::{RevocationChecker, RevocationError};
 
@@ -17,6 +18,7 @@ pub enum SecurityStoreError {
     Rollback,
     ConflictingVersion,
     InvalidVersion,
+    Revoked,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,6 +44,13 @@ pub(crate) enum RevocationTarget {
         approval_id: String,
         reason: String,
     },
+    TenantMembership {
+        subject: String,
+        tenant_id: String,
+        active: bool,
+        version: u64,
+        reason: String,
+    },
 }
 
 pub(crate) struct ApprovalReceipt<'a> {
@@ -58,6 +67,18 @@ pub(crate) struct ApprovalReceipt<'a> {
     pub expires_at: u64,
     pub consumed_at: u64,
 }
+
+type StoredActivePolicyRow = (
+    Vec<u8>,
+    Vec<u8>,
+    Vec<u8>,
+    String,
+    String,
+    String,
+    i64,
+    i64,
+    i64,
+);
 
 pub struct SqliteSecurityStore {
     connection: Mutex<Connection>,
@@ -144,6 +165,33 @@ impl SqliteSecurityStore {
              );
              CREATE TABLE IF NOT EXISTS approval_consumptions (
                approval_id TEXT PRIMARY KEY, scope_digest BLOB NOT NULL, consumed_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS tenant_memberships (
+               subject TEXT NOT NULL, tenant_id TEXT NOT NULL,
+               active INTEGER NOT NULL CHECK(active IN (0,1)),
+               version INTEGER NOT NULL CHECK(version > 0),
+               updated_at INTEGER NOT NULL, command_id TEXT NOT NULL,
+               PRIMARY KEY(subject, tenant_id)
+             );
+             CREATE TABLE IF NOT EXISTS policy_snapshots (
+               epoch INTEGER PRIMARY KEY CHECK(epoch > 0), digest BLOB NOT NULL CHECK(length(digest)=32),
+               canonical_payload BLOB NOT NULL, signature BLOB NOT NULL,
+               owner_subject TEXT NOT NULL, key_id TEXT NOT NULL, policy_version TEXT NOT NULL,
+               issued_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, previous_epoch INTEGER,
+               emergency_stop_active INTEGER NOT NULL CHECK(emergency_stop_active IN (0,1)),
+               state TEXT NOT NULL CHECK(state IN ('pending','active','superseded','revoked'))
+             );
+             CREATE TABLE IF NOT EXISTS policy_lifecycle_state (
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+               highest_epoch INTEGER NOT NULL CHECK(highest_epoch >= 0),
+               active_epoch INTEGER
+             );
+             INSERT OR IGNORE INTO policy_lifecycle_state(singleton,highest_epoch,active_epoch) VALUES(1,0,NULL);
+             CREATE TABLE IF NOT EXISTS policy_revocations (
+               policy_epoch INTEGER PRIMARY KEY, command_id TEXT NOT NULL UNIQUE,
+               digest BLOB NOT NULL CHECK(length(digest)=32), owner_subject TEXT NOT NULL,
+               key_id TEXT NOT NULL, reason TEXT NOT NULL, issued_at INTEGER NOT NULL,
+               state TEXT NOT NULL CHECK(state IN ('pending','complete'))
              );"
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(Self {
@@ -326,10 +374,12 @@ impl SqliteSecurityStore {
     }
 
     /// Atomically records a signed control command and its revocation effect.
+    #[allow(clippy::too_many_arguments)] // Explicitly binds the signed command and target to one transaction.
     pub(crate) fn apply_signed_revocation(
         &self,
         command_id: &str,
         owner_subject: &str,
+        signer_issuer: &str,
         signer_key_id: &str,
         digest: &[u8],
         at: u64,
@@ -345,6 +395,19 @@ impl SqliteSecurityStore {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| SecurityStoreError::Unavailable)?;
+        // Serialize the final Owner-key revocation check with command consumption
+        // and the protected mutation. A revocation racing this command must win
+        // or follow a fully committed command; it cannot be bypassed by TOCTOU.
+        let signer_revoked: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer=?1 AND key_id=?2)",
+                params![signer_issuer, signer_key_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if signer_revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
         let changed = tx.execute(
             "INSERT OR IGNORE INTO approval_consumptions(approval_id, scope_digest, consumed_at) VALUES(?1, ?2, ?3)",
             params![format!("security-command:{command_id}"), digest, i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?]
@@ -375,6 +438,17 @@ impl SqliteSecurityStore {
                 approval_id,
                 reason,
             } => ("revoke_approval", approval_id.clone(), reason.clone()),
+            RevocationTarget::TenantMembership {
+                subject,
+                tenant_id,
+                active,
+                version,
+                reason,
+            } => (
+                "set_tenant_membership",
+                format!("{subject}:{tenant_id}:v{version}:active={active}"),
+                reason.clone(),
+            ),
         };
         match target {
             RevocationTarget::Credential {
@@ -423,6 +497,43 @@ impl SqliteSecurityStore {
                 )
                 .map_err(|_| SecurityStoreError::Unavailable)?;
             }
+            RevocationTarget::TenantMembership {
+                subject,
+                tenant_id,
+                active,
+                version,
+                reason: _,
+            } => {
+                let version_i =
+                    i64::try_from(version).map_err(|_| SecurityStoreError::InvalidVersion)?;
+                let current: Option<i64> = tx
+                    .query_row(
+                        "SELECT version FROM tenant_memberships WHERE subject=?1 AND tenant_id=?2",
+                        params![subject, tenant_id],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| SecurityStoreError::Unavailable)?;
+                if current.is_some_and(|current_version| version_i <= current_version) {
+                    return Err(SecurityStoreError::Rollback);
+                }
+                tx.execute(
+                    "INSERT INTO tenant_memberships(subject,tenant_id,active,version,updated_at,command_id)
+                     VALUES(?1,?2,?3,?4,?5,?6)
+                     ON CONFLICT(subject,tenant_id) DO UPDATE SET active=excluded.active,
+                       version=excluded.version, updated_at=excluded.updated_at, command_id=excluded.command_id
+                     WHERE excluded.version > tenant_memberships.version",
+                    params![
+                        subject,
+                        tenant_id,
+                        i64::from(active),
+                        version_i,
+                        i64::try_from(at).map_err(|_| SecurityStoreError::InvalidVersion)?,
+                        command_id
+                    ],
+                )
+                .map_err(|_| SecurityStoreError::Unavailable)?;
+            }
         }
         tx.execute(
             "INSERT INTO security_command_log(command_id, digest, owner_subject, signer_key_id, action, target, reason, occurred_at) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -430,6 +541,387 @@ impl SqliteSecurityStore {
         ).map_err(|_| SecurityStoreError::Unavailable)?;
         tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
         Ok(true)
+    }
+
+    /// Persist a signed policy snapshot as pending. No policy becomes active here.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn stage_policy_snapshot(
+        &self,
+        epoch: u64,
+        digest: &[u8; 32],
+        canonical_payload: &[u8],
+        signature: &[u8],
+        owner_subject: &str,
+        key_id: &str,
+        policy_version: &str,
+        issued_at: u64,
+        expires_at: u64,
+        emergency_stop_active: bool,
+    ) -> Result<Option<u64>, SecurityStoreError> {
+        if epoch == 0
+            || canonical_payload.is_empty()
+            || signature.len() != 64
+            || owner_subject.trim().is_empty()
+            || key_id.trim().is_empty()
+            || policy_version.trim().is_empty()
+            || issued_at >= expires_at
+        {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let epoch_i = i64::try_from(epoch).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let issued_i = i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let expires_i =
+            i64::try_from(expires_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer='iroka:owner-authority' AND key_id=?1)",
+            [key_id], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
+        let highest: i64 = tx
+            .query_row(
+                "SELECT highest_epoch FROM policy_lifecycle_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let previous_epoch: Option<i64> = tx
+            .query_row(
+                "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if epoch_i < highest {
+            return Err(SecurityStoreError::Rollback);
+        }
+        if epoch_i == highest {
+            let existing: (Vec<u8>, String, Option<i64>) = tx
+                .query_row(
+                    "SELECT digest,state,previous_epoch FROM policy_snapshots WHERE epoch=?1",
+                    [epoch_i],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .map_err(|_| SecurityStoreError::Unavailable)?;
+            if existing.0.as_slice() != digest {
+                return Err(SecurityStoreError::ConflictingVersion);
+            }
+            if existing.1 == "revoked" {
+                return Err(SecurityStoreError::Revoked);
+            }
+            if existing.1 == "superseded" {
+                return Err(SecurityStoreError::Rollback);
+            }
+            tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+            return existing
+                .2
+                .map(u64::try_from)
+                .transpose()
+                .map_err(|_| SecurityStoreError::Unavailable);
+        }
+        // A higher signed epoch supersedes an abandoned pending proposal.
+        tx.execute(
+            "UPDATE policy_snapshots SET state='superseded' WHERE state='pending'",
+            [],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "INSERT INTO policy_snapshots(epoch,digest,canonical_payload,signature,owner_subject,key_id,policy_version,issued_at,expires_at,previous_epoch,emergency_stop_active,state) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,'pending')",
+            params![epoch_i,digest.as_slice(),canonical_payload,signature,owner_subject,key_id,policy_version,issued_i,expires_i,previous_epoch,i64::from(emergency_stop_active)],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "UPDATE policy_lifecycle_state SET highest_epoch=?1 WHERE singleton=1",
+            [epoch_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+        previous_epoch
+            .map(u64::try_from)
+            .transpose()
+            .map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Make a pending snapshot active only after the caller has obtained G11 confirmation.
+    pub(crate) fn activate_policy_snapshot(
+        &self,
+        epoch: u64,
+        digest: &[u8; 32],
+        _now: u64,
+    ) -> Result<(), SecurityStoreError> {
+        let epoch_i = i64::try_from(epoch).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let existing: (Vec<u8>, String, String) = tx
+            .query_row(
+                "SELECT digest,state,key_id FROM policy_snapshots WHERE epoch=?1",
+                [epoch_i],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if existing.0.as_slice() != digest {
+            return Err(SecurityStoreError::ConflictingVersion);
+        }
+        let revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer='iroka:owner-authority' AND key_id=?1)",
+            [&existing.2], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
+        if existing.1 == "active" {
+            tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+            return Ok(());
+        }
+        if existing.1 != "pending" {
+            return Err(SecurityStoreError::Rollback);
+        }
+        let active: Option<i64> = tx
+            .query_row(
+                "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if active.is_some_and(|current| epoch_i <= current) {
+            return Err(SecurityStoreError::Rollback);
+        }
+        tx.execute(
+            "UPDATE policy_snapshots SET state='superseded' WHERE state='active'",
+            [],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "UPDATE policy_snapshots SET state='active' WHERE epoch=?1 AND state='pending'",
+            [epoch_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "UPDATE policy_lifecycle_state SET active_epoch=?1 WHERE singleton=1",
+            [epoch_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Stage an Owner-signed policy revocation; it has no effect until G11 confirms it.
+    #[allow(clippy::too_many_arguments)] // Binds signed revocation fields to one durable transaction.
+    pub(crate) fn stage_policy_revocation(
+        &self,
+        epoch: u64,
+        command_id: &str,
+        digest: &[u8; 32],
+        owner_subject: &str,
+        key_id: &str,
+        reason: &str,
+        issued_at: u64,
+    ) -> Result<(), SecurityStoreError> {
+        if epoch == 0
+            || command_id.trim().is_empty()
+            || owner_subject.trim().is_empty()
+            || key_id.trim().is_empty()
+            || reason.trim().is_empty()
+        {
+            return Err(SecurityStoreError::InvalidVersion);
+        }
+        let epoch_i = i64::try_from(epoch).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let issued_i = i64::try_from(issued_at).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer='iroka:owner-authority' AND key_id=?1)",
+            [key_id], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
+        let existing: Option<(i64, Vec<u8>, String)> = tx
+            .query_row(
+                "SELECT policy_epoch,digest,state FROM policy_revocations WHERE command_id=?1",
+                [command_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if let Some((existing_epoch, existing_digest, _)) = existing {
+            if existing_epoch != epoch_i || existing_digest.as_slice() != digest {
+                return Err(SecurityStoreError::ConflictingVersion);
+            }
+            tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+            return Ok(());
+        }
+        let active: Option<i64> = tx
+            .query_row(
+                "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if active != Some(epoch_i) {
+            return Err(SecurityStoreError::Rollback);
+        }
+        tx.execute(
+            "INSERT INTO policy_revocations(policy_epoch,command_id,digest,owner_subject,key_id,reason,issued_at,state) VALUES(?1,?2,?3,?4,?5,?6,?7,'pending')",
+            params![epoch_i,command_id,digest.as_slice(),owner_subject,key_id,reason,issued_i],
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    /// Complete a staged revocation only after the deterministic G11 event is confirmed.
+    pub(crate) fn complete_policy_revocation(
+        &self,
+        epoch: u64,
+        command_id: &str,
+        digest: &[u8; 32],
+    ) -> Result<(), SecurityStoreError> {
+        let epoch_i = i64::try_from(epoch).map_err(|_| SecurityStoreError::InvalidVersion)?;
+        let mut connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let tx = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let (stored_digest,state,key_id): (Vec<u8>,String,String) = tx.query_row(
+            "SELECT digest,state,key_id FROM policy_revocations WHERE policy_epoch=?1 AND command_id=?2",
+            params![epoch_i,command_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        let signer_revoked: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM revoked_keys WHERE issuer='iroka:owner-authority' AND key_id=?1)",
+            [&key_id], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if signer_revoked {
+            return Err(SecurityStoreError::Revoked);
+        }
+        if stored_digest.as_slice() != digest {
+            return Err(SecurityStoreError::ConflictingVersion);
+        }
+        if state == "complete" {
+            tx.commit().map_err(|_| SecurityStoreError::Unavailable)?;
+            return Ok(());
+        }
+        let active: Option<i64> = tx
+            .query_row(
+                "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        if active != Some(epoch_i) {
+            return Err(SecurityStoreError::Rollback);
+        }
+        tx.execute(
+            "UPDATE policy_snapshots SET state='revoked' WHERE epoch=?1 AND state='active'",
+            [epoch_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "UPDATE policy_lifecycle_state SET active_epoch=NULL WHERE singleton=1",
+            [],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.execute(
+            "UPDATE policy_revocations SET state='complete' WHERE policy_epoch=?1",
+            [epoch_i],
+        )
+        .map_err(|_| SecurityStoreError::Unavailable)?;
+        tx.commit().map_err(|_| SecurityStoreError::Unavailable)
+    }
+
+    pub(crate) fn active_policy_snapshot(
+        &self,
+    ) -> Result<Option<(u64, crate::SignedPolicySnapshot)>, SecurityStoreError> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let epoch: Option<i64> = connection
+            .query_row(
+                "SELECT active_epoch FROM policy_lifecycle_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let Some(epoch) = epoch else {
+            return Ok(None);
+        };
+        let pending_revocation: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM policy_revocations WHERE policy_epoch=?1 AND state='pending')",
+            [epoch], |row| row.get(0),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        if pending_revocation {
+            return Ok(None);
+        }
+        let (payload_bytes, signature, stored_digest, owner_subject, key_id, policy_version,
+            issued_at, expires_at, emergency_stop_active): StoredActivePolicyRow = connection.query_row(
+            "SELECT canonical_payload,signature,digest,owner_subject,key_id,policy_version,issued_at,expires_at,emergency_stop_active FROM policy_snapshots WHERE epoch=?1 AND state='active'", [epoch],
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?,row.get(7)?,row.get(8)?)),
+        ).map_err(|_| SecurityStoreError::Unavailable)?;
+        let payload: crate::PolicySnapshotPayload =
+            serde_json::from_slice(&payload_bytes).map_err(|_| SecurityStoreError::Unavailable)?;
+        let canonical = serde_jcs::to_vec(&payload).map_err(|_| SecurityStoreError::Unavailable)?;
+        let digest = Sha256::digest(&canonical);
+        if canonical != payload_bytes
+            || stored_digest.as_slice() != digest.as_slice()
+            || owner_subject != payload.owner_subject
+            || key_id != payload.key_id
+            || policy_version != payload.policy_version
+            || issued_at
+                != i64::try_from(payload.issued_at).map_err(|_| SecurityStoreError::Unavailable)?
+            || expires_at
+                != i64::try_from(payload.expires_at).map_err(|_| SecurityStoreError::Unavailable)?
+            || emergency_stop_active != i64::from(payload.emergency_stop_active)
+        {
+            return Err(SecurityStoreError::Unavailable);
+        }
+        Ok(Some((
+            u64::try_from(epoch).map_err(|_| SecurityStoreError::Unavailable)?,
+            crate::SignedPolicySnapshot::from_signature(payload, signature),
+        )))
+    }
+
+    pub(crate) fn tenant_membership(
+        &self,
+        subject: &str,
+        tenant_id: &str,
+    ) -> Result<Option<(bool, u64, u64)>, SecurityStoreError> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        let row: Option<(i64, i64, i64)> = connection
+            .query_row(
+                "SELECT active, version, updated_at FROM tenant_memberships WHERE subject=?1 AND tenant_id=?2",
+                params![subject, tenant_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(|_| SecurityStoreError::Unavailable)?;
+        row.map(|(active, version, updated_at)| {
+            Ok((
+                active == 1,
+                u64::try_from(version).map_err(|_| SecurityStoreError::Unavailable)?,
+                u64::try_from(updated_at).map_err(|_| SecurityStoreError::Unavailable)?,
+            ))
+        })
+        .transpose()
     }
 
     pub fn security_command_count(&self) -> Result<u64, SecurityStoreError> {
