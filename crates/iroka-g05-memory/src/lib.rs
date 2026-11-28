@@ -1,17 +1,11 @@
-//! IROKA G05 governed memory domain primitives.
+//! IROKA G05 governed memory domain and mandatory execution service.
 //!
-//! This crate defines the memory-owned data model, policy validation and
-//! integration ports. It deliberately does not authenticate principals,
-//! resolve tenants, authorize access, verify human approvals, persist content,
-//! or implement audit storage. Those duties remain with G01, IROKA tenant
-//! authority, G02, the approved human-review authority, a G05 repository
-//! adapter, and G11 respectively.
-//!
-//! Implementations MUST invoke the ports in the documented order. In
-//! particular, authorization precedes content access; durable activation
-//! requires a record-bound approval; episodic capture requires opt-in; and
-//! audit completion must be coordinated transactionally through a G11-backed
-//! outbox before a lifecycle mutation is reported complete.
+//! All application-facing protected persistence, content reads, sharing and
+//! episodic-consent mutations MUST use G05ExecutionService. The service composes
+//! G01-authenticated ingress, current G02/G09 authority, repository adapters and
+//! G11 intent/outcome receipts. Raw MemoryRepository methods are crate-private;
+//! SQLite and PostgreSQL adapters are exposed only as service backends. Durable
+//! activation remains bound to a verified reviewer approval and G11 receipt.
 
 use iroka_kernel::{SignedReviewerProof, VerifiedPrincipal};
 use serde::{Deserialize, Serialize};
@@ -880,7 +874,8 @@ pub trait GovernancePort {
 /// Repository contract for a G05-owned persistence adapter. Implementations
 /// MUST provide tenant-aware constraints, optimistic version checks, atomic
 /// state changes, idempotency, and deletion/resurrection controls. Content
-/// reads MUST only be invoked after GovernancePort::authorize succeeds.
+/// reads MUST only be invoked by G05ExecutionService after fresh G01/G02/G09
+/// authorization and a metadata-first scope check.
 pub(crate) trait MemoryRepository: Send + Sync {
     /// Atomically persist the record and enqueue its content-free G11 event.
     fn insert_with_audit(
