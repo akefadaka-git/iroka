@@ -72,6 +72,27 @@ impl<V: G02PolicySnapshotVerifier> PostgresG09PolicyResolver<V> {
         })
     }
 
+    /// Test-only connection for the PostgreSQL service container. Production
+    /// callers must use the verify-full TLS constructor above.
+    #[cfg(test)]
+    pub(crate) fn connect_for_test(
+        connection_string: &str,
+        policy_id: impl Into<String>,
+        verifier: Arc<V>,
+    ) -> Result<Self, G05Error> {
+        let policy_id = policy_id.into();
+        if policy_id.trim().is_empty() || policy_id.len() > 128 {
+            return Err(G05Error::RepositoryUnavailable);
+        }
+        let client = Client::connect(connection_string, postgres::NoTls)
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        Ok(Self {
+            client: Arc::new(Mutex::new(client)),
+            policy_id,
+            verifier,
+        })
+    }
+
     /// Fail readiness unless all required G02 authority tables exist.
     pub fn verify_schema(&self) -> Result<(), G05Error> {
         let mut client = self

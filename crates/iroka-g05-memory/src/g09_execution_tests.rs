@@ -153,6 +153,7 @@ struct Fixture {
     token: String,
     tenant: TenantContext,
     request: AuthorizationRequest,
+    principal: VerifiedPrincipal,
     now: Arc<AtomicU64>,
     authority: Arc<Mutex<AuthorityState>>,
 }
@@ -271,6 +272,7 @@ fn fixture(state: AuthorityState, guard_acquired: Option<Sender<()>>) -> Fixture
         token,
         tenant,
         request,
+        principal,
         now: now_ref,
         authority,
     }
