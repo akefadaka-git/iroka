@@ -373,7 +373,7 @@ fn g09_execution_audit_event(
 ) -> AuditEvent {
     let resource = request.memory_id.as_deref().unwrap_or("tenant-scope");
     let binding = format!(
-        "execution_id={}\\nsubject={}\\ntenant={}\\ncapability={}\\nresource={}\\nmembership_version={}\\ncorrelation={}",
+        "execution_id={}\\nsubject={}\\ntenant={}\\ncapability={}\\nresource={}\\nmembership_version={}\\npolicy_version={}\\npolicy_digest={}\\ncorrelation={}",
         execution_id,
         principal.subject(),
         tenant.tenant_id(),
