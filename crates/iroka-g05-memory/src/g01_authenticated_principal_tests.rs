@@ -500,10 +500,7 @@ struct ExactG05RequestAuthorizer {
     reviewer: String,
 }
 impl crate::G02RequestAuthorizer for ExactG05RequestAuthorizer {
-    fn authorize(
-        &self,
-        request: &crate::AuthorizationRequest,
-    ) -> Result<(), crate::G05Error> {
+    fn authorize(&self, request: &crate::AuthorizationRequest) -> Result<(), crate::G05Error> {
         if request.operation == crate::Operation::ActivateDurable
             && request.principal_ref == self.reviewer
             && request.tenant_ref == "tenant:alpha"
