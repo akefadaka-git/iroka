@@ -663,3 +663,110 @@ fn revocation_racing_execution_waits_until_guarded_effect_and_receipts_finish() 
     assert!(f.authority.lock().unwrap().policy_revoked);
     assert_eq!(g11.events.lock().unwrap().len(), 2);
 }
+
+fn service_record_and_event(correlation: &str) -> (MemoryRecord, AuditEvent) {
+    let content = "guarded G05 test content".to_owned();
+    let digest = sha256_hex(content.as_bytes());
+    let record = MemoryRecord {
+        candidate: MemoryCandidate {
+            schema_id: RECORD_SCHEMA_ID.into(),
+            contract_version: CONTRACT_VERSION.into(),
+            memory_id: "memory:service-test".into(),
+            tenant_ref: "tenant:alpha".into(),
+            subject_ref: "principal:alice".into(),
+            actor_ref: "principal:alice".into(),
+            memory_class: MemoryClass::Working,
+            content,
+            content_sha256: digest.clone(),
+            purpose: Purpose::ProjectContext,
+            classification: Classification::Internal,
+            provenance: Provenance {
+                kind: ProvenanceKind::UserExplicit,
+                source_refs: vec![],
+                source_revision_refs: vec![],
+                derived_from: vec![],
+                recorded_by_ref: "principal:alice".into(),
+                recorded_at: 1_200,
+            },
+            confidence_milli: None,
+            created_at: 1_200,
+            expires_at: Some(4_000),
+            retention_policy_ref: "retention:working".into(),
+            episodic_opt_in_ref: None,
+            record_version: 1,
+        },
+        lifecycle_state: LifecycleState::Active,
+        approval_ref: None,
+        approved_by_ref: None,
+        approved_at: None,
+        updated_at: 1_200,
+    };
+    let event = AuditEvent {
+        event_id: format!("g05:service:create:{correlation}"),
+        event_type: "g05.memory.working.created".into(),
+        memory_id: record.candidate.memory_id.clone(),
+        tenant_ref: record.candidate.tenant_ref.clone(),
+        actor_ref: record.candidate.actor_ref.clone(),
+        purpose: record.candidate.purpose,
+        record_version: record.candidate.record_version,
+        outcome: "created".into(),
+        correlation_ref: correlation.into(),
+        occurred_at: 1_200,
+        content_sha256: digest,
+    };
+    (record, event)
+}
+
+#[test]
+fn mandatory_service_routes_sqlite_insert_metadata_and_content_reads() {
+    let f = fixture(initial_state(), None);
+    let repository = SqliteMemoryRepository::open_in_memory().unwrap();
+    let service = G05ExecutionService::new_sqlite(
+        f.service,
+        repository,
+        TestG11::default(),
+        SqliteG05AuthorityRegistry::open_in_memory().unwrap(),
+    );
+    let (record, event) = service_record_and_event("correlation:service-insert");
+    let mut create = f.request.clone();
+    create.operation = Operation::CreateWorking;
+    create.correlation_ref = "correlation:service-insert".into();
+    service.insert_record(&f.token, &f.tenant, create, record, event).unwrap();
+
+    let mut metadata_request = f.request.clone();
+    metadata_request.operation = Operation::InspectMetadata;
+    metadata_request.correlation_ref = "correlation:service-metadata".into();
+    let metadata = service.read_metadata(&f.token, &f.tenant, metadata_request).unwrap().unwrap();
+    assert_eq!(metadata.memory_id, "memory:service-test");
+    assert_eq!(metadata.record_version, 1);
+
+    let mut read_request = f.request.clone();
+    read_request.memory_id = Some("memory:service-test".into());
+    read_request.correlation_ref = "correlation:service-read".into();
+    let record = service.read_content(&f.token, &f.tenant, read_request).unwrap().unwrap();
+    assert_eq!(record.candidate.content, "guarded G05 test content");
+}
+
+#[test]
+fn mandatory_service_rejects_unauthorized_scope_before_repository_mutation() {
+    let f = fixture(initial_state(), None);
+    let repository = SqliteMemoryRepository::open_in_memory().unwrap();
+    let inspect = repository.clone();
+    let service = G05ExecutionService::new_sqlite(
+        f.service,
+        repository,
+        TestG11::default(),
+        SqliteG05AuthorityRegistry::open_in_memory().unwrap(),
+    );
+    let (record, event) = service_record_and_event("correlation:service-denied");
+    let mut request = f.request.clone();
+    request.operation = Operation::CreateWorking;
+    request.correlation_ref = "correlation:service-denied".into();
+    request.subject_ref = "principal:mallory".into();
+    assert_eq!(
+        service.insert_record(&f.token, &f.tenant, request, record, event),
+        Err(G05Error::ApprovalBindingMismatch)
+    );
+    assert!(MemoryRepository::get_metadata(&inspect, "memory:service-test").unwrap().is_none());
+}
+
