@@ -317,9 +317,6 @@ where
             return Err(G05Error::ApprovalBindingMismatch);
         }
         validate_record_binding(&request, &pending)?;
-        if pending.approved_by_ref.as_deref() != Some(request.principal_ref.as_str()) {
-            return Err(G05Error::ReviewerNotAuthorized);
-        }
         let memory_id = required_memory_id(&request)?;
         self.execute(compact_credential, tenant, request.clone(), || {
             let mut repository = self.repository
