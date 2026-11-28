@@ -7,7 +7,14 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::security_store::{ApprovalConsumptionError, ApprovalReceipt, RevocationTarget};
+use crate::protected_effect::{
+    OwnerEffectGrantPayload, ProtectedEffectRequest, SignedOwnerEffectGrant, VerifiedEffectGrant,
+    VerifiedExecutionReceipt,
+};
+use crate::security_store::{
+    ApprovalConsumptionError, ApprovalReceipt, RevocationTarget, SecurityCommandError,
+    SignedSecurityCommand,
+};
 use crate::RevocationChecker;
 use crate::{AuthorizationRequest, SecurityStoreError, SqliteSecurityStore};
 
@@ -57,7 +64,7 @@ impl OwnerApprovalPayload {
 
     /// Deterministic struct-field-order JSON used as the Ed25519 signing input.
     pub fn signing_bytes(&self) -> Result<Vec<u8>, OwnerApprovalError> {
-        serde_json::to_vec(self).map_err(|_| OwnerApprovalError::Malformed)
+        canonical_domain_bytes(self, OWNER_APPROVAL_DOMAIN)
     }
 }
 
@@ -148,7 +155,7 @@ pub struct OwnerSecurityCommandPayload {
 
 impl OwnerSecurityCommandPayload {
     pub fn signing_bytes(&self) -> Result<Vec<u8>, OwnerApprovalError> {
-        serde_json::to_vec(self).map_err(|_| OwnerApprovalError::Malformed)
+        canonical_domain_bytes(self, OWNER_SECURITY_COMMAND_DOMAIN)
     }
 }
 
@@ -168,6 +175,32 @@ impl SignedOwnerSecurityCommand {
 /// Owner authority is established only by explicitly provisioned public keys.
 /// There is no default Owner, self-registration, model-issued authority or
 /// automatic privilege inheritance. Private keys remain in an offline signer/HSM.
+const OWNER_APPROVAL_DOMAIN: &[u8] = b"IROKA:G02:OWNER-APPROVAL:V1\0";
+const OWNER_SECURITY_COMMAND_DOMAIN: &[u8] = b"IROKA:G02:OWNER-SECURITY-COMMAND:V1\0";
+
+fn parse_sha256_hex(value: &str) -> Result<[u8; 32], OwnerApprovalError> {
+    if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(OwnerApprovalError::Malformed);
+    }
+    let mut digest = [0_u8; 32];
+    for (index, chunk) in value.as_bytes().chunks_exact(2).enumerate() {
+        let text = std::str::from_utf8(chunk).map_err(|_| OwnerApprovalError::Malformed)?;
+        digest[index] = u8::from_str_radix(text, 16).map_err(|_| OwnerApprovalError::Malformed)?;
+    }
+    Ok(digest)
+}
+
+fn canonical_domain_bytes<T: Serialize>(
+    value: &T,
+    domain: &[u8],
+) -> Result<Vec<u8>, OwnerApprovalError> {
+    let value = serde_json::to_value(value).map_err(|_| OwnerApprovalError::Malformed)?;
+    let canonical = crate::canonical_json(&value).map_err(|_| OwnerApprovalError::Malformed)?;
+    let mut bytes = domain.to_vec();
+    bytes.extend_from_slice(&canonical);
+    Ok(bytes)
+}
+
 pub struct OwnerApprovalVerifier {
     keys: HashMap<String, OwnerKeyRecord>,
     store: Arc<SqliteSecurityStore>,
@@ -259,6 +292,7 @@ impl OwnerApprovalVerifier {
             || now >= owner_key.not_after
             || p.issued_at < owner_key.not_before
             || p.issued_at >= owner_key.not_after
+            || p.expires_at > owner_key.not_after
         {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
@@ -308,6 +342,147 @@ impl OwnerApprovalVerifier {
         Ok(())
     }
 
+    /// Verify and atomically consume an Owner grant bound to one exact protected effect.
+    pub fn verify_and_consume_effect_grant(
+        &self,
+        grant: &SignedOwnerEffectGrant,
+        effect: &ProtectedEffectRequest,
+        principal: &crate::VerifiedPrincipal,
+        genesis: &crate::igacms::VerifiedGenesis,
+        policy_version: &str,
+        now: u64,
+    ) -> Result<VerifiedEffectGrant, OwnerApprovalError> {
+        let p: &OwnerEffectGrantPayload = &grant.payload;
+        if p.nonce.trim().is_empty()
+            || p.nonce.len() > 256
+            || p.owner_subject.trim().is_empty()
+            || p.owner_subject.len() > 256
+            || p.key_id.trim().is_empty()
+            || p.key_id.len() > 256
+            || p.request_subject.trim().is_empty()
+            || p.request_subject.len() > 256
+            || p.executor_subject.trim().is_empty()
+            || p.executor_subject.len() > 256
+            || p.capability.trim().is_empty()
+            || p.capability.len() > 256
+            || p.resource.trim().is_empty()
+            || p.resource.len() > 256
+            || p.effect_type.trim().is_empty()
+            || p.effect_type.len() > 256
+            || p.risk_class.trim().is_empty()
+            || p.risk_class.len() > 16
+            || p.policy_version.trim().is_empty()
+            || p.policy_version.len() > 128
+            || p.issued_at >= p.expires_at
+            || p.operation_digest == [0; 32]
+            || p.genome_digest == [0; 32]
+        {
+            return Err(OwnerApprovalError::Malformed);
+        }
+        if p.issued_at > now.saturating_add(CLOCK_SKEW_SECS) {
+            return Err(OwnerApprovalError::NotYetValid);
+        }
+        if p.expires_at <= now {
+            return Err(OwnerApprovalError::Expired);
+        }
+        if p.expires_at - p.issued_at > 300 {
+            return Err(OwnerApprovalError::Malformed);
+        }
+        let genome_digest = parse_sha256_hex(genesis.digest())?;
+        let expected_operation_digest = effect
+            .operation_digest(principal, policy_version, genesis.digest())
+            .map_err(|_| OwnerApprovalError::Malformed)?;
+        if p.request_subject != principal.subject()
+            || p.executor_subject != effect.executor_subject()
+            || p.capability != effect.capability()
+            || p.resource != effect.resource()
+            || p.effect_type != effect.effect_type()
+            || p.risk_class != effect.risk_class()
+            || p.policy_version != policy_version
+            || p.genome_digest != genome_digest
+            || p.operation_digest != expected_operation_digest
+        {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        let owner_key = self
+            .keys
+            .get(&p.key_id)
+            .ok_or(OwnerApprovalError::UnknownOwnerKey)?;
+        if p.owner_subject != owner_key.owner_subject {
+            return Err(OwnerApprovalError::ScopeMismatch);
+        }
+        if now < owner_key.not_before
+            || now >= owner_key.not_after
+            || p.issued_at < owner_key.not_before
+            || p.issued_at >= owner_key.not_after
+            || p.expires_at > owner_key.not_after
+        {
+            return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
+        }
+        if self
+            .store
+            .key_revoked(OWNER_ISSUER, &p.key_id)
+            .map_err(|_| OwnerApprovalError::StoreUnavailable)?
+            || self.store.approval_is_revoked(&p.nonce)?
+        {
+            return Err(OwnerApprovalError::Revoked);
+        }
+        let signing_bytes = p
+            .signing_bytes()
+            .map_err(|_| OwnerApprovalError::Malformed)?;
+        let signature =
+            Signature::from_slice(&grant.signature).map_err(|_| OwnerApprovalError::Malformed)?;
+        owner_key
+            .verifying_key
+            .verify(&signing_bytes, &signature)
+            .map_err(|_| OwnerApprovalError::InvalidSignature)?;
+        let consumed = self
+            .store
+            .consume_approval(ApprovalReceipt {
+                approval_id: &p.nonce,
+                payload_digest: p.operation_digest.as_slice(),
+                owner_subject: &p.owner_subject,
+                signer_issuer: OWNER_ISSUER,
+                signer_key_id: &p.key_id,
+                request_subject: &p.request_subject,
+                capability: &p.capability,
+                resource: &p.resource,
+                policy_version: &p.policy_version,
+                issued_at: p.issued_at,
+                expires_at: p.expires_at,
+                consumed_at: now,
+            })
+            .map_err(|error| match error {
+                ApprovalConsumptionError::SigningKeyRevoked
+                | ApprovalConsumptionError::ApprovalRevoked => OwnerApprovalError::Revoked,
+                ApprovalConsumptionError::Store(store_error) => store_error.into(),
+            })?;
+        if !consumed {
+            return Err(OwnerApprovalError::Replay);
+        }
+        Ok(VerifiedEffectGrant::from_payload(p))
+    }
+
+    pub(crate) fn record_execution_receipt(
+        &self,
+        receipt: &VerifiedExecutionReceipt,
+        now: u64,
+    ) -> Result<(), OwnerApprovalError> {
+        self.store
+            .record_execution_receipt(receipt, now)
+            .map_err(Into::into)
+    }
+
+    #[cfg(test)]
+    pub fn latest_execution_receipt_bytes(
+        &self,
+        nonce: &str,
+    ) -> Result<Option<Vec<u8>>, OwnerApprovalError> {
+        self.store
+            .latest_execution_receipt_bytes(nonce)
+            .map_err(Into::into)
+    }
+
     /// Apply an Owner-signed, replay-protected revocation command. The command
     /// record and revocation effect commit in one SQLite transaction.
     pub fn apply_security_command(
@@ -343,6 +518,7 @@ impl OwnerApprovalVerifier {
             || now >= owner_key.not_after
             || p.issued_at < owner_key.not_before
             || p.issued_at >= owner_key.not_after
+            || p.expires_at > owner_key.not_after
         {
             return Err(OwnerApprovalError::OwnerKeyOutsideValidity);
         }
@@ -407,14 +583,21 @@ impl OwnerApprovalVerifier {
                 }
             }
         };
-        let applied = self.store.apply_signed_revocation(
-            &p.command_id,
-            &p.owner_subject,
-            &p.key_id,
-            digest.as_slice(),
-            now,
-            target,
-        )?;
+        let applied = self
+            .store
+            .apply_signed_revocation(SignedSecurityCommand {
+                command_id: &p.command_id,
+                owner_subject: &p.owner_subject,
+                signer_issuer: OWNER_ISSUER,
+                signer_key_id: &p.key_id,
+                digest: digest.as_slice(),
+                at: now,
+                target,
+            })
+            .map_err(|error| match error {
+                SecurityCommandError::SigningKeyRevoked => OwnerApprovalError::Revoked,
+                SecurityCommandError::Store(store_error) => store_error.into(),
+            })?;
         if applied {
             Ok(())
         } else {
@@ -469,6 +652,37 @@ mod tests {
             .to_bytes()
             .to_vec();
         SignedOwnerApproval::from_signature(payload, signature)
+    }
+
+    #[test]
+    fn owner_signatures_use_canonical_domain_separated_payloads() {
+        let approval = OwnerApprovalPayload::new(
+            "approval:canonical",
+            "owner:test",
+            "owner-key:test",
+            "principal:test",
+            "records.export",
+            "records:1",
+            "policy:v1",
+            1_000,
+            1_200,
+        );
+        let command = OwnerSecurityCommandPayload {
+            command_id: "command:canonical".into(),
+            owner_subject: "owner:test".into(),
+            key_id: "owner-key:test".into(),
+            issued_at: 1_000,
+            expires_at: 1_200,
+            action: OwnerSecurityAction::RevokeApproval {
+                approval_id: "approval:old".into(),
+                reason: "test".into(),
+            },
+        };
+        let approval_bytes = approval.signing_bytes().unwrap();
+        let command_bytes = command.signing_bytes().unwrap();
+        assert!(approval_bytes.starts_with(OWNER_APPROVAL_DOMAIN));
+        assert!(command_bytes.starts_with(OWNER_SECURITY_COMMAND_DOMAIN));
+        assert_ne!(approval_bytes, command_bytes);
     }
 
     #[test]
@@ -568,5 +782,43 @@ mod tests {
             Err(OwnerApprovalError::Replay)
         );
         assert_eq!(verifier.store.security_command_count(), Ok(1));
+    }
+    #[test]
+    fn security_command_rejects_owner_key_revoked_before_application() {
+        let (signer, verifier, _request) = fixture();
+        verifier
+            .store
+            .revoke_key(OWNER_ISSUER, "owner-key-01", 1_150, "key compromise")
+            .unwrap();
+
+        let payload = OwnerSecurityCommandPayload {
+            command_id: "command:revoked-owner-key".into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-01".into(),
+            issued_at: 1_100,
+            expires_at: 1_500,
+            action: OwnerSecurityAction::RevokeCredential {
+                issuer: "issuer:service".into(),
+                credential_id: "credential:must-not-revoke".into(),
+                reason: "test".into(),
+            },
+        };
+        let signature = signer
+            .sign(&payload.signing_bytes().unwrap())
+            .to_bytes()
+            .to_vec();
+        let command = SignedOwnerSecurityCommand::from_signature(payload, signature);
+
+        assert_eq!(
+            verifier.apply_security_command(&command, 1_200),
+            Err(OwnerApprovalError::Revoked)
+        );
+        assert_eq!(verifier.store.security_command_count(), Ok(0));
+        assert_eq!(
+            verifier
+                .store
+                .credential_revoked("issuer:service", "credential:must-not-revoke"),
+            Ok(false)
+        );
     }
 }
