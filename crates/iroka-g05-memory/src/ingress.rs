@@ -41,7 +41,7 @@ pub trait G09PolicyResolver: Send + Sync {
         tenant: &TenantContext,
         request: &AuthorizationRequest,
         now: u64,
-        effect: impl FnOnce() -> Result<T, G05Error>,
+        effect: impl FnOnce(&G02PolicySnapshot) -> Result<T, G05Error>,
     ) -> Result<T, G05Error> {
         let _ = (principal, tenant, request, now, effect);
         Err(G05Error::AuthorityUnavailable)
@@ -319,11 +319,12 @@ where
                     &current,
                     tenant,
                     &context.request,
+                    snapshot,
                     now,
                 );
                 g11.append_memory_event(&intent)
                     .map_err(|_| G05Error::AuditUnavailable)?;
-                let outcome = effect();
+                let outcome = effect(snapshot);
                 let outcome_name = if outcome.is_ok() {
                     "completed"
                 } else {
@@ -336,6 +337,7 @@ where
                     &current,
                     tenant,
                     &context.request,
+                    snapshot,
                     finished_at,
                 );
                 g11.append_memory_event(&receipt)
@@ -366,6 +368,7 @@ fn g09_execution_audit_event(
     principal: &VerifiedPrincipal,
     tenant: &TenantContext,
     request: &AuthorizationRequest,
+    snapshot: &G02PolicySnapshot,
     occurred_at: u64,
 ) -> AuditEvent {
     let resource = request.memory_id.as_deref().unwrap_or("tenant-scope");
@@ -377,6 +380,8 @@ fn g09_execution_audit_event(
         capability_for(request.operation),
         resource,
         tenant.membership_version(),
+        snapshot.policy_version,
+        snapshot.payload_sha256,
         request.correlation_ref
     );
     let idempotency_key = crate::sha256_hex(
@@ -391,7 +396,12 @@ fn g09_execution_audit_event(
     let phase = if outcome == "authorized" { "intent" } else { "outcome" };
     AuditEvent {
         event_id: format!("g09:execution:{idempotency_key}:{phase}"),
-        event_type: format!("g09.execution.{outcome}"),
+        event_type: format!(
+            "g09.execution.{outcome}.{}.{}.{}",
+            capability_for(request.operation),
+            snapshot.policy_version,
+            snapshot.payload_sha256
+        ),
         memory_id: resource.to_owned(),
         tenant_ref: tenant.tenant_id().to_owned(),
         actor_ref: principal.subject().to_owned(),

@@ -257,7 +257,7 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         tenant: &TenantContext,
         request: &AuthorizationRequest,
         now: u64,
-        effect: impl FnOnce() -> Result<T, G05Error>,
+        effect: impl FnOnce(&G02PolicySnapshot) -> Result<T, G05Error>,
     ) -> Result<T, G05Error> {
         if request.principal_ref != principal.subject()
             || tenant.subject() != principal.subject()
@@ -394,7 +394,7 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         if evaluate(&kernel_request, &policy, emergency_active).code() != DecisionCode::Allow {
             return Err(G05Error::AuthorizationDenied);
         }
-        let result = effect();
+        let result = effect(&snapshot);
         tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
         result
     }

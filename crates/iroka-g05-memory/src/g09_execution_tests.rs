@@ -74,7 +74,7 @@ impl G09ExecutionRevalidator for TestG09 {
         tenant: &TenantContext,
         request: &AuthorizationRequest,
         now: u64,
-        effect: impl FnOnce() -> Result<T, G05Error>,
+        effect: impl FnOnce(&G02PolicySnapshot) -> Result<T, G05Error>,
     ) -> Result<T, G05Error> {
         let state = self
             .state
@@ -97,7 +97,20 @@ impl G09ExecutionRevalidator for TestG09 {
         if let Some(tx) = &self.guard_acquired {
             let _ = tx.send(());
         }
-        effect()
+        let snapshot = G02PolicySnapshot {
+            policy_id: "test-policy".into(),
+            epoch: 1,
+            policy_version: "policy-v1".into(),
+            owner_subject: "owner:test".into(),
+            signer_issuer: "issuer:owner".into(),
+            signer_key_id: "owner-key".into(),
+            issued_at: 1_000,
+            expires_at: 8_000,
+            canonical_payload: b"test-policy".to_vec(),
+            payload_sha256: "a".repeat(64),
+            signature: vec![7; 64],
+        };
+        effect(&snapshot)
     }
 }
 #[derive(Default)]
