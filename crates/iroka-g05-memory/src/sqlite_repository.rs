@@ -307,7 +307,7 @@ impl MemoryRepository for SqliteMemoryRepository {
         &self,
         memory_id: &str,
     ) -> Result<Option<(MemoryMetadata, MemoryRecord)>, G05Error> {
-        let mut connection = self
+        let connection = self
             .connection
             .lock()
             .map_err(|_| G05Error::RepositoryUnavailable)?;
