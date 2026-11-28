@@ -1,8 +1,6 @@
 //! Root-verified G02 Owner-key registry and transactional signed-command processor.
 //! Root public keys are pinned out-of-band. No private key material is accepted.
-use crate::{
-    G02PolicySnapshot, G02PolicySnapshotVerifier, G05Error, PostgresG09PolicyResolver,
-};
+use crate::{G02PolicySnapshot, G02PolicySnapshotVerifier, G05Error, PostgresG09PolicyResolver};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use iroka_kernel::{Policy, RiskLevel, TrustRoot};
 use native_tls::TlsConnector;
