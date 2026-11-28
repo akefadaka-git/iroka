@@ -9,7 +9,7 @@ use postgres_native_tls::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 const REGISTRY_DOMAIN: &[u8] = b"IROKA-G02-OWNER-REGISTRY-v1\0";
 const COMMAND_DOMAIN: &[u8] = b"IROKA-G02-OWNER-COMMAND-v1\0";
@@ -525,6 +525,19 @@ impl PostgresG02PolicySnapshotVerifier {
         Ok(Self {
             client: Mutex::new(client),
         })
+    }
+}
+
+impl PostgresG09PolicyResolver<PostgresG02PolicySnapshotVerifier> {
+    /// Production composition: both connections use verified TLS and the
+    /// concrete G02 Owner-registry/policy-signature verifier.
+    pub fn connect_authoritative(
+        connection_string: &str,
+        policy_id: impl Into<String>,
+    ) -> Result<Self, G05Error> {
+        let verifier = PostgresG02PolicySnapshotVerifier::connect(connection_string)
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        Self::connect(connection_string, policy_id, Arc::new(verifier))
     }
 }
 
