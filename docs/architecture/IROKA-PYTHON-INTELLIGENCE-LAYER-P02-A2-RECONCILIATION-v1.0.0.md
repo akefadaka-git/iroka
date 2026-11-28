@@ -370,3 +370,9 @@ G08 caller-time request visibility is now narrowed, but exact-head CI is pending
 ### 13.6 G08 exact-head verification completed
 
 Run #46168287956 completed SUCCESS on exact SHA `ab067f988c0b69944aa1eac5b289ec10e69bef63`. The job passed formatting, all-target compilation, the no-default-features production build check, complete workspace tests, and Clippy with warnings denied. The complete suite reported 111 kernel unit tests and 2 authorization conformance tests passed, with zero failures. The previously failing `replay_guard_subprocess_race_restart_and_revocation` test passed on this exact SHA. This validates the narrowed caller-time API boundary and resolves the immediate G08 exact-head verification gate; the original run's precise OS-level `Unavailable` cause remains unproven.
+
+
+### 13.7 G05 trusted-time provenance finding
+
+Exact-current-head static source review of `b27816c1c3b172c0a7503d6602cddeaa6008c6cb` found raw `u64` time values at the G05 domain boundary: `AccessContext.now`; the `now` parameters to metadata retrieval authorization, durable-activation preflight/preparation and episodic-capture authorization; `KernelG02AuthorizationAdapter::new(now, ...)`; and `SqliteG05AuthorityRegistry::drain_g11_outbox(now, ...)`. These are not Python APIs by authorization, but the types do not prove that the values were sourced from the Rust kernel's `TrustedClock`. This leaves an integration provenance requirement open: only the kernel composition root may obtain and supply current time; Python must not construct or override it. Prefer a trusted-time wrapper or clock-injected kernel adapter and add stale/future/rollback regressions before this is accepted as a production Python dependency. This finding is in addition to, not a substitute for, the missing exact-head executable verification.
+
