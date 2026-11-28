@@ -90,7 +90,7 @@ impl<P: G09PolicyResolver> G09ExecutionRevalidator for KernelG09ExecutionRevalid
         tenant: &TenantContext,
         request: &AuthorizationRequest,
         now: u64,
-        effect: impl FnOnce() -> Result<T, G05Error>,
+        effect: impl FnOnce(&G02PolicySnapshot) -> Result<T, G05Error>,
     ) -> Result<T, G05Error> {
         self.policies
             .with_execution_authority(principal, tenant, request, now, effect)
