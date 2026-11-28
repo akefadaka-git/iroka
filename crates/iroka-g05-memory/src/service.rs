@@ -239,9 +239,9 @@ where
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?;
             let metadata = repository.get_metadata(&memory_id)?;
-            metadata
-                .map(|m| validate_metadata_binding(&request, &m))
-                .transpose()?;
+            if let Some(metadata) = metadata.as_ref() {
+                validate_metadata_binding(&request, metadata)?;
+            }
             Ok(metadata)
         })
     }
