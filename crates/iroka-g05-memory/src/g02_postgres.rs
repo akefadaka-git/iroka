@@ -202,7 +202,12 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
             "SELECT 1 FROM g02_owner_keys
              WHERE registry_version=$1 AND owner_subject=$2 AND issuer=$3 AND key_id=$4
              FOR SHARE",
-            &[&pre_registry_version, &pre_owner_subject, &pre_signer_issuer, &pre_signer_key_id],
+            &[
+                &pre_registry_version,
+                &pre_owner_subject,
+                &pre_signer_issuer,
+                &pre_signer_key_id,
+            ],
         )
         .map_err(|_| G05Error::AuthorityUnavailable)?
         .ok_or(G05Error::AuthorizationDenied)?;
