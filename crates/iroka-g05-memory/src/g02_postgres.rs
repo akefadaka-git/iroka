@@ -321,6 +321,16 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         .map_err(|_| G05Error::AuthorityUnavailable)?
         .ok_or(G05Error::AuthorizationDenied)?;
 
+        // G02 emergency-stop commands lock this singleton row before updating it.
+        // Acquire the same row lock before table SHARE locks to avoid a
+        // row-lock/table-lock cycle with a concurrent emergency-stop transition.
+        tx.query_opt(
+            "SELECT version FROM g02_emergency_stop WHERE singleton=TRUE FOR SHARE",
+            &[],
+        )
+        .map_err(|_| G05Error::AuthorityUnavailable)?
+        .ok_or(G05Error::AuthorityUnavailable)?;
+
         // If any G02 command was already mutating state, this waits for it to
         // commit. Re-read below and deny if the policy/registry changed meanwhile.
         tx.batch_execute(
