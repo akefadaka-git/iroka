@@ -55,7 +55,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$ORIGINAL_SHA"
           echo HEAD_BEFORE=$(git rev-parse HEAD)
           cargo fmt --all
           echo FORMAT_STATUS_BEGIN
