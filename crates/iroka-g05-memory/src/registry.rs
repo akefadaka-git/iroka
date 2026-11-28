@@ -94,7 +94,7 @@ impl SqliteG05AuthorityRegistry {
     /// Store only G05-owned episodic opt-in. This API cannot create or alter
     /// organization roles, reviewer designations or delegations.
     #[allow(clippy::too_many_arguments)]
-    pub fn grant_episodic_consent(
+    pub(crate) fn grant_episodic_consent(
         &self,
         consent_ref: &str,
         tenant_ref: &str,
@@ -145,7 +145,7 @@ impl SqliteG05AuthorityRegistry {
         Ok(())
     }
 
-    pub fn revoke_episodic_consent(
+    pub(crate) fn revoke_episodic_consent(
         &self,
         consent_ref: &str,
         tenant_ref: &str,
