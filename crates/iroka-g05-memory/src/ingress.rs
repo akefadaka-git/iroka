@@ -384,6 +384,7 @@ fn g09_execution_audit_event(
         tenant.tenant_id(),
         capability_for(request.operation),
         resource,
+        request.recipient_refs.join("\\0"),
         tenant.membership_version(),
         snapshot.policy_version,
         snapshot.payload_sha256,
