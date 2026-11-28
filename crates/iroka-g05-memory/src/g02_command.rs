@@ -1,15 +1,15 @@
 //! Root-verified G02 Owner-key registry and transactional signed-command processor.
 //! Root public keys are pinned out-of-band. No private key material is accepted.
+use crate::{G02PolicySnapshot, G02PolicySnapshotVerifier, G05Error};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use iroka_kernel::{Policy, RiskLevel, TrustRoot};
-use crate::{G02PolicySnapshot, G02PolicySnapshotVerifier, G05Error};
 use native_tls::TlsConnector;
 use postgres::Client;
-use std::sync::Mutex;
 use postgres_native_tls::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::sync::Mutex;
 
 const REGISTRY_DOMAIN: &[u8] = b"IROKA-G02-OWNER-REGISTRY-v1\0";
 const COMMAND_DOMAIN: &[u8] = b"IROKA-G02-OWNER-COMMAND-v1\0";
@@ -509,11 +509,7 @@ impl PostgresG02PolicySnapshotVerifier {
 }
 
 impl G02PolicySnapshotVerifier for PostgresG02PolicySnapshotVerifier {
-    fn verify_snapshot(
-        &self,
-        snapshot: &G02PolicySnapshot,
-        now: u64,
-    ) -> Result<Policy, G05Error> {
+    fn verify_snapshot(&self, snapshot: &G02PolicySnapshot, now: u64) -> Result<Policy, G05Error> {
         if snapshot.policy_id.trim().is_empty()
             || snapshot.epoch == 0
             || snapshot.owner_subject.trim().is_empty()
@@ -530,26 +526,30 @@ impl G02PolicySnapshotVerifier for PostgresG02PolicySnapshotVerifier {
             return Err(G05Error::AuthorizationDenied);
         }
 
-        let payload: CanonicalPolicyPayload =
-            serde_json::from_slice(&snapshot.canonical_payload)
-                .map_err(|_| G05Error::AuthorizationDenied)?;
-        let canonical =
-            serde_jcs::to_vec(&payload).map_err(|_| G05Error::AuthorizationDenied)?;
+        let payload: CanonicalPolicyPayload = serde_json::from_slice(&snapshot.canonical_payload)
+            .map_err(|_| G05Error::AuthorizationDenied)?;
+        let canonical = serde_jcs::to_vec(&payload).map_err(|_| G05Error::AuthorizationDenied)?;
         if canonical != snapshot.canonical_payload
             || payload.version != snapshot.policy_version
             || payload.version.trim().is_empty()
             || payload.version.len() > 128
-            || payload.allowed_capabilities.iter().any(|v| {
-                v.trim().is_empty() || v.len() > 128
-            })
-            || payload.approval_required.iter().any(|v| {
-                v.trim().is_empty() || v.len() > 128
-            })
-            || payload.allowed_capabilities.windows(2).any(|w| w[0] >= w[1])
+            || payload
+                .allowed_capabilities
+                .iter()
+                .any(|v| v.trim().is_empty() || v.len() > 128)
+            || payload
+                .approval_required
+                .iter()
+                .any(|v| v.trim().is_empty() || v.len() > 128)
+            || payload
+                .allowed_capabilities
+                .windows(2)
+                .any(|w| w[0] >= w[1])
             || payload.approval_required.windows(2).any(|w| w[0] >= w[1])
-            || payload.approval_required.iter().any(|capability| {
-                !payload.allowed_capabilities.contains(capability)
-            })
+            || payload
+                .approval_required
+                .iter()
+                .any(|capability| !payload.allowed_capabilities.contains(capability))
         {
             return Err(G05Error::AuthorizationDenied);
         }
