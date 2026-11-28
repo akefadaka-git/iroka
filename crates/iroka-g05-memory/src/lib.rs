@@ -56,7 +56,7 @@ pub use ingress::{
 };
 
 mod service;
-pub use service::G05ExecutionService;
+pub use service::{G05ExecutionService, G05ShareExecutor};
 
 pub const CONTRACT_ID: &str = "IROKA-G05-MEM-001";
 pub const CONTRACT_VERSION: &str = "1.0.0";
