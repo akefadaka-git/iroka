@@ -9,14 +9,14 @@ use iroka_kernel::{
     TrustBundlePayload, TrustRoot, TrustedKey, TrustedOwnerKey, VerifiedPrincipal,
     VerifiedReviewerProof,
 };
+use postgres::{Client, NoTls};
+use sha2::{Digest, Sha256};
 use std::sync::mpsc::{self, Sender};
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Mutex,
 };
 use std::thread;
-use postgres::{Client, NoTls};
-use sha2::{Digest, Sha256};
 
 #[derive(Clone, Copy)]
 struct NoRevocations;
@@ -456,11 +456,7 @@ fn postgres_g09_guard_serializes_policy_and_owner_key_revocations_after_effect()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let database_name = format!(
-        "iroka_g09_{}_{}",
-        std::process::id(),
-        nonce % 1_000_000_000
-    );
+    let database_name = format!("iroka_g09_{}_{}", std::process::id(), nonce % 1_000_000_000);
     let base_url = database_url.split('?').next().unwrap();
     let authority = base_url.rsplit_once('/').unwrap().0;
     let admin_url = format!("{authority}/postgres?sslmode=disable");
@@ -486,13 +482,19 @@ fn postgres_g09_guard_serializes_policy_and_owner_key_revocations_after_effect()
     {
         let mut setup = Client::connect(&test_url, NoTls).unwrap();
         setup
-            .batch_execute(include_str!("../migrations/postgres/0001_shared_g05_g11.sql"))
+            .batch_execute(include_str!(
+                "../migrations/postgres/0001_shared_g05_g11.sql"
+            ))
             .unwrap();
         setup
-            .batch_execute(include_str!("../migrations/postgres/0002_g02_authority.sql"))
+            .batch_execute(include_str!(
+                "../migrations/postgres/0002_g02_authority.sql"
+            ))
             .unwrap();
         setup
-            .batch_execute(include_str!("../migrations/postgres/0003_g02_owner_key_registry.sql"))
+            .batch_execute(include_str!(
+                "../migrations/postgres/0003_g02_owner_key_registry.sql"
+            ))
             .unwrap();
         setup
             .execute(
@@ -599,19 +601,14 @@ fn postgres_g09_guard_serializes_policy_and_owner_key_revocations_after_effect()
     });
 
     let effect_ran = AtomicBool::new(false);
-    let result = resolver.with_execution_authority(
-        &f.principal,
-        &f.tenant,
-        &f.request,
-        1_200,
-        |snapshot| {
+    let result =
+        resolver.with_execution_authority(&f.principal, &f.tenant, &f.request, 1_200, |snapshot| {
             assert_eq!(snapshot.policy_version, "policy-v1");
             guard_tx.send(()).unwrap();
             attempt_rx.recv().unwrap();
             effect_ran.store(true, Ordering::SeqCst);
             Ok(())
-        },
-    );
+        });
     assert!(result.is_ok());
     revoker.join().unwrap();
     assert!(effect_ran.load(Ordering::SeqCst));
