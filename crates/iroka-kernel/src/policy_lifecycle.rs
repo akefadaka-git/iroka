@@ -586,4 +586,63 @@ mod tests {
         assert_eq!(p.validate(1_200), Err(PolicyLifecycleError::Malformed));
         let _ = verifier;
     }
+
+    #[test]
+    fn owner_key_revocation_after_g11_receipt_prevents_policy_activation() {
+        let (signer, verifier, store, audit) = fixture();
+        let signed = signed(&signer, 1, false);
+        let verified = verifier.verify_policy_snapshot(&signed, 1_200).unwrap();
+        let previous_epoch = store
+            .stage_policy_snapshot(
+                verified.epoch(),
+                &verified.digest,
+                &verified.canonical_payload,
+                &verified.signature,
+                &verified.payload.owner_subject,
+                &verified.payload.key_id,
+                verified.version(),
+                verified.payload.issued_at,
+                verified.payload.expires_at,
+                verified.payload.emergency_stop_active,
+            )
+            .unwrap();
+        let digest_hex = verified.digest.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let event_id = format!("g02-policy-activate:{}:{digest_hex}", verified.epoch());
+        let event = AuditEvent::new(
+            event_id.clone(),
+            event_id,
+            &verified.payload.owner_subject,
+            "g02.policy.activate",
+            format!(
+                "policy-epoch:{}:digest:{}:key:{}:previous:{}",
+                verified.epoch(),
+                digest_hex,
+                verified.payload.key_id,
+                previous_epoch.map_or_else(|| "none".to_owned(), |value| value.to_string())
+            ),
+            verified.version(),
+            DecisionCode::Allow,
+            verified.payload.issued_at,
+        );
+        audit.append_event_idempotent(&event).unwrap();
+        assert_eq!(audit.head().unwrap().0, 1);
+
+        store
+            .revoke_key(
+                "iroka:owner-authority",
+                &verified.payload.key_id,
+                1_201,
+                "revoked between G11 receipt and activation",
+            )
+            .unwrap();
+        assert_eq!(
+            store.activate_policy_snapshot(verified.epoch(), &verified.digest, 1_202),
+            Err(crate::SecurityStoreError::Revoked)
+        );
+        assert_eq!(
+            PolicyActivationCoordinator::load_active(&verifier, 1_203).unwrap_err(),
+            PolicyLifecycleError::Inactive
+        );
+        assert_eq!(audit.head().unwrap().0, 1);
+    }
 }

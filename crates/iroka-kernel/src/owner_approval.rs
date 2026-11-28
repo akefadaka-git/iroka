@@ -763,4 +763,99 @@ mod tests {
         );
         assert_eq!(verifier.store.security_command_count(), Ok(1));
     }
+
+    #[test]
+    fn owner_key_revocation_racing_membership_command_is_serializable() {
+        use std::{fs, sync::Barrier, thread, time::{SystemTime, UNIX_EPOCH}};
+
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "iroka-owner-race-{}-{nonce}.sqlite",
+            std::process::id()
+        ));
+        let signer = SigningKey::from_bytes(&[91u8; 32]);
+        let trusted = || TrustedOwnerKey {
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-01".into(),
+            public_key: signer.verifying_key().to_bytes(),
+            not_before: 900,
+            not_after: 5_000,
+        };
+        let store_a = Arc::new(SqliteSecurityStore::open(&path).unwrap());
+        let store_b = Arc::new(SqliteSecurityStore::open(&path).unwrap());
+        let membership_verifier =
+            OwnerApprovalVerifier::new(vec![trusted()], store_a).unwrap();
+        let revocation_verifier =
+            OwnerApprovalVerifier::new(vec![trusted()], store_b).unwrap();
+
+        let membership_payload = OwnerSecurityCommandPayload {
+            command_id: "command:membership-race".into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-01".into(),
+            issued_at: 1_100,
+            expires_at: 1_500,
+            action: OwnerSecurityAction::SetTenantMembership {
+                subject: "principal:alice".into(),
+                tenant_id: "tenant:alpha".into(),
+                active: true,
+                version: 1,
+                reason: "race test".into(),
+            },
+        };
+        let membership = SignedOwnerSecurityCommand::from_signature(
+            membership_payload.clone(),
+            signer.sign(&membership_payload.signing_bytes().unwrap()).to_bytes().to_vec(),
+        );
+        let revoke_payload = OwnerSecurityCommandPayload {
+            command_id: "command:owner-key-revoke-race".into(),
+            owner_subject: "owner:akefa".into(),
+            key_id: "owner-key-01".into(),
+            issued_at: 1_100,
+            expires_at: 1_500,
+            action: OwnerSecurityAction::RevokeSigningKey {
+                issuer: OWNER_ISSUER.into(),
+                key_id: "owner-key-01".into(),
+                reason: "concurrent compromise".into(),
+            },
+        };
+        let revoke = SignedOwnerSecurityCommand::from_signature(
+            revoke_payload.clone(),
+            signer.sign(&revoke_payload.signing_bytes().unwrap()).to_bytes().to_vec(),
+        );
+
+        let barrier = Arc::new(Barrier::new(3));
+        let membership_barrier = Arc::clone(&barrier);
+        let membership_thread = thread::spawn(move || {
+            membership_barrier.wait();
+            membership_verifier.apply_security_command(&membership, 1_200)
+        });
+        let revoke_barrier = Arc::clone(&barrier);
+        let revoke_thread = thread::spawn(move || {
+            revoke_barrier.wait();
+            revocation_verifier.apply_security_command(&revoke, 1_200)
+        });
+        barrier.wait();
+
+        let membership_result = membership_thread.join().unwrap();
+        assert_eq!(revoke_thread.join().unwrap(), Ok(()));
+        let verifier = SqliteSecurityStore::open(&path).unwrap();
+        assert_eq!(verifier.key_revoked(OWNER_ISSUER, "owner-key-01"), Ok(true));
+        let membership_state = verifier.tenant_membership("principal:alice", "tenant:alpha").unwrap();
+        match membership_result {
+            Ok(()) => {
+                assert_eq!(membership_state, Some((true, 1, 1_200)));
+                assert_eq!(verifier.security_command_count(), Ok(2));
+            }
+            Err(OwnerApprovalError::Revoked) => {
+                assert_eq!(membership_state, None);
+                assert_eq!(verifier.security_command_count(), Ok(1));
+            }
+            other => panic!("unexpected membership race result: {other:?}"),
+        }
+
+        drop(verifier);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("sqlite-wal"));
+        let _ = fs::remove_file(path.with_extension("sqlite-shm"));
+    }
 }
