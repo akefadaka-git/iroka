@@ -42,6 +42,8 @@ pub use g02_command::{
 };
 
 #[cfg(test)]
+mod g01_authenticated_principal_tests;
+#[cfg(test)]
 mod g09_execution_tests;
 mod ingress;
 pub use ingress::{
