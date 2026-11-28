@@ -6,7 +6,7 @@ use iroka_kernel::{
     Ed25519CredentialVerifier, G05ActivationDecision, OwnerApprovalVerifier, OwnerSecurityAction,
     OwnerSecurityCommandPayload, RevocationChecker, RevocationError, SignedOwnerSecurityCommand,
     SignedTrustBundle, SqliteSecurityStore, TenantMembershipResolver, TrustBundlePayload,
-    TrustRoot, TrustedKey, TrustedOwnerKey, VerifiedPrincipal, VerifiedReviewerProof,
+    TenantContext, TrustRoot, TrustedKey, TrustedOwnerKey, VerifiedPrincipal, VerifiedReviewerProof,
 };
 use std::sync::mpsc::{self, Sender};
 use std::sync::{

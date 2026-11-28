@@ -12,7 +12,7 @@ use postgres::{Client, Row};
 use postgres_native_tls::MakeTlsConnector;
 use sha2::{Digest, Sha256};
 
-use crate::{AuthorizationRequest, G05Error, G09PolicyResolver};
+use crate::{ingress::{capability_for, risk_for}, AuthorizationRequest, G05Error, G09PolicyResolver};
 
 /// Must verify the exact canonical payload, digest, domain-separated signature,
 /// Owner subject/key validity and current key revocation against canonical G02
@@ -384,9 +384,9 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         );
         let kernel_request = iroka_kernel::AuthorizationRequest::new(
             principal.subject(),
-            crate::capability_for(request.operation),
+            capability_for(request.operation),
             resource,
-            crate::risk_for(request.operation),
+            risk_for(request.operation),
         );
         if evaluate(&kernel_request, &policy, emergency_active).code() != DecisionCode::Allow {
             return Err(G05Error::AuthorizationDenied);
