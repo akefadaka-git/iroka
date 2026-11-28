@@ -11,8 +11,8 @@ use crate::{
     AuthenticatedG05Request, AuditEvent, AuthorizationRequest, G02AuthorizationAuthority,
     G05Error, G11MemoryAuditAuthority, G05IngressService,
     MemoryMetadata, MemoryRecord, MemoryRepository, Operation, SqliteMemoryRepository,
-    PostgresMemoryRepository,
-    SqliteG05AuthorityRegistry, TrustedClock, G09ExecutionRevalidator,
+    PostgresMemoryRepository, SqliteG05AuthorityRegistry, TrustedClock,
+    G09ExecutionRevalidator, ValidationPolicy,
 };
 
 /// Adapter for a real sharing destination. It is invoked only inside the
@@ -54,6 +54,7 @@ pub struct G05ExecutionService<V, G, C, E, A> {
     repository: Mutex<RepositoryBackend>,
     g11: A,
     consent_registry: SqliteG05AuthorityRegistry,
+    validation_policy: ValidationPolicy,
 }
 
 impl<V, G, C, E, A> G05ExecutionService<V, G, C, E, A>
@@ -69,9 +70,10 @@ where
         ingress: G05IngressService<V, G, C, E>,
         repository: SqliteMemoryRepository,
         g11: A,
+        validation_policy: ValidationPolicy,
         consent_registry: SqliteG05AuthorityRegistry,
     ) -> Self {
-        Self::new(ingress, RepositoryBackend::Sqlite(repository), g11, consent_registry)
+        Self::new(ingress, RepositoryBackend::Sqlite(repository), g11, validation_policy, consent_registry)
     }
 
     /// Construct the service over the shared PostgreSQL repository adapter.
@@ -79,15 +81,17 @@ where
         ingress: G05IngressService<V, G, C, E>,
         repository: PostgresMemoryRepository,
         g11: A,
+        validation_policy: ValidationPolicy,
         consent_registry: SqliteG05AuthorityRegistry,
     ) -> Self {
-        Self::new(ingress, RepositoryBackend::Postgres(repository), g11, consent_registry)
+        Self::new(ingress, RepositoryBackend::Postgres(repository), g11, validation_policy, consent_registry)
     }
 
     fn new(
         ingress: G05IngressService<V, G, C, E>,
         repository: RepositoryBackend,
         g11: A,
+        validation_policy: ValidationPolicy,
         consent_registry: SqliteG05AuthorityRegistry,
     ) -> Self {
         Self {
@@ -95,6 +99,7 @@ where
             repository: Mutex::new(repository),
             g11,
             consent_registry,
+            validation_policy,
         }
     }
 
@@ -120,8 +125,20 @@ where
         if request.operation != expected_operation {
             return Err(G05Error::AuthorizationDenied);
         }
+        let expected_lifecycle = match record.candidate.memory_class {
+            crate::MemoryClass::Working | crate::MemoryClass::Episodic => crate::LifecycleState::Active,
+            crate::MemoryClass::Durable => crate::LifecycleState::PendingReview,
+        };
+        if record.lifecycle_state != expected_lifecycle || !crate::valid_ref(&request.correlation_ref) {
+            return Err(G05Error::InvalidLifecycleTransition);
+        }
         validate_event_binding(&request, &record, &event)?;
         self.execute(compact_credential, tenant, request.clone(), || {
+            crate::validate_candidate(
+                &record.candidate,
+                self.ingress.current_time()?,
+                &self.validation_policy,
+            )?;
             if record.candidate.memory_class == crate::MemoryClass::Episodic {
                 let consent_ref = record.candidate.episodic_opt_in_ref.as_deref()
                     .ok_or(G05Error::EpisodicOptInRequired)?;
