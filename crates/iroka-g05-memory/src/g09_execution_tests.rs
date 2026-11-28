@@ -558,7 +558,7 @@ fn postgres_g09_guard_serializes_policy_and_owner_key_revocations_after_effect()
         ) -> Result<Policy, G05Error> {
             Ok(Policy::new(
                 snapshot.policy_version.clone(),
-                vec![crate::ingress::capability_for(Operation::Retrieve)],
+                vec![crate::ingress::capability_for(Operation::Retrieve).to_string()],
                 Vec::new(),
                 RiskLevel::Critical,
             ))
