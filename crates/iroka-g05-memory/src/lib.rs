@@ -896,6 +896,18 @@ pub(crate) trait MemoryRepository: Send + Sync {
     /// metadata and classification.
     fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error>;
 
+    /// Read metadata first and content from one consistent repository snapshot.
+    fn get_metadata_and_content(
+        &self,
+        memory_id: &str,
+    ) -> Result<Option<(MemoryMetadata, MemoryRecord)>, G05Error> {
+        let Some(metadata) = self.get_metadata(memory_id)? else {
+            return Ok(None);
+        };
+        let record = self.get_content(memory_id)?.ok_or(G05Error::RecordNotFound)?;
+        Ok(Some((metadata, record)))
+    }
+
     /// Atomically compare the expected version, replace the record, and
     /// enqueue its G11 event. A conflict MUST NOT partially commit. This
     /// method MUST reject PendingAudit -> Active; that transition is reserved
