@@ -229,6 +229,13 @@ impl OwnerApprovalVerifier {
         &self.store
     }
 
+    /// Construct the tenant resolver over this verifier's own Kernel security
+    /// store. This prevents the composition root from pairing Owner authority
+    /// with a caller-selected membership database.
+    pub fn tenant_membership_resolver(&self) -> crate::TenantMembershipResolver {
+        crate::TenantMembershipResolver::new(Arc::clone(&self.store))
+    }
+
     /// Verify an immutable G02 policy snapshot using the same provisioned Owner
     /// keys and revocation authority as signed approvals and security commands.
     pub fn verify_policy_snapshot(
