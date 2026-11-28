@@ -433,6 +433,9 @@ where
         compact_credential: &str,
         request: AuthorizationRequest,
     ) -> Result<AuthenticatedG05Request, G05Error> {
+        if !crate::valid_ref(&request.correlation_ref) {
+            return Err(G05Error::MalformedRecord);
+        }
         self.ingress.authorize(compact_credential, request)
     }
 
