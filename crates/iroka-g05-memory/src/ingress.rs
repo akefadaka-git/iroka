@@ -222,14 +222,14 @@ where
     }
 
     /// Read the trusted service clock. Callers cannot supply or override time.
-    pub fn current_time(&self) -> Result<u64, G05Error> {
+    pub(crate) fn current_time(&self) -> Result<u64, G05Error> {
         self.clock.now_unix_seconds()
     }
 
     /// Authenticate and authorize the request from server-verified evidence.
     /// The request carries scope and operation only; its principal_ref must
     /// exactly match the G01-authenticated subject.
-    pub fn authorize(
+    pub(crate) fn authorize(
         &self,
         compact_credential: &str,
         request: AuthorizationRequest,
@@ -283,7 +283,7 @@ where
     /// Execute one protected effect under the current G01/G02 authority snapshot.
     /// The one-shot context cannot be replayed; G11 must durably accept the
     /// intent receipt before the effect and the outcome receipt afterward.
-    pub fn execute_external_with_context<T, A>(
+    pub(crate) fn execute_external_with_context<T, A>(
         &self,
         context: &AuthenticatedG05Request,
         tenant: &TenantContext,
