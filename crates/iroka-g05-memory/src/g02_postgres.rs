@@ -12,7 +12,10 @@ use postgres::{Client, Row};
 use postgres_native_tls::MakeTlsConnector;
 use sha2::{Digest, Sha256};
 
-use crate::{ingress::{capability_for, risk_for}, AuthorizationRequest, G05Error, G09PolicyResolver};
+use crate::{
+    ingress::{capability_for, risk_for},
+    AuthorizationRequest, G05Error, G09PolicyResolver,
+};
 
 /// Must verify the exact canonical payload, digest, domain-separated signature,
 /// Owner subject/key validity and current key revocation against canonical G02

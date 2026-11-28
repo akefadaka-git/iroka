@@ -110,13 +110,22 @@ impl G11MemoryAuditAuthority for TestG11 {
         if self.fail_next.swap(false, Ordering::SeqCst) {
             return Err(G05Error::AuditUnavailable);
         }
-        self.events
-            .lock()
-            .map_err(|_| G05Error::AuditUnavailable)?
-            .push(event.clone());
+        let mut events = self.events.lock().map_err(|_| G05Error::AuditUnavailable)?;
+        let digest = audit_event_sha256(event);
+        if let Some(existing) = events.iter().find(|existing| existing.event_id == event.event_id) {
+            if audit_event_sha256(existing) != digest {
+                return Err(G05Error::AuditUnavailable);
+            }
+            return Ok(G11Acknowledgment {
+                event_id: event.event_id.clone(),
+                payload_sha256: digest,
+                accepted_at: existing.occurred_at,
+            });
+        }
+        events.push(event.clone());
         Ok(G11Acknowledgment {
             event_id: event.event_id.clone(),
-            payload_sha256: audit_event_sha256(event),
+            payload_sha256: digest,
             accepted_at: event.occurred_at,
         })
     }
@@ -392,6 +401,32 @@ fn execution_context_is_one_shot_and_g11_records_both_phases() {
             });
     assert_eq!(replay, Err(G05Error::ExecutionReplay));
 }
+#[test]
+fn correlation_replay_across_fresh_ingress_contexts_is_rejected_by_g11() {
+    let f = fixture(initial_state(), None);
+    let first = authorize(&f);
+    let g11 = TestG11::default();
+    f.service
+        .execute_external_with_context(&first, &f.tenant, &f.token, &g11, || Ok(()))
+        .unwrap();
+
+    let second = authorize(&f);
+    let ran = AtomicBool::new(false);
+    let replay = f.service.execute_external_with_context(
+        &second,
+        &f.tenant,
+        &f.token,
+        &g11,
+        || {
+            ran.store(true, Ordering::SeqCst);
+            Ok(())
+        },
+    );
+    assert_eq!(replay, Err(G05Error::AuditUnavailable));
+    assert!(!ran.load(Ordering::SeqCst));
+    assert_eq!(g11.events.lock().unwrap().len(), 2);
+}
+
 #[test]
 fn revocation_racing_execution_waits_until_guarded_effect_and_receipts_finish() {
     let (guard_tx, guard_rx) = mpsc::channel();
