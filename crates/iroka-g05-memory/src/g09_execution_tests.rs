@@ -767,6 +767,7 @@ fn mandatory_service_rejects_unauthorized_scope_before_repository_mutation() {
         f.service,
         repository,
         TestG11::default(),
+        service_validation_policy(),
         SqliteG05AuthorityRegistry::open_in_memory().unwrap(),
     );
     let (record, event) = service_record_and_event("correlation:service-denied");
