@@ -730,11 +730,13 @@ fn mandatory_service_routes_sqlite_insert_metadata_and_content_reads() {
     let (record, event) = service_record_and_event("correlation:service-insert");
     let mut create = f.request.clone();
     create.operation = Operation::CreateWorking;
+    create.memory_id = Some("memory:service-test".into());
     create.correlation_ref = "correlation:service-insert".into();
     service.insert_record(&f.token, &f.tenant, create, record, event).unwrap();
 
     let mut metadata_request = f.request.clone();
     metadata_request.operation = Operation::InspectMetadata;
+    metadata_request.memory_id = Some("memory:service-test".into());
     metadata_request.correlation_ref = "correlation:service-metadata".into();
     let metadata = service.read_metadata(&f.token, &f.tenant, metadata_request).unwrap().unwrap();
     assert_eq!(metadata.memory_id, "memory:service-test");
