@@ -166,116 +166,50 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         let mut tx = client
             .transaction()
             .map_err(|_| G05Error::AuthorityUnavailable)?;
-        tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
-            .map_err(|_| G05Error::AuthorityUnavailable)?;
-        // Both policy and emergency-stop reads share one MVCC snapshot.
-        let row = tx
+
+        // Lock the current policy-signing Owner key before acquiring table locks.
+        // G02 command processing locks its signing key row before writing authority
+        // tables. Matching that order avoids a row-lock/table-lock deadlock.
+        let preflight = tx
             .query_opt(
-                "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
-                    s.signer_issuer,s.signer_key_id,s.issued_at,s.expires_at,
-                    s.canonical_payload,s.payload_sha256,s.signature
-             FROM g02_policy_heads h
-             JOIN g02_policy_snapshots s
-               ON s.policy_id=h.policy_id AND s.epoch=h.current_epoch
-              AND s.payload_sha256=h.current_payload_sha256
-             JOIN g02_owner_key_registry_versions rv
-               ON rv.version=(SELECT max(version) FROM g02_owner_key_registry_versions)
-              AND rv.expires_at > $2
-             JOIN g02_owner_keys ok
-               ON ok.registry_version=rv.version
-              AND ok.owner_subject=s.owner_subject
-              AND ok.issuer=s.signer_issuer
-              AND ok.key_id=s.signer_key_id
-              AND ok.not_before <= $2 AND ok.not_after > $2
-             WHERE h.policy_id=$1 AND s.issued_at <= $2 AND s.expires_at > $2
-               AND NOT EXISTS (
-                 SELECT 1 FROM g02_policy_revocations r
-                 WHERE r.policy_id=s.policy_id AND r.epoch=s.epoch
-               )
-               AND NOT EXISTS (
-                 SELECT 1 FROM g02_owner_key_revocations kr
-                 WHERE kr.issuer=s.signer_issuer AND kr.key_id=s.signer_key_id
-               )",
+                "SELECT s.epoch,s.policy_version,s.owner_subject,s.signer_issuer,
+                        s.signer_key_id,s.payload_sha256,rv.version
+                 FROM g02_policy_heads h
+                 JOIN g02_policy_snapshots s
+                   ON s.policy_id=h.policy_id AND s.epoch=h.current_epoch
+                  AND s.payload_sha256=h.current_payload_sha256
+                 JOIN g02_owner_key_registry_versions rv
+                   ON rv.version=(SELECT max(version) FROM g02_owner_key_registry_versions)
+                  AND rv.expires_at > $2
+                 JOIN g02_owner_keys k
+                   ON k.registry_version=rv.version
+                  AND k.owner_subject=s.owner_subject
+                  AND k.issuer=s.signer_issuer
+                  AND k.key_id=s.signer_key_id
+                 WHERE h.policy_id=$1 AND s.issued_at <= $2 AND s.expires_at > $2",
                 &[&self.policy_id, &now_i],
             )
             .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorizationDenied)?;
-        let snapshot = Self::snapshot_from_row(&row)?;
-        let policy = self.verifier.verify_snapshot(&snapshot, now)?;
-        let emergency = tx
-            .query_opt(
-                "SELECT active,version,changed_at FROM g02_emergency_stop WHERE singleton=TRUE",
-                &[],
-            )
-            .map_err(|_| G05Error::AuthorityUnavailable)?
-            .ok_or(G05Error::AuthorityUnavailable)?;
-        let active: bool = emergency.get(0);
-        let version: i64 = emergency.get(1);
-        let changed_at: i64 = emergency.get(2);
-        if version <= 0 || changed_at < 0 || changed_at > now_i {
-            return Err(G05Error::AuthorityUnavailable);
-        }
-        tx.commit().map_err(|_| G05Error::AuthorityUnavailable)?;
-        Ok((policy, active))
-    }
+        let pre_epoch: i64 = preflight.get(0);
+        let pre_policy_version: String = preflight.get(1);
+        let pre_owner_subject: String = preflight.get(2);
+        let pre_signer_issuer: String = preflight.get(3);
+        let pre_signer_key_id: String = preflight.get(4);
+        let pre_payload_sha256: String = preflight.get(5);
+        let pre_registry_version: i64 = preflight.get(6);
+        tx.query_opt(
+            "SELECT 1 FROM g02_owner_keys
+             WHERE registry_version=$1 AND owner_subject=$2 AND issuer=$3 AND key_id=$4
+             FOR SHARE",
+            &[&pre_registry_version, &pre_owner_subject, &pre_signer_issuer, &pre_signer_key_id],
+        )
+        .map_err(|_| G05Error::AuthorityUnavailable)?
+        .ok_or(G05Error::AuthorizationDenied)?;
 
-    fn authorize_resource_scope(
-        &self,
-        principal: &VerifiedPrincipal,
-        request: &AuthorizationRequest,
-        _now: u64,
-    ) -> Result<(), G05Error> {
-        if request.principal_ref != principal.subject() || request.tenant_ref.trim().is_empty() {
-            return Err(G05Error::AuthorizationDenied);
-        }
-        let mut client = self
-            .client
-            .lock()
-            .map_err(|_| G05Error::AuthorityUnavailable)?;
-        let row = client
-            .query_opt(
-                "SELECT active,version FROM g02_tenant_memberships
-             WHERE subject_ref=$1 AND tenant_ref=$2",
-                &[&request.principal_ref, &request.tenant_ref],
-            )
-            .map_err(|_| G05Error::AuthorityUnavailable)?
-            .ok_or(G05Error::TenantScopeMismatch)?;
-        let active: bool = row.get(0);
-        let version: i64 = row.get(1);
-        if !active || version <= 0 {
-            return Err(G05Error::TenantScopeMismatch);
-        }
-        Ok(())
-    }
-
-    /// Hold SHARE locks over all authoritative G02 state through the protected
-    /// effect and G11 receipts. G02 writers use ROW EXCLUSIVE locks, so membership,
-    /// policy, Owner-key revocation/rotation and emergency-stop transitions serialize.
-    fn with_execution_authority<T>(
-        &self,
-        principal: &VerifiedPrincipal,
-        tenant: &TenantContext,
-        request: &AuthorizationRequest,
-        now: u64,
-        effect: impl FnOnce(&G02PolicySnapshot) -> Result<T, G05Error>,
-    ) -> Result<T, G05Error> {
-        if request.principal_ref != principal.subject()
-            || tenant.subject() != principal.subject()
-            || tenant.tenant_id() != request.tenant_ref
-            || tenant.membership_version() == 0
-            || tenant.resolved_at() > now
-            || now.saturating_sub(tenant.resolved_at()) > 600
-        {
-            return Err(G05Error::TenantScopeMismatch);
-        }
-        let now_i = i64::try_from(now).map_err(|_| G05Error::AuthorityUnavailable)?;
-        let mut client = self
-            .client
-            .lock()
-            .map_err(|_| G05Error::AuthorityUnavailable)?;
-        let mut tx = client
-            .transaction()
-            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        // These locks now serialize every G02 projection/revocation mutation with
+        // the complete effect. If authority changed between preflight and locks,
+        // the snapshot comparison below denies rather than executing under a stale key.
         tx.batch_execute(
             "LOCK TABLE g02_tenant_memberships, g02_policy_heads, g02_policy_snapshots, \
              g02_policy_revocations, g02_emergency_stop, g02_owner_key_registry_versions, \
@@ -307,32 +241,41 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         let row = tx
             .query_opt(
                 "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
-                    s.signer_issuer,s.signer_key_id,s.issued_at,s.expires_at,
-                    s.canonical_payload,s.payload_sha256,s.signature
-             FROM g02_policy_heads h
-             JOIN g02_policy_snapshots s
-               ON s.policy_id=h.policy_id AND s.epoch=h.current_epoch
-              AND s.payload_sha256=h.current_payload_sha256
-             WHERE h.policy_id=$1 AND s.issued_at <= $2 AND s.expires_at > $2
-               AND NOT EXISTS (SELECT 1 FROM g02_policy_revocations r
-                 WHERE r.policy_id=s.policy_id AND r.epoch=s.epoch)
-               AND NOT EXISTS (SELECT 1 FROM g02_owner_key_revocations kr
-                 WHERE kr.issuer=s.signer_issuer AND kr.key_id=s.signer_key_id)
-             FOR SHARE OF h,s",
+                        s.signer_issuer,s.signer_key_id,s.issued_at,s.expires_at,
+                        s.canonical_payload,s.payload_sha256,s.signature
+                 FROM g02_policy_heads h
+                 JOIN g02_policy_snapshots s
+                   ON s.policy_id=h.policy_id AND s.epoch=h.current_epoch
+                  AND s.payload_sha256=h.current_payload_sha256
+                 WHERE h.policy_id=$1 AND s.issued_at <= $2 AND s.expires_at > $2
+                   AND NOT EXISTS (SELECT 1 FROM g02_policy_revocations r
+                     WHERE r.policy_id=s.policy_id AND r.epoch=s.epoch)
+                   AND NOT EXISTS (SELECT 1 FROM g02_owner_key_revocations kr
+                     WHERE kr.issuer=s.signer_issuer AND kr.key_id=s.signer_key_id)
+                 FOR SHARE OF h,s",
                 &[&self.policy_id, &now_i],
             )
             .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorizationDenied)?;
         let snapshot = Self::snapshot_from_row(&row)?;
+        if snapshot.epoch as i64 != pre_epoch
+            || snapshot.policy_version != pre_policy_version
+            || snapshot.owner_subject != pre_owner_subject
+            || snapshot.signer_issuer != pre_signer_issuer
+            || snapshot.signer_key_id != pre_signer_key_id
+            || snapshot.payload_sha256 != pre_payload_sha256
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
 
         let owner_key = tx
             .query_opt(
-                "SELECT k.not_before,k.not_after,v.expires_at
-             FROM g02_owner_keys k
-             JOIN g02_owner_key_registry_versions v ON v.version=k.registry_version
-             WHERE k.registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions)
-               AND k.owner_subject=$1 AND k.issuer=$2 AND k.key_id=$3
-             FOR SHARE OF k,v",
+                "SELECT k.not_before,k.not_after,v.expires_at,k.registry_version
+                 FROM g02_owner_keys k
+                 JOIN g02_owner_key_registry_versions v ON v.version=k.registry_version
+                 WHERE k.registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions)
+                   AND k.owner_subject=$1 AND k.issuer=$2 AND k.key_id=$3
+                 FOR SHARE OF k,v",
                 &[
                     &snapshot.owner_subject,
                     &snapshot.signer_issuer,
@@ -341,6 +284,9 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
             )
             .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorizationDenied)?;
+        if owner_key.get::<_, i64>(3) != pre_registry_version {
+            return Err(G05Error::AuthorizationDenied);
+        }
         let key_not_before: i64 = owner_key.get(0);
         let key_not_after: i64 = owner_key.get(1);
         let registry_expires: i64 = owner_key.get(2);
