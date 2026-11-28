@@ -10,31 +10,74 @@ use iroka_kernel::{RevocationChecker, TenantContext};
 use crate::{
     AuthenticatedG05Request, AuditEvent, AuthorizationRequest, G02AuthorizationAuthority,
     G05Error, G11MemoryAuditAuthority, G05IngressService,
-    MemoryMetadata, MemoryRecord, MemoryRepository, Operation, G11Acknowledgment,
+    MemoryMetadata, MemoryRecord, MemoryRepository, Operation, SqliteMemoryRepository,
+    PostgresMemoryRepository,
     SqliteG05AuthorityRegistry, TrustedClock, G09ExecutionRevalidator,
 };
 
 /// The only application-facing entry point for protected G05 persistence and
 /// consent operations. Repository adapters are deliberately held privately.
-pub struct G05ExecutionService<R, V, G, C, E, A> {
+enum RepositoryBackend {
+    Sqlite(SqliteMemoryRepository),
+    Postgres(PostgresMemoryRepository),
+}
+
+impl MemoryRepository for RepositoryBackend {
+    fn insert_with_audit(&mut self, record: MemoryRecord, event: AuditEvent) -> Result<(), G05Error> {
+        match self { Self::Sqlite(r) => r.insert_with_audit(record, event), Self::Postgres(r) => r.insert_with_audit(record, event) }
+    }
+    fn get_metadata(&self, memory_id: &str) -> Result<Option<MemoryMetadata>, G05Error> {
+        match self { Self::Sqlite(r) => r.get_metadata(memory_id), Self::Postgres(r) => r.get_metadata(memory_id) }
+    }
+    fn get_content(&self, memory_id: &str) -> Result<Option<MemoryRecord>, G05Error> {
+        match self { Self::Sqlite(r) => r.get_content(memory_id), Self::Postgres(r) => r.get_content(memory_id) }
+    }
+    fn replace_with_audit(&mut self, record: MemoryRecord, expected_version: u64, event: AuditEvent) -> Result<(), G05Error> {
+        match self { Self::Sqlite(r) => r.replace_with_audit(record, expected_version, event), Self::Postgres(r) => r.replace_with_audit(record, expected_version, event) }
+    }
+    fn finalize_pending_activation(&mut self, record: MemoryRecord, expected_version: u64, event: AuditEvent) -> Result<(), G05Error> {
+        match self { Self::Sqlite(r) => r.finalize_pending_activation(record, expected_version, event), Self::Postgres(r) => r.finalize_pending_activation(record, expected_version, event) }
+    }
+}
+
+pub struct G05ExecutionService<V, G, C, E, A> {
     ingress: G05IngressService<V, G, C, E>,
-    repository: Mutex<R>,
+    repository: Mutex<RepositoryBackend>,
     g11: A,
     consent_registry: SqliteG05AuthorityRegistry,
 }
 
-impl<R, V, G, C, E, A> G05ExecutionService<R, V, G, C, E, A>
+impl<V, G, C, E, A> G05ExecutionService<V, G, C, E, A>
 where
-    R: MemoryRepository,
     V: RevocationChecker,
     G: G02AuthorizationAuthority,
     C: TrustedClock,
     E: G09ExecutionRevalidator,
     A: G11MemoryAuditAuthority,
 {
-    pub fn new(
+    /// Construct the service over the SQLite repository adapter.
+    pub fn new_sqlite(
         ingress: G05IngressService<V, G, C, E>,
-        repository: R,
+        repository: SqliteMemoryRepository,
+        g11: A,
+        consent_registry: SqliteG05AuthorityRegistry,
+    ) -> Self {
+        Self::new(ingress, RepositoryBackend::Sqlite(repository), g11, consent_registry)
+    }
+
+    /// Construct the service over the shared PostgreSQL repository adapter.
+    pub fn new_postgres(
+        ingress: G05IngressService<V, G, C, E>,
+        repository: PostgresMemoryRepository,
+        g11: A,
+        consent_registry: SqliteG05AuthorityRegistry,
+    ) -> Self {
+        Self::new(ingress, RepositoryBackend::Postgres(repository), g11, consent_registry)
+    }
+
+    fn new(
+        ingress: G05IngressService<V, G, C, E>,
+        repository: RepositoryBackend,
         g11: A,
         consent_registry: SqliteG05AuthorityRegistry,
     ) -> Self {
