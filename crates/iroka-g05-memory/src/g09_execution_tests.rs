@@ -411,11 +411,13 @@ fn execution_context_is_one_shot_and_g11_records_both_phases() {
         .execute_external_with_context(&context, &f.tenant, &f.token, &g11, || Ok(()))
         .unwrap();
     assert_eq!(g11.events.lock().unwrap().len(), 2);
-    let replay =
-        f.service
-            .execute_external_with_context(&context, &f.tenant, &f.token, &g11, || -> Result<(), G05Error> {
-                panic!("replayed effect must not run")
-            });
+    let replay = f.service.execute_external_with_context(
+        &context,
+        &f.tenant,
+        &f.token,
+        &g11,
+        || -> Result<(), G05Error> { panic!("replayed effect must not run") },
+    );
     assert_eq!(replay, Err(G05Error::ExecutionReplay));
 }
 #[test]
