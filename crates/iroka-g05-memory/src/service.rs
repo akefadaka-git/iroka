@@ -9,9 +9,9 @@ use iroka_kernel::{RevocationChecker, TenantContext};
 
 use crate::{
     AuthenticatedG05Request, AuditEvent, AuthorizationRequest, G02AuthorizationAuthority,
-    G05Error, G11MemoryAuditAuthority, G05IngressService, G11Acknowledgment,
-    G11OutboxRepository, MemoryMetadata, MemoryRecord, MemoryRepository, Operation,
-    SqliteG05AuthorityRegistry, TrustedClock, G09ExecutionRevalidator,
+    G05Error, G11MemoryAuditAuthority, G05IngressService,
+    MemoryMetadata, MemoryRecord, MemoryRepository, Operation,
+    EpisodicConsentAuthority, SqliteG05AuthorityRegistry, TrustedClock, G09ExecutionRevalidator,
 };
 
 /// The only application-facing entry point for protected G05 persistence and
@@ -66,7 +66,18 @@ where
             return Err(G05Error::AuthorizationDenied);
         }
         validate_event_binding(&request, &record, &event)?;
-        self.execute(compact_credential, tenant, request, || {
+        self.execute(compact_credential, tenant, request.clone(), || {
+            if record.candidate.memory_class == crate::MemoryClass::Episodic {
+                let consent_ref = record.candidate.episodic_opt_in_ref.as_deref()
+                    .ok_or(G05Error::EpisodicOptInRequired)?;
+                self.consent_registry.verify_active_opt_in(
+                    consent_ref,
+                    &record.candidate.tenant_ref,
+                    &record.candidate.subject_ref,
+                    record.candidate.purpose,
+                    self.ingress.current_time()?,
+                )?;
+            }
             self.repository
                 .lock()
                 .map_err(|_| G05Error::RepositoryUnavailable)?
@@ -182,7 +193,8 @@ where
         }
         let context = self.authorize(compact_credential, request.clone())?;
         let now = self.ingress.current_time()?;
-        let principal = context.principal();
+        let issuer = context.principal().subject().to_owned();
+        let credential_id = context.principal().credential_id().to_owned();
         self.ingress.execute_external_with_context(
             &context,
             tenant,
@@ -194,8 +206,8 @@ where
                     &request.tenant_ref,
                     &request.subject_ref,
                     request.purpose,
-                    principal.subject(),
-                    principal.credential_id(),
+                    &issuer,
+                    &credential_id,
                     now,
                     expires_at,
                     &request.correlation_ref,
@@ -336,7 +348,3 @@ fn validate_event_binding(
     Ok(())
 }
 
-// Keep these imports part of the public facade's compile-time contract.
-const _: fn(&dyn G11OutboxRepository, usize) -> Result<Vec<AuditEvent>, G05Error> =
-    |repository, limit| repository.pending_g11_events(limit);
-const _: fn(&G11Acknowledgment) -> &str = G11Acknowledgment::event_id;
