@@ -266,32 +266,44 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
             return Err(G05Error::TenantScopeMismatch);
         }
         let now_i = i64::try_from(now).map_err(|_| G05Error::AuthorityUnavailable)?;
-        let mut client = self.client.lock().map_err(|_| G05Error::AuthorityUnavailable)?;
-        let mut tx = client.transaction().map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut tx = client
+            .transaction()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
         tx.batch_execute(
             "LOCK TABLE g02_tenant_memberships, g02_policy_heads, g02_policy_snapshots, \
              g02_policy_revocations, g02_emergency_stop, g02_owner_key_registry_versions, \
-             g02_owner_keys, g02_owner_key_revocations IN SHARE MODE"
-        ).map_err(|_| G05Error::AuthorityUnavailable)?;
+             g02_owner_keys, g02_owner_key_revocations IN SHARE MODE",
+        )
+        .map_err(|_| G05Error::AuthorityUnavailable)?;
 
-        let membership = tx.query_opt(
-            "SELECT active,version,updated_at FROM g02_tenant_memberships \
+        let membership = tx
+            .query_opt(
+                "SELECT active,version,updated_at FROM g02_tenant_memberships \
              WHERE subject_ref=$1 AND tenant_ref=$2 FOR SHARE",
-            &[&principal.subject(), &tenant.tenant_id()]
-        ).map_err(|_| G05Error::AuthorityUnavailable)?
+                &[&principal.subject(), &tenant.tenant_id()],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::TenantScopeMismatch)?;
         let active: bool = membership.get(0);
         let version: i64 = membership.get(1);
         let updated_at: i64 = membership.get(2);
-        if !active || version <= 0 || version as u64 != tenant.membership_version()
-            || updated_at < 0 || updated_at > now_i
+        if !active
+            || version <= 0
+            || version as u64 != tenant.membership_version()
+            || updated_at < 0
+            || updated_at > now_i
             || now.saturating_sub(updated_at as u64) > 600
         {
             return Err(G05Error::TenantScopeMismatch);
         }
 
-        let row = tx.query_opt(
-            "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
+        let row = tx
+            .query_opt(
+                "SELECT s.policy_id,s.epoch,s.policy_version,s.owner_subject,
                     s.signer_issuer,s.signer_key_id,s.issued_at,s.expires_at,
                     s.canonical_payload,s.payload_sha256,s.signature
              FROM g02_policy_heads h
@@ -304,34 +316,46 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
                AND NOT EXISTS (SELECT 1 FROM g02_owner_key_revocations kr
                  WHERE kr.issuer=s.signer_issuer AND kr.key_id=s.signer_key_id)
              FOR SHARE OF h,s",
-            &[&self.policy_id, &now_i]
-        ).map_err(|_| G05Error::AuthorityUnavailable)?
+                &[&self.policy_id, &now_i],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorizationDenied)?;
         let snapshot = Self::snapshot_from_row(&row)?;
 
-        let owner_key = tx.query_opt(
-            "SELECT k.not_before,k.not_after,v.expires_at
+        let owner_key = tx
+            .query_opt(
+                "SELECT k.not_before,k.not_after,v.expires_at
              FROM g02_owner_keys k
              JOIN g02_owner_key_registry_versions v ON v.version=k.registry_version
              WHERE k.registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions)
                AND k.owner_subject=$1 AND k.issuer=$2 AND k.key_id=$3
              FOR SHARE OF k,v",
-            &[&snapshot.owner_subject,&snapshot.signer_issuer,&snapshot.signer_key_id]
-        ).map_err(|_| G05Error::AuthorityUnavailable)?
+                &[
+                    &snapshot.owner_subject,
+                    &snapshot.signer_issuer,
+                    &snapshot.signer_key_id,
+                ],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorizationDenied)?;
         let key_not_before: i64 = owner_key.get(0);
         let key_not_after: i64 = owner_key.get(1);
         let registry_expires: i64 = owner_key.get(2);
-        if key_not_before < 0 || key_not_after <= now_i || key_not_before > now_i
+        if key_not_before < 0
+            || key_not_after <= now_i
+            || key_not_before > now_i
             || registry_expires <= now_i
         {
             return Err(G05Error::AuthorizationDenied);
         }
-        let revoked: bool = tx.query_one(
-            "SELECT EXISTS(SELECT 1 FROM g02_owner_key_revocations
+        let revoked: bool = tx
+            .query_one(
+                "SELECT EXISTS(SELECT 1 FROM g02_owner_key_revocations
              WHERE issuer=$1 AND key_id=$2)",
-            &[&snapshot.signer_issuer,&snapshot.signer_key_id]
-        ).map_err(|_| G05Error::AuthorityUnavailable)?.get(0);
+                &[&snapshot.signer_issuer, &snapshot.signer_key_id],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .get(0);
         if revoked {
             return Err(G05Error::AuthorizationDenied);
         }
@@ -339,11 +363,13 @@ impl<V: G02PolicySnapshotVerifier> G09PolicyResolver for PostgresG09PolicyResolv
         // G02 owns canonical payload, trust-root and signature verification.
         // Its verifier must re-check current Owner-key revocation state.
         let policy = self.verifier.verify_snapshot(&snapshot, now)?;
-        let emergency = tx.query_opt(
-            "SELECT active,version,changed_at FROM g02_emergency_stop
+        let emergency = tx
+            .query_opt(
+                "SELECT active,version,changed_at FROM g02_emergency_stop
              WHERE singleton=TRUE FOR SHARE",
-            &[]
-        ).map_err(|_| G05Error::AuthorityUnavailable)?
+                &[],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
             .ok_or(G05Error::AuthorityUnavailable)?;
         let emergency_active: bool = emergency.get(0);
         let emergency_version: i64 = emergency.get(1);

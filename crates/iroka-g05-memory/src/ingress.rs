@@ -2,7 +2,10 @@
 //! G01 credentials, G02 tenant/organization authority, and G09 execution policy
 //! are revalidated at ingress and again immediately before every external effect.
 //! No caller-supplied principal, authorization boolean, or timestamp is accepted.
-use crate::{AuthorizationRequest, AuditEvent, G02AuthorizationAuthority, G05Error, G11MemoryAuditAuthority, Operation};
+use crate::{
+    AuditEvent, AuthorizationRequest, G02AuthorizationAuthority, G05Error, G11MemoryAuditAuthority,
+    Operation,
+};
 use iroka_kernel::{
     evaluate, CredentialError, DecisionCode, Ed25519CredentialVerifier, Policy, RevocationChecker,
     RiskLevel, TenantContext, VerifiedPrincipal,
@@ -89,7 +92,8 @@ impl<P: G09PolicyResolver> G09ExecutionRevalidator for KernelG09ExecutionRevalid
         now: u64,
         effect: impl FnOnce() -> Result<T, G05Error>,
     ) -> Result<T, G05Error> {
-        self.policies.with_execution_authority(principal, tenant, request, now, effect)
+        self.policies
+            .with_execution_authority(principal, tenant, request, now, effect)
     }
 
     fn revalidate(
@@ -279,9 +283,11 @@ where
     where
         A: G11MemoryAuditAuthority,
     {
-        if context.execution_consumed.compare_exchange(
-            false, true, Ordering::AcqRel, Ordering::Acquire
-        ).is_err() {
+        if context
+            .execution_consumed
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
             return Err(G05Error::ExecutionReplay);
         }
         let now = self.clock.now_unix_seconds()?;
@@ -299,25 +305,37 @@ where
             return Err(G05Error::AuthorizationDenied);
         }
         self.g02.authorize_g05(&context.request)?;
-        self.g09.with_current_authority(
-            &current, tenant, &context.request, now,
-            || {
+        self.g09
+            .with_current_authority(&current, tenant, &context.request, now, || {
                 let intent = g09_execution_audit_event(
-                    &context.execution_id, "authorized", &current, tenant,
-                    &context.request, now,
+                    &context.execution_id,
+                    "authorized",
+                    &current,
+                    tenant,
+                    &context.request,
+                    now,
                 );
-                g11.append_memory_event(&intent).map_err(|_| G05Error::AuditUnavailable)?;
+                g11.append_memory_event(&intent)
+                    .map_err(|_| G05Error::AuditUnavailable)?;
                 let outcome = effect();
-                let outcome_name = if outcome.is_ok() { "completed" } else { "failed" };
+                let outcome_name = if outcome.is_ok() {
+                    "completed"
+                } else {
+                    "failed"
+                };
                 let finished_at = self.clock.now_unix_seconds()?;
                 let receipt = g09_execution_audit_event(
-                    &context.execution_id, outcome_name, &current, tenant,
-                    &context.request, finished_at,
+                    &context.execution_id,
+                    outcome_name,
+                    &current,
+                    tenant,
+                    &context.request,
+                    finished_at,
                 );
-                g11.append_memory_event(&receipt).map_err(|_| G05Error::AuditUnavailable)?;
+                g11.append_memory_event(&receipt)
+                    .map_err(|_| G05Error::AuditUnavailable)?;
                 outcome
-            },
-        )
+            })
     }
 
     fn authenticate(
@@ -334,8 +352,7 @@ where
     }
 }
 
-static NEXT_G09_EXECUTION_ID: std::sync::atomic::AtomicU64 =
-    std::sync::atomic::AtomicU64::new(1);
+static NEXT_G09_EXECUTION_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 fn g09_execution_audit_event(
     execution_id: &str,
