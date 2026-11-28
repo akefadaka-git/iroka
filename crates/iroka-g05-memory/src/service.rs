@@ -223,6 +223,12 @@ where
             return Err(G05Error::AuthorizationDenied);
         }
         validate_record_binding(&request, &record)?;
+        if request.operation == Operation::VerifyDeletion
+            && (!record.candidate.content.is_empty()
+                || record.candidate.content_sha256 != crate::sha256_hex(b""))
+        {
+            return Err(G05Error::ApprovalBindingMismatch);
+        }
         validate_event_binding(&request, &record, &event)?;
         let memory_id = required_memory_id(&request)?;
         self.execute(compact_credential, tenant, request.clone(), || {
