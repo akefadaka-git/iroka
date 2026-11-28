@@ -43,7 +43,8 @@ pub use g02_postgres::{G02PolicySnapshot, G02PolicySnapshotVerifier, PostgresG09
 mod g02_command;
 pub use g02_command::{
     G02AuthorityError, OwnerCommandAction, OwnerCommandPayload, OwnerKeyBinding,
-    OwnerKeyRegistryPayload, PostgresG02Authority, SignedOwnerCommand, SignedOwnerKeyRegistry,
+    OwnerKeyRegistryPayload, PostgresG02Authority, PostgresG02PolicySnapshotVerifier,
+    SignedOwnerCommand, SignedOwnerKeyRegistry,
 };
 
 #[cfg(test)]

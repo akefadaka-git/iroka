@@ -1,9 +1,11 @@
 //! Root-verified G02 Owner-key registry and transactional signed-command processor.
 //! Root public keys are pinned out-of-band. No private key material is accepted.
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use iroka_kernel::TrustRoot;
+use iroka_kernel::{Policy, RiskLevel, TrustRoot};
+use crate::{G02PolicySnapshot, G02PolicySnapshotVerifier, G05Error};
 use native_tls::TlsConnector;
 use postgres::Client;
+use std::sync::Mutex;
 use postgres_native_tls::MakeTlsConnector;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -82,6 +84,11 @@ pub enum OwnerCommandAction {
     RevokeOwnerKey {
         issuer: String,
         key_id: String,
+        reason_code: String,
+    },
+    RevokePolicy {
+        policy_id: String,
+        epoch: u64,
         reason_code: String,
     },
 }
@@ -313,6 +320,7 @@ impl PostgresG02Authority {
                 }
             }
             OwnerCommandAction::RevokeOwnerKey { .. } => "owner_key.revoked",
+            OwnerCommandAction::RevokePolicy { .. } => "policy.revoked",
         };
         tx.execute(
             "INSERT INTO g02_owner_commands(command_id,owner_subject,signer_issuer,signer_key_id,issued_at,expires_at,payload_canonical,payload_sha256,signature,command_kind) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
@@ -358,6 +366,38 @@ impl PostgresG02Authority {
                     .map_err(|_| G02AuthorityError::VersionConflict)?;
                 let changed=tx.execute("INSERT INTO g02_policy_heads(policy_id,current_epoch,current_payload_sha256) VALUES($1,$2,$3) ON CONFLICT(policy_id) DO UPDATE SET current_epoch=EXCLUDED.current_epoch,current_payload_sha256=EXCLUDED.current_payload_sha256,updated_at=clock_timestamp() WHERE g02_policy_heads.current_epoch < EXCLUDED.current_epoch",
                     &[policy_id,&to_i64(*epoch)?,payload_sha256]).map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+                if changed != 1 {
+                    return Err(G02AuthorityError::VersionConflict);
+                }
+            }
+            OwnerCommandAction::RevokePolicy {
+                policy_id,
+                epoch,
+                reason_code,
+            } => {
+                if policy_id.trim().is_empty()
+                    || epoch == &0
+                    || reason_code.trim().is_empty()
+                    || reason_code.len() > 128
+                {
+                    return Err(G02AuthorityError::Malformed);
+                }
+                let exists: bool = tx
+                    .query_one(
+                        "SELECT EXISTS(SELECT 1 FROM g02_policy_snapshots WHERE policy_id=$1 AND epoch=$2)",
+                        &[policy_id, &to_i64(*epoch)?],
+                    )
+                    .map_err(|_| G02AuthorityError::DatabaseUnavailable)?
+                    .get(0);
+                if !exists {
+                    return Err(G02AuthorityError::InvalidTransition);
+                }
+                let changed = tx
+                    .execute(
+                        "INSERT INTO g02_policy_revocations(policy_id,epoch,reason_code,revoked_by_command_id,revoked_at) VALUES($1,$2,$3,$4,$5)",
+                        &[policy_id, &to_i64(*epoch)?, reason_code, &p.command_id, &to_i64(now)?],
+                    )
+                    .map_err(|_| G02AuthorityError::InvalidTransition)?;
                 if changed != 1 {
                     return Err(G02AuthorityError::VersionConflict);
                 }
@@ -433,6 +473,141 @@ impl PostgresG02Authority {
         tx.commit()
             .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
         Ok(digest)
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct CanonicalPolicyPayload {
+    version: String,
+    allowed_capabilities: Vec<String>,
+    approval_required: Vec<String>,
+    maximum_risk: RiskLevel,
+}
+
+/// Canonical G02 policy verifier. It reads the current root-verified Owner-key
+/// registry and revocation projection; G09 holds G02 table locks while invoking
+/// this verifier so the key and policy remain stable through the protected effect.
+pub struct PostgresG02PolicySnapshotVerifier {
+    client: Mutex<Client>,
+}
+
+impl PostgresG02PolicySnapshotVerifier {
+    pub fn connect(connection_string: &str) -> Result<Self, G02AuthorityError> {
+        if !connection_string.contains("sslmode=verify-full") {
+            return Err(G02AuthorityError::InvalidRoot);
+        }
+        let tls = TlsConnector::builder()
+            .build()
+            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        let client = Client::connect(connection_string, MakeTlsConnector::new(tls))
+            .map_err(|_| G02AuthorityError::DatabaseUnavailable)?;
+        Ok(Self {
+            client: Mutex::new(client),
+        })
+    }
+}
+
+impl G02PolicySnapshotVerifier for PostgresG02PolicySnapshotVerifier {
+    fn verify_snapshot(
+        &self,
+        snapshot: &G02PolicySnapshot,
+        now: u64,
+    ) -> Result<Policy, G05Error> {
+        if snapshot.policy_id.trim().is_empty()
+            || snapshot.epoch == 0
+            || snapshot.owner_subject.trim().is_empty()
+            || snapshot.signer_issuer.trim().is_empty()
+            || snapshot.signer_key_id.trim().is_empty()
+            || snapshot.issued_at > now
+            || snapshot.expires_at <= now
+            || snapshot.canonical_payload.is_empty()
+            || snapshot.canonical_payload.len() > MAX_PAYLOAD_BYTES
+            || snapshot.signature.len() != 64
+            || hex(&Sha256::digest(&snapshot.canonical_payload))
+                != snapshot.payload_sha256.to_ascii_lowercase()
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
+
+        let payload: CanonicalPolicyPayload =
+            serde_json::from_slice(&snapshot.canonical_payload)
+                .map_err(|_| G05Error::AuthorizationDenied)?;
+        let canonical =
+            serde_jcs::to_vec(&payload).map_err(|_| G05Error::AuthorizationDenied)?;
+        if canonical != snapshot.canonical_payload
+            || payload.version != snapshot.policy_version
+            || payload.version.trim().is_empty()
+            || payload.version.len() > 128
+            || payload.allowed_capabilities.iter().any(|v| {
+                v.trim().is_empty() || v.len() > 128
+            })
+            || payload.approval_required.iter().any(|v| {
+                v.trim().is_empty() || v.len() > 128
+            })
+            || payload.allowed_capabilities.windows(2).any(|w| w[0] >= w[1])
+            || payload.approval_required.windows(2).any(|w| w[0] >= w[1])
+            || payload.approval_required.iter().any(|capability| {
+                !payload.allowed_capabilities.contains(capability)
+            })
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
+
+        let now_i = i64::try_from(now).map_err(|_| G05Error::AuthorityUnavailable)?;
+        let mut client = self
+            .client
+            .lock()
+            .map_err(|_| G05Error::AuthorityUnavailable)?;
+        let key = client
+            .query_opt(
+                "SELECT k.public_key,k.not_before,k.not_after,v.expires_at
+                 FROM g02_owner_keys k
+                 JOIN g02_owner_key_registry_versions v ON v.version=k.registry_version
+                 WHERE k.registry_version=(SELECT max(version) FROM g02_owner_key_registry_versions)
+                   AND k.owner_subject=$1 AND k.issuer=$2 AND k.key_id=$3
+                   AND NOT EXISTS (
+                     SELECT 1 FROM g02_owner_key_revocations r
+                     WHERE r.issuer=k.issuer AND r.key_id=k.key_id
+                   )",
+                &[
+                    &snapshot.owner_subject,
+                    &snapshot.signer_issuer,
+                    &snapshot.signer_key_id,
+                ],
+            )
+            .map_err(|_| G05Error::AuthorityUnavailable)?
+            .ok_or(G05Error::AuthorizationDenied)?;
+        let public_key: Vec<u8> = key.get(0);
+        let not_before: i64 = key.get(1);
+        let not_after: i64 = key.get(2);
+        let registry_expires: i64 = key.get(3);
+        if public_key.len() != 32
+            || not_before < 0
+            || not_before > now_i
+            || not_after <= now_i
+            || registry_expires <= now_i
+        {
+            return Err(G05Error::AuthorizationDenied);
+        }
+        let mut public_key_bytes = [0u8; 32];
+        public_key_bytes.copy_from_slice(&public_key);
+        let verifying_key = VerifyingKey::from_bytes(&public_key_bytes)
+            .map_err(|_| G05Error::AuthorizationDenied)?;
+        let signature = Signature::from_slice(&snapshot.signature)
+            .map_err(|_| G05Error::AuthorizationDenied)?;
+        let mut signed = POLICY_DOMAIN.to_vec();
+        signed.extend_from_slice(&snapshot.canonical_payload);
+        verifying_key
+            .verify(&signed, &signature)
+            .map_err(|_| G05Error::AuthorizationDenied)?;
+
+        Ok(Policy::new(
+            payload.version,
+            payload.allowed_capabilities,
+            payload.approval_required,
+            payload.maximum_risk,
+        ))
     }
 }
 
