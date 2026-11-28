@@ -237,13 +237,19 @@ where
         self.g02.authorize_g05(&request)?;
         self.g09.revalidate(&principal, &request, now)?;
         let sequence = NEXT_G09_EXECUTION_ID.fetch_add(1, Ordering::Relaxed);
+        let nonce_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_nanos())
+            .unwrap_or_default();
         let execution_id = crate::sha256_hex(
             format!(
-                "IROKA:G09:EXECUTION:V1:{}:{}:{}:{}:{}",
+                "IROKA:G09:EXECUTION:V1:{}:{}:{}:{}:{}:{}:{}",
                 request.correlation_ref,
                 principal.subject(),
                 principal.credential_id(),
                 now,
+                std::process::id(),
+                nonce_time,
                 sequence
             )
             .as_bytes(),
@@ -364,7 +370,8 @@ fn g09_execution_audit_event(
 ) -> AuditEvent {
     let resource = request.memory_id.as_deref().unwrap_or("tenant-scope");
     let binding = format!(
-        "subject={}\\ntenant={}\\ncapability={}\\nresource={}\\nmembership_version={}\\ncorrelation={}",
+        "execution_id={}\\nsubject={}\\ntenant={}\\ncapability={}\\nresource={}\\nmembership_version={}\\ncorrelation={}",
+        execution_id,
         principal.subject(),
         tenant.tenant_id(),
         capability_for(request.operation),
@@ -372,8 +379,18 @@ fn g09_execution_audit_event(
         tenant.membership_version(),
         request.correlation_ref
     );
+    let idempotency_key = crate::sha256_hex(
+        format!(
+            "IROKA:G09:IDEMPOTENCY:V1:{}:{}:{}",
+            tenant.tenant_id(),
+            principal.subject(),
+            request.correlation_ref
+        )
+        .as_bytes(),
+    );
+    let phase = if outcome == "authorized" { "intent" } else { "outcome" };
     AuditEvent {
-        event_id: format!("g09:execution:{execution_id}:{outcome}"),
+        event_id: format!("g09:execution:{idempotency_key}:{phase}"),
         event_type: format!("g09.execution.{outcome}"),
         memory_id: resource.to_owned(),
         tenant_ref: tenant.tenant_id().to_owned(),
