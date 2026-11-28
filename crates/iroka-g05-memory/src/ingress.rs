@@ -3,8 +3,8 @@
 //! are revalidated at ingress and again immediately before every external effect.
 //! No caller-supplied principal, authorization boolean, or timestamp is accepted.
 use crate::{
-    AuditEvent, AuthorizationRequest, G02AuthorizationAuthority, G05Error, G11MemoryAuditAuthority,
-    Operation,
+    AuditEvent, AuthorizationRequest, G02AuthorizationAuthority, G02PolicySnapshot, G05Error,
+    G11MemoryAuditAuthority, Operation,
 };
 use iroka_kernel::{
     evaluate, CredentialError, DecisionCode, Ed25519CredentialVerifier, Policy, RevocationChecker,
@@ -64,7 +64,7 @@ pub trait G09ExecutionRevalidator: Send + Sync {
         tenant: &TenantContext,
         request: &AuthorizationRequest,
         now: u64,
-        effect: impl FnOnce() -> Result<T, G05Error>,
+        effect: impl FnOnce(&G02PolicySnapshot) -> Result<T, G05Error>,
     ) -> Result<T, G05Error> {
         let _ = (principal, tenant, request, now, effect);
         Err(G05Error::AuthorityUnavailable)
@@ -312,7 +312,7 @@ where
         }
         self.g02.authorize_g05(&context.request)?;
         self.g09
-            .with_current_authority(&current, tenant, &context.request, now, || {
+            .with_current_authority(&current, tenant, &context.request, now, |snapshot| {
                 let intent = g09_execution_audit_event(
                     &context.execution_id,
                     "authorized",
@@ -324,7 +324,7 @@ where
                 );
                 g11.append_memory_event(&intent)
                     .map_err(|_| G05Error::AuditUnavailable)?;
-                let outcome = effect(snapshot);
+                let outcome = effect();
                 let outcome_name = if outcome.is_ok() {
                     "completed"
                 } else {
