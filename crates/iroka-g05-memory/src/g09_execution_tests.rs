@@ -664,6 +664,14 @@ fn revocation_racing_execution_waits_until_guarded_effect_and_receipts_finish() 
     assert_eq!(g11.events.lock().unwrap().len(), 2);
 }
 
+fn service_validation_policy() -> ValidationPolicy {
+    ValidationPolicy {
+        max_working_ttl_secs: 5_000,
+        max_episodic_ttl_secs: 5_000,
+        allowed_purposes: [Purpose::ProjectContext].into_iter().collect(),
+    }
+}
+
 fn service_record_and_event(correlation: &str) -> (MemoryRecord, AuditEvent) {
     let content = "guarded G05 test content".to_owned();
     let digest = sha256_hex(content.as_bytes());
@@ -725,6 +733,7 @@ fn mandatory_service_routes_sqlite_insert_metadata_and_content_reads() {
         f.service,
         repository,
         TestG11::default(),
+        service_validation_policy(),
         SqliteG05AuthorityRegistry::open_in_memory().unwrap(),
     );
     let (record, event) = service_record_and_event("correlation:service-insert");
@@ -784,6 +793,7 @@ fn mandatory_service_does_not_mutate_when_g11_intent_is_unavailable() {
         f.service,
         repository,
         g11,
+        service_validation_policy(),
         SqliteG05AuthorityRegistry::open_in_memory().unwrap(),
     );
     let (record, event) = service_record_and_event("correlation:service-audit-fail");
