@@ -365,3 +365,8 @@ Exact-head verification for `ab067f988c0b69944aa1eac5b289ec10e69bef63` is runnin
 G08 caller-time request visibility is now narrowed, but exact-head CI is pending. G08's earlier test failure is identified as subprocess launch/child exit failure; root OS cause remains undetermined. G05 exact-current-head execution remains unavailable and unverified. INGA is now based on the current BRAIN commit lineage but remains unverified.
 
 **P02 remains PARTIAL / NOT CLOSED. Python production implementation remains blocked.** No Python code, Python runtime dependency, model provider, or model artifact has been introduced. No PR has been merged and canonical `main` remains `6b7004c897907f5ca40de58fee7222732fd7cde0`.
+
+
+### 13.6 G08 exact-head verification completed
+
+Run #46168287956 completed SUCCESS on exact SHA `ab067f988c0b69944aa1eac5b289ec10e69bef63`. The job passed formatting, all-target compilation, the no-default-features production build check, complete workspace tests, and Clippy with warnings denied. The complete suite reported 111 kernel unit tests and 2 authorization conformance tests passed, with zero failures. The previously failing `replay_guard_subprocess_race_restart_and_revocation` test passed on this exact SHA. This validates the narrowed caller-time API boundary and resolves the immediate G08 exact-head verification gate; the original run's precise OS-level `Unavailable` cause remains unproven.
