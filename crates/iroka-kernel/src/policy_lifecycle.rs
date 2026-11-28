@@ -606,7 +606,11 @@ mod tests {
                 verified.payload.emergency_stop_active,
             )
             .unwrap();
-        let digest_hex = verified.digest.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        let digest_hex = verified
+            .digest
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
         let event_id = format!("g02-policy-activate:{}:{digest_hex}", verified.epoch());
         let event = AuditEvent::new(
             event_id.clone(),

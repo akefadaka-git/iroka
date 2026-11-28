@@ -766,9 +766,17 @@ mod tests {
 
     #[test]
     fn owner_key_revocation_racing_membership_command_is_serializable() {
-        use std::{fs, sync::Barrier, thread, time::{SystemTime, UNIX_EPOCH}};
+        use std::{
+            fs,
+            sync::Barrier,
+            thread,
+            time::{SystemTime, UNIX_EPOCH},
+        };
 
-        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let path = std::env::temp_dir().join(format!(
             "iroka-owner-race-{}-{nonce}.sqlite",
             std::process::id()
@@ -783,10 +791,8 @@ mod tests {
         };
         let store_a = Arc::new(SqliteSecurityStore::open(&path).unwrap());
         let store_b = Arc::new(SqliteSecurityStore::open(&path).unwrap());
-        let membership_verifier =
-            OwnerApprovalVerifier::new(vec![trusted()], store_a).unwrap();
-        let revocation_verifier =
-            OwnerApprovalVerifier::new(vec![trusted()], store_b).unwrap();
+        let membership_verifier = OwnerApprovalVerifier::new(vec![trusted()], store_a).unwrap();
+        let revocation_verifier = OwnerApprovalVerifier::new(vec![trusted()], store_b).unwrap();
 
         let membership_payload = OwnerSecurityCommandPayload {
             command_id: "command:membership-race".into(),
@@ -804,7 +810,10 @@ mod tests {
         };
         let membership = SignedOwnerSecurityCommand::from_signature(
             membership_payload.clone(),
-            signer.sign(&membership_payload.signing_bytes().unwrap()).to_bytes().to_vec(),
+            signer
+                .sign(&membership_payload.signing_bytes().unwrap())
+                .to_bytes()
+                .to_vec(),
         );
         let revoke_payload = OwnerSecurityCommandPayload {
             command_id: "command:owner-key-revoke-race".into(),
@@ -820,7 +829,10 @@ mod tests {
         };
         let revoke = SignedOwnerSecurityCommand::from_signature(
             revoke_payload.clone(),
-            signer.sign(&revoke_payload.signing_bytes().unwrap()).to_bytes().to_vec(),
+            signer
+                .sign(&revoke_payload.signing_bytes().unwrap())
+                .to_bytes()
+                .to_vec(),
         );
 
         let barrier = Arc::new(Barrier::new(3));
@@ -840,7 +852,9 @@ mod tests {
         assert_eq!(revoke_thread.join().unwrap(), Ok(()));
         let verifier = SqliteSecurityStore::open(&path).unwrap();
         assert_eq!(verifier.key_revoked(OWNER_ISSUER, "owner-key-01"), Ok(true));
-        let membership_state = verifier.tenant_membership("principal:alice", "tenant:alpha").unwrap();
+        let membership_state = verifier
+            .tenant_membership("principal:alice", "tenant:alpha")
+            .unwrap();
         match membership_result {
             Ok(()) => {
                 assert_eq!(membership_state, Some((true, 1, 1_200)));
