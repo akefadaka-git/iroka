@@ -244,3 +244,68 @@ No A3 Python source work is authorized by this document. After P02 closure and s
 ---
 
 **Operating rule:** Python computes within a task boundary. Rust governs the boundary. Domain owners govern their data. G09 alone executes protected effects. G11 verifies evidence.
+
+
+---
+
+## 12. Exact-current-head integration reconciliation — 2026-11-28
+
+This addendum supersedes any earlier candidate-head or workflow statements where the PR head has since moved. All checks below are read-only observations of the current open PR metadata, exact head references, file lists, and GitHub Actions metadata.
+
+### 12.1 G08 coordinator and orchestration
+
+- PR #63 is OPEN / DRAFT / UNMERGED; base `main` at stale SHA `1a6f30cc3e64b8551f8e725c4cad8fcc3fa2c472`; current head `583640619174cac76067ec68d9bba82d99c3b037`.
+- Exact-head runs on that SHA conflict: run #44898113614 reports SUCCESS; later run #44898118078 reports FAILURE in “Run complete unit and contract test suite”; formatting, all-target compilation and production-feature exclusion passed in the failing run. Clippy was skipped. The failure output has not yet been inspected, so its cause is UNKNOWN. No pass may be substituted for the later failing run.
+- Current source has a `TrustedClock` dependency and the final commits explicitly remove caller timestamps from cancellation and source coordinator mutation time from the trusted clock. However, legacy public request structs still visibly contain `now: u64` fields (including task claim, lease renewal and completion request shapes). A complete public-surface/reachability audit is still required to prove these types cannot bypass the authenticated APIs. This is an unresolved contract/API issue, not a claim that the final coordinator methods still trust those values.
+- G08 A2 contract PR #18 remains OPEN / DRAFT and is based on `143311a655be68acea2700650b7f88c9fb085526`, not current main. Workflow-graph PR #121 is also OPEN / DRAFT and based on `bbd971f35cf6b19be53921cfbb75c1a54912250c`. Neither is an integrated current-main contract baseline.
+- G08 PR #63's threat model itself states that SQLite cannot prevent privileged full-database rollback without an external monotonic anchor/witness; production time-source, issuer-side G01 registry, key custody and live revocation services remain unestablished.
+- **Disposition:** G08 is NOT accepted as a Python integration dependency. Resolve the exact-head test failure, audit/remove or make unreachable all legacy caller-time APIs, reconcile G08 contract/graph ancestry to current main, and establish the G01/G02/G11 production authority handoffs before any Python worker contract depends on it.
+
+### 12.2 G04 knowledge boundary
+
+- PR #32 current head: `4e0c954516b4a471e2f36760b665add0a98efe9f`; exact-head run #42609492232 is SUCCESS.
+- The crate `iroka-g04-contract` supplies bounded versioned retrieval request/evidence bundle types and response validation. It does not authenticate opaque request references or implement source registration, source lifecycle, permissions, persistent storage, indexing, crawling, or a retrieval provider.
+- The provider remains the G04 authority and must resolve G01/G02 references and enforce source permission, freshness, classification, provenance and revocation before retrieval/ranking. The adapter validates returned evidence; it cannot prove that a remote provider enforced its obligations.
+- G04 PR #32 is stacked on `feat/brain-a3-b02-authorization-composition` at `d5d519ee8b29e9cf8c618b3b357825e7740fe86a`; its base is not the current canonical main baseline. G04 contract PR #31 is a separate proposal based on the older BRAIN A1/A2 proposal branch.
+- **Disposition:** exact-head adapter CI is verified, but G04 is only a typed contract/client boundary. It is not a production knowledge dependency and must remain provider-gated.
+
+### 12.3 G05 memory boundary
+
+- PR #34 current head: `b27816c1c3b172c0a7503d6602cddeaa6008c6cb`; base is G04 PR #32 head `4e0c954516b4a471e2f36760b665add0a98efe9f`.
+- The current PR body still cites exact-head verification at the older `2b5cbbd2e74308286547890d993820a5beeca329`. Current-head check-runs query returned zero checks. Therefore the earlier 130-test pass and Clippy claim do not verify current head.
+- Current source separates G05-owned memory policy/lifecycle from G01 principal and reviewer-proof verification, G02 authorization and organization-scoped delegation, consent authority, and G11 audit delivery. The SQLite implementation and outbox are candidates; production provider integration, G11 event extension/receipt behavior, cross-store atomicity and multi-node persistence remain explicit limitations in the PR description.
+- **Disposition:** G05 current head is UNVERIFIED. Do not bind Python context or memory directly to this adapter. Require current-head full CI, dependency ancestry reconciliation, and explicit G01/G02/G11 contract acceptance first.
+
+### 12.4 BRAIN and INGA cognition boundary
+
+- BRAIN PR #27 current head: `5c551a7ab023b05adf98022903cdc0ea8640ae02`; exact-head run #46128473927 reports SUCCESS. Its PR body still cites older head `9d68b580e06bb8335a626524d64b345c3a5a38aa`; update the evidence record before treating the PR description as current.
+- BRAIN remains a deterministic synthetic G03 cognitive core with a fake adapter. It does not provide production model serving, a provider/model registry, durable context, or protected-effect authority.
+- INGA PR #44 current head: `e2ad1dc6a7916028dbcdfbd2d2ec948e0a554f4d`; no exact-head workflow run/check was found. The PR records 30 authored tests as NOT RUN and formatting, compilation and Clippy as NOT RUN / UNRESOLVED.
+- INGA is based on old BRAIN head `9d68b580e06bb8335a626524d64b345c3a5a38aa`, not current BRAIN head `5c551a7ab023b05adf98022903cdc0ea8640ae02`. The dependency chain is therefore stale even though the INGA PR remains open.
+- INGA's declared G05/G10/G12 ownership boundaries are appropriate: it proposes deterministic neurogenetic computation and learning/adaptation proposals, but no storage, training, weight mutation, self-modification or activation.
+- **Disposition:** BRAIN is a verified synthetic cognition candidate only. INGA is unverified and based on stale BRAIN ancestry. Neither constitutes a production model runtime or an approved Python intelligence implementation.
+
+### 12.5 Cross-domain integration contract determination
+
+The current candidate graph is not a single verified integration baseline:
+
+1. G08 PR #63 is based on an older main SHA and has conflicting exact-head CI results plus a remaining public-API audit.
+2. G04 PR #32 has a passing exact-head adapter run but is stacked on an older BRAIN/G02 branch and has no production provider.
+3. G05 PR #34 is stacked on G04 #32, but its current head has no attached check runs and its PR body cites an earlier tested SHA.
+4. BRAIN #27 has a passing current-head run but stale PR-body evidence and no model runtime.
+5. INGA #44 is based on an older BRAIN head and has no exact-head verification.
+
+No candidate in this chain grants Python permission to authenticate, authorize, retrieve unrestricted context, mutate memory, schedule durable work, approve outputs, or execute protected effects. Python remains an untrusted replaceable computation plane behind a versioned Rust-kernel contract.
+
+**P02 remains PARTIAL / NOT CLOSED.** No Python production source, package manifest, runtime dependency, model provider, model artifact, training pipeline or Python/Rust IPC implementation was introduced by this reconciliation. No PR was merged and no deployment or production activation occurred.
+
+### 12.6 Remaining P02 closure work
+
+- Inspect the failing G08 exact-head test output and rerun after a narrowly scoped correction; do not treat the earlier same-SHA success as sufficient.
+- Audit every exported G08 public mutation/request type and prove no caller-supplied time can reach a coordinator mutation.
+- Reconcile G08 A2 contract and graph ancestry against current main and settle trusted-time/anti-rollback/G01/G02/G11 handoffs.
+- Re-run the complete G05 suite and Clippy on exact head `b27816c1c3b172c0a7503d6602cddeaa6008c6cb`; refresh its PR evidence record.
+- Reconcile G04/G05 stacked ancestry and provider contracts to a common current baseline without merging.
+- Rebase/reconcile INGA's declared BRAIN dependency and run format, compile, complete tests and Clippy on the resulting exact SHA.
+- Refresh BRAIN PR #27's evidence record to current head `5c551a7ab023b05adf98022903cdc0ea8640ae02`.
+- Keep Python implementation blocked until P02 exit criteria are met and a separate A3 scope is explicitly authorized.
